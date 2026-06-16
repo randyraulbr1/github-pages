@@ -117,7 +117,7 @@ if barstate.islast
     ch = color.new(color.navy,  15)
 
     table.cell(t,0,0,"BLUE GUARDIAN",    text_color=color.white, bgcolor=ch, text_size=size.small)
-    table.cell(t,1,0,"$200k XAUUSD",     text_color=color.gold,  bgcolor=ch, text_size=size.small)
+    table.cell(t,1,0,"$200k XAUUSD",     text_color=color.yellow, bgcolor=ch, text_size=size.small)
 
     table.cell(t,0,1,"Daily P&L",        text_color=color.white, text_size=size.tiny)
     table.cell(t,1,1,str.tostring(math.round(daily_pnl))+" USD",
