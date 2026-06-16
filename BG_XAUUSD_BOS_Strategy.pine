@@ -124,7 +124,7 @@ if bos_s and s_risk_f > 3
     drawSetup(close, s_sl, s_tp, -1)
 
 // ── EMA TENDENCIA ─────────────────────────────────────────────────────
-plot(ema50, "EMA " + str.tostring(i_ema), color=color.new(color.yellow, 20), linewidth=2)
+plot(ema50, "EMA Tendencia", color=color.new(color.yellow, 20), linewidth=2)
 
 // ── PIVOTS ────────────────────────────────────────────────────────────
 plot(ph_ok ? last_ph : na, "Resistencia", color.new(color.red,   30), 1, plot.style_linebr)
