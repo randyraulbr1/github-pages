@@ -1,35 +1,36 @@
 //@version=5
-strategy("BG $200k XAUUSD - BOS Strategy", "BG-BOS", overlay=true,
-     initial_capital=200000, default_qty_type=strategy.fixed, default_qty_value=50,
-     commission_type=strategy.commission.cash_per_contract, commission_value=0.5,
-     currency=currency.USD, process_orders_on_close=true, max_bars_back=500)
+indicator("BG XAUUSD - Señales BOS + SL/TP", "BG-BOS", overlay=true, max_bars_back=500, max_lines_count=100, max_labels_count=100)
 
 // ── INPUTS ──────────────────────────────────────────────────────────
-i_pivot   = input.int(3,    "Pivot Length",      minval=2, maxval=8)
-i_atr     = input.float(1.2,"ATR Mult SL",       minval=0.5, step=0.1)
-i_rr      = input.float(2.5,"Risk:Reward",       minval=1.5, step=0.5)
-i_maxrisk = input.float(35, "Max riesgo/oz (USD)",minval=10,  step=5)
-i_london  = input.bool(true, "Sesion Londres 07-12 UTC")
-i_ny      = input.bool(true, "Sesion NY 13-18 UTC")
-i_rsi_tf  = input.timeframe("240","RSI Timeframe HTF")
-i_rsi_p   = input.int(14,  "RSI Period")
+i_pivot   = input.int(3,    "Pivot Length",        minval=2, maxval=6,  group="Estructura")
+i_atr     = input.float(1.2,"ATR Mult SL",         minval=0.5, step=0.1, group="Estructura")
+i_rr      = input.float(2.5,"Risk:Reward mínimo",  minval=1.5, step=0.5, group="Estructura")
+i_maxrisk = input.float(40, "Max riesgo por oz $", minval=10,  step=5,   group="Estructura")
+i_ema     = input.int(50,   "EMA Tendencia",       minval=10, maxval=200,group="Estructura")
 
-// ── SESION ───────────────────────────────────────────────────────────
-london    = i_london and (hour >= 7  and hour < 12)
-ny        = i_ny     and (hour >= 13 and hour < 18)
-in_sess   = london or ny
+i_london  = input.bool(true, "Sesión Londres 07-12 UTC", group="Sesiones")
+i_ny      = input.bool(true, "Sesión NY 13-18 UTC",      group="Sesiones")
 
-// ── NOTICIAS (NFP / CPI / FOMC) ──────────────────────────────────────
-nd(m,d) => month == m and dayofmonth == d
-news = nd(1,10) or nd(1,15) or nd(1,29) or nd(2,7)  or nd(2,12) or nd(2,26) or
-       nd(3,7)  or nd(3,12) or nd(3,19) or nd(4,4)  or nd(4,10) or nd(4,30) or
-       nd(5,2)  or nd(5,7)  or nd(5,13) or nd(6,6)  or nd(6,18)
+i_rsi_tf  = input.timeframe("240","RSI Timeframe HTF",    group="Filtros")
+i_rsi_p   = input.int(14,  "RSI Period",                  group="Filtros")
+
+// ── SESIÓN ───────────────────────────────────────────────────────────
+london   = i_london and hour >= 7  and hour < 12
+ny       = i_ny     and hour >= 13 and hour < 18
+in_sess  = london or ny
+
+nd(m, d) => month == m and dayofmonth == d
+news = nd(1,10) or nd(1,15) or nd(1,29) or nd(2,7)  or nd(2,12) or
+       nd(3,7)  or nd(3,12) or nd(3,19) or nd(4,4)  or nd(4,10) or
+       nd(4,30) or nd(5,2)  or nd(5,7)  or nd(5,13) or nd(6,6)  or nd(6,18)
 
 // ── INDICADORES ───────────────────────────────────────────────────────
+ema50    = ta.ema(close, i_ema)
 rsi_htf  = request.security(syminfo.tickerid, i_rsi_tf, ta.rsi(close, i_rsi_p), lookahead=barmerge.lookahead_off)
 atr_v    = ta.atr(14)
-ph       = ta.pivothigh(high, i_pivot, i_pivot)
-pl       = ta.pivotlow (low,  i_pivot, i_pivot)
+
+ph = ta.pivothigh(high, i_pivot, i_pivot)
+pl = ta.pivotlow (low,  i_pivot, i_pivot)
 
 var float last_ph = na
 var float last_pl = na
@@ -46,69 +47,101 @@ if not na(pl)
 ph_ok = not na(last_ph) and bar_index - ph_bar <= 96
 pl_ok = not na(last_pl) and bar_index - pl_bar <= 96
 
-// ── BLUE GUARDIAN TRACKING ────────────────────────────────────────────
-var float day_eq0  = strategy.equity
-var float eq_peak  = strategy.equity
-var int   day_tr   = 0
+// ── BLUE GUARDIAN DIARIO ─────────────────────────────────────────────
+// (en indicador solo es visual — no ejecuta trades)
+var int day_signals = 0
 new_day = ta.change(dayofmonth) != 0
-
 if new_day
-    day_eq0 := strategy.equity
-    day_tr  := 0
+    day_signals := 0
 
-eq_peak    := math.max(eq_peak, strategy.equity)
-daily_pnl   = strategy.equity - day_eq0
-trail_dd    = eq_peak - strategy.equity
-guardian_ok = daily_pnl > -2000
-trail_ok    = trail_dd  < 12000
-daily_ok    = daily_pnl > -6000
-bg_ok       = guardian_ok and trail_ok and daily_ok and day_tr < 2
+// ── SEÑALES BOS CON FILTROS ───────────────────────────────────────────
+// Filtro extra: precio debe estar del lado correcto de la EMA
+trend_up   = close > ema50
+trend_down = close < ema50
 
-// ── SEÑALES BOS ───────────────────────────────────────────────────────
-no_pos = strategy.position_size == 0
-allow  = in_sess and not news and bg_ok and no_pos
+allow = in_sess and not news and day_signals < 2
 
-bos_l = allow and ph_ok and pl_ok and close > last_ph and rsi_htf > 50
-bos_s = allow and ph_ok and pl_ok and close < last_pl and rsi_htf < 50
+// BOS LONG: rompe pivot high + RSI alcista + precio sobre EMA
+bos_l = allow and ph_ok and pl_ok and close > last_ph and rsi_htf > 50 and trend_up
 
-// ── SL / TP ───────────────────────────────────────────────────────────
-l_sl_r = last_pl - atr_v * i_atr
-l_risk = close - l_sl_r
-l_sl   = l_risk > i_maxrisk ? close - i_maxrisk : l_sl_r
-l_tp   = close + (close - l_sl) * i_rr
+// BOS SHORT: rompe pivot low + RSI bajista + precio bajo EMA
+bos_s = allow and ph_ok and pl_ok and close < last_pl and rsi_htf < 50 and trend_down
 
-s_sl_r = last_ph + atr_v * i_atr
-s_risk = s_sl_r - close
-s_sl   = s_risk > i_maxrisk ? close + i_maxrisk : s_sl_r
-s_tp   = close - (s_sl - close) * i_rr
+if bos_l or bos_s
+    day_signals += 1
 
-// ── ENTRADAS ──────────────────────────────────────────────────────────
-if bos_l and (close - l_sl) > 3
-    strategy.entry("L", strategy.long,  50, comment="BOS+")
-    strategy.exit ("XL","L", stop=l_sl, limit=l_tp)
-    day_tr += 1
+// ── CALCULAR SL / TP ─────────────────────────────────────────────────
+// LONG
+l_sl_raw = last_pl - atr_v * i_atr
+l_risk   = close - l_sl_raw
+l_sl     = l_risk > i_maxrisk ? close - i_maxrisk : l_sl_raw
+l_risk_f = close - l_sl
+l_tp     = close + l_risk_f * i_rr
+l_rr_act = l_risk_f > 0 ? (l_tp - close) / l_risk_f : 0
 
-if bos_s and (s_sl - close) > 3
-    strategy.entry("S", strategy.short, 50, comment="BOS-")
-    strategy.exit ("XS","S", stop=s_sl, limit=s_tp)
-    day_tr += 1
+// SHORT
+s_sl_raw = last_ph + atr_v * i_atr
+s_risk   = s_sl_raw - close
+s_sl     = s_risk > i_maxrisk ? close + i_maxrisk : s_sl_raw
+s_risk_f = s_sl - close
+s_tp     = close - s_risk_f * i_rr
+s_rr_act = s_risk_f > 0 ? (close - s_tp) / s_risk_f : 0
 
-// ── VISUALIZACION ─────────────────────────────────────────────────────
-plot(ph_ok ? last_ph : na, "PH", color.new(color.red,   40), 1, plot.style_linebr)
-plot(pl_ok ? last_pl : na, "PL", color.new(color.green, 40), 1, plot.style_linebr)
+// ── DIBUJAR LÍNEAS SL / TP EN SEÑAL ──────────────────────────────────
+// Se dibujan líneas horizontales que duran 40 barras hacia adelante
 
-plotshape(not na(ph), style=shape.triangledown, location=location.abovebar, color=color.red,   size=size.tiny)
-plotshape(not na(pl), style=shape.triangleup,   location=location.belowbar, color=color.green, size=size.tiny)
-plotshape(bos_l, style=shape.labelup,   location=location.belowbar, color=color.lime, textcolor=color.black, text="BOS+", size=size.small)
-plotshape(bos_s, style=shape.labeldown, location=location.abovebar, color=color.red,  textcolor=color.white, text="BOS-", size=size.small)
+drawSetup(entry, sl, tp, dir) =>
+    clr_tp = color.new(color.green, 0)
+    clr_sl = color.new(color.red,   0)
+    clr_en = dir == 1 ? color.new(color.lime, 0) : color.new(color.orange, 0)
+    ext    = bar_index + 40
 
+    line.new(bar_index, tp,    ext, tp,    color=clr_tp, width=2, style=line.style_dashed)
+    line.new(bar_index, entry, ext, entry, color=clr_en, width=2, style=line.style_solid)
+    line.new(bar_index, sl,    ext, sl,    color=clr_sl, width=2, style=line.style_dashed)
+
+    rr_val  = math.abs(tp - entry) / math.abs(entry - sl)
+    risk_usd = math.abs(entry - sl) * 50
+    lbl_txt = (dir == 1 ? "LONG BOS\n" : "SHORT BOS\n") +
+              "Entrada: " + str.tostring(entry, "#.##") + "\n" +
+              "TP:      " + str.tostring(tp,    "#.##") + "\n" +
+              "SL:      " + str.tostring(sl,    "#.##") + "\n" +
+              "R:R      " + str.tostring(rr_val,"#.#") + ":1\n" +
+              "Riesgo $ " + str.tostring(risk_usd, "#")
+
+    lbl_loc = dir == 1 ? label.style_label_up : label.style_label_down
+    lbl_y   = dir == 1 ? sl - atr_v : sl + atr_v
+    label.new(bar_index, lbl_y, lbl_txt,
+              color     = dir == 1 ? color.new(color.lime, 10) : color.new(color.red, 10),
+              textcolor = color.black,
+              style     = lbl_loc,
+              size      = size.normal)
+
+if bos_l and l_risk_f > 3
+    drawSetup(close, l_sl, l_tp, 1)
+
+if bos_s and s_risk_f > 3
+    drawSetup(close, s_sl, s_tp, -1)
+
+// ── EMA TENDENCIA ─────────────────────────────────────────────────────
+plot(ema50, "EMA " + str.tostring(i_ema), color=color.new(color.yellow, 20), linewidth=2)
+
+// ── PIVOTS ────────────────────────────────────────────────────────────
+plot(ph_ok ? last_ph : na, "Resistencia", color.new(color.red,   30), 1, plot.style_linebr)
+plot(pl_ok ? last_pl : na, "Soporte",     color.new(color.green, 30), 1, plot.style_linebr)
+
+plotshape(not na(ph), style=shape.triangledown, location=location.abovebar, color=color.red,   size=size.tiny, title="PH")
+plotshape(not na(pl), style=shape.triangleup,   location=location.belowbar, color=color.green, size=size.tiny, title="PL")
+
+// ── FONDO DE SESIONES ─────────────────────────────────────────────────
 bgcolor(london ? color.new(color.blue,   93) : na, title="Londres")
 bgcolor(ny     ? color.new(color.orange, 93) : na, title="NY")
-bgcolor(news   ? color.new(color.red,    85) : na, title="Noticias")
+bgcolor(news   ? color.new(color.red,    85) : na, title="Noticia - No operar")
 
-// ── TABLA BG ──────────────────────────────────────────────────────────
-var table t = table.new(position.top_right, 2, 6,
-     bgcolor=color.new(color.black,55), border_color=color.new(color.gray,50), border_width=1)
+// ── TABLA DE ESTADO ───────────────────────────────────────────────────
+var table t = table.new(position.top_right, 2, 8,
+     bgcolor=color.new(color.black, 55),
+     border_color=color.new(color.gray, 50), border_width=1)
 
 if barstate.islast
     cg = color.new(color.green, 20)
@@ -116,22 +149,34 @@ if barstate.islast
     cn = color.new(color.gray,  35)
     ch = color.new(color.navy,  15)
 
-    table.cell(t,0,0,"BLUE GUARDIAN",    text_color=color.white, bgcolor=ch, text_size=size.small)
-    table.cell(t,1,0,"$200k XAUUSD",     text_color=color.yellow, bgcolor=ch, text_size=size.small)
+    table.cell(t,0,0,"BLUE GUARDIAN",      text_color=color.white,  bgcolor=ch, text_size=size.small)
+    table.cell(t,1,0,"XAUUSD Señales",     text_color=color.yellow, bgcolor=ch, text_size=size.small)
 
-    table.cell(t,0,1,"Daily P&L",        text_color=color.white, text_size=size.tiny)
-    table.cell(t,1,1,str.tostring(math.round(daily_pnl))+" USD",
-         bgcolor=daily_pnl>=0?cg:not daily_ok?cr:cn, text_color=color.white, text_size=size.tiny)
+    table.cell(t,0,1,"Sesión",             text_color=color.white, text_size=size.tiny)
+    table.cell(t,1,1, in_sess ? (london ? "Londres" : "NY") : "Cerrada",
+         bgcolor=in_sess ? cg : cn, text_color=color.white, text_size=size.tiny)
 
-    table.cell(t,0,2,"Trail DD",         text_color=color.white, text_size=size.tiny)
-    table.cell(t,1,2,str.tostring(math.round(trail_dd))+" / 12000",
-         bgcolor=trail_ok?cg:cr, text_color=color.white, text_size=size.tiny)
+    table.cell(t,0,2,"Noticias",           text_color=color.white, text_size=size.tiny)
+    table.cell(t,1,2, news ? "HOY - No operar" : "Sin noticias",
+         bgcolor=news ? cr : cg, text_color=color.white, text_size=size.tiny)
 
-    table.cell(t,0,3,"Guardian",         text_color=color.white, text_size=size.tiny)
-    table.cell(t,1,3,guardian_ok?"OK":"ACTIVO", bgcolor=guardian_ok?cg:cr, text_color=color.white, text_size=size.tiny)
+    table.cell(t,0,3,"RSI H4",             text_color=color.white, text_size=size.tiny)
+    table.cell(t,1,3, str.tostring(math.round(rsi_htf, 1)) + (rsi_htf > 50 ? " Alcista" : " Bajista"),
+         bgcolor=rsi_htf > 50 ? cg : cr, text_color=color.white, text_size=size.tiny)
 
-    table.cell(t,0,4,"Trades Hoy",       text_color=color.white, text_size=size.tiny)
-    table.cell(t,1,4,str.tostring(day_tr)+" / 2", bgcolor=day_tr<2?cg:cr, text_color=color.white, text_size=size.tiny)
+    table.cell(t,0,4,"Tendencia EMA",      text_color=color.white, text_size=size.tiny)
+    table.cell(t,1,4, close > ema50 ? "ALCISTA" : "BAJISTA",
+         bgcolor=close > ema50 ? cg : cr, text_color=color.white, text_size=size.tiny)
 
-    table.cell(t,0,5,"Sesion",           text_color=color.white, text_size=size.tiny)
-    table.cell(t,1,5,in_sess?(london?"Londres":"NY"):"Cerrada", bgcolor=in_sess?cg:cn, text_color=color.white, text_size=size.tiny)
+    table.cell(t,0,5,"Señales Hoy",        text_color=color.white, text_size=size.tiny)
+    table.cell(t,1,5, str.tostring(day_signals) + " / 2",
+         bgcolor=day_signals < 2 ? cg : cr, text_color=color.white, text_size=size.tiny)
+
+    table.cell(t,0,6,"Próxima Entrada",    text_color=color.white, text_size=size.tiny)
+    table.cell(t,1,6, in_sess and not news and day_signals < 2 ? "BUSCANDO..." : "ESPERAR",
+         bgcolor=in_sess and not news and day_signals < 2 ? cg : cn,
+         text_color=color.white, text_size=size.tiny)
+
+    table.cell(t,0,7,"ATR actual",         text_color=color.white, text_size=size.tiny)
+    table.cell(t,1,7, str.tostring(math.round(atr_v, 2)) + " USD/oz",
+         bgcolor=cn, text_color=color.white, text_size=size.tiny)
