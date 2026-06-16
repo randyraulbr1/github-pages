@@ -1,0 +1,110 @@
+//@version=5
+strategy("BG XAUUSD BOS Strategy", overlay=true, initial_capital=200000,
+     default_qty_type=strategy.fixed, default_qty_value=50,
+     commission_type=strategy.commission.cash_per_contract, commission_value=0.5,
+     currency=currency.USD, process_orders_on_close=true, max_bars_back=500)
+
+// INPUTS
+p_len  = input.int(3,    "Pivot Length",      minval=2, maxval=6)
+p_atr  = input.float(1.2,"ATR Mult SL",       minval=0.5, step=0.1)
+p_rr   = input.float(2.5,"Risk Reward",       minval=1.5, step=0.5)
+p_risk = input.float(40, "Max riesgo por oz", minval=10,  step=5)
+p_ema  = input.int(50,   "EMA Tendencia",     minval=10,  maxval=200)
+p_lon  = input.bool(true,"Londres 07-12 UTC")
+p_ny   = input.bool(true,"NY 13-18 UTC")
+
+// SESION
+lon    = p_lon and hour >= 7  and hour < 12
+ny     = p_ny  and hour >= 13 and hour < 18
+sesion = lon or ny
+
+// NOTICIAS
+news = (month==1  and dayofmonth==10) or (month==1  and dayofmonth==15) or
+       (month==1  and dayofmonth==29) or (month==2  and dayofmonth==7)  or
+       (month==2  and dayofmonth==12) or (month==3  and dayofmonth==7)  or
+       (month==3  and dayofmonth==12) or (month==3  and dayofmonth==19) or
+       (month==4  and dayofmonth==4)  or (month==4  and dayofmonth==10) or
+       (month==4  and dayofmonth==30) or (month==5  and dayofmonth==2)  or
+       (month==5  and dayofmonth==7)  or (month==5  and dayofmonth==13) or
+       (month==6  and dayofmonth==6)  or (month==6  and dayofmonth==18)
+
+// INDICADORES
+ema50  = ta.ema(close, p_ema)
+atr_v  = ta.atr(14)
+rsi4h  = request.security(syminfo.tickerid, "240", ta.rsi(close, 14), lookahead=barmerge.lookahead_off)
+
+ph = ta.pivothigh(high, p_len, p_len)
+pl = ta.pivotlow (low,  p_len, p_len)
+
+var float lph = na
+var float lpl = na
+var int   bph = 0
+var int   bpl = 0
+
+if not na(ph)
+    lph := ph
+    bph := bar_index - p_len
+
+if not na(pl)
+    lpl := pl
+    bpl := bar_index - p_len
+
+ph_ok = not na(lph) and bar_index - bph <= 96
+pl_ok = not na(lpl) and bar_index - bpl <= 96
+
+// MAX 2 TRADES POR DIA
+var int dt = 0
+if ta.change(dayofmonth) != 0
+    dt := 0
+
+// BLUE GUARDIAN
+var float eq0    = strategy.equity
+var float eqpeak = strategy.equity
+if ta.change(dayofmonth) != 0
+    eq0 := strategy.equity
+eqpeak  := math.max(eqpeak, strategy.equity)
+dpnl     = strategy.equity - eq0
+trail_dd = eqpeak - strategy.equity
+bg_ok    = dpnl > -6000 and trail_dd < 12000 and dpnl > -2000 and dt < 2
+
+// SENALES
+allow  = sesion and not news and bg_ok and strategy.position_size == 0
+bos_l  = allow and ph_ok and pl_ok and close > lph and rsi4h > 50 and close > ema50
+bos_s  = allow and ph_ok and pl_ok and close < lpl and rsi4h < 50 and close < ema50
+
+// SL TP LONG
+l_sl_r = lpl - atr_v * p_atr
+l_risk = close - l_sl_r
+l_sl   = l_risk > p_risk ? close - p_risk : l_sl_r
+l_tp   = close + (close - l_sl) * p_rr
+
+// SL TP SHORT
+s_sl_r = lph + atr_v * p_atr
+s_risk = s_sl_r - close
+s_sl   = s_risk > p_risk ? close + p_risk : s_sl_r
+s_tp   = close - (s_sl - close) * p_rr
+
+// ENTRADAS
+if bos_l and (close - l_sl) > 3
+    strategy.entry("L", strategy.long,  50)
+    strategy.exit("XL", "L", stop=l_sl, limit=l_tp)
+    dt += 1
+
+if bos_s and (s_sl - close) > 3
+    strategy.entry("S", strategy.short, 50)
+    strategy.exit("XS", "S", stop=s_sl, limit=s_tp)
+    dt += 1
+
+// VISUALIZACION
+plot(ema50, "EMA", color.new(color.yellow, 20), 2)
+plot(ph_ok ? lph : na, "Resistencia", color.new(color.red,   40), 1, plot.style_linebr)
+plot(pl_ok ? lpl : na, "Soporte",     color.new(color.green, 40), 1, plot.style_linebr)
+
+plotshape(not na(ph), style=shape.triangledown, location=location.abovebar, color=color.red,   size=size.tiny)
+plotshape(not na(pl), style=shape.triangleup,   location=location.belowbar, color=color.green, size=size.tiny)
+plotshape(bos_l, style=shape.labelup,   location=location.belowbar, color=color.lime, textcolor=color.black, text="BOS+", size=size.small)
+plotshape(bos_s, style=shape.labeldown, location=location.abovebar, color=color.red,  textcolor=color.white, text="BOS-", size=size.small)
+
+bgcolor(lon  ? color.new(color.blue,   93) : na)
+bgcolor(ny   ? color.new(color.orange, 93) : na)
+bgcolor(news ? color.new(color.red,    85) : na)
