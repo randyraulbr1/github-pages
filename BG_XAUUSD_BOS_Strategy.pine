@@ -1,81 +1,73 @@
 //@version=5
 strategy(
-     title       = "BG $200k XAUUSD — BOS/CHoCH Strategy",
-     shorttitle  = "BG-BOS",
-     overlay     = true,
-     initial_capital     = 200000,
-     default_qty_type    = strategy.fixed,
-     default_qty_value   = 50,          // 50 oz por trade
-     commission_type     = strategy.commission.cash_per_contract,
-     commission_value    = 0.50,
-     currency            = currency.USD,
-     max_bars_back       = 500
-)
+     title              = "BG $200k XAUUSD - BOS/CHoCH Strategy",
+     shorttitle         = "BG-BOS",
+     overlay            = true,
+     initial_capital    = 200000,
+     default_qty_type   = strategy.fixed,
+     default_qty_value  = 50,
+     commission_type    = strategy.commission.cash_per_contract,
+     commission_value   = 0.50,
+     currency           = currency.USD,
+     max_bars_back      = 500)
 
 // ═══════════════════════════════════════════════════════════
 //  INPUTS
 // ═══════════════════════════════════════════════════════════
 grp1 = "Estructura de Mercado"
-pivot_len   = input.int(6,    "Pivot Length",        minval=2, maxval=10,  group=grp1)
-atr_mult    = input.float(2.0,"ATR Multiplier (SL)", minval=0.5, step=0.1, group=grp1)
-min_rr      = input.float(4.0,"Risk:Reward mínimo",  minval=1.5, step=0.5, group=grp1)
+pivot_len    = input.int(6,     "Pivot Length",         minval=2, maxval=10, group=grp1)
+atr_mult     = input.float(2.0, "ATR Multiplier (SL)",  minval=0.5, step=0.1, group=grp1)
+min_rr       = input.float(4.0, "Risk:Reward minimo",   minval=1.5, step=0.5, group=grp1)
 
 grp2 = "Blue Guardian Rules"
-daily_loss_lim = input.float(6000, "Daily Loss Limit ($)",    group=grp2)
-guard_shield   = input.float(2000, "Guardian Shield ($)",     group=grp2)
-trail_dd_lim   = input.float(12000,"Trail Max Drawdown ($)",  group=grp2)
-max_risk_oz    = input.float(40,   "Max riesgo por oz ($)",   group=grp2)
+daily_loss_lim = input.float(6000,  "Daily Loss Limit ($)",   group=grp2)
+guard_shield   = input.float(2000,  "Guardian Shield ($)",    group=grp2)
+trail_dd_lim   = input.float(12000, "Trail Max Drawdown ($)", group=grp2)
+max_risk_oz    = input.float(40,    "Max riesgo por oz ($)",  group=grp2)
 
-grp3 = "Sesiones"
-london_on  = input.bool(true, "Sesión Londres (07-12 UTC)", group=grp3)
-ny_on      = input.bool(true, "Sesión NY (13-18 UTC)",      group=grp3)
+grp3 = "Sesiones (UTC)"
+london_on = input.bool(true, "Londres 07-12 UTC", group=grp3)
+ny_on     = input.bool(true, "NY 13-18 UTC",      group=grp3)
 
 grp4 = "Filtro HTF"
-htf        = input.timeframe("240", "Timeframe RSI HTF", group=grp4)
+htf_tf     = input.timeframe("240", "Timeframe RSI HTF", group=grp4)
 rsi_period = input.int(14, "RSI Period", group=grp4)
 
 // ═══════════════════════════════════════════════════════════
-//  SESIÓN & NOTICIAS
+//  SESION & NOTICIAS
 // ═══════════════════════════════════════════════════════════
-in_london = (hour >= 7  and hour < 12)
-in_ny     = (hour >= 13 and hour < 18)
+in_london  = hour >= 7  and hour < 12
+in_ny      = hour >= 13 and hour < 18
 in_session = (london_on and in_london) or (ny_on and in_ny)
 
-// Días de noticias de alto impacto — agrega/quita fechas según calendario
-// Formato: año * 10000 + mes * 100 + día
-news_day(y, m, d) => year == y and month == m and dayofmonth == d
-is_news_day =
-     news_day(2024,1,5)  or news_day(2024,1,11) or news_day(2024,2,2)  or
-     news_day(2024,3,20) or news_day(2024,4,10) or news_day(2024,5,1)  or
-     news_day(2024,6,12) or news_day(2024,7,31) or news_day(2024,9,18) or
-     news_day(2024,11,7) or news_day(2024,12,18)or
-     news_day(2025,1,29) or news_day(2025,3,19) or news_day(2025,4,30) or
-     news_day(2025,5,7)  or news_day(2025,6,6)
+// Noticias NFP/CPI/FOMC — cada fecha en su propia linea (evita error de sintaxis)
+nd(y, m, d) => year == y and month == m and dayofmonth == d
 
-trade_allowed = in_session and not is_news_day and dayofweek != dayofweek.saturday and dayofweek != dayofweek.sunday
+is_news_day = nd(2024,1,5)   or nd(2024,1,11)  or nd(2024,2,2)   or nd(2024,3,20) or
+              nd(2024,4,10)  or nd(2024,5,1)   or nd(2024,6,12)  or nd(2024,7,31) or
+              nd(2024,9,18)  or nd(2024,11,7)  or nd(2024,12,18) or nd(2025,1,29) or
+              nd(2025,3,19)  or nd(2025,4,30)  or nd(2025,5,7)   or nd(2025,6,6)
+
+is_weekend    = dayofweek == dayofweek.saturday or dayofweek == dayofweek.sunday
+trade_allowed = in_session and not is_news_day and not is_weekend
 
 // ═══════════════════════════════════════════════════════════
 //  INDICADORES
 // ═══════════════════════════════════════════════════════════
-// RSI en H4 (HTF)
-rsi_htf = request.security(syminfo.tickerid, htf, ta.rsi(close, rsi_period), lookahead=barmerge.lookahead_off)
+rsi_htf = request.security(syminfo.tickerid, htf_tf, ta.rsi(close, rsi_period), lookahead=barmerge.lookahead_off)
+atr_val  = ta.atr(14)
 
-// ATR en 1H actual
-atr_val = ta.atr(14)
-
-// Pivots
 ph = ta.pivothigh(high, pivot_len, pivot_len)
-pl = ta.pivotlow(low,  pivot_len, pivot_len)
+pl = ta.pivotlow(low,   pivot_len, pivot_len)
 
-// Guardar último pivot high/low confirmado
-var float last_ph = na
-var float last_pl = na
-var int   last_ph_bar = na
-var int   last_pl_bar = na
+var float last_ph     = na
+var float last_pl     = na
+var int   last_ph_bar = 0
+var int   last_pl_bar = 0
 
 if not na(ph)
     last_ph     := ph
-    last_ph_bar := bar_index - pivot_len   // el pivot ocurrió pivot_len barras atrás
+    last_ph_bar := bar_index - pivot_len
 
 if not na(pl)
     last_pl     := pl
@@ -85,142 +77,115 @@ ph_recent = not na(last_ph) and (bar_index - last_ph_bar) <= 48
 pl_recent = not na(last_pl) and (bar_index - last_pl_bar) <= 48
 
 // ═══════════════════════════════════════════════════════════
-//  COOLDOWN — máx 2 trades por día
+//  MAX 2 TRADES POR DIA
 // ═══════════════════════════════════════════════════════════
 var int trades_today = 0
-var int last_trade_day = na
-
 new_day = ta.change(dayofmonth) != 0
+
 if new_day
     trades_today := 0
 
 can_trade = trades_today < 2
 
 // ═══════════════════════════════════════════════════════════
-//  SEÑALES BOS
+//  SEÑALES BOS / CHoCH
 // ═══════════════════════════════════════════════════════════
-bos_long  = ph_recent and pl_recent and
-             close > last_ph * 1.0003 and
-             rsi_htf > 50 and
-             trade_allowed and can_trade and
-             strategy.position_size == 0
+no_position = strategy.position_size == 0
 
-bos_short = ph_recent and pl_recent and
-             close < last_pl * 0.9997 and
-             rsi_htf < 50 and
-             trade_allowed and can_trade and
-             strategy.position_size == 0
+bos_long  = ph_recent and pl_recent and close > last_ph * 1.0003 and rsi_htf > 50 and trade_allowed and can_trade and no_position
+bos_short = ph_recent and pl_recent and close < last_pl * 0.9997 and rsi_htf < 50 and trade_allowed and can_trade and no_position
 
 // ═══════════════════════════════════════════════════════════
-//  CÁLCULO SL / TP
+//  SL / TP
 // ═══════════════════════════════════════════════════════════
 // LONG
-long_sl_raw = last_pl - atr_val * atr_mult
-long_risk   = close - long_sl_raw
-long_sl     = long_risk > max_risk_oz ? close - max_risk_oz : long_sl_raw
-long_risk_f = close - long_sl
-long_tp     = close + long_risk_f * min_rr
+long_sl_raw  = last_pl - atr_val * atr_mult
+long_risk_r  = close - long_sl_raw
+long_sl      = long_risk_r > max_risk_oz ? close - max_risk_oz : long_sl_raw
+long_risk_f  = close - long_sl
+long_tp      = close + long_risk_f * min_rr
 
 // SHORT
 short_sl_raw = last_ph + atr_val * atr_mult
-short_risk   = short_sl_raw - close
-short_sl     = short_risk > max_risk_oz ? close + max_risk_oz : short_sl_raw
+short_risk_r = short_sl_raw - close
+short_sl     = short_risk_r > max_risk_oz ? close + max_risk_oz : short_sl_raw
 short_risk_f = short_sl - close
 short_tp     = close - short_risk_f * min_rr
 
 // ═══════════════════════════════════════════════════════════
-//  BLUE GUARDIAN — DRAWDOWN DIARIO
-//  TradingView no tiene acceso directo al P&L diario real,
-//  pero podemos aproximarlo con variables persistentes
+//  BLUE GUARDIAN — EQUITY TRACKING
 // ═══════════════════════════════════════════════════════════
-var float day_start_equity = strategy.equity
-var float daily_pnl        = 0.0
+var float day_start_eq = strategy.equity
+var float daily_pnl    = 0.0
 
 if new_day
-    day_start_equity := strategy.equity
-    daily_pnl        := 0.0
+    day_start_eq := strategy.equity
+    daily_pnl    := 0.0
 else
-    daily_pnl := strategy.equity - day_start_equity
+    daily_pnl := strategy.equity - day_start_eq
 
-// Guardian: no abrir si ya perdiste $2000 hoy
+var float eq_peak = strategy.equity
+eq_peak  := math.max(eq_peak, strategy.equity)
+
 guardian_ok = daily_pnl > -guard_shield
-
-// Trailing DD: no operar si equity cayó $12k del peak
-var float equity_peak = strategy.equity
-equity_peak := math.max(equity_peak, strategy.equity)
-trail_ok = (equity_peak - strategy.equity) < trail_dd_lim
-
-bg_ok = guardian_ok and trail_ok
+trail_ok    = (eq_peak - strategy.equity) < trail_dd_lim
+bg_ok       = guardian_ok and trail_ok
 
 // ═══════════════════════════════════════════════════════════
 //  ENTRADAS
 // ═══════════════════════════════════════════════════════════
 if bos_long and bg_ok and long_risk_f > 5
-    strategy.entry("BOS Long", strategy.long, qty=50, comment="BOS↑")
-    strategy.exit("Exit Long", "BOS Long",
-         stop  = long_sl,
-         limit = long_tp,
-         comment = "TP/SL Long")
+    strategy.entry("Long", strategy.long,  qty=50, comment="BOS Long")
+    strategy.exit("XL", "Long",  stop=long_sl,  limit=long_tp)
     trades_today := trades_today + 1
-    last_trade_day := dayofmonth
 
 if bos_short and bg_ok and short_risk_f > 5
-    strategy.entry("BOS Short", strategy.short, qty=50, comment="BOS↓")
-    strategy.exit("Exit Short", "BOS Short",
-         stop  = short_sl,
-         limit = short_tp,
-         comment = "TP/SL Short")
+    strategy.entry("Short", strategy.short, qty=50, comment="BOS Short")
+    strategy.exit("XS", "Short", stop=short_sl, limit=short_tp)
     trades_today := trades_today + 1
-    last_trade_day := dayofmonth
 
 // ═══════════════════════════════════════════════════════════
-//  VISUALIZACIÓN
+//  VISUALIZACION
 // ═══════════════════════════════════════════════════════════
-// Pivots
-plotshape(not na(ph), style=shape.triangledown, location=location.abovebar,
-     color=color.new(color.red, 0), size=size.tiny, title="Pivot High")
-plotshape(not na(pl), style=shape.triangleup, location=location.belowbar,
-     color=color.new(color.green, 0), size=size.tiny, title="Pivot Low")
+plotshape(not na(ph), style=shape.triangledown, location=location.abovebar, color=color.red,   size=size.tiny,  title="PH")
+plotshape(not na(pl), style=shape.triangleup,   location=location.belowbar, color=color.green, size=size.tiny,  title="PL")
+plotshape(bos_long,   style=shape.labelup,      location=location.belowbar, color=color.lime,  textcolor=color.white, text="BOS+", size=size.small, title="BOS Long")
+plotshape(bos_short,  style=shape.labeldown,    location=location.abovebar, color=color.red,   textcolor=color.white, text="BOS-", size=size.small, title="BOS Short")
 
-// Señales BOS
-plotshape(bos_long,  style=shape.labelup,   location=location.belowbar,
-     color=color.new(color.lime, 10), textcolor=color.white, text="BOS↑",
-     size=size.small, title="BOS Long")
-plotshape(bos_short, style=shape.labeldown, location=location.abovebar,
-     color=color.new(color.red, 10),  textcolor=color.white, text="BOS↓",
-     size=size.small, title="BOS Short")
-
-// Sesión background
 bgcolor(in_london and london_on ? color.new(color.blue,   92) : na, title="Londres")
 bgcolor(in_ny     and ny_on     ? color.new(color.orange, 92) : na, title="NY")
+bgcolor(is_news_day             ? color.new(color.red,    85) : na, title="Noticias")
 
-// News días (rojo)
-bgcolor(is_news_day ? color.new(color.red, 85) : na, title="Noticia")
+// ═══════════════════════════════════════════════════════════
+//  TABLA DE ESTADO BLUE GUARDIAN
+// ═══════════════════════════════════════════════════════════
+var table t = table.new(position.top_right, 2, 6, bgcolor=color.new(color.black, 65), border_color=color.gray, border_width=1, frame_width=1)
 
-// Estado BG en tabla
-var table bg_table = table.new(position.top_right, 2, 6,
-     bgcolor=color.new(color.black, 70), border_color=color.gray, border_width=1, frame_width=1)
+c_ok  = color.new(color.green, 20)
+c_bad = color.new(color.red,   20)
+c_neu = color.new(color.gray,  30)
 
 if barstate.islast
-    ok  = color.new(color.green, 20)
-    bad = color.new(color.red,   20)
-    na_c = color.new(color.gray, 20)
-    table.cell(bg_table, 0, 0, "BLUE GUARDIAN STATUS",  text_color=color.white, bgcolor=color.new(color.navy,30), text_size=size.small)
-    table.cell(bg_table, 1, 0, "",                        bgcolor=color.new(color.navy,30))
-    table.cell(bg_table, 0, 1, "Daily P&L",              text_color=color.white, text_size=size.tiny)
-    table.cell(bg_table, 1, 1, str.tostring(math.round(daily_pnl, 0), "$#,##0"),
-         bgcolor = daily_pnl >= 0 ? ok : (daily_pnl < -daily_loss_lim ? bad : na_c),
+    table.cell(t, 0, 0, "BLUE GUARDIAN",     text_color=color.white, bgcolor=color.new(color.navy, 20), text_size=size.small)
+    table.cell(t, 1, 0, "$200k Account",     text_color=color.white, bgcolor=color.new(color.navy, 20), text_size=size.small)
+
+    table.cell(t, 0, 1, "Daily P&L",         text_color=color.white, text_size=size.tiny)
+    table.cell(t, 1, 1, str.tostring(math.round(daily_pnl, 0)) + " USD",
+         bgcolor=daily_pnl >= 0 ? c_ok : daily_pnl < -daily_loss_lim ? c_bad : c_neu,
          text_color=color.white, text_size=size.tiny)
-    table.cell(bg_table, 0, 2, "Guardian Shield",        text_color=color.white, text_size=size.tiny)
-    table.cell(bg_table, 1, 2, guardian_ok ? "OK" : "ACTIVO",
-         bgcolor = guardian_ok ? ok : bad, text_color=color.white, text_size=size.tiny)
-    table.cell(bg_table, 0, 3, "Trail DD",               text_color=color.white, text_size=size.tiny)
-    table.cell(bg_table, 1, 3, str.tostring(math.round(equity_peak - strategy.equity, 0), "$#,##0") + " / $12k",
-         bgcolor = trail_ok ? ok : bad, text_color=color.white, text_size=size.tiny)
-    table.cell(bg_table, 0, 4, "Trades Hoy",             text_color=color.white, text_size=size.tiny)
-    table.cell(bg_table, 1, 4, str.tostring(trades_today) + " / 2",
-         bgcolor = can_trade ? ok : bad, text_color=color.white, text_size=size.tiny)
-    table.cell(bg_table, 0, 5, "Equity",                 text_color=color.white, text_size=size.tiny)
-    table.cell(bg_table, 1, 5, str.tostring(math.round(strategy.equity, 0), "$#,##0"),
-         bgcolor = strategy.equity >= 205000 ? ok : na_c,
-         text_color=color.white, text_size=size.tiny)
+
+    table.cell(t, 0, 2, "Guardian Shield",   text_color=color.white, text_size=size.tiny)
+    table.cell(t, 1, 2, guardian_ok ? "OK" : "ACTIVO - NO TRADE",
+         bgcolor=guardian_ok ? c_ok : c_bad, text_color=color.white, text_size=size.tiny)
+
+    table.cell(t, 0, 3, "Trail Drawdown",    text_color=color.white, text_size=size.tiny)
+    table.cell(t, 1, 3, str.tostring(math.round(eq_peak - strategy.equity, 0)) + " / 12000",
+         bgcolor=trail_ok ? c_ok : c_bad, text_color=color.white, text_size=size.tiny)
+
+    table.cell(t, 0, 4, "Trades Hoy",        text_color=color.white, text_size=size.tiny)
+    table.cell(t, 1, 4, str.tostring(trades_today) + " / 2",
+         bgcolor=can_trade ? c_ok : c_bad, text_color=color.white, text_size=size.tiny)
+
+    table.cell(t, 0, 5, "Equity Total",      text_color=color.white, text_size=size.tiny)
+    table.cell(t, 1, 5, str.tostring(math.round(strategy.equity, 0)) + " USD",
+         bgcolor=strategy.equity >= 205000 ? c_ok : c_neu, text_color=color.white, text_size=size.tiny)
