@@ -57,15 +57,27 @@ var int dt = 0
 if ta.change(dayofmonth) != 0
     dt := 0
 
-// BLUE GUARDIAN
+// BLUE GUARDIAN + REGLAS PERSONALES
 var float eq0    = strategy.equity
 var float eqpeak = strategy.equity
 if ta.change(dayofmonth) != 0
     eq0 := strategy.equity
-eqpeak  := math.max(eqpeak, strategy.equity)
-dpnl     = strategy.equity - eq0
-trail_dd = eqpeak - strategy.equity
-bg_ok    = dpnl > -6000 and trail_dd < 12000 and dpnl > -2000 and dt < 2
+
+eqpeak   := math.max(eqpeak, strategy.equity)
+dpnl      = strategy.equity - eq0          // P&L del dia (cerrado)
+floating  = strategy.openprofit            // P&L flotante abierto
+trail_dd  = eqpeak - strategy.equity
+
+// Regla consistencia: ningun dia > 20% del profit total acumulado
+total_profit = strategy.equity - 200000
+max_day_allowed = total_profit > 0 ? total_profit * 0.20 : 99999
+
+bg_ok = dpnl > -800 and            // Personal: max perdida diaria $800
+        dpnl < 1000 and            // Personal: para cuando llega a $1000 ganado
+        dpnl < max_day_allowed and // BG: consistencia 20%
+        trail_dd < 12000 and       // BG: trailing max drawdown $12k
+        floating > -2000 and       // BG: guardian shield flotante
+        dt < 2                     // Max 2 trades por dia
 
 // SENALES
 allow  = sesion and not news and bg_ok and strategy.position_size == 0
