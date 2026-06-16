@@ -36,8 +36,12 @@ var float last_pl = na
 var int   ph_bar  = 0
 var int   pl_bar  = 0
 
-if not na(ph) => last_ph := ph, ph_bar := bar_index - i_pivot
-if not na(pl) => last_pl := pl, pl_bar := bar_index - i_pivot
+if not na(ph)
+    last_ph := ph
+    ph_bar  := bar_index - i_pivot
+if not na(pl)
+    last_pl := pl
+    pl_bar  := bar_index - i_pivot
 
 ph_ok = not na(last_ph) and bar_index - ph_bar <= 96
 pl_ok = not na(last_pl) and bar_index - pl_bar <= 96
