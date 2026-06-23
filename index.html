@@ -582,10 +582,10 @@ function initNM(li){
     var nums=[curT];while(nums.length<cho){var n=Math.floor(Math.random()*maxN)+1;if(nums.indexOf(n)===-1)nums.push(n);}nums=sh(nums);
     choD.innerHTML='';
     nums.forEach(function(n){
-      var btn=document.createElement('div');btn.className='piece shape-number';btn.style.background='linear-gradient(135deg,'+li(C.blue,60)+','+C.blue+')';btn.style.cursor='pointer';btn.style.animation='none';
+      var btn=document.createElement('div');btn.className='piece shape-number';btn.style.background='linear-gradient(135deg,'+ltn(C.blue,60)+','+C.blue+')';btn.style.cursor='pointer';btn.style.animation='none';
       var lbl=document.createElement('span');lbl.className='pl';lbl.textContent=String(n);btn.appendChild(lbl);
       btn.addEventListener('click',function(){
-        if(n===curT){sS();btn.style.background='linear-gradient(135deg,'+li(C.green,60)+','+C.green+')';
+        if(n===curT){sS();btn.style.background='linear-gradient(135deg,'+ltn(C.green,60)+','+C.green+')';
           setTimeout(function(){spkSh(String(n));},300);
           round++;setTimeout(nR,800);}
         else{wS();btn.style.opacity='.3';btn.style.pointerEvents='none';}
@@ -618,7 +618,7 @@ function initCL(li){
     var opts=[tk];while(opts.length<cho){var c=avC[Math.floor(Math.random()*avC.length)];if(opts.indexOf(c)===-1)opts.push(c);}opts=sh(opts);
     choD.innerHTML='';
     opts.forEach(function(ck){
-      var btn=document.createElement('div');btn.className='piece shape-square';btn.style.background='linear-gradient(135deg,'+li(C[ck],60)+','+C[ck]+')';btn.style.cursor='pointer';btn.style.animation='none';
+      var btn=document.createElement('div');btn.className='piece shape-square';btn.style.background='linear-gradient(135deg,'+ltn(C[ck],60)+','+C[ck]+')';btn.style.cursor='pointer';btn.style.animation='none';
       var lbl=document.createElement('span');lbl.className='pl';lbl.style.fontSize='calc(var(--piece-size)*.24)';lbl.textContent=CN2[ck];btn.appendChild(lbl);
       btn.addEventListener('click',function(){
         if(ck===tk){sS();btn.style.boxShadow='0 0 0 3px #fff,0 0 16px rgba(255,255,255,.8)';setTimeout(function(){spkSh(CN2[ck]);},300);round++;setTimeout(nR,800);}
@@ -677,10 +677,10 @@ function initMT(li){
     var colors=[C.blue,C.purple,C.orange,C.green];
     opts.forEach(function(v,i){
       var btn=document.createElement('button');btn.className='math-btn';
-      btn.style.background='linear-gradient(135deg,'+li(colors[i%4],40)+','+colors[i%4]+')';
+      btn.style.background='linear-gradient(135deg,'+ltn(colors[i%4],40)+','+colors[i%4]+')';
       btn.textContent=String(v);
       btn.addEventListener('click',function(){
-        if(v===prob.ans){sS();btn.style.background='linear-gradient(135deg,'+li(C.green,40)+','+C.green+')';btn.style.transform='scale(1.15)';
+        if(v===prob.ans){sS();btn.style.background='linear-gradient(135deg,'+ltn(C.green,40)+','+C.green+')';btn.style.transform='scale(1.15)';
           setTimeout(function(){spkSh(String(v));},300);round++;setTimeout(nR,800);}
         else{wS();btn.style.opacity='.3';btn.style.pointerEvents='none';}
       });choD.appendChild(btn);
