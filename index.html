@@ -4,6 +4,10 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>Mariel Explorer</title>
+  <meta name="theme-color" content="#1a6fd4">
+  <link rel="manifest" href="manifest.json">
+  <link rel="icon" type="image/png" href="iconos/icono-192.png">
+  <link rel="apple-touch-icon" href="iconos/icono-192.png">
   <link rel="stylesheet" href="lib/leaflet/leaflet.css">
   <link rel="stylesheet" href="css/estilos.css">
 </head>
@@ -134,5 +138,13 @@
   <script src="js/misiones/datos_misiones.js"></script>
   <script src="js/misiones/misiones.js"></script>
   <script src="js/principal.js"></script>
+  <script>
+    // Registrar la app instalable (PWA)
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('sw.js').catch(() => {});
+      });
+    }
+  </script>
 </body>
 </html>
