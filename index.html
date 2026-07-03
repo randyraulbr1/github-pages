@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Mariel Explorer</title>
+  <link rel="stylesheet" href="lib/leaflet/leaflet.css">
+  <link rel="stylesheet" href="css/estilos.css">
+</head>
+<body>
+
+  <!-- MAPA -->
+  <div id="mapa"></div>
+
+  <!-- BARRA SUPERIOR: vida + dinero -->
+  <div id="barra-superior">
+    <div id="contenedor-vida" title="Vida">
+      <div id="vida-relleno"></div>
+      <span id="vida-texto">100</span>
+    </div>
+    <div id="contenedor-dinero" title="Dinero">
+      <span class="icono-dinero">🪙</span>
+      <span id="dinero-cantidad">0</span>
+    </div>
+  </div>
+
+  <!-- BANNER DEL BUSCADOR DE TESOROS -->
+  <div id="banner-tesoro" class="oculto">
+    <span class="parpadeo">📡</span> Tesoro cerca · <span id="tesoro-metros">--</span> m
+  </div>
+
+  <!-- BOTONES INFERIORES -->
+  <div id="botones-inferiores">
+    <button id="btn-mochila" class="btn-redondo" title="Mochila">🎒</button>
+    <button id="btn-misiones" class="btn-redondo" title="Misiones">📜</button>
+    <button id="btn-historial" class="btn-redondo" title="Historial">🧾</button>
+    <button id="btn-gps" class="btn-redondo" title="Seguir mi GPS real">📍</button>
+  </div>
+
+  <!-- NOTIFICACIONES -->
+  <div id="zona-notificaciones"></div>
+
+  <!-- ============ VENTANA: MOCHILA ============ -->
+  <div id="ventana-mochila" class="ventana oculto">
+    <div class="ventana-caja">
+      <div class="ventana-titulo">🎒 Mochila <button class="btn-cerrar" data-cierra="ventana-mochila">✕</button></div>
+      <div id="rejilla-mochila"></div>
+      <div id="detalle-item" class="oculto">
+        <div id="detalle-icono"></div>
+        <div id="detalle-info">
+          <div id="detalle-nombre"></div>
+          <div id="detalle-desc"></div>
+          <div id="detalle-cantidad"></div>
+        </div>
+        <div id="detalle-botones">
+          <button id="btn-usar-item">Usar</button>
+          <button id="btn-eliminar-item">Eliminar</button>
+        </div>
+      </div>
+      <div id="papelera" title="Arrastra aquí para eliminar">🗑️ Soltar aquí para eliminar</div>
+    </div>
+  </div>
+
+  <!-- ============ VENTANA: TIENDA ============ -->
+  <div id="ventana-tienda" class="ventana oculto">
+    <div class="ventana-caja">
+      <div class="ventana-titulo"><span id="tienda-nombre">Tienda</span> <button class="btn-cerrar" data-cierra="ventana-tienda">✕</button></div>
+      <div class="pestanas">
+        <button id="pestana-comprar" class="pestana activa">Comprar</button>
+        <button id="pestana-vender" class="pestana">Vender</button>
+      </div>
+      <div id="tienda-lista"></div>
+    </div>
+  </div>
+
+  <!-- ============ VENTANA: PESCA ============ -->
+  <div id="ventana-pesca" class="ventana oculto">
+    <div class="ventana-caja">
+      <div class="ventana-titulo">🎣 Pesca <button class="btn-cerrar" data-cierra="ventana-pesca">✕</button></div>
+      <div id="pesca-zona">
+        <div id="pesca-agua">
+          <div id="pesca-barra">
+            <div id="pesca-zona-verde"></div>
+            <div id="pesca-indicador"></div>
+          </div>
+          <div id="pesca-mensaje">Toca LANZAR y detén el indicador en la zona verde</div>
+        </div>
+        <button id="btn-pescar">LANZAR</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ VENTANA: MISIONES ============ -->
+  <div id="ventana-misiones" class="ventana oculto">
+    <div class="ventana-caja">
+      <div class="ventana-titulo">📜 Misiones <button class="btn-cerrar" data-cierra="ventana-misiones">✕</button></div>
+      <div id="lista-misiones"></div>
+    </div>
+  </div>
+
+  <!-- ============ VENTANA: HISTORIAL ============ -->
+  <div id="ventana-historial" class="ventana oculto">
+    <div class="ventana-caja">
+      <div class="ventana-titulo">🧾 Historial <button class="btn-cerrar" data-cierra="ventana-historial">✕</button></div>
+      <div class="pestanas">
+        <button id="pestana-hist-dinero" class="pestana activa">💰 Dinero</button>
+        <button id="pestana-hist-objetos" class="pestana">📦 Objetos</button>
+      </div>
+      <div id="historial-integridad"></div>
+      <div id="historial-lista"></div>
+    </div>
+  </div>
+
+  <!-- LIBRERÍAS -->
+  <script src="lib/leaflet/leaflet.js"></script>
+
+  <!-- MÓDULOS DEL JUEGO (orden importante) -->
+  <script src="js/config/config.js"></script>
+  <script src="js/nucleo/utilidades.js"></script>
+  <script src="js/notificaciones/notificaciones.js"></script>
+  <script src="js/guardado/guardado.js"></script>
+  <script src="js/historial/historial.js"></script>
+  <script src="js/dinero/dinero.js"></script>
+  <script src="js/vida/vida.js"></script>
+  <script src="js/items/items.js"></script>
+  <script src="js/mochila/mochila.js"></script>
+  <script src="js/mapa/mapa.js"></script>
+  <script src="js/gps/gps.js"></script>
+  <script src="js/tiendas/datos_tiendas.js"></script>
+  <script src="js/tiendas/tiendas.js"></script>
+  <script src="js/pesca/pesca.js"></script>
+  <script src="js/tesoros/datos_tesoros.js"></script>
+  <script src="js/tesoros/tesoros.js"></script>
+  <script src="js/misiones/datos_misiones.js"></script>
+  <script src="js/misiones/misiones.js"></script>
+  <script src="js/principal.js"></script>
+</body>
+</html>

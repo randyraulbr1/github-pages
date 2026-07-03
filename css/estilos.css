@@ -1,0 +1,224 @@
+/* ============ GENERAL ============ */
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { height: 100%; overflow: hidden; font-family: 'Segoe UI', system-ui, sans-serif; }
+.oculto { display: none !important; }
+
+#mapa { position: fixed; inset: 0; z-index: 1; background: #d9e8f5; }
+
+/* Ocultar atribución compacta pero mantenerla legal en pequeño */
+.leaflet-control-attribution { font-size: 8px; opacity: .55; }
+
+/* ============ BARRA SUPERIOR ============ */
+#barra-superior {
+  position: fixed; top: 10px; left: 10px; right: 10px; z-index: 1000;
+  display: flex; justify-content: space-between; align-items: center;
+  pointer-events: none;
+}
+#contenedor-vida {
+  position: relative; width: 46vw; max-width: 230px; height: 24px;
+  background: rgba(20,20,30,.75); border-radius: 12px; overflow: hidden;
+  border: 2px solid rgba(255,255,255,.35);
+}
+#vida-relleno {
+  position: absolute; inset: 0; width: 100%;
+  background: linear-gradient(90deg, #e0392b, #2ecc71 60%);
+  background: #2ecc71;
+  transition: width .4s ease, background .4s ease;
+}
+#vida-texto {
+  position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
+  color: #fff; font-size: 13px; font-weight: 700; text-shadow: 0 1px 2px rgba(0,0,0,.6);
+}
+#contenedor-dinero {
+  background: rgba(20,20,30,.75); color: #ffd76a; font-weight: 700;
+  padding: 4px 14px; border-radius: 12px; font-size: 15px;
+  border: 2px solid rgba(255,255,255,.35); display: flex; gap: 6px; align-items: center;
+}
+
+/* ============ BANNER TESORO ============ */
+#banner-tesoro {
+  position: fixed; top: 44px; left: 50%; transform: translateX(-50%);
+  z-index: 1000; background: rgba(40,30,60,.9); color: #ffe28a;
+  padding: 6px 18px; border-radius: 20px; font-size: 14px; font-weight: 600;
+  border: 1px solid #ffd76a; box-shadow: 0 2px 10px rgba(0,0,0,.4);
+}
+.parpadeo { animation: parpadear 1s infinite; display: inline-block; }
+@keyframes parpadear { 50% { opacity: .25; } }
+
+/* ============ BOTONES INFERIORES ============ */
+#botones-inferiores {
+  position: fixed; bottom: 16px; left: 50%; transform: translateX(-50%);
+  z-index: 1000; display: flex; gap: 14px;
+}
+.btn-redondo {
+  width: 56px; height: 56px; border-radius: 50%; border: 2px solid rgba(255,255,255,.5);
+  background: rgba(20,20,30,.8); font-size: 26px; cursor: pointer;
+  box-shadow: 0 3px 10px rgba(0,0,0,.35); transition: transform .12s;
+}
+.btn-redondo:active { transform: scale(.9); }
+#btn-gps.activo { background: #1a6fd4; }
+
+/* ============ NOTIFICACIONES ============ */
+#zona-notificaciones {
+  position: fixed; top: 80px; right: 0; z-index: 2000;
+  display: flex; flex-direction: column; gap: 8px; align-items: flex-end;
+  pointer-events: none;
+}
+.notificacion {
+  background: rgba(15,20,35,.92); color: #fff; padding: 10px 16px;
+  border-left: 4px solid #4da3ff; border-radius: 10px 0 0 10px;
+  font-size: 14px; max-width: 78vw; box-shadow: 0 3px 12px rgba(0,0,0,.4);
+  transform: translateX(110%); transition: transform .35s ease, opacity .35s ease;
+}
+.notificacion.visible { transform: translateX(0); }
+.notificacion.saliendo { transform: translateX(110%); opacity: 0; }
+.notificacion.exito { border-left-color: #2ecc71; }
+.notificacion.error { border-left-color: #e0392b; }
+.notificacion.alerta { border-left-color: #ffd76a; }
+
+/* ============ VENTANAS (modales) ============ */
+.ventana {
+  position: fixed; inset: 0; z-index: 1500; background: rgba(0,0,0,.55);
+  display: flex; align-items: center; justify-content: center; padding: 12px;
+}
+.ventana-caja {
+  background: #1c2233; color: #eef2f8; width: 100%; max-width: 420px;
+  max-height: 86vh; border-radius: 16px; overflow: hidden auto;
+  border: 1px solid rgba(255,255,255,.15); box-shadow: 0 8px 30px rgba(0,0,0,.5);
+  display: flex; flex-direction: column;
+}
+.ventana-titulo {
+  padding: 14px 16px; font-size: 17px; font-weight: 700;
+  background: rgba(255,255,255,.06); display: flex; justify-content: space-between; align-items: center;
+  position: sticky; top: 0; z-index: 2;
+}
+.btn-cerrar {
+  background: rgba(255,255,255,.12); border: none; color: #fff; width: 30px; height: 30px;
+  border-radius: 50%; cursor: pointer; font-size: 14px;
+}
+
+/* Pestañas */
+.pestanas { display: flex; }
+.pestana {
+  flex: 1; padding: 10px; background: rgba(255,255,255,.04); color: #aab4c8;
+  border: none; cursor: pointer; font-size: 14px; font-weight: 600;
+}
+.pestana.activa { background: rgba(77,163,255,.18); color: #fff; border-bottom: 2px solid #4da3ff; }
+
+/* ============ MOCHILA ============ */
+#rejilla-mochila {
+  display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px; padding: 14px;
+}
+.slot {
+  aspect-ratio: 1; background: rgba(255,255,255,.06); border-radius: 10px;
+  border: 1px solid rgba(255,255,255,.12); position: relative;
+  display: flex; align-items: center; justify-content: center; font-size: 28px;
+  touch-action: none; user-select: none; -webkit-user-select: none;
+}
+.slot.destino { border-color: #4da3ff; background: rgba(77,163,255,.2); }
+.slot .cantidad {
+  position: absolute; bottom: 2px; right: 4px; font-size: 11px; font-weight: 700;
+  color: #fff; background: rgba(0,0,0,.55); border-radius: 6px; padding: 0 4px;
+}
+#item-fantasma {
+  position: fixed; z-index: 3000; font-size: 32px; pointer-events: none;
+  transform: translate(-50%, -50%); filter: drop-shadow(0 3px 6px rgba(0,0,0,.5));
+}
+#papelera {
+  margin: 0 14px 14px; padding: 10px; text-align: center; border-radius: 10px;
+  border: 2px dashed rgba(224,57,43,.6); color: #ff8f85; font-size: 13px;
+}
+#papelera.destino { background: rgba(224,57,43,.25); color: #fff; }
+
+#detalle-item {
+  margin: 0 14px 12px; padding: 10px; background: rgba(255,255,255,.05);
+  border-radius: 10px; display: flex; gap: 10px; align-items: center;
+}
+#detalle-icono { font-size: 34px; }
+#detalle-info { flex: 1; }
+#detalle-nombre { font-weight: 700; }
+#detalle-desc { font-size: 12px; color: #aab4c8; }
+#detalle-cantidad { font-size: 12px; color: #ffd76a; }
+#detalle-botones { display: flex; flex-direction: column; gap: 6px; }
+#detalle-botones button {
+  border: none; border-radius: 8px; padding: 6px 12px; cursor: pointer; font-weight: 600;
+}
+#btn-usar-item { background: #2ecc71; color: #08331b; }
+#btn-eliminar-item { background: #e0392b; color: #fff; }
+
+/* ============ TIENDA ============ */
+#tienda-lista { padding: 12px; display: flex; flex-direction: column; gap: 8px; }
+.fila-tienda {
+  display: flex; align-items: center; gap: 10px; padding: 8px 10px;
+  background: rgba(255,255,255,.05); border-radius: 10px;
+}
+.fila-tienda .icono { font-size: 26px; }
+.fila-tienda .datos { flex: 1; }
+.fila-tienda .nombre { font-weight: 600; font-size: 14px; }
+.fila-tienda .precio { font-size: 12px; color: #ffd76a; }
+.fila-tienda button {
+  border: none; border-radius: 8px; padding: 7px 14px; cursor: pointer;
+  background: #4da3ff; color: #06263f; font-weight: 700;
+}
+.fila-tienda button:disabled { background: #47506a; color: #8a93a8; }
+.tienda-vacia { text-align: center; color: #8a93a8; padding: 20px; font-size: 14px; }
+
+/* ============ PESCA ============ */
+#pesca-zona { padding: 16px; display: flex; flex-direction: column; gap: 14px; align-items: center; }
+#pesca-agua { width: 100%; background: linear-gradient(180deg,#10395e,#0a2745); border-radius: 12px; padding: 16px; }
+#pesca-barra {
+  position: relative; height: 26px; background: rgba(255,255,255,.15); border-radius: 13px; overflow: hidden;
+}
+#pesca-zona-verde { position: absolute; top: 0; bottom: 0; background: rgba(46,204,113,.75); }
+#pesca-indicador { position: absolute; top: 0; bottom: 0; width: 6px; background: #fff; border-radius: 3px; left: 0; }
+#pesca-mensaje { text-align: center; margin-top: 12px; font-size: 13px; color: #cfe3f7; min-height: 34px; }
+#btn-pescar {
+  border: none; border-radius: 12px; padding: 12px 40px; font-size: 17px; font-weight: 800;
+  background: #ffd76a; color: #4a3705; cursor: pointer;
+}
+
+/* ============ MISIONES ============ */
+#lista-misiones { padding: 12px; display: flex; flex-direction: column; gap: 10px; }
+.mision {
+  padding: 12px; background: rgba(255,255,255,.05); border-radius: 12px;
+  border-left: 4px solid #4da3ff;
+}
+.mision.completada { border-left-color: #2ecc71; opacity: .65; }
+.mision .titulo { font-weight: 700; }
+.mision .descripcion { font-size: 13px; color: #aab4c8; margin: 4px 0; }
+.mision .progreso { font-size: 12px; color: #ffd76a; }
+.mision .distancia { font-size: 12px; color: #7fd0ff; }
+
+/* ============ HISTORIAL ============ */
+#historial-integridad { padding: 8px 14px; font-size: 13px; font-weight: 700; }
+#historial-integridad.ok { color: #2ecc71; }
+#historial-integridad.mal { color: #ff8f85; }
+#historial-lista { padding: 0 12px 14px; display: flex; flex-direction: column; gap: 6px; }
+.entrada-historial {
+  padding: 8px 10px; background: rgba(255,255,255,.05); border-radius: 8px; font-size: 12px;
+  display: flex; justify-content: space-between; gap: 8px; align-items: center;
+}
+.entrada-historial .detalle { flex: 1; }
+.entrada-historial .fecha { color: #8a93a8; font-size: 10px; }
+.entrada-historial .monto.positivo { color: #2ecc71; font-weight: 700; }
+.entrada-historial .monto.negativo { color: #ff8f85; font-weight: 700; }
+.entrada-historial.manipulada { border: 1px solid #e0392b; background: rgba(224,57,43,.15); }
+.sello-hackeo { color: #ff8f85; font-size: 10px; font-weight: 800; }
+
+/* ============ MARCADOR JUGADOR Y OBJETOS DEL MAPA ============ */
+.punto-jugador {
+  width: 22px; height: 22px; border-radius: 50%;
+  background: #1a6fd4; border: 3px solid #fff;
+  box-shadow: 0 0 0 6px rgba(26,111,212,.3), 0 2px 6px rgba(0,0,0,.4);
+}
+.icono-mapa { font-size: 26px; text-shadow: 0 2px 4px rgba(0,0,0,.45); }
+.icono-mapa.cerca { animation: rebotar .9s infinite; }
+@keyframes rebotar { 50% { transform: translateY(-5px); } }
+.icono-tesoro { font-size: 30px; animation: brillar 1.2s infinite; }
+@keyframes brillar { 50% { filter: drop-shadow(0 0 8px #ffd76a); transform: scale(1.15); } }
+
+/* Animación objeto volando a la mochila */
+.item-volando {
+  position: fixed; z-index: 3500; font-size: 34px; pointer-events: none;
+  transition: all .9s cubic-bezier(.4,-0.2,.7,1); transform: translate(-50%,-50%);
+}
