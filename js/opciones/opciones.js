@@ -30,6 +30,8 @@ const Opciones = {
   abrir() {
     document.getElementById('opciones-nombre').textContent =
       Usuarios.perfilActivo ? Usuarios.perfilActivo.nombre : '—';
+    document.getElementById('opciones-id').textContent =
+      Usuarios.perfilActivo ? Usuarios.perfilActivo.id : '—';
     document.getElementById('ventana-opciones').classList.remove('oculto');
   },
 

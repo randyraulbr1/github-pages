@@ -60,7 +60,7 @@ const Tiendas = {
         if (!sl || vistos.has(sl.id)) continue;
         vistos.add(sl.id);
         hayAlgo = true;
-        const item = Items.obtener(sl.id);
+        const item = Items.seguro(sl.id);
         const precioVenta = Math.max(1, Math.floor(item.precio / 2));
         cont.appendChild(this._fila(item, precioVenta, 'Vender (' + Mochila.contar(sl.id) + ')',
           () => this.vender(sl.id), false));
@@ -99,7 +99,7 @@ const Tiendas = {
   },
 
   async vender(idItem) {
-    const item = Items.obtener(idItem);
+    const item = Items.seguro(idItem);
     const precioVenta = Math.max(1, Math.floor(item.precio / 2));
     if (!Mochila.quitar(idItem, 1, 'Vendido')) return;
     await Dinero.ganar(precioVenta, 'Venta: ' + item.nombre + ' (' + this.tiendaAbierta.nombre + ')');

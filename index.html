@@ -139,11 +139,23 @@
     </div>
   </div>
 
+  <!-- ============ VENTANA: CORREO ============ -->
+  <div id="ventana-correo" class="ventana oculto">
+    <div class="ventana-caja">
+      <div class="ventana-titulo">📮 Correo <button class="btn-cerrar" data-cierra="ventana-correo">✕</button></div>
+      <div class="pestanas">
+        <button id="pestana-correo-enviar" class="pestana activa">Enviar</button>
+        <button id="pestana-correo-recibir" class="pestana">Recibir</button>
+      </div>
+      <div id="correo-contenido"></div>
+    </div>
+  </div>
+
   <!-- ============ VENTANA: OPCIONES ============ -->
   <div id="ventana-opciones" class="ventana oculto">
     <div class="ventana-caja">
       <div class="ventana-titulo">⚙️ Opciones <button class="btn-cerrar" data-cierra="ventana-opciones">✕</button></div>
-      <div id="opciones-jugador">Jugador: <b id="opciones-nombre">—</b></div>
+      <div id="opciones-jugador">Jugador: <b id="opciones-nombre">—</b> · ID: <span id="opciones-id">—</span></div>
       <div id="lista-opciones">
         <button class="fila-opcion" id="opcion-centrar"><span class="icono-opcion">🎯</span> Centrar el mapa en mi posición</button>
         <button class="fila-opcion" id="opcion-cambiar"><span class="icono-opcion">👤</span> Cambiar de jugador</button>
@@ -161,6 +173,8 @@
         <button class="fila-opcion" id="admin-crear-mision"><span class="icono-opcion">📜</span> Crear misión</button>
         <button class="fila-opcion" id="admin-crear-tesoro"><span class="icono-opcion">🎁</span> Crear tesoro</button>
         <button class="fila-opcion" id="admin-dejar-objeto"><span class="icono-opcion">📦</span> Dejar objeto en el mapa</button>
+        <button class="fila-opcion" id="admin-precios"><span class="icono-opcion">💲</span> Cambiar precio global</button>
+        <button class="fila-opcion" id="admin-item-nuevo"><span class="icono-opcion">➕</span> Crear objeto nuevo</button>
         <button class="fila-opcion" id="admin-organizar"><span class="icono-opcion">✋</span> Organizar pines (mover)</button>
         <button class="fila-opcion peligro" id="admin-eliminar"><span class="icono-opcion">🗑️</span> Eliminar pines del mapa</button>
         <button class="fila-opcion" id="admin-exportar"><span class="icono-opcion">📋</span> Exportar mis creaciones</button>
@@ -200,6 +214,7 @@
   <script src="js/tesoros/tesoros.js"></script>
   <script src="js/misiones/datos_misiones.js"></script>
   <script src="js/misiones/misiones.js"></script>
+  <script src="js/correo/correo.js"></script>
   <script src="js/admin/admin.js"></script>
   <script src="js/opciones/opciones.js"></script>
   <script src="js/principal.js"></script>

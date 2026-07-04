@@ -16,8 +16,9 @@
   Pesca.iniciar();               // 11. muelles de pesca
   Tesoros.iniciar();             // 12. tesoros ocultos
   Misiones.iniciar();            // 13. misiones
-  Admin.iniciar();               // 14. contenido creado por el admin + su panel
-  Opciones.iniciar();            // 15. menú de opciones
+  Correo.iniciar();              // 14. correo de intercambio entre jugadores
+  Admin.iniciar();               // 15. contenido creado por el admin + su panel
+  Opciones.iniciar();            // 16. menú de opciones
 
   // Botones de cerrar de todas las ventanas
   document.querySelectorAll('.btn-cerrar').forEach(b => {

@@ -92,7 +92,7 @@ const Mochila = {
     }
     this.guardar();
     this.pintar();
-    const item = Items.obtener(id);
+    const item = Items.seguro(id);
     Historial.registrar('objetos', { detalle: motivo + ': ' + item.nombre, monto: -cantidad });
     return true;
   },
@@ -106,7 +106,7 @@ const Mochila = {
       celda.className = 'slot';
       celda.dataset.indice = i;
       if (sl) {
-        const item = Items.obtener(sl.id);
+        const item = Items.seguro(sl.id);
         celda.textContent = item.icono;
         const cant = document.createElement('span');
         cant.className = 'cantidad';
@@ -145,7 +145,7 @@ const Mochila = {
     if (!a.movio && Math.hypot(ev.clientX - a.x0, ev.clientY - a.y0) < 8) return;
     if (!a.movio) {
       a.movio = true;
-      const item = Items.obtener(this.slots[a.origen].id);
+      const item = Items.seguro(this.slots[a.origen].id);
       a.fantasma = document.createElement('div');
       a.fantasma.id = 'item-fantasma';
       a.fantasma.textContent = item.icono;
@@ -213,7 +213,7 @@ const Mochila = {
   _eliminarSlot(indice) {
     const sl = this.slots[indice];
     if (!sl) return;
-    const item = Items.obtener(sl.id);
+    const item = Items.seguro(sl.id);
     if (!confirm('¿Eliminar ' + item.nombre + ' x' + sl.cantidad + '?')) { this.pintar(); return; }
     this.slots[indice] = null;
     this.guardar();
@@ -227,7 +227,7 @@ const Mochila = {
   mostrarDetalle(indice) {
     const sl = this.slots[indice];
     if (!sl) return;
-    const item = Items.obtener(sl.id);
+    const item = Items.seguro(sl.id);
     this.slotSeleccionado = indice;
     document.getElementById('detalle-item').classList.remove('oculto');
     document.getElementById('detalle-icono').textContent = item.icono;
@@ -245,7 +245,7 @@ const Mochila = {
   usarSeleccionado() {
     const sl = this.slots[this.slotSeleccionado];
     if (!sl) return;
-    const item = Items.obtener(sl.id);
+    const item = Items.seguro(sl.id);
     if (!item.cura) return;
     if (Vida.actual >= CONFIG.vidaMaxima) {
       Notificaciones.mostrar('Ya tienes la vida al máximo', 'alerta');

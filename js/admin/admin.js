@@ -27,10 +27,12 @@ const Admin = {
     if (!this.datos) {
       this.datos = { pinHash: null, misiones: [], tesoros: [], objetos: [], posiciones: {}, eliminados: [] };
     }
+    if (!this.datos.precios) this.datos.precios = {};
+    if (!this.datos.itemsNuevos) this.datos.itemsNuevos = [];
 
     // El mundo oficial vive en GitHub: al actualizar datos/mundo.json,
     // todos los jugadores reciben las misiones nuevas al recargar el juego
-    this.publicado = { misiones: [], tesoros: [], objetos: [], posiciones: {}, eliminados: [] };
+    this.publicado = { misiones: [], tesoros: [], objetos: [], posiciones: {}, eliminados: [], precios: {}, itemsNuevos: [] };
     try {
       const respuesta = await fetch('datos/mundo.json?v=' + Date.now());
       if (respuesta.ok) {
@@ -38,6 +40,15 @@ const Admin = {
         this.publicado = Object.assign(this.publicado, mundo);
       }
     } catch (e) { /* sin conexión: se sigue con lo guardado */ }
+    if (!this.publicado.precios) this.publicado.precios = {};
+    if (!this.publicado.itemsNuevos) this.publicado.itemsNuevos = [];
+
+    // Aplicar al catálogo los objetos nuevos y precios globales
+    const nuevosPorId = new Map();
+    for (const it of this.publicado.itemsNuevos) nuevosPorId.set(it.id, it);
+    for (const it of this.datos.itemsNuevos) nuevosPorId.set(it.id, it);
+    Items.aplicarMundo([...nuevosPorId.values()],
+      Object.assign({}, this.publicado.precios, this.datos.precios));
   },
 
   // ---------- VISTA COMBINADA: publicado en GitHub + borradores locales ----------
@@ -87,6 +98,8 @@ const Admin = {
     document.getElementById('admin-crear-mision').addEventListener('click', () => this.abrirFormulario('mision'));
     document.getElementById('admin-crear-tesoro').addEventListener('click', () => this.abrirFormulario('tesoro'));
     document.getElementById('admin-dejar-objeto').addEventListener('click', () => this.abrirFormulario('objeto'));
+    document.getElementById('admin-precios').addEventListener('click', () => this.abrirFormulario('precio'));
+    document.getElementById('admin-item-nuevo').addEventListener('click', () => this.abrirFormulario('item_nuevo'));
     document.getElementById('admin-organizar').addEventListener('click', () => this.entrarModo('organizar'));
     document.getElementById('admin-eliminar').addEventListener('click', () => this.entrarModo('eliminar'));
     document.getElementById('admin-exportar').addEventListener('click', () => this.exportar());
@@ -157,13 +170,34 @@ const Admin = {
           this._campoNumero('af-rec-cant', 'Cantidad', 1) +
         '</div>' +
         this._campoNumero('af-dinero', 'Dinero extra $', 0);
-    } else {
+    } else if (tipo === 'objeto') {
       titulo.textContent = '📦 Dejar objeto';
       campos.innerHTML =
         '<div class="campo-doble">' +
           this._campoSelect('af-item', 'Objeto a dejar', this._opcionesItems(false)) +
           this._campoNumero('af-cant', 'Cantidad', 1) +
         '</div>';
+    } else if (tipo === 'precio') {
+      titulo.textContent = '💲 Cambiar precio global';
+      campos.innerHTML =
+        this._campoSelect('af-item', 'Objeto', this._opcionesItems(false)) +
+        this._campoNumero('af-precio', 'Precio nuevo (entre 5 y 5000)', 100) +
+        '<div class="campo-caja">El precio cambia para TODOS al publicar el mundo</div>';
+      document.getElementById('btn-admin-guardar').textContent = 'Guardar precio';
+    } else {
+      titulo.textContent = '➕ Crear objeto nuevo';
+      campos.innerHTML =
+        this._campoTexto('af-nombre', 'Nombre del objeto', 'Ej: Ron añejo') +
+        this._campoTexto('af-icono', 'Icono (un emoji)', 'Ej: 🍹') +
+        '<div class="campo-doble">' +
+          this._campoNumero('af-precio', 'Precio (5 a 5000)', 50) +
+          this._campoNumero('af-cura', 'Cura vida (0 = no se usa)', 0) +
+        '</div>' +
+        this._campoTexto('af-desc', 'Descripción', 'Ej: Reserva especial del puerto');
+      document.getElementById('btn-admin-guardar').textContent = 'Crear objeto';
+    }
+    if (tipo === 'mision' || tipo === 'tesoro' || tipo === 'objeto') {
+      document.getElementById('btn-admin-guardar').textContent = 'Continuar → colocar en el mapa';
     }
     document.getElementById('ventana-admin-form').classList.remove('oculto');
   },
@@ -192,6 +226,42 @@ const Admin = {
     const tipo = this._colocacion && this._colocacion.tipo;
     if (!tipo) return;
     let valores;
+
+    // Los formularios de precio y objeto nuevo no colocan nada en el mapa
+    if (tipo === 'precio') {
+      const idItem = this._valor('af-item');
+      const precio = Items._limitarPrecio(this._numero('af-precio'));
+      this.datos.precios[idItem] = precio;
+      CATALOGO_ITEMS[idItem].precio = precio;
+      this.guardar();
+      this._colocacion = null;
+      document.getElementById('ventana-admin-form').classList.add('oculto');
+      Notificaciones.mostrar('💲 ' + Items.seguro(idItem).nombre + ' ahora vale $' + precio +
+        ' (publica el mundo para que le llegue a todos)', 'exito', 6000);
+      return;
+    }
+    if (tipo === 'item_nuevo') {
+      const nombre = this._valor('af-nombre').trim();
+      const icono = this._valor('af-icono').trim() || '📦';
+      if (nombre.length < 2) { alert('Ponle un nombre al objeto'); return; }
+      const id = 'obj_' + nombre.toLowerCase().normalize('NFD').replace(/[^a-z0-9]/g, '').slice(0, 16) +
+        '_' + Date.now().toString(36).slice(-4);
+      const nuevo = {
+        id, nombre, icono,
+        precio: Items._limitarPrecio(this._numero('af-precio')),
+        cura: this._numero('af-cura') || undefined,
+        tipo: 'especial',
+        desc: this._valor('af-desc').trim()
+      };
+      this.datos.itemsNuevos.push(nuevo);
+      Items.aplicarMundo([nuevo], {});
+      this.guardar();
+      this._colocacion = null;
+      document.getElementById('ventana-admin-form').classList.add('oculto');
+      Notificaciones.mostrar('➕ Objeto creado: ' + icono + ' ' + nombre + ' ($' + nuevo.precio +
+        '). Ya puedes dejarlo en el mapa o darlo de recompensa', 'exito', 6000);
+      return;
+    }
 
     if (tipo === 'mision') {
       const titulo = this._valor('af-titulo').trim();
@@ -593,13 +663,18 @@ const Admin = {
   // lo ya publicado + tus cambios locales, listo para pegar en GitHub.
   exportar() {
     const quitarTemporales = (clave, valor) => clave.startsWith('_') ? undefined : valor;
+    const nuevosPorId = new Map();
+    for (const it of this.publicado.itemsNuevos) nuevosPorId.set(it.id, it);
+    for (const it of this.datos.itemsNuevos) nuevosPorId.set(it.id, it);
     const json = JSON.stringify({
       misiones: this.misionesTodas(),
       tesoros: this.tesorosTodos(),
       objetos: this.objetosTodos(),
       posiciones: Object.assign({}, this.publicado.posiciones, this.datos.posiciones),
       eliminados: [...new Set([...this.publicado.eliminados, ...this.datos.eliminados])]
-        .filter(id => !id.startsWith('admx_'))
+        .filter(id => !id.startsWith('admx_')),
+      precios: Object.assign({}, this.publicado.precios, this.datos.precios),
+      itemsNuevos: [...nuevosPorId.values()]
     }, quitarTemporales, 2);
     if (navigator.clipboard && navigator.clipboard.writeText) {
       navigator.clipboard.writeText(json)

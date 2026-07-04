@@ -68,7 +68,38 @@ const CATALOGO_ITEMS = {
 };
 
 const Items = {
+  PRECIO_MINIMO: 5,
+  PRECIO_MAXIMO: 5000,
+
   obtener(id) { return CATALOGO_ITEMS[id]; },
+
+  // Para pintar en pantalla: nunca devuelve vacío aunque el item ya no exista
+  seguro(id) {
+    return CATALOGO_ITEMS[id] ||
+      { nombre: 'Objeto desconocido', icono: '❓', tipo: 'especial', precio: this.PRECIO_MINIMO, desc: '' };
+  },
+
+  // Aplica el mundo publicado/local del admin: objetos nuevos y precios globales
+  aplicarMundo(itemsNuevos, precios) {
+    for (const it of (itemsNuevos || [])) {
+      if (!it.id) continue;
+      CATALOGO_ITEMS[it.id] = {
+        nombre: it.nombre || it.id,
+        icono: it.icono || '📦',
+        tipo: it.tipo || 'especial',
+        precio: this._limitarPrecio(it.precio),
+        cura: it.cura || undefined,
+        desc: it.desc || 'Objeto creado por el administrador.'
+      };
+    }
+    for (const [id, precio] of Object.entries(precios || {})) {
+      if (CATALOGO_ITEMS[id]) CATALOGO_ITEMS[id].precio = this._limitarPrecio(precio);
+    }
+  },
+
+  _limitarPrecio(precio) {
+    return Math.max(this.PRECIO_MINIMO, Math.min(this.PRECIO_MAXIMO, parseInt(precio, 10) || this.PRECIO_MINIMO));
+  },
 
   // Lista de peces para el minijuego de pesca
   peces() {
