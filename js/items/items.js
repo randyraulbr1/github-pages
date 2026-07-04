@@ -34,6 +34,9 @@ const CATALOGO_ITEMS = {
   linterna:       { nombre: 'Linterna',          icono: '🔦', tipo: 'herramienta', precio: 35, desc: 'Ilumina la noche del malecón.' },
   cuchillo:       { nombre: 'Cuchillo',          icono: '🔪', tipo: 'herramienta', precio: 40, desc: 'Útil para limpiar pescado.' },
   cuerda:         { nombre: 'Cuerda',            icono: '🧵', tipo: 'herramienta', precio: 20, desc: 'Diez metros de soga marinera.' },
+  papel:          { nombre: 'Papel',             icono: '📄', tipo: 'herramienta', precio: 10, desc: 'Con un lápiz puedes escribir una nota.' },
+  lapiz:          { nombre: 'Lápiz',             icono: '✏️', tipo: 'herramienta', precio: 30, desc: 'Sirve para escribir notas en papel.' },
+  nota_escrita:   { nombre: 'Nota escrita',      icono: '📝', tipo: 'especial', precio: 5, unico: true, desc: 'Una nota escrita por un jugador.' },
 
   // ---------- COMIDA Y MEDICINA (12) ----------
   agua:           { nombre: 'Botella de agua',   icono: '💧', tipo: 'comida', precio: 5,  cura: 5,  desc: 'Fresca, recupera un poco de vida.' },

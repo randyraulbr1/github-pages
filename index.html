@@ -36,7 +36,6 @@
 
   <!-- BARRA SUPERIOR: vida + dinero -->
   <div id="barra-superior">
-    <span id="vida-corazon">❤️</span>
     <div id="contenedor-vida" title="Vida">
       <div id="vida-relleno"></div>
       <span id="vida-texto">100</span>
@@ -59,12 +58,13 @@
     <button id="btn-admin-salir-modo">Salir</button>
   </div>
 
+  <!-- LETRERO DE MISIONES ACTIVAS (izquierda) -->
+  <div id="letrero-misiones" class="oculto"></div>
+
   <!-- BOTONES INFERIORES (burbujas) -->
   <div id="botones-inferiores">
     <button id="btn-mochila" class="btn-burbuja"><span class="burbuja-icono">🎒</span><span class="burbuja-texto">Mochila</span></button>
-    <button id="btn-misiones" class="btn-burbuja"><span class="burbuja-icono">📜</span><span class="burbuja-texto">Misiones</span></button>
     <button id="btn-notific" class="btn-burbuja"><span class="burbuja-icono">🔔</span><span class="burbuja-texto">Avisos</span></button>
-    <button id="btn-historial" class="btn-burbuja"><span class="burbuja-icono">🧾</span><span class="burbuja-texto">Historial</span></button>
     <button id="btn-gps" class="btn-burbuja"><span class="burbuja-icono">📍</span><span class="burbuja-texto">GPS</span></button>
     <button id="btn-opciones" class="btn-burbuja"><span class="burbuja-icono">⚙️</span><span class="burbuja-texto">Opciones</span></button>
   </div>
@@ -102,6 +102,7 @@
         </div>
         <div id="detalle-botones">
           <button id="btn-usar-item">Usar</button>
+          <button id="btn-escribir-item">Escribir</button>
           <button id="btn-eliminar-item">Eliminar</button>
         </div>
       </div>
@@ -209,11 +210,15 @@
         <button class="fila-opcion" id="admin-item-nuevo"><span class="icono-opcion">➕</span> Crear objeto nuevo</button>
         <button class="fila-opcion" id="admin-organizar"><span class="icono-opcion">✋</span> Organizar pines (mover)</button>
         <button class="fila-opcion peligro" id="admin-eliminar"><span class="icono-opcion">🗑️</span> Eliminar pines del mapa</button>
+        <button class="fila-opcion" id="admin-jugadores"><span class="icono-opcion">👥</span> Jugadores de este teléfono</button>
+        <button class="fila-opcion" id="admin-ver-historial"><span class="icono-opcion">🧾</span> Ver historial del jugador actual</button>
         <button class="fila-opcion" id="admin-mantenimiento"><span class="icono-opcion">🚧</span> Activar / quitar mantenimiento</button>
         <button class="fila-opcion" id="admin-mensaje"><span class="icono-opcion">✉️</span> Enviar mensaje a jugadores</button>
         <button class="fila-opcion" id="admin-inspeccionar"><span class="icono-opcion">🔎</span> Inspeccionar tarjeta de jugador</button>
         <button class="fila-opcion peligro" id="admin-banear"><span class="icono-opcion">🚫</span> Banear / desbanear jugador</button>
-        <button class="fila-opcion" id="admin-exportar"><span class="icono-opcion">📋</span> Exportar mis creaciones</button>
+        <button class="fila-opcion" id="admin-publicar"><span class="icono-opcion">🌍</span> PUBLICAR MUNDO (actualiza a todos)</button>
+        <button class="fila-opcion" id="admin-clave-publicar"><span class="icono-opcion">🔑</span> Configurar clave de publicación</button>
+        <button class="fila-opcion" id="admin-exportar"><span class="icono-opcion">📋</span> Exportar mis creaciones (manual)</button>
       </div>
     </div>
   </div>

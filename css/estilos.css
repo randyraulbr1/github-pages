@@ -21,14 +21,6 @@ button { font-family: inherit; }
   z-index: 1000; display: flex; justify-content: space-between; align-items: center; gap: 10px;
   pointer-events: none;
 }
-/* Corazón junto a la barra de vida (estilo cartoon) */
-#vida-corazon {
-  width: 32px; height: 32px; border-radius: 50%; flex-shrink: 0;
-  display: flex; align-items: center; justify-content: center; font-size: 17px;
-  background: radial-gradient(circle at 32% 28%, #ff8fa0, #ff2a4b 60%, #b70d2c 100%);
-  border: 3px solid #1a1a1a; margin-right: -16px; z-index: 2; position: relative;
-  box-shadow: 0 3px 6px rgba(0,0,0,.35), inset 0 2px 3px rgba(255,255,255,.4);
-}
 #contenedor-vida {
   position: relative; flex: 1; max-width: 240px; height: 30px;
   background: #2b1016; border-radius: 16px; overflow: hidden;
@@ -132,6 +124,21 @@ button { font-family: inherit; }
   border: 1px solid rgba(255,255,255,.2);
 }
 
+/* ============ LETRERO DE MISIONES (izquierda) ============ */
+#letrero-misiones {
+  position: fixed; left: 8px; top: calc(92px + env(safe-area-inset-top)); z-index: 900;
+  display: flex; flex-direction: column; gap: 6px; max-width: 52vw;
+}
+.mision-letrero {
+  background: rgba(16,20,31,.85); border: 2px solid #1a1a1a; border-radius: 12px;
+  padding: 6px 10px; font-size: 11px; color: #fff; display: flex; gap: 7px; align-items: center;
+  box-shadow: 0 3px 6px rgba(0,0,0,.35);
+}
+.mision-letrero .punto-color { width: 11px; height: 11px; border-radius: 50%; border: 2px solid #1a1a1a; flex-shrink: 0; }
+.mision-letrero .datos-letrero { min-width: 0; }
+.mision-letrero .titulo-letrero { font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.mision-letrero .estado-letrero { color: #ffd60a; font-size: 10px; }
+
 /* ============ NOTIFICACIONES ============ */
 #zona-notificaciones {
   position: fixed; top: calc(86px + env(safe-area-inset-top)); right: 0; z-index: 2000;
@@ -220,6 +227,7 @@ button { font-family: inherit; }
 #detalle-botones { display: flex; flex-direction: column; gap: 6px; }
 #detalle-botones button { border: none; border-radius: 11px; padding: 8px 14px; cursor: pointer; font-weight: 700; font-size: 13px; }
 #btn-usar-item { background: #30d158; color: #05310f; }
+#btn-escribir-item { background: #3d8bfd; color: #fff; }
 #btn-eliminar-item { background: #ff453a; color: #fff; }
 
 /* ============ TIENDA ============ */

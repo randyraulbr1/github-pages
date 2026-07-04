@@ -36,6 +36,6 @@ const DATOS_TIENDAS = [
     nombre: '🛒 Mercado Central',
     icono: '🛒',
     posicion: [22.9924, -82.7521],
-    vende: ['pizza', 'pollo_asado', 'mapa_antiguo', 'buscador_tesoros', 'brujula', 'refresco']
+    vende: ['pizza', 'pollo_asado', 'mapa_antiguo', 'buscador_tesoros', 'brujula', 'refresco', 'papel', 'lapiz']
   }
 ];

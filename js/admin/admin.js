@@ -96,7 +96,7 @@ const Admin = {
   // ---------- ARRANQUE (después de los módulos base) ----------
   iniciar() {
     this._progreso();
-    for (const m of this.misionesTodas()) { this.pos(m.id, m.pos); this._crearMarcadorMision(m); }
+    // (las misiones del admin las gestiona el módulo Misiones)
     for (const t of this.tesorosTodos()) { this.pos(t.id, t.pos); this._prepararTesoro(t); }
     for (const o of this.objetosTodos()) { this.pos(o.id, o.pos); this._crearMarcadorObjeto(o); }
 
@@ -113,13 +113,26 @@ const Admin = {
     document.getElementById('admin-organizar').addEventListener('click', () => this.entrarModo('organizar'));
     document.getElementById('admin-eliminar').addEventListener('click', () => this.entrarModo('eliminar'));
     document.getElementById('admin-exportar').addEventListener('click', () => this.exportar());
+    document.getElementById('admin-jugadores').addEventListener('click', () => this.listarJugadores());
+    document.getElementById('admin-ver-historial').addEventListener('click', () => {
+      document.getElementById('ventana-admin').classList.add('oculto');
+      Historial.abrir();
+    });
+    document.getElementById('admin-publicar').addEventListener('click', () => this.publicarMundo());
+    document.getElementById('admin-clave-publicar').addEventListener('click', () => this.configurarPublicacion());
     document.getElementById('btn-admin-guardar').addEventListener('click', () => this.guardarFormulario());
     document.getElementById('btn-admin-confirmar').addEventListener('click', () => this.confirmarColocacion());
     document.getElementById('btn-admin-salir-modo').addEventListener('click', () => this.salirModo());
   },
 
   // ---------- ACCESO CON PIN ----------
+  // El PIN solo se pide la PRIMERA vez en cada teléfono; después queda
+  // desbloqueado (guardado en el dispositivo del admin).
   async solicitarAcceso() {
+    if (this.datos.pinHash && this.datos.desbloqueado) {
+      document.getElementById('ventana-admin').classList.remove('oculto');
+      return;
+    }
     if (!this.datos.pinHash) {
       const pin1 = prompt('Crea tu PIN de administrador (4 números):');
       if (!pin1 || !/^\d{4}$/.test(pin1.trim())) { alert('Debe ser de 4 números'); return; }
@@ -134,6 +147,8 @@ const Admin = {
       const hash = await Utilidades.sha256('pin-admin|' + pin.trim());
       if (hash !== this.datos.pinHash) { alert('PIN incorrecto'); return; }
     }
+    this.datos.desbloqueado = true;
+    this.guardar();
     document.getElementById('ventana-admin').classList.remove('oculto');
   },
 
@@ -186,7 +201,8 @@ const Admin = {
         '<div class="campo-doble">' +
           this._campoSelect('af-item', 'Objeto a dejar', this._opcionesItems(false)) +
           this._campoNumero('af-cant', 'Cantidad', 1) +
-        '</div>';
+        '</div>' +
+        this._campoNumero('af-reaparece', 'Vuelve a aparecer a los X minutos (0 = no vuelve a salir)', 0);
     } else if (tipo === 'precio') {
       titulo.textContent = '💲 Cambiar precio global';
       campos.innerHTML =
@@ -236,6 +252,12 @@ const Admin = {
     const tipo = this._colocacion && this._colocacion.tipo;
     if (!tipo) return;
     let valores;
+
+    if (tipo === 'crear_jugador') {
+      this._colocacion = null;
+      Usuarios.cambiarJugador(); // lleva a la pantalla de registro
+      return;
+    }
 
     // Los formularios de precio y objeto nuevo no colocan nada en el mapa
     if (tipo === 'precio') {
@@ -298,7 +320,8 @@ const Admin = {
     } else {
       valores = {
         itemId: this._valor('af-item'),
-        cantidad: Math.max(1, this._numero('af-cant'))
+        cantidad: Math.max(1, this._numero('af-cant')),
+        reaparece: this._numero('af-reaparece')
       };
     }
 
@@ -331,8 +354,8 @@ const Admin = {
     if (c.tipo === 'mision') {
       const m = Object.assign({ id, pos }, c.valores);
       this.datos.misiones.push(m);
-      this._crearMarcadorMision(m);
-      Notificaciones.mostrar('📜 Misión creada: ' + m.titulo, 'exito');
+      Misiones.agregarAdmin(m);
+      Notificaciones.mostrar('📜 Misión creada: ' + m.titulo + ' (recuerda PUBLICAR el mundo)', 'exito', 5000);
     } else if (c.tipo === 'tesoro') {
       const t = Object.assign({ id, pos }, c.valores);
       this.datos.tesoros.push(t);
@@ -351,78 +374,10 @@ const Admin = {
   },
 
   // ---------- MISIONES DEL ADMIN ----------
-  _crearMarcadorMision(m) {
-    if (this._progreso().misiones.includes(m.id)) return;
-    const marcador = Mapa.crearMarcadorEmoji(m.pos, '❗', 26);
-    m._marcador = marcador;
-    m._avisado = false;
-    Mapa.registrarPunto({
-      id: m.id,
-      posicion: m.pos,
-      radio: CONFIG.distanciaInteraccion,
-      marcador,
-      alTocar: () => this._infoMision(m),
-      alCambiarDistancia: d => this._revisarMision(m, d)
-    });
-  },
 
-  _infoMision(m) {
-    let estado = '';
-    if (m.reqItem) {
-      const it = Items.obtener(m.reqItem);
-      estado = ' — Llevas ' + Mochila.contar(m.reqItem) + '/' + m.reqCant + ' ' + it.nombre;
-    }
-    Notificaciones.mostrar('📜 ' + m.titulo + (m.texto ? ': ' + m.texto : '') + estado, 'info', 5000);
-  },
 
-  _revisarMision(m, distancia) {
-    if (this._progreso().misiones.includes(m.id)) return;
-    if (distancia > CONFIG.distanciaInteraccion) { m._avisado = false; return; }
 
-    if (m.reqItem && Mochila.contar(m.reqItem) < m.reqCant) {
-      if (!m._avisado) {
-        m._avisado = true;
-        const it = Items.obtener(m.reqItem);
-        Notificaciones.mostrar('📜 ' + m.titulo + ': te falta ' + it.nombre + ' (' +
-          Mochila.contar(m.reqItem) + '/' + m.reqCant + ')', 'alerta', 4500);
-      }
-      return;
-    }
-    this._completarMision(m);
-  },
 
-  async _completarMision(m) {
-    this._progreso().misiones.push(m.id);
-    Guardado.guardar();
-    if (m._marcador) { m._marcador.remove(); m._marcador = null; }
-    if (m.reqItem && m.consumir) Mochila.quitar(m.reqItem, m.reqCant, 'Entregado (misión)');
-    Notificaciones.mostrar('✅ Misión completada: ' + m.titulo, 'exito', 5000);
-    if (m.dinero) await Dinero.ganar(m.dinero, 'Misión: ' + m.titulo);
-    if (m.recItem) Mochila.agregar(m.recItem, m.recCant);
-  },
-
-  // Pinta las misiones del admin dentro de la ventana de misiones
-  pintarMisiones(contenedor) {
-    for (const m of this.misionesTodas()) {
-      const hecha = this._progreso().misiones.includes(m.id);
-      const caja = document.createElement('div');
-      caja.className = 'mision' + (hecha ? ' completada' : '');
-      const distancia = Math.round(Utilidades.distanciaMetros(GPS.posicion, m.pos));
-      let progreso = '';
-      if (m.reqItem && !hecha) {
-        const it = Items.obtener(m.reqItem);
-        progreso = '<div class="progreso">Llevas: ' + it.nombre + ' ' +
-          Mochila.contar(m.reqItem) + '/' + m.reqCant + '</div>';
-      }
-      caja.innerHTML =
-        '<div class="titulo">' + (hecha ? '✅ ' : '❗ ') + m.titulo + '</div>' +
-        (m.texto ? '<div class="descripcion">' + m.texto + '</div>' : '') +
-        progreso +
-        (!hecha ? '<div class="distancia">📍 A ' + distancia + ' m · Recompensa: $' + (m.dinero || 0) +
-          (m.recItem ? ' + ' + Items.obtener(m.recItem).icono : '') + '</div>' : '');
-      contenedor.appendChild(caja);
-    }
-  },
 
   // ---------- TESOROS DEL ADMIN ----------
   _prepararTesoro(t) {
@@ -511,31 +466,71 @@ const Admin = {
     }, 800);
   },
 
-  // ---------- OBJETOS DEJADOS EN EL MAPA ----------
+  // ---------- OBJETOS DEJADOS EN EL MAPA (con reaparición) ----------
+  // El progreso guarda CUÁNDO se recogió cada objeto: si el admin puso
+  // reaparición, pasado ese tiempo vuelve a salir para ese jugador.
+  _objetosRecogidos() {
+    const p = this._progreso();
+    if (Array.isArray(p.objetos)) {
+      const mapa = {};
+      for (const id of p.objetos) mapa[id] = Date.now();
+      p.objetos = mapa;
+    }
+    if (!p.objetos || typeof p.objetos !== 'object') p.objetos = {};
+    return p.objetos;
+  },
+
+  _objetoDisponible(o) {
+    const t = this._objetosRecogidos()[o.id];
+    if (!t) return true;
+    return (o.reaparece || 0) > 0 && Date.now() - t > o.reaparece * 60000;
+  },
+
   _crearMarcadorObjeto(o) {
-    if (this._progreso().objetos.includes(o.id)) return;
     const item = Items.obtener(o.itemId);
     if (!item) return;
-    const marcador = Mapa.crearMarcadorEmoji(o.pos, item.icono, 26);
-    o._marcador = marcador;
+    o._marcador = null;
     Mapa.registrarPunto({
       id: o.id,
       posicion: o.pos,
       radio: CONFIG.distanciaInteraccion,
-      marcador,
-      alTocar: () => this._recogerObjeto(o)
+      marcador: null,
+      alCambiarDistancia: () => this._revisarObjeto(o)
     });
+    this._revisarObjeto(o);
+  },
+
+  _revisarObjeto(o) {
+    const item = Items.obtener(o.itemId);
+    if (!item) return;
+    const disponible = this._objetoDisponible(o);
+    if (disponible && !o._marcador) {
+      o._marcador = Mapa.crearMarcadorEmoji(o.pos, item.icono, 26);
+      o._marcador.on('click', () => {
+        if (this.manejarClickPunto({ id: o.id, marcador: o._marcador })) return;
+        this._recogerObjeto(o);
+      });
+    } else if (!disponible && o._marcador) {
+      o._marcador.remove();
+      o._marcador = null;
+    }
   },
 
   _recogerObjeto(o) {
-    if (this._progreso().objetos.includes(o.id)) return;
+    if (!this._objetoDisponible(o)) return;
+    const d = Utilidades.distanciaMetros(GPS.posicion, o.pos);
+    if (d > CONFIG.distanciaInteraccion) {
+      Notificaciones.mostrar('📍 Acércate más (' + Math.round(d) + ' m)', 'alerta');
+      return;
+    }
     const item = Items.obtener(o.itemId);
     if (!Mochila.agregar(o.itemId, o.cantidad, { silencioso: true })) return;
-    this._progreso().objetos.push(o.id);
+    this._objetosRecogidos()[o.id] = Date.now();
     Guardado.guardar();
     const punto = Mapa.mapa.latLngToContainerPoint(o.pos);
     Utilidades.volarHaciaMochila(item.icono, punto.x, punto.y);
-    Notificaciones.mostrar(item.icono + ' Recogiste ' + item.nombre + ' x' + o.cantidad, 'exito');
+    Notificaciones.mostrar(item.icono + ' Recogiste ' + item.nombre + ' x' + o.cantidad +
+      ((o.reaparece || 0) > 0 ? ' (volverá a salir en ' + o.reaparece + ' min)' : ''), 'exito');
     if (o._marcador) { o._marcador.remove(); o._marcador = null; }
   },
 
@@ -769,15 +764,184 @@ const Admin = {
     }
   },
 
+  // ---------- JUGADORES DE ESTE TELÉFONO ----------
+  listarJugadores() {
+    document.getElementById('ventana-admin').classList.add('oculto');
+    document.getElementById('admin-form-titulo').textContent = '👥 Jugadores de este teléfono';
+    const campos = document.getElementById('admin-form-campos');
+    campos.innerHTML = '';
+    document.getElementById('btn-admin-guardar').textContent = '➕ Crear jugador nuevo';
+
+    for (const perfil of Usuarios.datos.lista) {
+      const guardadoCrudo = localStorage.getItem(CONFIG.claveGuardado + '::' + perfil.id);
+      let dinero = '—';
+      try { dinero = '$' + JSON.parse(guardadoCrudo).datos.dinero.saldo; } catch (e) {}
+      const fila = document.createElement('div');
+      fila.className = 'fila-tienda';
+      fila.innerHTML =
+        '<span class="icono">👤</span>' +
+        '<div class="datos"><div class="nombre">' + perfil.nombre +
+        (perfil.id === Usuarios.perfilActivo.id ? ' (activo)' : '') + '</div>' +
+        '<div class="precio">' + dinero + ' · 📱 ' + (perfil.telefono || 'sin número') +
+        '<br>ID: ' + perfil.id + '</div></div>';
+      const acciones = document.createElement('div');
+      acciones.style.cssText = 'display:flex; flex-direction:column; gap:4px;';
+      for (const [texto, accion] of [
+        ['💰', () => this._ajustarDinero(perfil)],
+        ['🎁', () => this._darObjeto(perfil)],
+        ['🗑️', () => this._eliminarJugador(perfil)]
+      ]) {
+        const b = document.createElement('button');
+        b.textContent = texto;
+        b.style.cssText = 'border:none;border-radius:8px;padding:6px 10px;cursor:pointer;background:rgba(255,255,255,.12);color:#fff;';
+        b.addEventListener('click', accion);
+        acciones.appendChild(b);
+      }
+      fila.appendChild(acciones);
+      campos.appendChild(fila);
+    }
+    // El botón grande de abajo crea un jugador nuevo
+    this._colocacion = { tipo: 'crear_jugador' };
+    document.getElementById('ventana-admin-form').classList.remove('oculto');
+  },
+
+  // ----- Motor para editar la partida guardada de cualquier jugador -----
+  async _editarSave(perfil, editor) {
+    const clave = CONFIG.claveGuardado + '::' + perfil.id;
+    let paquete;
+    try { paquete = JSON.parse(localStorage.getItem(clave)); } catch (e) { paquete = null; }
+    if (!paquete || !paquete.datos) { alert('Ese jugador aún no tiene partida guardada'); return; }
+    await editor(paquete.datos);
+    paquete.firma = await Utilidades.sha256(JSON.stringify(paquete.datos) + Guardado.SAL);
+    localStorage.setItem(clave, JSON.stringify(paquete));
+  },
+
+  async _anotarHistorialSave(datosSave, tipo, detalle, monto, saldo) {
+    const lista = tipo === 'dinero' ? datosSave.historialDinero : datosSave.historialObjetos;
+    const anterior = lista.length ? lista[lista.length - 1].hash : 'GENESIS';
+    const e = { t: Date.now(), detalle, monto, saldo: saldo ?? null,
+      lugar: 'Ajuste del administrador', pos: null, hashAnterior: anterior };
+    e.hash = await Utilidades.sha256(
+      Guardado.SAL + '|' + e.t + '|' + e.detalle + '|' + e.monto + '|' + e.saldo + '|' +
+      (e.lugar ?? '') + '|' + (e.pos ? e.pos.join(',') : '') + '|' + e.hashAnterior);
+    lista.push(e);
+  },
+
+  async _ajustarDinero(perfil) {
+    const v = prompt('Cantidad de dinero a AGREGAR a ' + perfil.nombre + ' (negativa para quitar):', '100');
+    if (v === null) return;
+    const cantidad = parseInt(v, 10);
+    if (!cantidad) return;
+    if (perfil.id === Usuarios.perfilActivo.id) {
+      if (cantidad > 0) await Dinero.ganar(cantidad, 'Ajuste del administrador');
+      else await Dinero.gastar(-cantidad, 'Ajuste del administrador');
+    } else {
+      await this._editarSave(perfil, async datosSave => {
+        datosSave.dinero.saldo = Math.max(0, datosSave.dinero.saldo + cantidad);
+        datosSave.dinero.control = await Utilidades.sha256(Guardado.SAL + '|saldo|' + datosSave.dinero.saldo);
+        await this._anotarHistorialSave(datosSave, 'dinero', 'Ajuste del administrador',
+          cantidad, datosSave.dinero.saldo);
+      });
+    }
+    Notificaciones.mostrar('💰 Dinero de ' + perfil.nombre + ' ajustado (' +
+      (cantidad > 0 ? '+' : '') + cantidad + ')', 'exito');
+    this.listarJugadores();
+  },
+
+  async _darObjeto(perfil) {
+    const id = prompt('ID del objeto (ej: sardina, cana_pescar, perla, papel):');
+    if (!id || !Items.obtener(id.trim())) { if (id !== null) alert('No existe un objeto con ese ID'); return; }
+    const idItem = id.trim();
+    const cantidad = Math.max(1, parseInt(prompt('Cantidad:', '1') || '1', 10) || 1);
+    if (perfil.id === Usuarios.perfilActivo.id) {
+      Mochila.agregar(idItem, cantidad);
+    } else {
+      await this._editarSave(perfil, async datosSave => {
+        const slots = datosSave.mochila || [];
+        let restante = cantidad;
+        if (!Items.obtener(idItem).unico) {
+          for (const sl of slots) if (sl && sl.id === idItem && restante > 0) { sl.cantidad += restante; restante = 0; }
+        }
+        for (let i = 0; i < slots.length && restante > 0; i++) {
+          if (!slots[i]) {
+            const cuanto = Items.obtener(idItem).unico ? 1 : restante;
+            slots[i] = { id: idItem, cantidad: cuanto };
+            restante -= cuanto;
+          }
+        }
+        await this._anotarHistorialSave(datosSave, 'objetos',
+          'Regalo del administrador: ' + Items.seguro(idItem).nombre, cantidad);
+      });
+    }
+    Notificaciones.mostrar('🎁 ' + Items.seguro(idItem).nombre + ' x' + cantidad + ' para ' + perfil.nombre, 'exito');
+  },
+
+  _eliminarJugador(perfil) {
+    if (perfil.id === Usuarios.perfilActivo.id) { alert('No puedes eliminar al jugador activo (cambia de jugador primero)'); return; }
+    if (!confirm('¿Eliminar a ' + perfil.nombre + ' y TODA su partida de este teléfono?')) return;
+    Usuarios.datos.lista = Usuarios.datos.lista.filter(p => p.id !== perfil.id);
+    Usuarios._guardarLista();
+    localStorage.removeItem(CONFIG.claveGuardado + '::' + perfil.id);
+    Notificaciones.mostrar('🗑️ Jugador ' + perfil.nombre + ' eliminado', 'alerta');
+    this.listarJugadores();
+  },
+
+  // ---------- PUBLICACIÓN AUTOMÁTICA (GitHub desde el teléfono) ----------
+  configurarPublicacion() {
+    const token = prompt('Pega tu clave de GitHub (token con permiso de Contents en el repo).\n' +
+      'Se guarda SOLO en este teléfono:');
+    if (token === null) return;
+    this.datos.tokenPublicar = token.trim() || null;
+    this.guardar();
+    Notificaciones.mostrar(this.datos.tokenPublicar
+      ? '🔑 Clave guardada: ya puedes PUBLICAR MUNDO con un toque'
+      : '🔑 Clave borrada', 'exito', 6000);
+  },
+
+  async publicarMundo() {
+    if (!this.datos.tokenPublicar) {
+      Notificaciones.mostrar('🔑 Primero configura tu clave de publicación', 'alerta', 6000);
+      return;
+    }
+    Notificaciones.mostrar('🌍 Publicando el mundo…', 'info');
+    const url = 'https://api.github.com/repos/' + CONFIG.repoPublicacion + '/contents/datos/mundo.json';
+    const cabeceras = {
+      'Authorization': 'Bearer ' + this.datos.tokenPublicar,
+      'Accept': 'application/vnd.github+json'
+    };
+    let sha = null;
+    try {
+      const r = await fetch(url + '?ref=' + CONFIG.ramaPublicacion, { headers: cabeceras });
+      if (r.ok) sha = (await r.json()).sha;
+    } catch (e) {}
+    const cuerpo = {
+      message: 'Publicar mundo desde el juego (admin)',
+      content: btoa(unescape(encodeURIComponent(this._jsonMundo()))),
+      branch: CONFIG.ramaPublicacion
+    };
+    if (sha) cuerpo.sha = sha;
+    try {
+      const r = await fetch(url, { method: 'PUT', headers: cabeceras, body: JSON.stringify(cuerpo) });
+      if (r.ok) {
+        Notificaciones.mostrar('🌍 ¡MUNDO PUBLICADO! En 1-2 min les llega a todos los jugadores al recargar', 'exito', 8000);
+      } else if (r.status === 401 || r.status === 403) {
+        Notificaciones.mostrar('❌ La clave no tiene permiso: revisa el token en GitHub', 'error', 7000);
+      } else {
+        Notificaciones.mostrar('❌ GitHub respondió error ' + r.status + ': intenta de nuevo', 'error', 7000);
+      }
+    } catch (e) {
+      Notificaciones.mostrar('❌ Sin conexión con GitHub: intenta más tarde', 'error', 6000);
+    }
+  },
+
   // ---------- EXPORTAR ----------
-  // Genera el contenido COMPLETO para el archivo datos/mundo.json:
-  // lo ya publicado + tus cambios locales, listo para pegar en GitHub.
-  exportar() {
+  // Contenido COMPLETO para datos/mundo.json (publicado + cambios locales)
+  _jsonMundo() {
     const quitarTemporales = (clave, valor) => clave.startsWith('_') ? undefined : valor;
     const nuevosPorId = new Map();
     for (const it of this.publicado.itemsNuevos) nuevosPorId.set(it.id, it);
     for (const it of this.datos.itemsNuevos) nuevosPorId.set(it.id, it);
-    const json = JSON.stringify({
+    return JSON.stringify({
       misiones: this.misionesTodas(),
       tesoros: this.tesorosTodos(),
       objetos: this.objetosTodos(),
@@ -797,12 +961,16 @@ const Admin = {
         const porId = new Map();
         for (const m of this.publicado.mensajes) porId.set(m.id, m);
         for (const m of this.datos.mensajes) porId.set(m.id, m);
-        return [...porId.values()].slice(-20); // solo los 20 más recientes
+        return [...porId.values()].slice(-20);
       })()
     }, quitarTemporales, 2);
+  },
+
+  exportar() {
+    const json = this._jsonMundo();
     if (navigator.clipboard && navigator.clipboard.writeText) {
       navigator.clipboard.writeText(json)
-        .then(() => Notificaciones.mostrar('📋 Copiado. Pégalo en datos/mundo.json en GitHub (o mándamelo) y les llegará a todos', 'exito', 7000))
+        .then(() => Notificaciones.mostrar('📋 Copiado. Pégalo en datos/mundo.json en GitHub (o mándamelo)', 'exito', 7000))
         .catch(() => prompt('Copia este texto y pégalo en datos/mundo.json en GitHub:', json));
     } else {
       prompt('Copia este texto y pégalo en datos/mundo.json en GitHub:', json);

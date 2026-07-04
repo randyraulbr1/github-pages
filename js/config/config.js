@@ -27,5 +27,9 @@ const CONFIG = {
   // La vida baja 1 punto cada X segundos (el jugador debe comer)
   segundosDesgasteVida: 90,
 
-  claveGuardado: 'mariel_explorer_v1'
+  claveGuardado: 'mariel_explorer_v1',
+
+  // Dónde publica el admin el mundo (botón PUBLICAR MUNDO)
+  repoPublicacion: 'randyraulbr1/github-pages',
+  ramaPublicacion: 'claude/web-rpg-gps-game-n3ybow'
 };

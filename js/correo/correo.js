@@ -166,6 +166,7 @@ const Correo = {
     const vistos = new Set();
     for (const sl of Mochila.slots) {
       if (!sl || vistos.has(sl.id)) continue;
+      if (Items.seguro(sl.id).unico || sl.texto) continue; // las notas no viajan por correo
       vistos.add(sl.id);
       hayAlgo = true;
       const item = Items.seguro(sl.id);

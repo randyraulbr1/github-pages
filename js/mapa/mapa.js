@@ -80,5 +80,7 @@ const Mapa = {
       }
       if (p.alCambiarDistancia) p.alCambiarDistancia(d);
     }
+    // Las líneas guía de misiones siguen al jugador
+    if (typeof Misiones !== 'undefined' && Misiones.actualizarLineas) Misiones.actualizarLineas();
   }
 };

@@ -97,7 +97,9 @@ const Historial = {
 
   // ---------- VISOR ----------
   iniciarVisor() {
-    document.getElementById('btn-historial').addEventListener('click', () => this.abrir());
+    // El historial solo lo abre el administrador (desde su panel)
+    const boton = document.getElementById('btn-historial');
+    if (boton) boton.addEventListener('click', () => this.abrir());
     document.getElementById('pestana-hist-dinero').addEventListener('click', () => this.cambiarPestana('dinero'));
     document.getElementById('pestana-hist-objetos').addEventListener('click', () => this.cambiarPestana('objetos'));
   },

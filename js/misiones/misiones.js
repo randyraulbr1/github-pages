@@ -1,127 +1,277 @@
 // ============================================================
-// MISIONES
-// Cada misión tiene su punto ❗ en el mapa. Las de "visitar" se
-// completan llegando; las de "entregar" tocando el punto con
-// los items requeridos; las de "contar" avanzan con eventos
-// del juego (pescar, recoger tesoros...).
+// MISIONES — sistema de aceptar y recolectar
+//  - Los iconos ❗ del mapa son misiones. El jugador va al icono
+//    y la ACEPTA (máximo 3 a la vez).
+//  - Sus misiones activas salen en un letrero a la IZQUIERDA,
+//    cada una con su color (azul, verde, naranja).
+//  - Al cumplir el objetivo, aparece una LÍNEA de su color en el
+//    mapa apuntando al icono: hay que volver ahí y RECOLECTAR
+//    la recompensa tocando el icono.
 // ============================================================
 const Misiones = {
+  MAX_ACTIVAS: 3,
+  COLORES: ['#2f8bff', '#35d461', '#ff9f1c'], // azul, verde, naranja
+  lista: [],        // todas las misiones normalizadas (base + admin)
+  _lineas: {},      // id → línea dibujada en el mapa
+  _marcadores: {},  // id → marcador
 
-  iniciar() {
-    // Estado guardado de cada misión: { progreso, completada }
-    for (const m of DATOS_MISIONES) {
-      if (!Guardado.datos.misiones[m.id]) {
-        Guardado.datos.misiones[m.id] = { progreso: 0, completada: false };
+  // ---------- ESTADOS POR JUGADOR ----------
+  // estados: disponible → aceptada → lista (objetivo cumplido) → recolectada
+  _estados() {
+    if (!Guardado.datos.misionesEstado) {
+      Guardado.datos.misionesEstado = {};
+      // Migrar partidas del sistema anterior
+      const viejo = Guardado.datos.misiones || {};
+      for (const [id, e] of Object.entries(viejo)) {
+        if (e && e.completada) Guardado.datos.misionesEstado[id] = { estado: 'recolectada', progreso: e.progreso || 0, orden: 0 };
       }
     }
+    return Guardado.datos.misionesEstado;
+  },
+  _estado(id) {
+    return this._estados()[id] || { estado: 'disponible', progreso: 0, orden: 0 };
+  },
+  _poner(id, cambios) {
+    const e = Object.assign({ estado: 'disponible', progreso: 0, orden: 0 }, this._estados()[id], cambios);
+    this._estados()[id] = e;
+    Guardado.guardar();
+    return e;
+  },
+  activas() {
+    return this.lista
+      .filter(m => ['aceptada', 'lista'].includes(this._estado(m.id).estado))
+      .sort((a, b) => this._estado(a.id).orden - this._estado(b.id).orden);
+  },
+  _colorDe(id) {
+    const i = this.activas().findIndex(m => m.id === id);
+    return this.COLORES[Math.max(0, i) % this.COLORES.length];
+  },
 
+  // ---------- ARRANQUE ----------
+  iniciar() {
+    this.lista = [];
     for (const m of DATOS_MISIONES) {
       if (Admin.eliminado(m.id)) continue;
       Admin.pos(m.id, m.posicion);
-      const estado = Guardado.datos.misiones[m.id];
-      if (estado.completada) continue;
-      const marcador = Mapa.crearMarcadorEmoji(m.posicion, '❗', 26);
-      m._marcador = marcador;
-      Mapa.registrarPunto({
-        id: m.id,
-        posicion: m.posicion,
-        radio: CONFIG.distanciaInteraccion,
-        marcador,
-        alTocar: () => this._tocar(m),
-        alCambiarDistancia: d => {
-          if (m.tipo === 'visitar' && d <= CONFIG.distanciaInteraccion) this._completarVisita(m);
-        }
+      this.lista.push({
+        id: m.id, titulo: m.titulo, texto: m.descripcion, tipo: m.tipo,
+        evento: m.evento, meta: m.meta,
+        requiere: m.requiere || [], consumir: m.tipo === 'entregar',
+        pos: m.posicion,
+        dinero: (m.recompensa && m.recompensa.dinero) || 0,
+        items: (m.recompensa && m.recompensa.items) || []
       });
     }
+    for (const m of Admin.misionesTodas()) this.lista.push(this._normalizarAdmin(m));
 
-    document.getElementById('btn-misiones').addEventListener('click', () => this.abrir());
+    for (const m of this.lista) this._crearMarcador(m);
+    this.pintarLetrero();
   },
 
-  _estado(m) { return Guardado.datos.misiones[m.id]; },
+  _normalizarAdmin(m) {
+    Admin.pos(m.id, m.pos);
+    return {
+      id: m.id, titulo: m.titulo, texto: m.texto || '',
+      tipo: m.reqItem ? 'entregar' : 'visitar',
+      requiere: m.reqItem ? [{ id: m.reqItem, cantidad: m.reqCant || 1 }] : [],
+      consumir: !!m.consumir, pos: m.pos,
+      dinero: m.dinero || 0,
+      items: m.recItem ? [{ id: m.recItem, cantidad: m.recCant || 1 }] : []
+    };
+  },
 
-  _tocar(m) {
-    const estado = this._estado(m);
-    if (estado.completada) return;
+  // El admin acaba de crear una misión: entra al juego al momento
+  agregarAdmin(mAdmin) {
+    const m = this._normalizarAdmin(mAdmin);
+    this.lista.push(m);
+    this._crearMarcador(m);
+  },
 
-    if (m.tipo === 'entregar') {
-      const tieneTodo = m.requiere.every(r => Mochila.contar(r.id) >= r.cantidad);
-      if (!tieneTodo) {
-        const falta = m.requiere.map(r => {
-          const it = Items.obtener(r.id);
-          return it.nombre + ' (' + Mochila.contar(r.id) + '/' + r.cantidad + ')';
-        }).join(', ');
-        Notificaciones.mostrar('📦 Te falta: ' + falta, 'alerta', 4500);
-        return;
-      }
-      for (const r of m.requiere) Mochila.quitar(r.id, r.cantidad, 'Entregado (misión)');
-      this._completar(m);
-    } else {
-      // Mostrar información de la misión
-      this.abrir();
+  _crearMarcador(m) {
+    if (this._estado(m.id).estado === 'recolectada') return;
+    const marcador = Mapa.crearMarcadorEmoji(m.pos, '❗', 26);
+    this._marcadores[m.id] = marcador;
+    Mapa.registrarPunto({
+      id: m.id,
+      posicion: m.pos,
+      radio: CONFIG.distanciaInteraccion,
+      marcador,
+      alTocar: () => this.abrirMision(m)
+    });
+  },
+
+  // ---------- LÓGICA DE OBJETIVOS ----------
+  puedeRecolectar(m) {
+    const e = this._estado(m.id);
+    if (!['aceptada', 'lista'].includes(e.estado)) return false;
+    if (m.tipo === 'visitar') return true; // el objetivo ES llegar al icono
+    if (m.tipo === 'contar') return e.progreso >= m.meta;
+    return m.requiere.every(r => Mochila.contar(r.id) >= r.cantidad);
+  },
+
+  // Revisa si alguna misión aceptada ya cumplió su objetivo (para la línea)
+  refrescar() {
+    for (const m of this.lista) {
+      const e = this._estado(m.id);
+      if (e.estado === 'aceptada' && this.puedeRecolectar(m)) this._poner(m.id, { estado: 'lista' });
+      if (e.estado === 'lista' && !this.puedeRecolectar(m)) this._poner(m.id, { estado: 'aceptada' });
     }
+    this.pintarLetrero();
+    this.actualizarLineas();
   },
 
-  _completarVisita(m) {
-    if (!this._estado(m).completada) this._completar(m);
-  },
-
-  // Los módulos del juego avisan aquí: Misiones.evento('pez_capturado')
+  // Los módulos avisan aquí: Misiones.evento('pez_capturado')
   evento(nombre) {
-    for (const m of DATOS_MISIONES) {
-      const estado = this._estado(m);
-      if (m.tipo !== 'contar' || estado.completada || m.evento !== nombre) continue;
-      estado.progreso++;
-      Guardado.guardar();
-      if (estado.progreso >= m.meta) {
-        this._completar(m);
+    for (const m of this.lista) {
+      if (m.tipo !== 'contar' || m.evento !== nombre) continue;
+      const e = this._estado(m.id);
+      if (e.estado !== 'aceptada') continue;
+      const progreso = e.progreso + 1;
+      this._poner(m.id, { progreso, estado: progreso >= m.meta ? 'lista' : 'aceptada' });
+      if (progreso >= m.meta) {
+        Notificaciones.mostrar('🎯 ¡' + m.titulo + ' cumplida! Sigue la línea para recoger tu premio', 'exito', 5000);
       } else {
-        Notificaciones.mostrar('📜 ' + m.titulo + ': ' + estado.progreso + '/' + m.meta, 'info');
+        Notificaciones.mostrar('📜 ' + m.titulo + ': ' + progreso + '/' + m.meta, 'info');
       }
     }
+    this.pintarLetrero();
+    this.actualizarLineas();
   },
 
-  async _completar(m) {
-    const estado = this._estado(m);
-    if (estado.completada) return;
-    estado.completada = true;
-    Guardado.guardar();
-    if (m._marcador) { m._marcador.remove(); m._marcador = null; }
-
-    Notificaciones.mostrar('✅ Misión completada: ' + m.titulo, 'exito', 5000);
-    if (m.recompensa.dinero) {
-      await Dinero.ganar(m.recompensa.dinero, 'Misión: ' + m.titulo);
-    }
-    for (const premio of (m.recompensa.items || [])) {
-      Mochila.agregar(premio.id, premio.cantidad);
-    }
-  },
-
-  // ---------- VENTANA DE MISIONES ----------
-  abrir() {
-    document.getElementById('ventana-misiones').classList.remove('oculto');
+  // ---------- VENTANA DE LA MISIÓN (al tocar el icono) ----------
+  abrirMision(m) {
+    const e = this._estado(m.id);
+    if (e.estado === 'recolectada') return;
     const cont = document.getElementById('lista-misiones');
     cont.innerHTML = '';
-    for (const m of DATOS_MISIONES) {
-      if (Admin.eliminado(m.id)) continue;
-      const estado = this._estado(m);
-      const caja = document.createElement('div');
-      caja.className = 'mision' + (estado.completada ? ' completada' : '');
-      const distancia = Math.round(Utilidades.distanciaMetros(GPS.posicion, m.posicion));
-      let progreso = '';
-      if (m.tipo === 'contar') progreso = 'Progreso: ' + estado.progreso + ' / ' + m.meta;
-      if (m.tipo === 'entregar') {
-        progreso = 'Llevas: ' + m.requiere.map(r =>
-          Items.obtener(r.id).nombre + ' ' + Mochila.contar(r.id) + '/' + r.cantidad).join(', ');
-      }
-      caja.innerHTML =
-        '<div class="titulo">' + (estado.completada ? '✅ ' : '❗ ') + m.titulo + '</div>' +
-        '<div class="descripcion">' + m.descripcion + '</div>' +
-        (progreso && !estado.completada ? '<div class="progreso">' + progreso + '</div>' : '') +
-        (!estado.completada ? '<div class="distancia">📍 A ' + distancia + ' m del objetivo · Recompensa: $' +
-          (m.recompensa.dinero || 0) + '</div>' : '');
-      cont.appendChild(caja);
+
+    const caja = document.createElement('div');
+    caja.className = 'mision';
+    let requisitos = '';
+    if (m.tipo === 'contar') requisitos = '<div class="progreso">Progreso: ' + e.progreso + ' / ' + m.meta + '</div>';
+    if (m.requiere.length) {
+      requisitos = '<div class="progreso">Necesitas: ' + m.requiere.map(r =>
+        Items.seguro(r.id).nombre + ' ' + Mochila.contar(r.id) + '/' + r.cantidad).join(', ') + '</div>';
     }
-    // Misiones creadas por el administrador
-    if (typeof Admin !== 'undefined') Admin.pintarMisiones(cont);
+    const premio = '💰 $' + (m.dinero || 0) +
+      (m.items || []).map(it => ' + ' + Items.seguro(it.id).icono + ' ' + Items.seguro(it.id).nombre + ' x' + it.cantidad).join('');
+    caja.innerHTML =
+      '<div class="titulo">❗ ' + m.titulo + '</div>' +
+      (m.texto ? '<div class="descripcion">' + m.texto + '</div>' : '') +
+      requisitos +
+      '<div class="distancia">Recompensa: ' + premio + '</div>';
+    cont.appendChild(caja);
+
+    const botones = document.createElement('div');
+    botones.style.cssText = 'display:flex; gap:8px;';
+    if (e.estado === 'disponible') {
+      botones.appendChild(this._boton('✅ Aceptar misión', '#30d158', '#05310f', () => this.aceptar(m)));
+    } else {
+      if (this.puedeRecolectar(m)) {
+        botones.appendChild(this._boton('🎁 Recolectar recompensa', '#ffd60a', '#3d3200', () => this.recolectar(m)));
+      }
+      botones.appendChild(this._boton('✖ Abandonar', '#ff453a', '#fff', () => this.abandonar(m)));
+    }
+    cont.appendChild(botones);
+    document.getElementById('ventana-misiones').classList.remove('oculto');
+  },
+
+  _boton(texto, fondo, color, accion) {
+    const b = document.createElement('button');
+    b.textContent = texto;
+    b.style.cssText = 'flex:1; border:none; border-radius:12px; padding:13px; font-weight:800; font-size:14px;' +
+      'cursor:pointer; background:' + fondo + '; color:' + color + ';';
+    b.addEventListener('click', accion);
+    return b;
+  },
+
+  aceptar(m) {
+    if (this.activas().length >= this.MAX_ACTIVAS) {
+      Notificaciones.mostrar('📜 Ya tienes 3 misiones activas. Termina o abandona una primero', 'alerta', 5000);
+      return;
+    }
+    this._poner(m.id, { estado: m.tipo === 'visitar' ? 'lista' : 'aceptada', orden: Date.now(), progreso: 0 });
+    document.getElementById('ventana-misiones').classList.add('oculto');
+    Notificaciones.mostrar('📜 Misión aceptada: ' + m.titulo, 'exito');
+    this.refrescar();
+  },
+
+  abandonar(m) {
+    this._poner(m.id, { estado: 'disponible', progreso: 0 });
+    document.getElementById('ventana-misiones').classList.add('oculto');
+    Notificaciones.mostrar('✖ Misión abandonada: ' + m.titulo, 'alerta');
+    this.refrescar();
+  },
+
+  async recolectar(m) {
+    if (!this.puedeRecolectar(m)) return;
+    const d = Utilidades.distanciaMetros(GPS.posicion, m.pos);
+    if (d > CONFIG.distanciaInteraccion) {
+      Notificaciones.mostrar('📍 Ve al icono de la misión para recolectar (' + Math.round(d) + ' m)', 'alerta');
+      return;
+    }
+    if (m.consumir) {
+      for (const r of m.requiere) Mochila.quitar(r.id, r.cantidad, 'Entregado (misión)');
+    }
+    this._poner(m.id, { estado: 'recolectada' });
+    document.getElementById('ventana-misiones').classList.add('oculto');
+    if (this._marcadores[m.id]) { this._marcadores[m.id].remove(); delete this._marcadores[m.id]; }
+    if (this._lineas[m.id]) { this._lineas[m.id].remove(); delete this._lineas[m.id]; }
+
+    Notificaciones.mostrar('🎉 Recompensa recolectada: ' + m.titulo, 'exito', 5000);
+    if (m.dinero) await Dinero.ganar(m.dinero, 'Misión: ' + m.titulo);
+    for (const it of (m.items || [])) Mochila.agregar(it.id, it.cantidad);
+    this.pintarLetrero();
+    this.actualizarLineas();
+  },
+
+  // ---------- LETRERO IZQUIERDO ----------
+  pintarLetrero() {
+    const cont = document.getElementById('letrero-misiones');
+    if (!cont) return;
+    const activas = this.activas();
+    if (!activas.length) { cont.classList.add('oculto'); return; }
+    cont.classList.remove('oculto');
+    cont.innerHTML = '';
+    activas.slice(0, this.MAX_ACTIVAS).forEach((m, i) => {
+      const e = this._estado(m.id);
+      let estadoTxt = '';
+      if (this.puedeRecolectar(m)) estadoTxt = '🎁 ¡Sigue la línea y recoge tu premio!';
+      else if (m.tipo === 'contar') estadoTxt = e.progreso + ' / ' + m.meta;
+      else if (m.requiere.length) estadoTxt = m.requiere.map(r =>
+        Items.seguro(r.id).nombre + ' ' + Mochila.contar(r.id) + '/' + r.cantidad).join(', ');
+      const fila = document.createElement('div');
+      fila.className = 'mision-letrero';
+      fila.innerHTML =
+        '<span class="punto-color" style="background:' + this.COLORES[i % 3] + '"></span>' +
+        '<div class="datos-letrero"><div class="titulo-letrero">' + m.titulo + '</div>' +
+        (estadoTxt ? '<div class="estado-letrero">' + estadoTxt + '</div>' : '') + '</div>';
+      cont.appendChild(fila);
+    });
+  },
+
+  // ---------- LÍNEAS GUÍA EN EL MAPA ----------
+  actualizarLineas() {
+    if (!GPS.posicion || !Mapa.mapa) return;
+    const activas = this.activas();
+    // Quitar líneas que ya no aplican
+    for (const [id, linea] of Object.entries(this._lineas)) {
+      const m = activas.find(x => x.id === id);
+      if (!m || !this.puedeRecolectar(m)) { linea.remove(); delete this._lineas[id]; }
+    }
+    // Dibujar/mover las líneas de misiones cumplidas
+    activas.forEach((m, i) => {
+      if (!this.puedeRecolectar(m)) return;
+      const color = this.COLORES[i % 3];
+      const puntos = [GPS.posicion, m.pos];
+      if (this._lineas[m.id]) {
+        this._lineas[m.id].setLatLngs(puntos);
+        this._lineas[m.id].setStyle({ color });
+      } else {
+        this._lineas[m.id] = L.polyline(puntos, {
+          color, weight: 4, opacity: .85, dashArray: '10 12', interactive: false
+        }).addTo(Mapa.mapa);
+      }
+    });
   }
 };

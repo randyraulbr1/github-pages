@@ -23,6 +23,7 @@ const Mochila = {
 
     document.getElementById('btn-mochila').addEventListener('click', () => this.abrir());
     document.getElementById('btn-usar-item').addEventListener('click', () => this.usarSeleccionado());
+    document.getElementById('btn-escribir-item').addEventListener('click', () => this.escribirNota());
     document.getElementById('btn-eliminar-item').addEventListener('click', () => this.eliminarSeleccionado());
     this.pintar();
   },
@@ -39,6 +40,8 @@ const Mochila = {
     // El buscador de tesoros (u otro objeto detector) pudo entrar o salir
     if (typeof Tesoros !== 'undefined' && Tesoros.activos) Tesoros.refrescarBanner();
     if (typeof Admin !== 'undefined' && Admin.datos) Admin.refrescarVisibles();
+    // Las misiones de entrega revisan si ya tienes los objetos
+    if (typeof Misiones !== 'undefined' && Misiones.lista.length) Misiones.refrescar();
   },
 
   // ---------- CONSULTAS ----------
@@ -55,14 +58,25 @@ const Mochila = {
     if (!item) return false;
 
     let restante = cantidad;
-    // Primero apilar sobre casillas que ya tengan el mismo item
-    for (const sl of this.slots) {
-      if (restante <= 0) break;
-      if (sl && sl.id === id) { sl.cantidad += restante; restante = 0; }
-    }
-    // Luego usar casillas vacías
-    for (let i = 0; i < this.slots.length && restante > 0; i++) {
-      if (!this.slots[i]) { this.slots[i] = { id, cantidad: restante }; restante = 0; }
+    if (item.unico) {
+      // Items únicos (como las notas escritas): 1 por casilla, no se apilan
+      for (let i = 0; i < this.slots.length && restante > 0; i++) {
+        if (!this.slots[i]) {
+          this.slots[i] = { id, cantidad: 1 };
+          if (opciones.texto) this.slots[i].texto = opciones.texto;
+          restante--;
+        }
+      }
+    } else {
+      // Primero apilar sobre casillas que ya tengan el mismo item
+      for (const sl of this.slots) {
+        if (restante <= 0) break;
+        if (sl && sl.id === id) { sl.cantidad += restante; restante = 0; }
+      }
+      // Luego usar casillas vacías
+      for (let i = 0; i < this.slots.length && restante > 0; i++) {
+        if (!this.slots[i]) { this.slots[i] = { id, cantidad: restante }; restante = 0; }
+      }
     }
     if (restante > 0) {
       Notificaciones.mostrar('🎒 Mochila llena, no cabe: ' + item.nombre, 'error');
@@ -199,7 +213,7 @@ const Mochila = {
     const o = this.slots[origen];
     const d = this.slots[destino];
     if (!o) return;
-    if (d && d.id === o.id) {
+    if (d && d.id === o.id && !Items.seguro(o.id).unico) {
       d.cantidad += o.cantidad;            // apilar iguales
       this.slots[origen] = null;
     } else {
@@ -232,9 +246,30 @@ const Mochila = {
     document.getElementById('detalle-item').classList.remove('oculto');
     document.getElementById('detalle-icono').textContent = item.icono;
     document.getElementById('detalle-nombre').textContent = item.nombre;
-    document.getElementById('detalle-desc').textContent = item.desc || '';
+    // Las notas escritas muestran su texto al tocarlas (leer)
+    document.getElementById('detalle-desc').textContent = sl.texto
+      ? '«' + sl.texto + '»' : (item.desc || '');
     document.getElementById('detalle-cantidad').textContent = 'Cantidad: ' + sl.cantidad;
     document.getElementById('btn-usar-item').style.display = item.cura ? '' : 'none';
+    // Escribir: solo con papel en la mano y un lápiz en la mochila
+    document.getElementById('btn-escribir-item').style.display =
+      (sl.id === 'papel' && this.tieneItem('lapiz')) ? '' : 'none';
+  },
+
+  // Escribir una nota: gasta 1 papel (el lápiz no se gasta)
+  escribirNota() {
+    const sl = this.slots[this.slotSeleccionado];
+    if (!sl || sl.id !== 'papel' || !this.tieneItem('lapiz')) return;
+    const texto = prompt('✏️ Escribe tu nota (máximo 200 letras):');
+    if (texto === null || !texto.trim()) return;
+    if (this.slotsLibres() === 0 && sl.cantidad > 1) {
+      Notificaciones.mostrar('🎒 Necesitas una casilla libre para la nota', 'error');
+      return;
+    }
+    this.quitar('papel', 1, 'Usado para escribir');
+    this.agregar('nota_escrita', 1, { texto: texto.trim().slice(0, 200), silencioso: true });
+    Notificaciones.mostrar('📝 Nota escrita y guardada en tu mochila', 'exito');
+    this.ocultarDetalle();
   },
 
   ocultarDetalle() {
