@@ -36,11 +36,13 @@ const Admin = {
     // El mundo oficial vive en GitHub: al actualizar datos/mundo.json,
     // todos los jugadores reciben las misiones nuevas al recargar el juego
     this.publicado = { misiones: [], tesoros: [], objetos: [], posiciones: {}, eliminados: [], precios: {}, itemsNuevos: [] };
+    this._crudoPublicado = null;
     try {
-      const respuesta = await fetch('datos/mundo.json?v=' + Date.now());
+      const respuesta = await fetch('datos/mundo.json?v=' + Date.now(), { cache: 'no-store' });
       if (respuesta.ok) {
-        const mundo = await respuesta.json();
-        this.publicado = Object.assign(this.publicado, mundo);
+        const texto = await respuesta.text();
+        this._crudoPublicado = texto;
+        this.publicado = Object.assign(this.publicado, JSON.parse(texto));
       }
     } catch (e) { /* sin conexión: se sigue con lo guardado */ }
     if (!this.publicado.precios) this.publicado.precios = {};
@@ -123,6 +125,35 @@ const Admin = {
     document.getElementById('btn-admin-guardar').addEventListener('click', () => this.guardarFormulario());
     document.getElementById('btn-admin-confirmar').addEventListener('click', () => this.confirmarColocacion());
     document.getElementById('btn-admin-salir-modo').addEventListener('click', () => this.salirModo());
+
+    this.iniciarVigilancia();
+  },
+
+  // ---------- VIGILANCIA DEL MUNDO ----------
+  // Cada 2 minutos (y al volver a la app) el juego relee datos/mundo.json.
+  // Si el admin publicó algo nuevo, se actualiza solo: así los pines
+  // nuevos salen en todos los teléfonos sin que nadie haga nada.
+  iniciarVigilancia() {
+    setInterval(() => this._revisarActualizacion(), 120000);
+    document.addEventListener('visibilitychange', () => {
+      if (!document.hidden) this._revisarActualizacion();
+    });
+  },
+
+  async _revisarActualizacion() {
+    try {
+      const r = await fetch('datos/mundo.json?v=' + Date.now(), { cache: 'no-store' });
+      if (!r.ok) return;
+      const texto = await r.text();
+      if (this._crudoPublicado === null) { this._crudoPublicado = texto; return; }
+      if (texto === this._crudoPublicado) return;
+      this._crudoPublicado = texto;
+      // No recargar en medio de algo (ventana abierta o admin editando)
+      const ocupado = this.modo || document.querySelector('.ventana:not(.oculto)');
+      Notificaciones.mostrar('🌍 ¡El mundo se actualizó!' +
+        (ocupado ? ' Recarga para ver lo nuevo' : ' Actualizando…'), 'exito', 5000);
+      if (!ocupado) setTimeout(() => location.reload(), 1600);
+    } catch (e) { /* sin conexión: se intenta en el próximo ciclo */ }
   },
 
   // ---------- ACCESO CON PIN ----------
