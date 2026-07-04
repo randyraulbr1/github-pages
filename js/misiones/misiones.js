@@ -16,6 +16,8 @@ const Misiones = {
     }
 
     for (const m of DATOS_MISIONES) {
+      if (Admin.eliminado(m.id)) continue;
+      Admin.pos(m.id, m.posicion);
       const estado = Guardado.datos.misiones[m.id];
       if (estado.completada) continue;
       const marcador = Mapa.crearMarcadorEmoji(m.posicion, '❗', 26);
@@ -100,6 +102,7 @@ const Misiones = {
     const cont = document.getElementById('lista-misiones');
     cont.innerHTML = '';
     for (const m of DATOS_MISIONES) {
+      if (Admin.eliminado(m.id)) continue;
       const estado = this._estado(m);
       const caja = document.createElement('div');
       caja.className = 'mision' + (estado.completada ? ' completada' : '');
@@ -114,9 +117,11 @@ const Misiones = {
         '<div class="titulo">' + (estado.completada ? '✅ ' : '❗ ') + m.titulo + '</div>' +
         '<div class="descripcion">' + m.descripcion + '</div>' +
         (progreso && !estado.completada ? '<div class="progreso">' + progreso + '</div>' : '') +
-        (!estado.completada ? '<div class="distancia">📍 A ' + distancia + ' m del objetivo · Recompensa: 🪙 ' +
+        (!estado.completada ? '<div class="distancia">📍 A ' + distancia + ' m del objetivo · Recompensa: $' +
           (m.recompensa.dinero || 0) + '</div>' : '');
       cont.appendChild(caja);
     }
+    // Misiones creadas por el administrador
+    if (typeof Admin !== 'undefined') Admin.pintarMisiones(cont);
   }
 };

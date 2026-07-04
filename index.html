@@ -2,9 +2,9 @@
 <html lang="es">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
   <title>Mariel Explorer</title>
-  <meta name="theme-color" content="#1a6fd4">
+  <meta name="theme-color" content="#10141f">
   <link rel="manifest" href="manifest.json">
   <link rel="icon" type="image/png" href="iconos/icono-192.png">
   <link rel="apple-touch-icon" href="iconos/icono-192.png">
@@ -23,7 +23,7 @@
       <span id="vida-texto">100</span>
     </div>
     <div id="contenedor-dinero" title="Dinero">
-      <span class="icono-dinero">🪙</span>
+      <span class="icono-dinero">$</span>
       <span id="dinero-cantidad">0</span>
     </div>
   </div>
@@ -33,16 +33,39 @@
     <span class="parpadeo">📡</span> Tesoro cerca · <span id="tesoro-metros">--</span> m
   </div>
 
+  <!-- CONTROLES FLOTANTES DEL MODO ADMIN -->
+  <div id="admin-controles" class="oculto">
+    <span id="admin-modo-texto"></span>
+    <button id="btn-admin-confirmar">Confirmar</button>
+    <button id="btn-admin-salir-modo">Salir</button>
+  </div>
+
   <!-- BOTONES INFERIORES -->
   <div id="botones-inferiores">
     <button id="btn-mochila" class="btn-redondo" title="Mochila">🎒</button>
     <button id="btn-misiones" class="btn-redondo" title="Misiones">📜</button>
     <button id="btn-historial" class="btn-redondo" title="Historial">🧾</button>
     <button id="btn-gps" class="btn-redondo" title="Seguir mi GPS real">📍</button>
+    <button id="btn-opciones" class="btn-redondo" title="Opciones">⚙️</button>
   </div>
 
   <!-- NOTIFICACIONES -->
   <div id="zona-notificaciones"></div>
+
+  <!-- ============ PANTALLA DE REGISTRO / SELECCIÓN DE JUGADOR ============ -->
+  <div id="pantalla-usuarios" class="oculto">
+    <div id="usuarios-caja">
+      <div id="usuarios-titulo">🌴 Mariel Explorer</div>
+      <div id="usuarios-sub">¿Quién va a jugar?</div>
+      <div id="lista-perfiles"></div>
+      <div id="separador-registro">— o crea un jugador nuevo —</div>
+      <div id="form-registro">
+        <input id="registro-nombre" maxlength="20" placeholder="Tu nombre" autocomplete="off">
+        <input id="registro-pin" inputmode="numeric" maxlength="4" placeholder="PIN de 4 dígitos (opcional)" autocomplete="off">
+        <button id="btn-crear-perfil">Crear jugador</button>
+      </div>
+    </div>
+  </div>
 
   <!-- ============ VENTANA: MOCHILA ============ -->
   <div id="ventana-mochila" class="ventana oculto">
@@ -106,12 +129,51 @@
   <div id="ventana-historial" class="ventana oculto">
     <div class="ventana-caja">
       <div class="ventana-titulo">🧾 Historial <button class="btn-cerrar" data-cierra="ventana-historial">✕</button></div>
+      <div id="historial-jugador"></div>
       <div class="pestanas">
-        <button id="pestana-hist-dinero" class="pestana activa">💰 Dinero</button>
+        <button id="pestana-hist-dinero" class="pestana activa">$ Dinero</button>
         <button id="pestana-hist-objetos" class="pestana">📦 Objetos</button>
       </div>
       <div id="historial-integridad"></div>
       <div id="historial-lista"></div>
+    </div>
+  </div>
+
+  <!-- ============ VENTANA: OPCIONES ============ -->
+  <div id="ventana-opciones" class="ventana oculto">
+    <div class="ventana-caja">
+      <div class="ventana-titulo">⚙️ Opciones <button class="btn-cerrar" data-cierra="ventana-opciones">✕</button></div>
+      <div id="opciones-jugador">Jugador: <b id="opciones-nombre">—</b></div>
+      <div id="lista-opciones">
+        <button class="fila-opcion" id="opcion-centrar"><span class="icono-opcion">🎯</span> Centrar el mapa en mi posición</button>
+        <button class="fila-opcion" id="opcion-cambiar"><span class="icono-opcion">👤</span> Cambiar de jugador</button>
+        <button class="fila-opcion" id="opcion-admin"><span class="icono-opcion">🛠️</span> Modo administrador</button>
+        <button class="fila-opcion peligro" id="opcion-borrar"><span class="icono-opcion">🗑️</span> Borrar mi partida (empezar de cero)</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ VENTANA: PANEL ADMIN ============ -->
+  <div id="ventana-admin" class="ventana oculto">
+    <div class="ventana-caja">
+      <div class="ventana-titulo">🛠️ Administrador <button class="btn-cerrar" data-cierra="ventana-admin">✕</button></div>
+      <div id="lista-admin">
+        <button class="fila-opcion" id="admin-crear-mision"><span class="icono-opcion">📜</span> Crear misión</button>
+        <button class="fila-opcion" id="admin-crear-tesoro"><span class="icono-opcion">🎁</span> Crear tesoro</button>
+        <button class="fila-opcion" id="admin-dejar-objeto"><span class="icono-opcion">📦</span> Dejar objeto en el mapa</button>
+        <button class="fila-opcion" id="admin-organizar"><span class="icono-opcion">✋</span> Organizar pines (mover)</button>
+        <button class="fila-opcion peligro" id="admin-eliminar"><span class="icono-opcion">🗑️</span> Eliminar pines del mapa</button>
+        <button class="fila-opcion" id="admin-exportar"><span class="icono-opcion">📋</span> Exportar mis creaciones</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ VENTANA: FORMULARIO ADMIN ============ -->
+  <div id="ventana-admin-form" class="ventana oculto">
+    <div class="ventana-caja">
+      <div class="ventana-titulo"><span id="admin-form-titulo">Crear</span> <button class="btn-cerrar" data-cierra="ventana-admin-form">✕</button></div>
+      <div id="admin-form-campos"></div>
+      <button id="btn-admin-guardar">Continuar → colocar en el mapa</button>
     </div>
   </div>
 
@@ -122,6 +184,7 @@
   <script src="js/config/config.js"></script>
   <script src="js/nucleo/utilidades.js"></script>
   <script src="js/notificaciones/notificaciones.js"></script>
+  <script src="js/usuarios/usuarios.js"></script>
   <script src="js/guardado/guardado.js"></script>
   <script src="js/historial/historial.js"></script>
   <script src="js/dinero/dinero.js"></script>
@@ -137,6 +200,8 @@
   <script src="js/tesoros/tesoros.js"></script>
   <script src="js/misiones/datos_misiones.js"></script>
   <script src="js/misiones/misiones.js"></script>
+  <script src="js/admin/admin.js"></script>
+  <script src="js/opciones/opciones.js"></script>
   <script src="js/principal.js"></script>
   <script>
     // Registrar la app instalable (PWA)

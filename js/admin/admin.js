@@ -1,0 +1,575 @@
+// ============================================================
+// MODO ADMINISTRADOR (solo para el dueño del juego)
+// Protegido con PIN propio. Permite:
+//  - Crear misiones con texto propio, condición de inventario
+//    y recompensa de dinero + objetos
+//  - Crear tesoros visibles o invisibles (los invisibles avisan
+//    los metros aproximados si el jugador lleva el objeto elegido)
+//  - Dejar objetos en el mapa para que los jugadores los recojan
+//  - Organizar (mover) los pines arrastrándolos
+//  - Eliminar pines del mapa
+// Todo se guarda automáticamente en este dispositivo.
+// ============================================================
+const Admin = {
+  CLAVE: 'mariel_admin_v1',
+  datos: null,   // { pinHash, misiones:[], tesoros:[], objetos:[], posiciones:{}, eliminados:[] }
+  modo: null,    // null | 'colocar' | 'organizar' | 'eliminar'
+  _colocacion: null,  // { tipo, valores, marcador }
+  _fantasmas: [],     // marcadores temporales de tesoros base en modo admin
+
+  // ---------- CARGA (llamar antes que tiendas/pesca/tesoros/misiones) ----------
+  cargar() {
+    try {
+      this.datos = JSON.parse(localStorage.getItem(this.CLAVE) || 'null');
+    } catch (e) { this.datos = null; }
+    if (!this.datos) {
+      this.datos = { pinHash: null, misiones: [], tesoros: [], objetos: [], posiciones: {}, eliminados: [] };
+    }
+  },
+
+  guardar() {
+    // Las claves que empiezan con "_" son estado temporal (marcadores de
+    // Leaflet, avisos) y no deben guardarse
+    localStorage.setItem(this.CLAVE, JSON.stringify(this.datos,
+      (clave, valor) => clave.startsWith('_') ? undefined : valor));
+  },
+
+  // Posición corregida de un pin (si el admin lo movió). Muta la base en sitio
+  // para que todas las referencias del módulo queden sincronizadas.
+  pos(id, base) {
+    const o = this.datos.posiciones[id];
+    if (o) { base[0] = o[0]; base[1] = o[1]; }
+    return base;
+  },
+
+  eliminado(id) {
+    return this.datos.eliminados.includes(id);
+  },
+
+  // Progreso del jugador actual sobre el contenido creado por el admin
+  _progreso() {
+    if (!Guardado.datos.admin) Guardado.datos.admin = { misiones: [], tesoros: [], objetos: [] };
+    return Guardado.datos.admin;
+  },
+
+  // ---------- ARRANQUE (después de los módulos base) ----------
+  iniciar() {
+    this._progreso();
+    for (const m of this.datos.misiones) this._crearMarcadorMision(m);
+    for (const t of this.datos.tesoros) this._prepararTesoro(t);
+    for (const o of this.datos.objetos) this._crearMarcadorObjeto(o);
+
+    // Botones del panel
+    document.getElementById('admin-crear-mision').addEventListener('click', () => this.abrirFormulario('mision'));
+    document.getElementById('admin-crear-tesoro').addEventListener('click', () => this.abrirFormulario('tesoro'));
+    document.getElementById('admin-dejar-objeto').addEventListener('click', () => this.abrirFormulario('objeto'));
+    document.getElementById('admin-organizar').addEventListener('click', () => this.entrarModo('organizar'));
+    document.getElementById('admin-eliminar').addEventListener('click', () => this.entrarModo('eliminar'));
+    document.getElementById('admin-exportar').addEventListener('click', () => this.exportar());
+    document.getElementById('btn-admin-guardar').addEventListener('click', () => this.guardarFormulario());
+    document.getElementById('btn-admin-confirmar').addEventListener('click', () => this.confirmarColocacion());
+    document.getElementById('btn-admin-salir-modo').addEventListener('click', () => this.salirModo());
+  },
+
+  // ---------- ACCESO CON PIN ----------
+  async solicitarAcceso() {
+    if (!this.datos.pinHash) {
+      const pin1 = prompt('Crea tu PIN de administrador (4 números):');
+      if (!pin1 || !/^\d{4}$/.test(pin1.trim())) { alert('Debe ser de 4 números'); return; }
+      const pin2 = prompt('Repite el PIN:');
+      if (pin2 === null || pin1.trim() !== pin2.trim()) { alert('No coinciden'); return; }
+      this.datos.pinHash = await Utilidades.sha256('pin-admin|' + pin1.trim());
+      this.guardar();
+      Notificaciones.mostrar('🛠️ PIN de administrador creado', 'exito');
+    } else {
+      const pin = prompt('PIN de administrador:');
+      if (pin === null) return;
+      const hash = await Utilidades.sha256('pin-admin|' + pin.trim());
+      if (hash !== this.datos.pinHash) { alert('PIN incorrecto'); return; }
+    }
+    document.getElementById('ventana-admin').classList.remove('oculto');
+  },
+
+  // ---------- FORMULARIOS ----------
+  _opcionesItems(incluirNinguno) {
+    let html = incluirNinguno ? '<option value="">(ninguno)</option>' : '';
+    const ordenados = Object.entries(CATALOGO_ITEMS)
+      .sort((a, b) => a[1].nombre.localeCompare(b[1].nombre));
+    for (const [id, it] of ordenados) {
+      html += '<option value="' + id + '">' + it.icono + ' ' + it.nombre + '</option>';
+    }
+    return html;
+  },
+
+  abrirFormulario(tipo) {
+    document.getElementById('ventana-admin').classList.add('oculto');
+    const campos = document.getElementById('admin-form-campos');
+    const titulo = document.getElementById('admin-form-titulo');
+    this._colocacion = { tipo, valores: null, marcador: null };
+
+    if (tipo === 'mision') {
+      titulo.textContent = '📜 Crear misión';
+      campos.innerHTML =
+        this._campoTexto('af-titulo', 'Título de la misión', 'Ej: El encargo del pescador') +
+        this._campoArea('af-texto', 'Texto que verá el jugador', 'Ej: Tráeme 5 sardinas al muelle viejo...') +
+        '<div class="campo-doble">' +
+          this._campoSelect('af-req-item', 'Objeto requerido (condición)', this._opcionesItems(true)) +
+          this._campoNumero('af-req-cant', 'Cantidad', 1) +
+        '</div>' +
+        '<div class="campo-caja"><input type="checkbox" id="af-consumir"><label for="af-consumir">Quitar esos objetos al cumplir (es una entrega)</label></div>' +
+        '<div class="campo-doble">' +
+          this._campoNumero('af-dinero', 'Recompensa en dinero $', 50) +
+          this._campoSelect('af-rec-item', 'Objeto de recompensa', this._opcionesItems(true)) +
+        '</div>' +
+        this._campoNumero('af-rec-cant', 'Cantidad del objeto de recompensa', 1);
+    } else if (tipo === 'tesoro') {
+      titulo.textContent = '🎁 Crear tesoro';
+      campos.innerHTML =
+        this._campoSelect('af-visible', 'Tipo de tesoro',
+          '<option value="visible">Visible en el mapa</option><option value="invisible">Invisible (avisa metros aproximados)</option>') +
+        this._campoSelect('af-item-ver', 'Objeto necesario para detectarlo', this._opcionesItems(true)) +
+        '<div class="campo-doble">' +
+          this._campoSelect('af-rec-item', 'Objeto del tesoro', this._opcionesItems(false)) +
+          this._campoNumero('af-rec-cant', 'Cantidad', 1) +
+        '</div>' +
+        this._campoNumero('af-dinero', 'Dinero extra $', 0);
+    } else {
+      titulo.textContent = '📦 Dejar objeto';
+      campos.innerHTML =
+        '<div class="campo-doble">' +
+          this._campoSelect('af-item', 'Objeto a dejar', this._opcionesItems(false)) +
+          this._campoNumero('af-cant', 'Cantidad', 1) +
+        '</div>';
+    }
+    document.getElementById('ventana-admin-form').classList.remove('oculto');
+  },
+
+  _campoTexto(id, etiqueta, marcador) {
+    return '<div class="campo-admin"><label for="' + id + '">' + etiqueta + '</label>' +
+      '<input id="' + id + '" maxlength="60" placeholder="' + marcador + '"></div>';
+  },
+  _campoArea(id, etiqueta, marcador) {
+    return '<div class="campo-admin"><label for="' + id + '">' + etiqueta + '</label>' +
+      '<textarea id="' + id + '" maxlength="300" placeholder="' + marcador + '"></textarea></div>';
+  },
+  _campoNumero(id, etiqueta, valor) {
+    return '<div class="campo-admin"><label for="' + id + '">' + etiqueta + '</label>' +
+      '<input id="' + id + '" type="number" inputmode="numeric" min="0" value="' + valor + '"></div>';
+  },
+  _campoSelect(id, etiqueta, opciones) {
+    return '<div class="campo-admin"><label for="' + id + '">' + etiqueta + '</label>' +
+      '<select id="' + id + '">' + opciones + '</select></div>';
+  },
+
+  _valor(id) { const el = document.getElementById(id); return el ? el.value : ''; },
+  _numero(id) { return Math.max(0, parseInt(this._valor(id), 10) || 0); },
+
+  guardarFormulario() {
+    const tipo = this._colocacion && this._colocacion.tipo;
+    if (!tipo) return;
+    let valores;
+
+    if (tipo === 'mision') {
+      const titulo = this._valor('af-titulo').trim();
+      if (!titulo) { alert('Ponle un título a la misión'); return; }
+      valores = {
+        titulo,
+        texto: this._valor('af-texto').trim(),
+        reqItem: this._valor('af-req-item') || null,
+        reqCant: Math.max(1, this._numero('af-req-cant')),
+        consumir: document.getElementById('af-consumir').checked,
+        dinero: this._numero('af-dinero'),
+        recItem: this._valor('af-rec-item') || null,
+        recCant: Math.max(1, this._numero('af-rec-cant'))
+      };
+      if (!valores.dinero && !valores.recItem) { alert('Ponle alguna recompensa (dinero u objeto)'); return; }
+    } else if (tipo === 'tesoro') {
+      valores = {
+        invisible: this._valor('af-visible') === 'invisible',
+        itemParaVer: this._valor('af-item-ver') || null,
+        recItem: this._valor('af-rec-item'),
+        recCant: Math.max(1, this._numero('af-rec-cant')),
+        dinero: this._numero('af-dinero')
+      };
+    } else {
+      valores = {
+        itemId: this._valor('af-item'),
+        cantidad: Math.max(1, this._numero('af-cant'))
+      };
+    }
+
+    this._colocacion.valores = valores;
+    document.getElementById('ventana-admin-form').classList.add('oculto');
+    this._empezarColocacion();
+  },
+
+  // ---------- COLOCAR EL PIN EN EL MAPA ----------
+  _empezarColocacion() {
+    this.modo = 'colocar';
+    const centro = Mapa.mapa.getCenter();
+    const marcador = L.marker([centro.lat, centro.lng], {
+      draggable: true,
+      zIndexOffset: 2000,
+      icon: L.divIcon({ className: '', html: '<div class="icono-admin-pin">📌</div>', iconSize: [34, 34], iconAnchor: [17, 30] })
+    }).addTo(Mapa.mapa);
+    this._colocacion.marcador = marcador;
+    this._mostrarControles('Arrastra el pin 📌 a su lugar y confirma', true);
+  },
+
+  confirmarColocacion() {
+    const c = this._colocacion;
+    if (!c || !c.marcador) return;
+    const p = c.marcador.getLatLng();
+    const pos = [+p.lat.toFixed(6), +p.lng.toFixed(6)];
+    c.marcador.remove();
+
+    const id = 'admx_' + c.tipo[0] + '_' + Date.now().toString(36);
+    if (c.tipo === 'mision') {
+      const m = Object.assign({ id, pos }, c.valores);
+      this.datos.misiones.push(m);
+      this._crearMarcadorMision(m);
+      Notificaciones.mostrar('📜 Misión creada: ' + m.titulo, 'exito');
+    } else if (c.tipo === 'tesoro') {
+      const t = Object.assign({ id, pos }, c.valores);
+      this.datos.tesoros.push(t);
+      this._prepararTesoro(t);
+      Notificaciones.mostrar('🎁 Tesoro ' + (t.invisible ? 'invisible' : 'visible') + ' creado', 'exito');
+    } else {
+      const o = Object.assign({ id, pos }, c.valores);
+      this.datos.objetos.push(o);
+      this._crearMarcadorObjeto(o);
+      const item = Items.obtener(o.itemId);
+      Notificaciones.mostrar('📦 ' + item.nombre + ' x' + o.cantidad + ' dejado en el mapa', 'exito');
+    }
+    this.guardar();
+    this._colocacion = null;
+    this.salirModo();
+  },
+
+  // ---------- MISIONES DEL ADMIN ----------
+  _crearMarcadorMision(m) {
+    if (this._progreso().misiones.includes(m.id)) return;
+    const marcador = Mapa.crearMarcadorEmoji(m.pos, '❗', 26);
+    m._marcador = marcador;
+    m._avisado = false;
+    Mapa.registrarPunto({
+      id: m.id,
+      posicion: m.pos,
+      radio: CONFIG.distanciaInteraccion,
+      marcador,
+      alTocar: () => this._infoMision(m),
+      alCambiarDistancia: d => this._revisarMision(m, d)
+    });
+  },
+
+  _infoMision(m) {
+    let estado = '';
+    if (m.reqItem) {
+      const it = Items.obtener(m.reqItem);
+      estado = ' — Llevas ' + Mochila.contar(m.reqItem) + '/' + m.reqCant + ' ' + it.nombre;
+    }
+    Notificaciones.mostrar('📜 ' + m.titulo + (m.texto ? ': ' + m.texto : '') + estado, 'info', 5000);
+  },
+
+  _revisarMision(m, distancia) {
+    if (this._progreso().misiones.includes(m.id)) return;
+    if (distancia > CONFIG.distanciaInteraccion) { m._avisado = false; return; }
+
+    if (m.reqItem && Mochila.contar(m.reqItem) < m.reqCant) {
+      if (!m._avisado) {
+        m._avisado = true;
+        const it = Items.obtener(m.reqItem);
+        Notificaciones.mostrar('📜 ' + m.titulo + ': te falta ' + it.nombre + ' (' +
+          Mochila.contar(m.reqItem) + '/' + m.reqCant + ')', 'alerta', 4500);
+      }
+      return;
+    }
+    this._completarMision(m);
+  },
+
+  async _completarMision(m) {
+    this._progreso().misiones.push(m.id);
+    Guardado.guardar();
+    if (m._marcador) { m._marcador.remove(); m._marcador = null; }
+    if (m.reqItem && m.consumir) Mochila.quitar(m.reqItem, m.reqCant, 'Entregado (misión)');
+    Notificaciones.mostrar('✅ Misión completada: ' + m.titulo, 'exito', 5000);
+    if (m.dinero) await Dinero.ganar(m.dinero, 'Misión: ' + m.titulo);
+    if (m.recItem) Mochila.agregar(m.recItem, m.recCant);
+  },
+
+  // Pinta las misiones del admin dentro de la ventana de misiones
+  pintarMisiones(contenedor) {
+    for (const m of this.datos.misiones) {
+      const hecha = this._progreso().misiones.includes(m.id);
+      const caja = document.createElement('div');
+      caja.className = 'mision' + (hecha ? ' completada' : '');
+      const distancia = Math.round(Utilidades.distanciaMetros(GPS.posicion, m.pos));
+      let progreso = '';
+      if (m.reqItem && !hecha) {
+        const it = Items.obtener(m.reqItem);
+        progreso = '<div class="progreso">Llevas: ' + it.nombre + ' ' +
+          Mochila.contar(m.reqItem) + '/' + m.reqCant + '</div>';
+      }
+      caja.innerHTML =
+        '<div class="titulo">' + (hecha ? '✅ ' : '❗ ') + m.titulo + '</div>' +
+        (m.texto ? '<div class="descripcion">' + m.texto + '</div>' : '') +
+        progreso +
+        (!hecha ? '<div class="distancia">📍 A ' + distancia + ' m · Recompensa: $' + (m.dinero || 0) +
+          (m.recItem ? ' + ' + Items.obtener(m.recItem).icono : '') + '</div>' : '');
+      contenedor.appendChild(caja);
+    }
+  },
+
+  // ---------- TESOROS DEL ADMIN ----------
+  _prepararTesoro(t) {
+    if (this._progreso().tesoros.includes(t.id)) return;
+    t._marcador = null;
+    Mapa.registrarPunto({
+      id: t.id,
+      posicion: t.pos,
+      radio: CONFIG.distanciaInteraccion,
+      marcador: null,
+      alCambiarDistancia: d => this._revisarTesoro(t, d)
+    });
+    this._revisarTesoro(t, Utilidades.distanciaMetros(GPS.posicion ? GPS.posicion : CONFIG.centro, t.pos));
+  },
+
+  _puedeDetectar(t) {
+    return !t.itemParaVer || Mochila.tieneItem(t.itemParaVer);
+  },
+
+  _revisarTesoro(t, distancia) {
+    if (this._progreso().tesoros.includes(t.id)) return;
+    const detecta = this._puedeDetectar(t);
+
+    // Visible: el icono 🎁 se ve siempre que el jugador pueda detectarlo.
+    // Invisible: el icono solo aparece a menos de 10 m (los metros van en el banner).
+    const debeVerse = detecta && (!t.invisible || distancia <= CONFIG.distanciaVerTesoro);
+
+    if (debeVerse && !t._marcador) {
+      t._marcador = L.marker(t.pos, {
+        icon: L.divIcon({
+          className: '',
+          html: '<div class="icono-tesoro">🎁</div>',
+          iconSize: [34, 34], iconAnchor: [17, 17]
+        })
+      }).addTo(Mapa.mapa);
+      t._marcador.on('click', () => {
+        if (this.manejarClickPunto({ id: t.id, esTesoroAdmin: t })) return;
+        this._recogerTesoro(t);
+      });
+    } else if (!debeVerse && t._marcador) {
+      t._marcador.remove();
+      t._marcador = null;
+    }
+  },
+
+  // Tesoros invisibles detectables ahora mismo (para el banner de metros)
+  tesorosDetectables() {
+    const lista = [];
+    for (const t of this.datos.tesoros) {
+      if (this._progreso().tesoros.includes(t.id)) continue;
+      if (t.invisible && this._puedeDetectar(t)) lista.push(t.pos);
+    }
+    return lista;
+  },
+
+  // La mochila cambió: puede que ahora se vea (o deje de verse) un tesoro
+  refrescarVisibles() {
+    if (!GPS.posicion) return;
+    for (const t of this.datos.tesoros) {
+      if (this._progreso().tesoros.includes(t.id)) continue;
+      this._revisarTesoro(t, Utilidades.distanciaMetros(GPS.posicion, t.pos));
+    }
+  },
+
+  async _recogerTesoro(t) {
+    const d = Utilidades.distanciaMetros(GPS.posicion, t.pos);
+    if (d > CONFIG.distanciaInteraccion) {
+      Notificaciones.mostrar('📍 Acércate más (' + Math.round(d) + ' m)', 'alerta');
+      return;
+    }
+    if (this._progreso().tesoros.includes(t.id)) return;
+    this._progreso().tesoros.push(t.id);
+    Guardado.guardar();
+
+    const punto = Mapa.mapa.latLngToContainerPoint(t.pos);
+    Utilidades.volarHaciaMochila('🎁', punto.x, punto.y);
+    if (t._marcador) { t._marcador.remove(); t._marcador = null; }
+
+    const item = Items.obtener(t.recItem);
+    setTimeout(async () => {
+      Mochila.agregar(t.recItem, t.recCant, { silencioso: true });
+      if (t.dinero) await Dinero.ganar(t.dinero, 'Tesoro encontrado: ' + item.nombre);
+      Notificaciones.mostrar('🎁 ¡Tesoro! ' + item.icono + ' ' + item.nombre + ' x' + t.recCant +
+        (t.dinero ? ' + $' + t.dinero : ''), 'exito', 5000);
+      if (typeof Tesoros !== 'undefined') Tesoros.refrescarBanner();
+    }, 800);
+  },
+
+  // ---------- OBJETOS DEJADOS EN EL MAPA ----------
+  _crearMarcadorObjeto(o) {
+    if (this._progreso().objetos.includes(o.id)) return;
+    const item = Items.obtener(o.itemId);
+    if (!item) return;
+    const marcador = Mapa.crearMarcadorEmoji(o.pos, item.icono, 26);
+    o._marcador = marcador;
+    Mapa.registrarPunto({
+      id: o.id,
+      posicion: o.pos,
+      radio: CONFIG.distanciaInteraccion,
+      marcador,
+      alTocar: () => this._recogerObjeto(o)
+    });
+  },
+
+  _recogerObjeto(o) {
+    if (this._progreso().objetos.includes(o.id)) return;
+    const item = Items.obtener(o.itemId);
+    if (!Mochila.agregar(o.itemId, o.cantidad, { silencioso: true })) return;
+    this._progreso().objetos.push(o.id);
+    Guardado.guardar();
+    const punto = Mapa.mapa.latLngToContainerPoint(o.pos);
+    Utilidades.volarHaciaMochila(item.icono, punto.x, punto.y);
+    Notificaciones.mostrar(item.icono + ' Recogiste ' + item.nombre + ' x' + o.cantidad, 'exito');
+    if (o._marcador) { o._marcador.remove(); o._marcador = null; }
+  },
+
+  // ---------- MODOS ORGANIZAR / ELIMINAR ----------
+  entrarModo(modo) {
+    document.getElementById('ventana-admin').classList.add('oculto');
+    this.modo = modo;
+    this._mostrarControles(
+      modo === 'organizar' ? '✋ Arrastra cualquier pin para moverlo' : '🗑️ Toca un pin para eliminarlo',
+      false
+    );
+
+    // Mostrar pines fantasma de los tesoros base (normalmente invisibles)
+    for (const t of DATOS_TESOROS) {
+      if (this.eliminado(t.id)) continue;
+      const fantasma = L.marker(t.posicion, {
+        draggable: modo === 'organizar',
+        opacity: 0.75,
+        icon: L.divIcon({ className: '', html: '<div class="icono-tesoro">✨</div>', iconSize: [30, 30], iconAnchor: [15, 15] })
+      }).addTo(Mapa.mapa);
+      fantasma.on('dragend', () => {
+        const p = fantasma.getLatLng();
+        t.posicion[0] = +p.lat.toFixed(6);
+        t.posicion[1] = +p.lng.toFixed(6);
+        this.datos.posiciones[t.id] = [t.posicion[0], t.posicion[1]];
+        this.guardar();
+      });
+      fantasma.on('click', () => {
+        if (this.modo === 'eliminar') this._eliminarPin({ id: t.id, marcador: fantasma, nombre: 'Tesoro oculto' });
+      });
+      this._fantasmas.push(fantasma);
+    }
+
+    // Igual con los tesoros invisibles del admin
+    for (const t of this.datos.tesoros) {
+      if (t._marcador) continue;
+      const fantasma = L.marker(t.pos, {
+        draggable: modo === 'organizar',
+        opacity: 0.75,
+        icon: L.divIcon({ className: '', html: '<div class="icono-tesoro">🎁</div>', iconSize: [30, 30], iconAnchor: [15, 15] })
+      }).addTo(Mapa.mapa);
+      fantasma.on('dragend', () => {
+        const p = fantasma.getLatLng();
+        t.pos[0] = +p.lat.toFixed(6); t.pos[1] = +p.lng.toFixed(6);
+        this.guardar();
+      });
+      fantasma.on('click', () => {
+        if (this.modo === 'eliminar') this._eliminarPin({ id: t.id, marcador: fantasma, nombre: 'Tesoro del admin' });
+      });
+      this._fantasmas.push(fantasma);
+    }
+
+    if (modo === 'organizar') {
+      for (const p of Mapa.puntosInteractivos) {
+        if (!p.marcador || !p.marcador.dragging) continue;
+        p.marcador.dragging.enable();
+        p._alSoltar = () => {
+          const nueva = p.marcador.getLatLng();
+          p.posicion[0] = +nueva.lat.toFixed(6);
+          p.posicion[1] = +nueva.lng.toFixed(6);
+          this.datos.posiciones[p.id] = [p.posicion[0], p.posicion[1]];
+          this.guardar();
+        };
+        p.marcador.on('dragend', p._alSoltar);
+      }
+    }
+  },
+
+  // Interceptor de toques sobre pines cuando hay un modo admin activo.
+  // Devuelve true si el toque fue consumido por el modo.
+  manejarClickPunto(punto) {
+    if (this.modo === 'eliminar') {
+      this._eliminarPin(punto);
+      return true;
+    }
+    return this.modo === 'organizar' || this.modo === 'colocar';
+  },
+
+  _eliminarPin(punto) {
+    if (!confirm('¿Eliminar este pin del mapa?' + (punto.nombre ? ' (' + punto.nombre + ')' : ''))) return;
+
+    if (punto.id.startsWith('admx_')) {
+      // Contenido creado por el admin: se borra de verdad
+      this.datos.misiones = this.datos.misiones.filter(x => x.id !== punto.id);
+      this.datos.tesoros = this.datos.tesoros.filter(x => x.id !== punto.id);
+      this.datos.objetos = this.datos.objetos.filter(x => x.id !== punto.id);
+    } else {
+      // Pines base del juego: se marcan como eliminados
+      if (!this.datos.eliminados.includes(punto.id)) this.datos.eliminados.push(punto.id);
+    }
+    this.guardar();
+
+    if (punto.marcador) punto.marcador.remove();
+    if (punto.esTesoroAdmin && punto.esTesoroAdmin._marcador) punto.esTesoroAdmin._marcador.remove();
+    const i = Mapa.puntosInteractivos.findIndex(p => p.id === punto.id);
+    if (i >= 0) Mapa.puntosInteractivos.splice(i, 1);
+    Notificaciones.mostrar('🗑️ Pin eliminado', 'alerta');
+  },
+
+  salirModo() {
+    // Cancelar colocación pendiente
+    if (this._colocacion && this._colocacion.marcador) this._colocacion.marcador.remove();
+    this._colocacion = null;
+
+    // Quitar fantasmas y desactivar arrastres
+    for (const f of this._fantasmas) f.remove();
+    this._fantasmas = [];
+    for (const p of Mapa.puntosInteractivos) {
+      if (p.marcador && p.marcador.dragging) {
+        p.marcador.dragging.disable();
+        if (p._alSoltar) { p.marcador.off('dragend', p._alSoltar); p._alSoltar = null; }
+      }
+    }
+    this.modo = null;
+    document.getElementById('admin-controles').classList.add('oculto');
+  },
+
+  _mostrarControles(texto, conConfirmar) {
+    document.getElementById('admin-modo-texto').textContent = texto;
+    document.getElementById('btn-admin-confirmar').style.display = conConfirmar ? '' : 'none';
+    document.getElementById('admin-controles').classList.remove('oculto');
+  },
+
+  // ---------- EXPORTAR ----------
+  exportar() {
+    const json = JSON.stringify({
+      misiones: this.datos.misiones,
+      tesoros: this.datos.tesoros,
+      objetos: this.datos.objetos,
+      posiciones: this.datos.posiciones,
+      eliminados: this.datos.eliminados
+    }, null, 2);
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(json)
+        .then(() => Notificaciones.mostrar('📋 Copiado. Pégalo en el chat para hacerlo permanente para todos', 'exito', 6000))
+        .catch(() => prompt('Copia este texto:', json));
+    } else {
+      prompt('Copia este texto:', json);
+    }
+  }
+};

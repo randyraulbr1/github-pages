@@ -9,8 +9,21 @@ const Guardado = {
   integridadRota: false,  // true si el guardado fue modificado a mano
   _temporizador: null,
 
+  // Clave de guardado propia de cada jugador registrado
+  _clave() {
+    const perfil = (typeof Usuarios !== 'undefined' && Usuarios.perfilActivo)
+      ? Usuarios.perfilActivo.id : 'anonimo';
+    return CONFIG.claveGuardado + '::' + perfil;
+  },
+
   async iniciar() {
-    const crudo = localStorage.getItem(CONFIG.claveGuardado);
+    // Migración: partidas guardadas antes de existir los perfiles
+    if (!localStorage.getItem(this._clave()) && localStorage.getItem(CONFIG.claveGuardado)) {
+      localStorage.setItem(this._clave(), localStorage.getItem(CONFIG.claveGuardado));
+      localStorage.removeItem(CONFIG.claveGuardado);
+    }
+
+    const crudo = localStorage.getItem(this._clave());
     if (!crudo) {
       this.datos = this._estadoNuevo();
       await this.guardarAhora();
@@ -50,6 +63,12 @@ const Guardado = {
 
   async guardarAhora() {
     const firma = await Utilidades.sha256(JSON.stringify(this.datos) + this.SAL);
-    localStorage.setItem(CONFIG.claveGuardado, JSON.stringify({ datos: this.datos, firma }));
+    localStorage.setItem(this._clave(), JSON.stringify({ datos: this.datos, firma }));
+  },
+
+  // Borra solo la partida del jugador activo
+  borrarPartidaActual() {
+    localStorage.removeItem(this._clave());
+    location.reload();
   }
 };

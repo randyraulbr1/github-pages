@@ -103,6 +103,9 @@ const Historial = {
   },
 
   abrir() {
+    document.getElementById('historial-jugador').textContent =
+      (typeof Usuarios !== 'undefined' && Usuarios.perfilActivo)
+        ? '👤 Jugador: ' + Usuarios.perfilActivo.nombre : '';
     document.getElementById('ventana-historial').classList.remove('oculto');
     this.pintar();
   },
@@ -141,12 +144,12 @@ const Historial = {
       fila.className = 'entrada-historial' + (malas.includes(i) ? ' manipulada' : '');
       const signo = e.monto > 0 ? '+' : '';
       const claseMonto = e.monto >= 0 ? 'positivo' : 'negativo';
-      const unidad = tipo === 'dinero' ? '🪙' : 'ud.';
+      const unidad = tipo === 'dinero' ? '$' : 'ud.';
       fila.innerHTML =
         '<div class="detalle">' +
           '<div>' + e.detalle + (malas.includes(i) ? ' <span class="sello-hackeo">[MANIPULADO]</span>' : '') + '</div>' +
           '<div class="fecha">🕒 ' + Utilidades.fechaLegible(e.t) +
-            (e.saldo !== null ? ' · saldo: ' + e.saldo + ' 🪙' : '') + '</div>' +
+            (e.saldo !== null ? ' · saldo: $' + e.saldo : '') + '</div>' +
           (e.lugar ? '<div class="fecha">📍 ' + e.lugar +
             (e.pos ? ' · ' + e.pos[0] + ', ' + e.pos[1] : '') + '</div>' : '') +
         '</div>' +

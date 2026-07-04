@@ -11,6 +11,8 @@ const Tiendas = {
 
   iniciar() {
     for (const t of DATOS_TIENDAS) {
+      if (Admin.eliminado(t.id)) continue;
+      Admin.pos(t.id, t.posicion);
       const marcador = Mapa.crearMarcadorEmoji(t.posicion, t.icono);
       Mapa.registrarPunto({
         id: t.id,
@@ -73,7 +75,7 @@ const Tiendas = {
     fila.innerHTML =
       '<span class="icono">' + item.icono + '</span>' +
       '<div class="datos"><div class="nombre">' + item.nombre + '</div>' +
-      '<div class="precio">🪙 ' + precio + '</div></div>';
+      '<div class="precio">$ ' + precio + '</div></div>';
     const boton = document.createElement('button');
     boton.textContent = textoBoton;
     boton.disabled = deshabilitado;
@@ -101,7 +103,7 @@ const Tiendas = {
     const precioVenta = Math.max(1, Math.floor(item.precio / 2));
     if (!Mochila.quitar(idItem, 1, 'Vendido')) return;
     await Dinero.ganar(precioVenta, 'Venta: ' + item.nombre + ' (' + this.tiendaAbierta.nombre + ')');
-    Notificaciones.mostrar('🪙 Vendiste ' + item.nombre + ' por ' + precioVenta, 'exito');
+    Notificaciones.mostrar('💵 Vendiste ' + item.nombre + ' por $' + precioVenta, 'exito');
     this.pintar();
   }
 };

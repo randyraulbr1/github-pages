@@ -54,6 +54,8 @@ const Mapa = {
     this.puntosInteractivos.push(punto);
     if (punto.marcador && punto.alTocar) {
       punto.marcador.on('click', () => {
+        // En modo administrador (eliminar/organizar) el toque lo maneja el admin
+        if (typeof Admin !== 'undefined' && Admin.manejarClickPunto(punto)) return;
         const d = Utilidades.distanciaMetros(GPS.posicion, punto.posicion);
         if (d <= (punto.radio || CONFIG.distanciaInteraccion)) {
           punto.alTocar();

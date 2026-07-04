@@ -36,8 +36,9 @@ const Mochila = {
   guardar() {
     Guardado.datos.mochila = this.slots;
     Guardado.guardar();
-    // El buscador de tesoros puede haber entrado o salido de la mochila
-    if (typeof Tesoros !== 'undefined' && Tesoros.activos.length) Tesoros.refrescarBanner();
+    // El buscador de tesoros (u otro objeto detector) pudo entrar o salir
+    if (typeof Tesoros !== 'undefined' && Tesoros.activos) Tesoros.refrescarBanner();
+    if (typeof Admin !== 'undefined' && Admin.datos) Admin.refrescarVisibles();
   },
 
   // ---------- CONSULTAS ----------

@@ -3,17 +3,21 @@
 // ============================================================
 (async function arrancar() {
 
-  await Guardado.iniciar();      // 1. cargar la partida (y verificar firma)
-  Historial.iniciarVisor();      // 2. historiales seguros
-  await Dinero.iniciar();        // 3. dinero (verifica contra el historial)
-  Vida.iniciar();                // 4. barra de vida
-  Mochila.iniciar();             // 5. mochila de 25 casillas
-  Mapa.iniciar();                // 6. mapa limpio de Mariel
-  GPS.iniciar();                 // 7. punto del jugador (arrastrable + GPS real)
-  Tiendas.iniciar();             // 8. tiendas
-  Pesca.iniciar();               // 9. muelles de pesca
-  Tesoros.iniciar();             // 10. tesoros ocultos
-  Misiones.iniciar();            // 11. misiones
+  await Usuarios.iniciar();      // 1. registro / selección de jugador
+  await Guardado.iniciar();      // 2. cargar la partida del jugador (verifica firma)
+  Historial.iniciarVisor();      // 3. historiales seguros (separados por jugador)
+  await Dinero.iniciar();        // 4. dinero (verifica contra el historial)
+  Vida.iniciar();                // 5. barra de vida
+  Mochila.iniciar();             // 6. mochila de 25 casillas
+  Mapa.iniciar();                // 7. mapa limpio de Mariel
+  GPS.iniciar();                 // 8. punto del jugador (arrastrable + GPS real)
+  Admin.cargar();                // 9. datos del administrador (posiciones, eliminados)
+  Tiendas.iniciar();             // 10. tiendas
+  Pesca.iniciar();               // 11. muelles de pesca
+  Tesoros.iniciar();             // 12. tesoros ocultos
+  Misiones.iniciar();            // 13. misiones
+  Admin.iniciar();               // 14. contenido creado por el admin + su panel
+  Opciones.iniciar();            // 15. menú de opciones
 
   // Botones de cerrar de todas las ventanas
   document.querySelectorAll('.btn-cerrar').forEach(b => {
@@ -32,5 +36,5 @@
     Notificaciones.mostrar('⚠️ Los datos guardados fueron modificados a mano (revisa el Historial)', 'error', 7000);
   }
 
-  Notificaciones.mostrar('🌴 Bienvenido a Mariel. Arrastra el punto azul para moverte', 'info', 4500);
+  Notificaciones.mostrar('🌴 ¡Hola ' + Usuarios.perfilActivo.nombre + '! Arrastra el punto azul para moverte', 'info', 4500);
 })();

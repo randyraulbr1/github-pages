@@ -1,224 +1,335 @@
-/* ============ GENERAL ============ */
-* { box-sizing: border-box; margin: 0; padding: 0; }
-html, body { height: 100%; overflow: hidden; font-family: 'Segoe UI', system-ui, sans-serif; }
+/* ============================================================
+   DISEÑO LIMPIO ESTILO iOS — teléfonos y tablets
+   Botones cuadrados con puntas redondeadas, paneles con
+   desenfoque, tema nocturno azul.
+   ============================================================ */
+* { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+html, body { height: 100%; overflow: hidden; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Segoe UI', Roboto, sans-serif;
+  background: #10141f; color: #eef2f8;
+}
 .oculto { display: none !important; }
+button { font-family: inherit; }
 
 #mapa { position: fixed; inset: 0; z-index: 1; background: #d9e8f5; }
-
-/* Ocultar atribución compacta pero mantenerla legal en pequeño */
-.leaflet-control-attribution { font-size: 8px; opacity: .55; }
+.leaflet-control-attribution { font-size: 8px; opacity: .5; }
 
 /* ============ BARRA SUPERIOR ============ */
 #barra-superior {
-  position: fixed; top: 10px; left: 10px; right: 10px; z-index: 1000;
-  display: flex; justify-content: space-between; align-items: center;
+  position: fixed; top: calc(10px + env(safe-area-inset-top)); left: 12px; right: 12px;
+  z-index: 1000; display: flex; justify-content: space-between; align-items: center; gap: 10px;
   pointer-events: none;
 }
 #contenedor-vida {
-  position: relative; width: 46vw; max-width: 230px; height: 24px;
-  background: rgba(20,20,30,.75); border-radius: 12px; overflow: hidden;
-  border: 2px solid rgba(255,255,255,.35);
+  position: relative; flex: 1; max-width: 240px; height: 28px;
+  background: rgba(16,20,31,.78); border-radius: 10px; overflow: hidden;
+  border: 1px solid rgba(255,255,255,.14);
+  backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
 }
-#vida-relleno {
-  position: absolute; inset: 0; width: 100%;
-  background: linear-gradient(90deg, #e0392b, #2ecc71 60%);
-  background: #2ecc71;
-  transition: width .4s ease, background .4s ease;
-}
+#vida-relleno { position: absolute; inset: 0; width: 100%; background: #30d158; transition: width .4s ease, background .4s ease; }
 #vida-texto {
   position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
-  color: #fff; font-size: 13px; font-weight: 700; text-shadow: 0 1px 2px rgba(0,0,0,.6);
+  color: #fff; font-size: 13px; font-weight: 700; text-shadow: 0 1px 2px rgba(0,0,0,.55);
+  font-variant-numeric: tabular-nums;
 }
 #contenedor-dinero {
-  background: rgba(20,20,30,.75); color: #ffd76a; font-weight: 700;
-  padding: 4px 14px; border-radius: 12px; font-size: 15px;
-  border: 2px solid rgba(255,255,255,.35); display: flex; gap: 6px; align-items: center;
+  background: rgba(16,20,31,.78); color: #30d158; font-weight: 800;
+  padding: 5px 14px; border-radius: 10px; font-size: 16px;
+  border: 1px solid rgba(48,209,88,.4); display: flex; gap: 4px; align-items: center;
+  backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
+  font-variant-numeric: tabular-nums;
 }
+.icono-dinero { color: #30d158; font-weight: 800; }
 
 /* ============ BANNER TESORO ============ */
 #banner-tesoro {
-  position: fixed; top: 44px; left: 50%; transform: translateX(-50%);
-  z-index: 1000; background: rgba(40,30,60,.9); color: #ffe28a;
-  padding: 6px 18px; border-radius: 20px; font-size: 14px; font-weight: 600;
-  border: 1px solid #ffd76a; box-shadow: 0 2px 10px rgba(0,0,0,.4);
+  position: fixed; top: calc(48px + env(safe-area-inset-top)); left: 50%; transform: translateX(-50%);
+  z-index: 1000; background: rgba(30,25,50,.88); color: #ffe28a;
+  padding: 7px 18px; border-radius: 12px; font-size: 14px; font-weight: 600;
+  border: 1px solid rgba(255,215,106,.5); box-shadow: 0 4px 14px rgba(0,0,0,.35);
+  backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
+  font-variant-numeric: tabular-nums; white-space: nowrap;
 }
 .parpadeo { animation: parpadear 1s infinite; display: inline-block; }
 @keyframes parpadear { 50% { opacity: .25; } }
+@media (prefers-reduced-motion: reduce) {
+  .parpadeo, .icono-mapa.cerca, .icono-tesoro { animation: none !important; }
+}
 
-/* ============ BOTONES INFERIORES ============ */
+/* ============ BOTONES INFERIORES (cuadrados redondeados) ============ */
 #botones-inferiores {
-  position: fixed; bottom: 16px; left: 50%; transform: translateX(-50%);
-  z-index: 1000; display: flex; gap: 14px;
+  position: fixed; bottom: calc(14px + env(safe-area-inset-bottom)); left: 50%; transform: translateX(-50%);
+  z-index: 1000; display: flex; gap: 10px; padding: 8px;
+  background: rgba(16,20,31,.72); border-radius: 22px;
+  border: 1px solid rgba(255,255,255,.12);
+  backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);
 }
 .btn-redondo {
-  width: 56px; height: 56px; border-radius: 50%; border: 2px solid rgba(255,255,255,.5);
-  background: rgba(20,20,30,.8); font-size: 26px; cursor: pointer;
-  box-shadow: 0 3px 10px rgba(0,0,0,.35); transition: transform .12s;
+  width: 54px; height: 54px; border-radius: 16px;
+  border: 1px solid rgba(255,255,255,.14);
+  background: rgba(255,255,255,.08); font-size: 24px; cursor: pointer;
+  transition: transform .12s ease, background .12s ease;
+  display: flex; align-items: center; justify-content: center;
 }
-.btn-redondo:active { transform: scale(.9); }
-#btn-gps.activo { background: #1a6fd4; }
+.btn-redondo:active { transform: scale(.9); background: rgba(255,255,255,.18); }
+#btn-gps.activo { background: #2f7ae5; border-color: #4d94ff; }
 
 /* ============ NOTIFICACIONES ============ */
 #zona-notificaciones {
-  position: fixed; top: 80px; right: 0; z-index: 2000;
+  position: fixed; top: calc(86px + env(safe-area-inset-top)); right: 0; z-index: 2000;
   display: flex; flex-direction: column; gap: 8px; align-items: flex-end;
   pointer-events: none;
 }
 .notificacion {
-  background: rgba(15,20,35,.92); color: #fff; padding: 10px 16px;
-  border-left: 4px solid #4da3ff; border-radius: 10px 0 0 10px;
-  font-size: 14px; max-width: 78vw; box-shadow: 0 3px 12px rgba(0,0,0,.4);
+  background: rgba(20,26,42,.92); color: #fff; padding: 11px 16px;
+  border-left: 3px solid #3d8bfd; border-radius: 14px 0 0 14px;
+  font-size: 14px; max-width: 78vw; box-shadow: 0 6px 18px rgba(0,0,0,.35);
+  backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
   transform: translateX(110%); transition: transform .35s ease, opacity .35s ease;
 }
 .notificacion.visible { transform: translateX(0); }
 .notificacion.saliendo { transform: translateX(110%); opacity: 0; }
-.notificacion.exito { border-left-color: #2ecc71; }
-.notificacion.error { border-left-color: #e0392b; }
-.notificacion.alerta { border-left-color: #ffd76a; }
+.notificacion.exito { border-left-color: #30d158; }
+.notificacion.error { border-left-color: #ff453a; }
+.notificacion.alerta { border-left-color: #ffd60a; }
 
-/* ============ VENTANAS (modales) ============ */
+/* ============ VENTANAS (hojas estilo iOS) ============ */
 .ventana {
-  position: fixed; inset: 0; z-index: 1500; background: rgba(0,0,0,.55);
-  display: flex; align-items: center; justify-content: center; padding: 12px;
+  position: fixed; inset: 0; z-index: 1500; background: rgba(0,0,0,.5);
+  display: flex; align-items: flex-end; justify-content: center;
 }
 .ventana-caja {
-  background: #1c2233; color: #eef2f8; width: 100%; max-width: 420px;
-  max-height: 86vh; border-radius: 16px; overflow: hidden auto;
-  border: 1px solid rgba(255,255,255,.15); box-shadow: 0 8px 30px rgba(0,0,0,.5);
+  background: rgba(24,30,47,.96); color: #eef2f8; width: 100%; max-width: 480px;
+  max-height: 88vh; border-radius: 22px 22px 0 0; overflow: hidden auto;
+  border: 1px solid rgba(255,255,255,.1);
+  backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
   display: flex; flex-direction: column;
+  padding-bottom: env(safe-area-inset-bottom);
 }
 .ventana-titulo {
-  padding: 14px 16px; font-size: 17px; font-weight: 700;
-  background: rgba(255,255,255,.06); display: flex; justify-content: space-between; align-items: center;
-  position: sticky; top: 0; z-index: 2;
+  padding: 16px 18px; font-size: 17px; font-weight: 700;
+  display: flex; justify-content: space-between; align-items: center;
+  position: sticky; top: 0; z-index: 2; background: rgba(24,30,47,.96);
+  border-bottom: 1px solid rgba(255,255,255,.07);
 }
 .btn-cerrar {
-  background: rgba(255,255,255,.12); border: none; color: #fff; width: 30px; height: 30px;
-  border-radius: 50%; cursor: pointer; font-size: 14px;
+  background: rgba(255,255,255,.1); border: none; color: #fff; width: 32px; height: 32px;
+  border-radius: 11px; cursor: pointer; font-size: 14px;
 }
+.btn-cerrar:active { background: rgba(255,255,255,.22); }
 
-/* Pestañas */
-.pestanas { display: flex; }
+/* Pestañas segmentadas */
+.pestanas { display: flex; margin: 10px 14px 0; background: rgba(255,255,255,.06); border-radius: 12px; padding: 3px; gap: 3px; }
 .pestana {
-  flex: 1; padding: 10px; background: rgba(255,255,255,.04); color: #aab4c8;
-  border: none; cursor: pointer; font-size: 14px; font-weight: 600;
+  flex: 1; padding: 8px; background: transparent; color: #9aa5bd;
+  border: none; cursor: pointer; font-size: 14px; font-weight: 600; border-radius: 10px;
 }
-.pestana.activa { background: rgba(77,163,255,.18); color: #fff; border-bottom: 2px solid #4da3ff; }
+.pestana.activa { background: rgba(61,139,253,.28); color: #fff; }
 
 /* ============ MOCHILA ============ */
-#rejilla-mochila {
-  display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px; padding: 14px;
-}
+#rejilla-mochila { display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px; padding: 14px; }
 .slot {
-  aspect-ratio: 1; background: rgba(255,255,255,.06); border-radius: 10px;
-  border: 1px solid rgba(255,255,255,.12); position: relative;
+  aspect-ratio: 1; background: rgba(255,255,255,.06); border-radius: 14px;
+  border: 1px solid rgba(255,255,255,.1); position: relative;
   display: flex; align-items: center; justify-content: center; font-size: 28px;
   touch-action: none; user-select: none; -webkit-user-select: none;
 }
-.slot.destino { border-color: #4da3ff; background: rgba(77,163,255,.2); }
+.slot.destino { border-color: #3d8bfd; background: rgba(61,139,253,.22); }
 .slot .cantidad {
-  position: absolute; bottom: 2px; right: 4px; font-size: 11px; font-weight: 700;
-  color: #fff; background: rgba(0,0,0,.55); border-radius: 6px; padding: 0 4px;
+  position: absolute; bottom: 3px; right: 5px; font-size: 11px; font-weight: 700;
+  color: #fff; background: rgba(0,0,0,.55); border-radius: 7px; padding: 0 5px;
+  font-variant-numeric: tabular-nums;
 }
 #item-fantasma {
   position: fixed; z-index: 3000; font-size: 32px; pointer-events: none;
-  transform: translate(-50%, -50%); filter: drop-shadow(0 3px 6px rgba(0,0,0,.5));
+  transform: translate(-50%, -50%); filter: drop-shadow(0 4px 8px rgba(0,0,0,.45));
 }
 #papelera {
-  margin: 0 14px 14px; padding: 10px; text-align: center; border-radius: 10px;
-  border: 2px dashed rgba(224,57,43,.6); color: #ff8f85; font-size: 13px;
+  margin: 0 14px 14px; padding: 11px; text-align: center; border-radius: 14px;
+  border: 2px dashed rgba(255,69,58,.55); color: #ff9d96; font-size: 13px;
 }
-#papelera.destino { background: rgba(224,57,43,.25); color: #fff; }
+#papelera.destino { background: rgba(255,69,58,.22); color: #fff; }
 
 #detalle-item {
-  margin: 0 14px 12px; padding: 10px; background: rgba(255,255,255,.05);
-  border-radius: 10px; display: flex; gap: 10px; align-items: center;
+  margin: 0 14px 12px; padding: 12px; background: rgba(255,255,255,.05);
+  border-radius: 14px; display: flex; gap: 12px; align-items: center;
 }
 #detalle-icono { font-size: 34px; }
-#detalle-info { flex: 1; }
+#detalle-info { flex: 1; min-width: 0; }
 #detalle-nombre { font-weight: 700; }
-#detalle-desc { font-size: 12px; color: #aab4c8; }
-#detalle-cantidad { font-size: 12px; color: #ffd76a; }
+#detalle-desc { font-size: 12px; color: #9aa5bd; }
+#detalle-cantidad { font-size: 12px; color: #ffd60a; }
 #detalle-botones { display: flex; flex-direction: column; gap: 6px; }
-#detalle-botones button {
-  border: none; border-radius: 8px; padding: 6px 12px; cursor: pointer; font-weight: 600;
-}
-#btn-usar-item { background: #2ecc71; color: #08331b; }
-#btn-eliminar-item { background: #e0392b; color: #fff; }
+#detalle-botones button { border: none; border-radius: 11px; padding: 8px 14px; cursor: pointer; font-weight: 700; font-size: 13px; }
+#btn-usar-item { background: #30d158; color: #05310f; }
+#btn-eliminar-item { background: #ff453a; color: #fff; }
 
 /* ============ TIENDA ============ */
-#tienda-lista { padding: 12px; display: flex; flex-direction: column; gap: 8px; }
+#tienda-lista { padding: 12px 14px 16px; display: flex; flex-direction: column; gap: 8px; }
 .fila-tienda {
-  display: flex; align-items: center; gap: 10px; padding: 8px 10px;
-  background: rgba(255,255,255,.05); border-radius: 10px;
+  display: flex; align-items: center; gap: 12px; padding: 10px 12px;
+  background: rgba(255,255,255,.05); border-radius: 14px;
 }
 .fila-tienda .icono { font-size: 26px; }
-.fila-tienda .datos { flex: 1; }
+.fila-tienda .datos { flex: 1; min-width: 0; }
 .fila-tienda .nombre { font-weight: 600; font-size: 14px; }
-.fila-tienda .precio { font-size: 12px; color: #ffd76a; }
+.fila-tienda .precio { font-size: 13px; color: #30d158; font-weight: 700; font-variant-numeric: tabular-nums; }
 .fila-tienda button {
-  border: none; border-radius: 8px; padding: 7px 14px; cursor: pointer;
-  background: #4da3ff; color: #06263f; font-weight: 700;
+  border: none; border-radius: 11px; padding: 9px 14px; cursor: pointer;
+  background: #3d8bfd; color: #fff; font-weight: 700; font-size: 13px; white-space: nowrap;
 }
-.fila-tienda button:disabled { background: #47506a; color: #8a93a8; }
-.tienda-vacia { text-align: center; color: #8a93a8; padding: 20px; font-size: 14px; }
+.fila-tienda button:active { opacity: .75; }
+.fila-tienda button:disabled { background: #3a4459; color: #7d879c; }
+.tienda-vacia { text-align: center; color: #7d879c; padding: 24px; font-size: 14px; }
 
 /* ============ PESCA ============ */
 #pesca-zona { padding: 16px; display: flex; flex-direction: column; gap: 14px; align-items: center; }
-#pesca-agua { width: 100%; background: linear-gradient(180deg,#10395e,#0a2745); border-radius: 12px; padding: 16px; }
-#pesca-barra {
-  position: relative; height: 26px; background: rgba(255,255,255,.15); border-radius: 13px; overflow: hidden;
-}
-#pesca-zona-verde { position: absolute; top: 0; bottom: 0; background: rgba(46,204,113,.75); }
-#pesca-indicador { position: absolute; top: 0; bottom: 0; width: 6px; background: #fff; border-radius: 3px; left: 0; }
+#pesca-agua { width: 100%; background: linear-gradient(180deg,#12406b,#0a2745); border-radius: 16px; padding: 18px; }
+#pesca-barra { position: relative; height: 28px; background: rgba(255,255,255,.15); border-radius: 10px; overflow: hidden; }
+#pesca-zona-verde { position: absolute; top: 0; bottom: 0; background: rgba(48,209,88,.75); }
+#pesca-indicador { position: absolute; top: 0; bottom: 0; width: 5px; background: #fff; border-radius: 3px; left: 0; }
 #pesca-mensaje { text-align: center; margin-top: 12px; font-size: 13px; color: #cfe3f7; min-height: 34px; }
 #btn-pescar {
-  border: none; border-radius: 12px; padding: 12px 40px; font-size: 17px; font-weight: 800;
-  background: #ffd76a; color: #4a3705; cursor: pointer;
+  border: none; border-radius: 14px; padding: 13px 44px; font-size: 17px; font-weight: 800;
+  background: #ffd60a; color: #3d3200; cursor: pointer;
 }
+#btn-pescar:active { transform: scale(.96); }
 
 /* ============ MISIONES ============ */
-#lista-misiones { padding: 12px; display: flex; flex-direction: column; gap: 10px; }
-.mision {
-  padding: 12px; background: rgba(255,255,255,.05); border-radius: 12px;
-  border-left: 4px solid #4da3ff;
-}
-.mision.completada { border-left-color: #2ecc71; opacity: .65; }
+#lista-misiones { padding: 12px 14px 16px; display: flex; flex-direction: column; gap: 10px; }
+.mision { padding: 13px 14px; background: rgba(255,255,255,.05); border-radius: 14px; border-left: 3px solid #3d8bfd; }
+.mision.completada { border-left-color: #30d158; opacity: .6; }
 .mision .titulo { font-weight: 700; }
-.mision .descripcion { font-size: 13px; color: #aab4c8; margin: 4px 0; }
-.mision .progreso { font-size: 12px; color: #ffd76a; }
-.mision .distancia { font-size: 12px; color: #7fd0ff; }
+.mision .descripcion { font-size: 13px; color: #9aa5bd; margin: 4px 0; }
+.mision .progreso { font-size: 12px; color: #ffd60a; }
+.mision .distancia { font-size: 12px; color: #7fd0ff; font-variant-numeric: tabular-nums; }
 
 /* ============ HISTORIAL ============ */
-#historial-integridad { padding: 8px 14px; font-size: 13px; font-weight: 700; }
-#historial-integridad.ok { color: #2ecc71; }
-#historial-integridad.mal { color: #ff8f85; }
-#historial-lista { padding: 0 12px 14px; display: flex; flex-direction: column; gap: 6px; }
+#historial-jugador { padding: 10px 16px 0; font-size: 13px; color: #9aa5bd; font-weight: 600; }
+#historial-integridad { padding: 8px 16px; font-size: 13px; font-weight: 700; }
+#historial-integridad.ok { color: #30d158; }
+#historial-integridad.mal { color: #ff9d96; }
+#historial-lista { padding: 0 14px 16px; display: flex; flex-direction: column; gap: 6px; }
 .entrada-historial {
-  padding: 8px 10px; background: rgba(255,255,255,.05); border-radius: 8px; font-size: 12px;
+  padding: 9px 11px; background: rgba(255,255,255,.05); border-radius: 12px; font-size: 12px;
   display: flex; justify-content: space-between; gap: 8px; align-items: center;
 }
-.entrada-historial .detalle { flex: 1; }
-.entrada-historial .fecha { color: #8a93a8; font-size: 10px; }
-.entrada-historial .monto.positivo { color: #2ecc71; font-weight: 700; }
-.entrada-historial .monto.negativo { color: #ff8f85; font-weight: 700; }
-.entrada-historial.manipulada { border: 1px solid #e0392b; background: rgba(224,57,43,.15); }
-.sello-hackeo { color: #ff8f85; font-size: 10px; font-weight: 800; }
+.entrada-historial .detalle { flex: 1; min-width: 0; }
+.entrada-historial .fecha { color: #7d879c; font-size: 10px; }
+.entrada-historial .monto { font-variant-numeric: tabular-nums; white-space: nowrap; }
+.entrada-historial .monto.positivo { color: #30d158; font-weight: 700; }
+.entrada-historial .monto.negativo { color: #ff9d96; font-weight: 700; }
+.entrada-historial.manipulada { border: 1px solid #ff453a; background: rgba(255,69,58,.14); }
+.sello-hackeo { color: #ff9d96; font-size: 10px; font-weight: 800; }
 
-/* ============ MARCADOR JUGADOR Y OBJETOS DEL MAPA ============ */
+/* ============ OPCIONES ============ */
+#lista-opciones { padding: 12px 14px 16px; display: flex; flex-direction: column; gap: 8px; }
+.fila-opcion {
+  display: flex; align-items: center; gap: 12px; padding: 13px 14px;
+  background: rgba(255,255,255,.05); border-radius: 14px; border: none;
+  color: #eef2f8; font-size: 15px; cursor: pointer; text-align: left; width: 100%;
+}
+.fila-opcion:active { background: rgba(255,255,255,.12); }
+.fila-opcion .icono-opcion { font-size: 20px; width: 26px; text-align: center; }
+.fila-opcion.peligro { color: #ff9d96; }
+#opciones-jugador { padding: 14px 16px 4px; font-size: 14px; color: #9aa5bd; }
+#opciones-jugador b { color: #fff; }
+
+/* ============ PANTALLA DE REGISTRO / USUARIOS ============ */
+#pantalla-usuarios {
+  position: fixed; inset: 0; z-index: 4000;
+  background: linear-gradient(170deg, #16223a 0%, #10141f 70%);
+  display: flex; align-items: center; justify-content: center; padding: 22px;
+}
+#usuarios-caja { width: 100%; max-width: 380px; display: flex; flex-direction: column; gap: 14px; }
+#usuarios-titulo { font-size: 30px; font-weight: 800; text-align: center; letter-spacing: -.5px; }
+#usuarios-sub { text-align: center; color: #9aa5bd; font-size: 15px; margin-bottom: 6px; }
+#lista-perfiles { display: flex; flex-direction: column; gap: 8px; }
+.ficha-perfil {
+  display: flex; align-items: center; gap: 12px; padding: 14px 16px;
+  background: rgba(255,255,255,.07); border-radius: 16px; border: 1px solid rgba(255,255,255,.1);
+  color: #fff; font-size: 16px; font-weight: 600; cursor: pointer; width: 100%; text-align: left;
+}
+.ficha-perfil:active { background: rgba(255,255,255,.15); }
+.ficha-perfil .candado { margin-left: auto; opacity: .6; font-size: 14px; }
+#separador-registro { text-align: center; color: #5d6880; font-size: 12px; margin: 6px 0; }
+#form-registro { display: flex; flex-direction: column; gap: 8px; }
+#form-registro input {
+  padding: 14px 16px; border-radius: 14px; border: 1px solid rgba(255,255,255,.14);
+  background: rgba(255,255,255,.07); color: #fff; font-size: 16px; outline: none;
+}
+#form-registro input:focus { border-color: #3d8bfd; }
+#btn-crear-perfil {
+  padding: 15px; border-radius: 14px; border: none; background: #3d8bfd; color: #fff;
+  font-size: 16px; font-weight: 800; cursor: pointer;
+}
+#btn-crear-perfil:active { opacity: .8; }
+
+/* ============ PANEL DE ADMINISTRADOR ============ */
+#lista-admin { padding: 12px 14px 16px; display: flex; flex-direction: column; gap: 8px; }
+#admin-form-campos { padding: 12px 14px 4px; display: flex; flex-direction: column; gap: 10px; }
+.campo-admin { display: flex; flex-direction: column; gap: 4px; }
+.campo-admin label { font-size: 12px; color: #9aa5bd; font-weight: 600; }
+.campo-admin input, .campo-admin select, .campo-admin textarea {
+  padding: 11px 13px; border-radius: 12px; border: 1px solid rgba(255,255,255,.14);
+  background: rgba(255,255,255,.07); color: #fff; font-size: 15px; outline: none; width: 100%;
+  font-family: inherit;
+}
+.campo-admin textarea { min-height: 64px; resize: vertical; }
+.campo-admin input:focus, .campo-admin select:focus, .campo-admin textarea:focus { border-color: #3d8bfd; }
+.campo-admin select option { background: #1c2233; }
+.campo-doble { display: flex; gap: 8px; }
+.campo-doble .campo-admin { flex: 1; }
+.campo-caja { display: flex; align-items: center; gap: 10px; font-size: 14px; color: #cdd6e6; padding: 4px 2px; }
+.campo-caja input { width: 20px; height: 20px; }
+#btn-admin-guardar {
+  margin: 10px 14px 16px; padding: 14px; border-radius: 14px; border: none;
+  background: #30d158; color: #05310f; font-size: 16px; font-weight: 800; cursor: pointer;
+}
+
+/* Controles flotantes del modo admin (colocar / organizar / eliminar) */
+#admin-controles {
+  position: fixed; top: calc(86px + env(safe-area-inset-top)); left: 50%; transform: translateX(-50%);
+  z-index: 1400; display: flex; gap: 8px; align-items: center;
+  background: rgba(20,26,42,.92); padding: 8px 10px; border-radius: 16px;
+  border: 1px solid rgba(255,214,10,.45);
+  backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
+  max-width: 92vw;
+}
+#admin-modo-texto { font-size: 13px; font-weight: 600; color: #ffd60a; }
+#admin-controles button {
+  border: none; border-radius: 11px; padding: 9px 13px; cursor: pointer; font-weight: 800; font-size: 13px;
+}
+#btn-admin-confirmar { background: #30d158; color: #05310f; }
+#btn-admin-salir-modo { background: rgba(255,255,255,.14); color: #fff; }
+
+/* ============ MARCADORES DEL MAPA ============ */
 .punto-jugador {
   width: 22px; height: 22px; border-radius: 50%;
-  background: #1a6fd4; border: 3px solid #fff;
-  box-shadow: 0 0 0 6px rgba(26,111,212,.3), 0 2px 6px rgba(0,0,0,.4);
+  background: #2f7ae5; border: 3px solid #fff;
+  box-shadow: 0 0 0 6px rgba(47,122,229,.28), 0 2px 6px rgba(0,0,0,.4);
 }
 .icono-mapa { font-size: 26px; text-shadow: 0 2px 4px rgba(0,0,0,.45); }
 .icono-mapa.cerca { animation: rebotar .9s infinite; }
 @keyframes rebotar { 50% { transform: translateY(-5px); } }
 .icono-tesoro { font-size: 30px; animation: brillar 1.2s infinite; }
-@keyframes brillar { 50% { filter: drop-shadow(0 0 8px #ffd76a); transform: scale(1.15); } }
+@keyframes brillar { 50% { filter: drop-shadow(0 0 8px #ffd60a); transform: scale(1.15); } }
+.icono-admin-pin { font-size: 34px; filter: drop-shadow(0 3px 6px rgba(0,0,0,.5)); }
 
-/* Animación objeto volando a la mochila */
 .item-volando {
   position: fixed; z-index: 3500; font-size: 34px; pointer-events: none;
   transition: all .9s cubic-bezier(.4,-0.2,.7,1); transform: translate(-50%,-50%);
+}
+
+/* ============ TABLETS Y PANTALLAS GRANDES ============ */
+@media (min-width: 700px) {
+  .ventana { align-items: center; padding: 24px; }
+  .ventana-caja { border-radius: 22px; max-height: 82vh; }
+  #rejilla-mochila { gap: 10px; padding: 18px; }
+  .slot { font-size: 34px; border-radius: 16px; }
+  #contenedor-vida { max-width: 300px; height: 32px; }
+  #contenedor-dinero { font-size: 18px; padding: 6px 18px; }
+  .btn-redondo { width: 60px; height: 60px; font-size: 26px; }
+  .notificacion { max-width: 380px; }
 }

@@ -20,6 +20,8 @@ const Pesca = {
 
   iniciar() {
     this.MUELLES.forEach((pos, i) => {
+      if (Admin.eliminado('muelle_' + i)) return;
+      Admin.pos('muelle_' + i, pos);
       const marcador = Mapa.crearMarcadorEmoji(pos, '🛶');
       Mapa.registrarPunto({
         id: 'muelle_' + i,
@@ -122,7 +124,7 @@ const Pesca = {
     if (conCarnada) Mochila.quitar('carnada', 1, 'Gastado pescando');
     Mochila.agregar(pez.id, 1, { silencioso: true });
     document.getElementById('pesca-mensaje').textContent =
-      pez.icono + ' ¡Capturaste: ' + pez.nombre + '! (se vende por 🪙 ' + Math.floor(pez.precio / 2) + ')';
+      pez.icono + ' ¡Capturaste: ' + pez.nombre + '! (se vende por $' + Math.floor(pez.precio / 2) + ')';
     Notificaciones.mostrar(pez.icono + ' Pescaste ' + pez.nombre, 'exito');
 
     // Animación del pez volando hacia la mochila

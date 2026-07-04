@@ -13,6 +13,8 @@ const Tesoros = {
 
   iniciar() {
     for (const t of DATOS_TESOROS) {
+      if (Admin.eliminado(t.id)) continue;
+      Admin.pos(t.id, t.posicion);
       if (Guardado.datos.tesorosRecogidos.includes(t.id)) continue;
       const estado = { datos: t, marcador: null };
       this.activos.push(estado);
@@ -52,22 +54,31 @@ const Tesoros = {
   // Llamado también por la mochila cuando cambia su contenido
   refrescarBanner() { this._actualizarBanner(); },
 
-  // Banner superior del buscador: muestra el tesoro más cercano
+  // Banner superior: muestra el tesoro detectable más cercano.
+  // Cuenta los tesoros base (con el Buscador de tesoros) y también los
+  // tesoros invisibles creados por el admin (con el objeto que él eligió).
   _actualizarBanner() {
     const banner = document.getElementById('banner-tesoro');
     if (!GPS.posicion) return;
-    if (!Mochila.tieneItem('buscador_tesoros')) {
-      banner.classList.add('oculto');
-      return;
-    }
+
     let masCerca = Infinity;
-    for (const e of this.activos) {
-      if (Guardado.datos.tesorosRecogidos.includes(e.datos.id)) continue;
-      const d = Utilidades.distanciaMetros(GPS.posicion, e.datos.posicion);
-      if (d < masCerca) masCerca = d;
+    if (Mochila.tieneItem('buscador_tesoros')) {
+      for (const e of this.activos) {
+        if (Guardado.datos.tesorosRecogidos.includes(e.datos.id)) continue;
+        const d = Utilidades.distanciaMetros(GPS.posicion, e.datos.posicion);
+        if (d < masCerca) masCerca = d;
+      }
     }
+    if (typeof Admin !== 'undefined') {
+      for (const pos of Admin.tesorosDetectables()) {
+        const d = Utilidades.distanciaMetros(GPS.posicion, pos);
+        if (d < masCerca) masCerca = d;
+      }
+    }
+
     if (masCerca <= CONFIG.distanciaDetectorTesoro) {
-      document.getElementById('tesoro-metros').textContent = Math.round(masCerca);
+      // Distancia aproximada (redondeada a 5 m para no dar el punto exacto)
+      document.getElementById('tesoro-metros').textContent = Math.max(5, Math.round(masCerca / 5) * 5);
       banner.classList.remove('oculto');
     } else {
       banner.classList.add('oculto');
@@ -95,7 +106,7 @@ const Tesoros = {
     setTimeout(async () => {
       Mochila.agregar(idPremio, 1, { silencioso: true });
       await Dinero.ganar(t.dinero, 'Tesoro encontrado: ' + premio.nombre);
-      Notificaciones.mostrar('🏴‍☠️ ¡Tesoro! ' + premio.icono + ' ' + premio.nombre + ' + 🪙 ' + t.dinero, 'exito', 5000);
+      Notificaciones.mostrar('🏴‍☠️ ¡Tesoro! ' + premio.icono + ' ' + premio.nombre + ' + $' + t.dinero, 'exito', 5000);
       Misiones.evento('tesoro_recogido', t.id);
       this._actualizarBanner();
     }, 800);
