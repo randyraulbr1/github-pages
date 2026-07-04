@@ -3,7 +3,7 @@
 // guarda todos los archivos en el teléfono (funciona con mala
 // conexión) y va guardando los pedazos de mapa ya visitados.
 // ============================================================
-const CACHE = 'mariel-explorer-v10';
+const CACHE = 'mariel-explorer-v11';
 
 const ARCHIVOS = [
   './',
@@ -40,16 +40,46 @@ const ARCHIVOS = [
   './js/principal.js'
 ];
 
+// Descarga cada archivo individualmente: si uno falla no aborta todo
+async function precargar(cache) {
+  let descargados = 0;
+  let bytesTotal = 0;
+  const total = ARCHIVOS.length;
+
+  for (const url of ARCHIVOS) {
+    try {
+      const respuesta = await fetch(url);
+      if (respuesta.ok) {
+        const clon = respuesta.clone();
+        const buffer = await clon.arrayBuffer();
+        bytesTotal += buffer.byteLength;
+        await cache.put(url, respuesta);
+      }
+    } catch (e) {
+      // Archivo no disponible: continúa sin romper la instalación
+    }
+    descargados++;
+    const porcentaje = Math.round((descargados / total) * 100);
+    self.clients.matchAll().then(clientes => {
+      for (const c of clientes) {
+        c.postMessage({ tipo: 'progreso', descargados, total, bytesTotal, porcentaje });
+      }
+    });
+  }
+}
+
 self.addEventListener('install', evento => {
   evento.waitUntil(
-    caches.open(CACHE).then(cache => cache.addAll(ARCHIVOS)).then(() => self.skipWaiting())
+    caches.open(CACHE)
+      .then(cache => precargar(cache))
+      .then(() => self.skipWaiting())
   );
 });
 
 self.addEventListener('activate', evento => {
   evento.waitUntil(
     caches.keys().then(claves =>
-      Promise.all(claves.filter(c => c !== CACHE).map(c => caches.delete(c)))
+      Promise.all(claves.filter(c => c !== CACHE && !c.includes('-mapa')).map(c => caches.delete(c)))
     ).then(() => self.clients.claim())
   );
 });
@@ -57,9 +87,7 @@ self.addEventListener('activate', evento => {
 self.addEventListener('fetch', evento => {
   const url = evento.request.url;
 
-  // El mundo del admin (datos/mundo.json) siempre se busca primero en la
-  // red para que las misiones nuevas lleguen enseguida; sin conexión se
-  // usa la última copia guardada
+  // El mundo del admin siempre se busca en la red primero
   if (url.includes('datos/mundo.json')) {
     evento.respondWith(
       caches.open(CACHE).then(cache =>
@@ -72,7 +100,7 @@ self.addEventListener('fetch', evento => {
     return;
   }
 
-  // Pedazos del mapa: primero caché, si no hay se descarga y se guarda
+  // Pedazos del mapa: caché primero, si no hay se descarga
   if (url.includes('cartocdn.com')) {
     evento.respondWith(
       caches.open(CACHE + '-mapa').then(cache =>
@@ -87,7 +115,7 @@ self.addEventListener('fetch', evento => {
     return;
   }
 
-  // Archivos del juego: primero caché, con actualización desde la red de fondo
+  // Archivos del juego: caché primero, actualización en segundo plano
   if (evento.request.method === 'GET' && url.startsWith(self.location.origin)) {
     evento.respondWith(
       caches.open(CACHE).then(cache =>
