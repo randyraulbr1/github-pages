@@ -75,6 +75,21 @@ const Admin = {
     // Leaflet, avisos) y no deben guardarse
     localStorage.setItem(this.CLAVE, JSON.stringify(this.datos,
       (clave, valor) => clave.startsWith('_') ? undefined : valor));
+    this._autoPublicar();
+  },
+
+  // ---------- PUBLICACIÓN AUTOMÁTICA AL EDITAR ----------
+  // Si el admin tiene su clave configurada, CUALQUIER cambio suyo se sube
+  // solo al archivo global (con una espera corta para agrupar cambios).
+  // Los jugadores lo reciben al momento por la vigilancia del mundo.
+  _autoPublicar() {
+    if (!this.datos || !this.datos.tokenPublicar) return;
+    clearTimeout(this._tempPublicar);
+    this._tempPublicar = setTimeout(() => {
+      const json = this._jsonMundo();
+      if (json === this._ultimoPublicado) return; // nada nuevo que subir
+      this.publicarMundo();
+    }, 4000);
   },
 
   // Posición corregida de un pin (si el admin lo movió). Muta la base en sitio
@@ -945,16 +960,19 @@ const Admin = {
       const r = await fetch(url + '?ref=' + CONFIG.ramaPublicacion, { headers: cabeceras });
       if (r.ok) sha = (await r.json()).sha;
     } catch (e) {}
+    const json = this._jsonMundo();
     const cuerpo = {
       message: 'Publicar mundo desde el juego (admin)',
-      content: btoa(unescape(encodeURIComponent(this._jsonMundo()))),
+      content: btoa(unescape(encodeURIComponent(json))),
       branch: CONFIG.ramaPublicacion
     };
     if (sha) cuerpo.sha = sha;
     try {
       const r = await fetch(url, { method: 'PUT', headers: cabeceras, body: JSON.stringify(cuerpo) });
       if (r.ok) {
-        Notificaciones.mostrar('🌍 ¡MUNDO PUBLICADO! En 1-2 min les llega a todos los jugadores al recargar', 'exito', 8000);
+        this._ultimoPublicado = json;
+        this._crudoPublicado = null; // la vigilancia toma el nuevo como base sin recargarte
+        Notificaciones.mostrar('🌍 ¡MUNDO PUBLICADO! A los jugadores les llega solo en 1-3 min', 'exito', 8000);
       } else if (r.status === 401 || r.status === 403) {
         Notificaciones.mostrar('❌ La clave no tiene permiso: revisa el token en GitHub', 'error', 7000);
       } else {
