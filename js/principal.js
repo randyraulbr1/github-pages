@@ -11,7 +11,7 @@
   Mochila.iniciar();             // 6. mochila de 25 casillas
   Mapa.iniciar();                // 7. mapa limpio de Mariel
   GPS.iniciar();                 // 8. punto del jugador (arrastrable + GPS real)
-  Admin.cargar();                // 9. datos del administrador (posiciones, eliminados)
+  await Admin.cargar();          // 9. mundo publicado en GitHub + borradores del admin
   Tiendas.iniciar();             // 10. tiendas
   Pesca.iniciar();               // 11. muelles de pesca
   Tesoros.iniciar();             // 12. tesoros ocultos

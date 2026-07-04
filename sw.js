@@ -3,13 +3,14 @@
 // guarda todos los archivos en el teléfono (funciona con mala
 // conexión) y va guardando los pedazos de mapa ya visitados.
 // ============================================================
-const CACHE = 'mariel-explorer-v2';
+const CACHE = 'mariel-explorer-v3';
 
 const ARCHIVOS = [
   './',
   './index.html',
   './manifest.json',
   './css/estilos.css',
+  './datos/mundo.json',
   './lib/leaflet/leaflet.css',
   './lib/leaflet/leaflet.js',
   './iconos/icono-192.png',
@@ -54,6 +55,21 @@ self.addEventListener('activate', evento => {
 
 self.addEventListener('fetch', evento => {
   const url = evento.request.url;
+
+  // El mundo del admin (datos/mundo.json) siempre se busca primero en la
+  // red para que las misiones nuevas lleguen enseguida; sin conexión se
+  // usa la última copia guardada
+  if (url.includes('datos/mundo.json')) {
+    evento.respondWith(
+      caches.open(CACHE).then(cache =>
+        fetch(evento.request).then(respuesta => {
+          if (respuesta.ok) cache.put('./datos/mundo.json', respuesta.clone());
+          return respuesta;
+        }).catch(() => cache.match('./datos/mundo.json'))
+      )
+    );
+    return;
+  }
 
   // Pedazos del mapa: primero caché, si no hay se descarga y se guarda
   if (url.includes('cartocdn.com')) {

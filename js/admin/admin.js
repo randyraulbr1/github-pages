@@ -12,20 +12,44 @@
 // ============================================================
 const Admin = {
   CLAVE: 'mariel_admin_v1',
-  datos: null,   // { pinHash, misiones:[], tesoros:[], objetos:[], posiciones:{}, eliminados:[] }
-  modo: null,    // null | 'colocar' | 'organizar' | 'eliminar'
+  datos: null,      // borradores locales del admin (solo en este teléfono)
+  publicado: null,  // mundo oficial descargado de datos/mundo.json (lo ven todos)
+  modo: null,       // null | 'colocar' | 'organizar' | 'eliminar'
   _colocacion: null,  // { tipo, valores, marcador }
   _fantasmas: [],     // marcadores temporales de tesoros base en modo admin
 
   // ---------- CARGA (llamar antes que tiendas/pesca/tesoros/misiones) ----------
-  cargar() {
+  // Carga los borradores locales Y el mundo publicado en GitHub.
+  async cargar() {
     try {
       this.datos = JSON.parse(localStorage.getItem(this.CLAVE) || 'null');
     } catch (e) { this.datos = null; }
     if (!this.datos) {
       this.datos = { pinHash: null, misiones: [], tesoros: [], objetos: [], posiciones: {}, eliminados: [] };
     }
+
+    // El mundo oficial vive en GitHub: al actualizar datos/mundo.json,
+    // todos los jugadores reciben las misiones nuevas al recargar el juego
+    this.publicado = { misiones: [], tesoros: [], objetos: [], posiciones: {}, eliminados: [] };
+    try {
+      const respuesta = await fetch('datos/mundo.json?v=' + Date.now());
+      if (respuesta.ok) {
+        const mundo = await respuesta.json();
+        this.publicado = Object.assign(this.publicado, mundo);
+      }
+    } catch (e) { /* sin conexión: se sigue con lo guardado */ }
   },
+
+  // ---------- VISTA COMBINADA: publicado en GitHub + borradores locales ----------
+  _combinar(publicados, locales) {
+    const porId = new Map();
+    for (const e of publicados) porId.set(e.id, e);
+    for (const e of locales) porId.set(e.id, e);
+    return [...porId.values()].filter(e => !this.eliminado(e.id));
+  },
+  misionesTodas() { return this._combinar(this.publicado.misiones, this.datos.misiones); },
+  tesorosTodos() { return this._combinar(this.publicado.tesoros, this.datos.tesoros); },
+  objetosTodos() { return this._combinar(this.publicado.objetos, this.datos.objetos); },
 
   guardar() {
     // Las claves que empiezan con "_" son estado temporal (marcadores de
@@ -37,13 +61,13 @@ const Admin = {
   // Posición corregida de un pin (si el admin lo movió). Muta la base en sitio
   // para que todas las referencias del módulo queden sincronizadas.
   pos(id, base) {
-    const o = this.datos.posiciones[id];
+    const o = this.datos.posiciones[id] || this.publicado.posiciones[id];
     if (o) { base[0] = o[0]; base[1] = o[1]; }
     return base;
   },
 
   eliminado(id) {
-    return this.datos.eliminados.includes(id);
+    return this.datos.eliminados.includes(id) || this.publicado.eliminados.includes(id);
   },
 
   // Progreso del jugador actual sobre el contenido creado por el admin
@@ -55,9 +79,9 @@ const Admin = {
   // ---------- ARRANQUE (después de los módulos base) ----------
   iniciar() {
     this._progreso();
-    for (const m of this.datos.misiones) this._crearMarcadorMision(m);
-    for (const t of this.datos.tesoros) this._prepararTesoro(t);
-    for (const o of this.datos.objetos) this._crearMarcadorObjeto(o);
+    for (const m of this.misionesTodas()) { this.pos(m.id, m.pos); this._crearMarcadorMision(m); }
+    for (const t of this.tesorosTodos()) { this.pos(t.id, t.pos); this._prepararTesoro(t); }
+    for (const o of this.objetosTodos()) { this.pos(o.id, o.pos); this._crearMarcadorObjeto(o); }
 
     // Botones del panel
     document.getElementById('admin-crear-mision').addEventListener('click', () => this.abrirFormulario('mision'));
@@ -299,7 +323,7 @@ const Admin = {
 
   // Pinta las misiones del admin dentro de la ventana de misiones
   pintarMisiones(contenedor) {
-    for (const m of this.datos.misiones) {
+    for (const m of this.misionesTodas()) {
       const hecha = this._progreso().misiones.includes(m.id);
       const caja = document.createElement('div');
       caja.className = 'mision' + (hecha ? ' completada' : '');
@@ -367,7 +391,7 @@ const Admin = {
   // Tesoros invisibles detectables ahora mismo (para el banner de metros)
   tesorosDetectables() {
     const lista = [];
-    for (const t of this.datos.tesoros) {
+    for (const t of this.tesorosTodos()) {
       if (this._progreso().tesoros.includes(t.id)) continue;
       if (t.invisible && this._puedeDetectar(t)) lista.push(t.pos);
     }
@@ -377,7 +401,7 @@ const Admin = {
   // La mochila cambió: puede que ahora se vea (o deje de verse) un tesoro
   refrescarVisibles() {
     if (!GPS.posicion) return;
-    for (const t of this.datos.tesoros) {
+    for (const t of this.tesorosTodos()) {
       if (this._progreso().tesoros.includes(t.id)) continue;
       this._revisarTesoro(t, Utilidades.distanciaMetros(GPS.posicion, t.pos));
     }
@@ -466,7 +490,7 @@ const Admin = {
     }
 
     // Igual con los tesoros invisibles del admin
-    for (const t of this.datos.tesoros) {
+    for (const t of this.tesorosTodos()) {
       if (t._marcador) continue;
       const fantasma = L.marker(t.pos, {
         draggable: modo === 'organizar',
@@ -476,6 +500,7 @@ const Admin = {
       fantasma.on('dragend', () => {
         const p = fantasma.getLatLng();
         t.pos[0] = +p.lat.toFixed(6); t.pos[1] = +p.lng.toFixed(6);
+        this.datos.posiciones[t.id] = [t.pos[0], t.pos[1]];
         this.guardar();
       });
       fantasma.on('click', () => {
@@ -514,10 +539,18 @@ const Admin = {
     if (!confirm('¿Eliminar este pin del mapa?' + (punto.nombre ? ' (' + punto.nombre + ')' : ''))) return;
 
     if (punto.id.startsWith('admx_')) {
-      // Contenido creado por el admin: se borra de verdad
+      // Contenido creado por el admin: se borra el borrador local, y si
+      // ya estaba publicado en GitHub, se marca como eliminado
+      const habiaLocal =
+        this.datos.misiones.some(x => x.id === punto.id) ||
+        this.datos.tesoros.some(x => x.id === punto.id) ||
+        this.datos.objetos.some(x => x.id === punto.id);
       this.datos.misiones = this.datos.misiones.filter(x => x.id !== punto.id);
       this.datos.tesoros = this.datos.tesoros.filter(x => x.id !== punto.id);
       this.datos.objetos = this.datos.objetos.filter(x => x.id !== punto.id);
+      if (!habiaLocal && !this.datos.eliminados.includes(punto.id)) {
+        this.datos.eliminados.push(punto.id);
+      }
     } else {
       // Pines base del juego: se marcan como eliminados
       if (!this.datos.eliminados.includes(punto.id)) this.datos.eliminados.push(punto.id);
@@ -556,20 +589,24 @@ const Admin = {
   },
 
   // ---------- EXPORTAR ----------
+  // Genera el contenido COMPLETO para el archivo datos/mundo.json:
+  // lo ya publicado + tus cambios locales, listo para pegar en GitHub.
   exportar() {
+    const quitarTemporales = (clave, valor) => clave.startsWith('_') ? undefined : valor;
     const json = JSON.stringify({
-      misiones: this.datos.misiones,
-      tesoros: this.datos.tesoros,
-      objetos: this.datos.objetos,
-      posiciones: this.datos.posiciones,
-      eliminados: this.datos.eliminados
-    }, null, 2);
+      misiones: this.misionesTodas(),
+      tesoros: this.tesorosTodos(),
+      objetos: this.objetosTodos(),
+      posiciones: Object.assign({}, this.publicado.posiciones, this.datos.posiciones),
+      eliminados: [...new Set([...this.publicado.eliminados, ...this.datos.eliminados])]
+        .filter(id => !id.startsWith('admx_'))
+    }, quitarTemporales, 2);
     if (navigator.clipboard && navigator.clipboard.writeText) {
       navigator.clipboard.writeText(json)
-        .then(() => Notificaciones.mostrar('📋 Copiado. Pégalo en el chat para hacerlo permanente para todos', 'exito', 6000))
-        .catch(() => prompt('Copia este texto:', json));
+        .then(() => Notificaciones.mostrar('📋 Copiado. Pégalo en datos/mundo.json en GitHub (o mándamelo) y les llegará a todos', 'exito', 7000))
+        .catch(() => prompt('Copia este texto y pégalo en datos/mundo.json en GitHub:', json));
     } else {
-      prompt('Copia este texto:', json);
+      prompt('Copia este texto y pégalo en datos/mundo.json en GitHub:', json);
     }
   }
 };
