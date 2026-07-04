@@ -21,26 +21,55 @@ button { font-family: inherit; }
   z-index: 1000; display: flex; justify-content: space-between; align-items: center; gap: 10px;
   pointer-events: none;
 }
-#contenedor-vida {
-  position: relative; flex: 1; max-width: 240px; height: 28px;
-  background: rgba(16,20,31,.78); border-radius: 10px; overflow: hidden;
-  border: 1px solid rgba(255,255,255,.14);
-  backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
+/* Corazón junto a la barra de vida (estilo cartoon) */
+#vida-corazon {
+  width: 32px; height: 32px; border-radius: 50%; flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center; font-size: 17px;
+  background: radial-gradient(circle at 32% 28%, #ff8fa0, #ff2a4b 60%, #b70d2c 100%);
+  border: 3px solid #1a1a1a; margin-right: -16px; z-index: 2; position: relative;
+  box-shadow: 0 3px 6px rgba(0,0,0,.35), inset 0 2px 3px rgba(255,255,255,.4);
 }
-#vida-relleno { position: absolute; inset: 0; width: 100%; background: #30d158; transition: width .4s ease, background .4s ease; }
+#contenedor-vida {
+  position: relative; flex: 1; max-width: 240px; height: 30px;
+  background: #2b1016; border-radius: 16px; overflow: hidden;
+  border: 3px solid #1a1a1a;
+  box-shadow: 0 3px 6px rgba(0,0,0,.3);
+}
+#vida-relleno {
+  position: absolute; inset: 0; width: 100%;
+  background: linear-gradient(180deg, #ff7186 0%, #ff2a4b 48%, #c11031 100%);
+  transition: width .4s ease;
+}
+/* Brillo superior de la barra (volumen) */
+#contenedor-vida::after {
+  content: ''; position: absolute; left: 0; right: 0; top: 0; height: 45%;
+  background: linear-gradient(180deg, rgba(255,255,255,.35), rgba(255,255,255,0));
+  pointer-events: none; border-radius: 12px 12px 0 0;
+}
 #vida-texto {
   position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
-  color: #fff; font-size: 13px; font-weight: 700; text-shadow: 0 1px 2px rgba(0,0,0,.55);
+  color: #fff; font-size: 13px; font-weight: 800; z-index: 1;
+  text-shadow: -1px -1px 0 #1a1a1a, 1px -1px 0 #1a1a1a, -1px 1px 0 #1a1a1a, 1px 1px 0 #1a1a1a, 0 2px 3px rgba(0,0,0,.5);
   font-variant-numeric: tabular-nums;
 }
 #contenedor-dinero {
-  background: rgba(16,20,31,.78); color: #30d158; font-weight: 800;
-  padding: 5px 14px; border-radius: 10px; font-size: 16px;
-  border: 1px solid rgba(48,209,88,.4); display: flex; gap: 4px; align-items: center;
-  backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
+  background: linear-gradient(180deg, #4a3714, #2b1f0a);
+  color: #ffe9a8; font-weight: 800;
+  padding: 4px 14px 4px 5px; border-radius: 16px; font-size: 16px;
+  border: 3px solid #1a1a1a; display: flex; gap: 7px; align-items: center;
+  box-shadow: 0 3px 6px rgba(0,0,0,.3), inset 0 2px 3px rgba(255,255,255,.15);
+  text-shadow: 0 2px 3px rgba(0,0,0,.6);
   font-variant-numeric: tabular-nums;
 }
-.icono-dinero { color: #30d158; font-weight: 800; }
+/* Moneda de oro redonda y brillante */
+.icono-dinero {
+  width: 24px; height: 24px; border-radius: 50%; flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+  background: radial-gradient(circle at 35% 28%, #ffef9e, #ffc93c 55%, #d3920e 100%);
+  border: 2px solid #1a1a1a; color: #7a5200; font-size: 14px; font-weight: 900;
+  text-shadow: none;
+  box-shadow: inset 0 -2px 3px rgba(0,0,0,.25), inset 0 2px 2px rgba(255,255,255,.6);
+}
 
 /* ============ BANNER TESORO ============ */
 #banner-tesoro {
@@ -70,18 +99,30 @@ button { font-family: inherit; }
 }
 .btn-burbuja:active { transform: scale(.88); }
 .burbuja-icono {
-  width: 52px; height: 52px; border-radius: 50%;
-  display: flex; align-items: center; justify-content: center; font-size: 24px;
-  background: radial-gradient(circle at 30% 25%, rgba(255,255,255,.22), rgba(16,20,31,.82) 70%);
-  border: 1.5px solid rgba(255,255,255,.35);
-  box-shadow: 0 4px 12px rgba(0,0,0,.35), inset 0 1px 2px rgba(255,255,255,.25);
-  backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
+  width: 54px; height: 54px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center; font-size: 25px;
+  border: 3px solid #1a1a1a;
+  box-shadow: 0 4px 8px rgba(0,0,0,.4),
+              inset 0 4px 6px rgba(255,255,255,.45),
+              inset 0 -6px 8px rgba(0,0,0,.28);
 }
 .burbuja-texto {
-  font-size: 9px; font-weight: 700; color: #fff; letter-spacing: .3px;
-  text-shadow: 0 1px 3px rgba(0,0,0,.8); text-transform: uppercase;
+  font-size: 9px; font-weight: 800; color: #fff; letter-spacing: .3px;
+  text-shadow: -1px -1px 0 #1a1a1a, 1px -1px 0 #1a1a1a, -1px 1px 0 #1a1a1a, 1px 1px 0 #1a1a1a;
+  text-transform: uppercase;
 }
-#btn-gps.activo .burbuja-icono { background: radial-gradient(circle at 30% 25%, #6db2ff, #1a5fc4 75%); border-color: #8cc3ff; }
+/* Colores saturados por botón (estilo cartoon gomoso) */
+#btn-mochila  .burbuja-icono { background: radial-gradient(circle at 32% 26%, #ffc879, #ff9f1c 55%, #d97706 100%); }
+#btn-misiones .burbuja-icono { background: radial-gradient(circle at 32% 26%, #8ef2a5, #35d461 55%, #16a34a 100%); }
+#btn-notific  .burbuja-icono { background: radial-gradient(circle at 32% 26%, #ffe98a, #ffd60a 55%, #d9a406 100%); }
+#btn-historial .burbuja-icono { background: radial-gradient(circle at 32% 26%, #d3a7ff, #b06cf5 55%, #7e3ff2 100%); }
+#btn-gps      .burbuja-icono { background: radial-gradient(circle at 32% 26%, #8ec5ff, #2f8bff 55%, #1257c8 100%); }
+#btn-opciones .burbuja-icono { background: radial-gradient(circle at 32% 26%, #c3cddc, #8a97ad 55%, #5b677e 100%); }
+#btn-gps.activo .burbuja-icono {
+  background: radial-gradient(circle at 32% 26%, #baf1ff, #38c6ff 55%, #0e86d4 100%);
+  box-shadow: 0 0 14px rgba(56,198,255,.7), 0 4px 8px rgba(0,0,0,.4),
+              inset 0 4px 6px rgba(255,255,255,.5), inset 0 -6px 8px rgba(0,0,0,.28);
+}
 
 /* Aviso de actualización automática */
 #aviso-actualizacion {

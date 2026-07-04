@@ -29,9 +29,8 @@ const Vida = {
 
   pintar() {
     const pct = (this.actual / CONFIG.vidaMaxima) * 100;
-    const relleno = document.getElementById('vida-relleno');
-    relleno.style.width = pct + '%';
-    relleno.style.background = pct > 50 ? '#2ecc71' : pct > 20 ? '#ffd76a' : '#e0392b';
+    // El color carmesí con volumen lo pone el CSS; aquí solo el ancho
+    document.getElementById('vida-relleno').style.width = pct + '%';
     document.getElementById('vida-texto').textContent = this.actual + ' / ' + CONFIG.vidaMaxima;
   }
 };
