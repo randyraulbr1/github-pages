@@ -13,6 +13,24 @@
 </head>
 <body>
 
+  <!-- PANTALLA DE CARGA (visible desde el primer instante) -->
+  <div id="pantalla-carga">
+    <div class="carga-logo">🌴</div>
+    <div class="carga-titulo">Mariel Explorer</div>
+    <div class="carga-barra"><div class="carga-progreso"></div></div>
+    <div class="carga-texto">Cargando el mundo…</div>
+  </div>
+
+  <!-- PANTALLA DE BLOQUEO (mantenimiento o jugador baneado) -->
+  <div id="pantalla-bloqueo" class="oculto">
+    <div class="bloqueo-caja">
+      <div id="bloqueo-icono">🚧</div>
+      <div id="bloqueo-titulo">Fuera de servicio</div>
+      <div id="bloqueo-mensaje"></div>
+      <button id="btn-bloqueo-admin" class="oculto">🛠️ Entrar como administrador</button>
+    </div>
+  </div>
+
   <!-- MAPA -->
   <div id="mapa"></div>
 
@@ -40,13 +58,14 @@
     <button id="btn-admin-salir-modo">Salir</button>
   </div>
 
-  <!-- BOTONES INFERIORES -->
+  <!-- BOTONES INFERIORES (burbujas) -->
   <div id="botones-inferiores">
-    <button id="btn-mochila" class="btn-redondo" title="Mochila">🎒</button>
-    <button id="btn-misiones" class="btn-redondo" title="Misiones">📜</button>
-    <button id="btn-historial" class="btn-redondo" title="Historial">🧾</button>
-    <button id="btn-gps" class="btn-redondo" title="Seguir mi GPS real">📍</button>
-    <button id="btn-opciones" class="btn-redondo" title="Opciones">⚙️</button>
+    <button id="btn-mochila" class="btn-burbuja"><span class="burbuja-icono">🎒</span><span class="burbuja-texto">Mochila</span></button>
+    <button id="btn-misiones" class="btn-burbuja"><span class="burbuja-icono">📜</span><span class="burbuja-texto">Misiones</span></button>
+    <button id="btn-notific" class="btn-burbuja"><span class="burbuja-icono">🔔</span><span class="burbuja-texto">Avisos</span></button>
+    <button id="btn-historial" class="btn-burbuja"><span class="burbuja-icono">🧾</span><span class="burbuja-texto">Historial</span></button>
+    <button id="btn-gps" class="btn-burbuja"><span class="burbuja-icono">📍</span><span class="burbuja-texto">GPS</span></button>
+    <button id="btn-opciones" class="btn-burbuja"><span class="burbuja-icono">⚙️</span><span class="burbuja-texto">Opciones</span></button>
   </div>
 
   <!-- NOTIFICACIONES -->
@@ -139,6 +158,14 @@
     </div>
   </div>
 
+  <!-- ============ VENTANA: AVISOS (últimas 10 notificaciones) ============ -->
+  <div id="ventana-notific" class="ventana oculto">
+    <div class="ventana-caja">
+      <div class="ventana-titulo">🔔 Últimos avisos <button class="btn-cerrar" data-cierra="ventana-notific">✕</button></div>
+      <div id="lista-notificaciones"></div>
+    </div>
+  </div>
+
   <!-- ============ VENTANA: CORREO ============ -->
   <div id="ventana-correo" class="ventana oculto">
     <div class="ventana-caja">
@@ -159,6 +186,8 @@
       <div id="lista-opciones">
         <button class="fila-opcion" id="opcion-centrar"><span class="icono-opcion">🎯</span> Centrar el mapa en mi posición</button>
         <button class="fila-opcion" id="opcion-cambiar"><span class="icono-opcion">👤</span> Cambiar de jugador</button>
+        <button class="fila-opcion" id="opcion-tarjeta"><span class="icono-opcion">🪪</span> Mi tarjeta de jugador (copiar)</button>
+        <button class="fila-opcion" id="opcion-reportar"><span class="icono-opcion">🚩</span> Reportar a un jugador</button>
         <button class="fila-opcion" id="opcion-admin"><span class="icono-opcion">🛠️</span> Modo administrador</button>
         <button class="fila-opcion peligro" id="opcion-borrar"><span class="icono-opcion">🗑️</span> Borrar mi partida (empezar de cero)</button>
       </div>
@@ -177,6 +206,10 @@
         <button class="fila-opcion" id="admin-item-nuevo"><span class="icono-opcion">➕</span> Crear objeto nuevo</button>
         <button class="fila-opcion" id="admin-organizar"><span class="icono-opcion">✋</span> Organizar pines (mover)</button>
         <button class="fila-opcion peligro" id="admin-eliminar"><span class="icono-opcion">🗑️</span> Eliminar pines del mapa</button>
+        <button class="fila-opcion" id="admin-mantenimiento"><span class="icono-opcion">🚧</span> Activar / quitar mantenimiento</button>
+        <button class="fila-opcion" id="admin-mensaje"><span class="icono-opcion">✉️</span> Enviar mensaje a jugadores</button>
+        <button class="fila-opcion" id="admin-inspeccionar"><span class="icono-opcion">🔎</span> Inspeccionar tarjeta de jugador</button>
+        <button class="fila-opcion peligro" id="admin-banear"><span class="icono-opcion">🚫</span> Banear / desbanear jugador</button>
         <button class="fila-opcion" id="admin-exportar"><span class="icono-opcion">📋</span> Exportar mis creaciones</button>
       </div>
     </div>
@@ -221,8 +254,20 @@
   <script>
     // Registrar la app instalable (PWA)
     if ('serviceWorker' in navigator) {
+      const yaTeniaVersion = !!navigator.serviceWorker.controller;
       window.addEventListener('load', () => {
         navigator.serviceWorker.register('sw.js').catch(() => {});
+      });
+      // Cuando llega una versión nueva del juego: avisar y recargar solo
+      let recargado = false;
+      navigator.serviceWorker.addEventListener('controllerchange', () => {
+        if (!yaTeniaVersion || recargado) return;
+        recargado = true;
+        const aviso = document.createElement('div');
+        aviso.id = 'aviso-actualizacion';
+        aviso.textContent = '⬆️ Actualizando el juego…';
+        document.body.appendChild(aviso);
+        setTimeout(() => location.reload(), 900);
       });
     }
   </script>

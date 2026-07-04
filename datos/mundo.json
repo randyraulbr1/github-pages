@@ -5,5 +5,8 @@
   "posiciones": {},
   "eliminados": [],
   "precios": {},
-  "itemsNuevos": []
+  "itemsNuevos": [],
+  "mantenimiento": { "activo": false, "mensaje": "" },
+  "baneados": [],
+  "mensajes": []
 }

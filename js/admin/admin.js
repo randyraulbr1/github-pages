@@ -29,6 +29,9 @@ const Admin = {
     }
     if (!this.datos.precios) this.datos.precios = {};
     if (!this.datos.itemsNuevos) this.datos.itemsNuevos = [];
+    if (!this.datos.baneados) this.datos.baneados = [];
+    if (!this.datos.mensajes) this.datos.mensajes = [];
+    if (this.datos.mantenimiento === undefined) this.datos.mantenimiento = null;
 
     // El mundo oficial vive en GitHub: al actualizar datos/mundo.json,
     // todos los jugadores reciben las misiones nuevas al recargar el juego
@@ -42,6 +45,9 @@ const Admin = {
     } catch (e) { /* sin conexión: se sigue con lo guardado */ }
     if (!this.publicado.precios) this.publicado.precios = {};
     if (!this.publicado.itemsNuevos) this.publicado.itemsNuevos = [];
+    if (!this.publicado.baneados) this.publicado.baneados = [];
+    if (!this.publicado.mensajes) this.publicado.mensajes = [];
+    if (!this.publicado.mantenimiento) this.publicado.mantenimiento = { activo: false, mensaje: '' };
 
     // Aplicar al catálogo los objetos nuevos y precios globales
     const nuevosPorId = new Map();
@@ -100,6 +106,10 @@ const Admin = {
     document.getElementById('admin-dejar-objeto').addEventListener('click', () => this.abrirFormulario('objeto'));
     document.getElementById('admin-precios').addEventListener('click', () => this.abrirFormulario('precio'));
     document.getElementById('admin-item-nuevo').addEventListener('click', () => this.abrirFormulario('item_nuevo'));
+    document.getElementById('admin-mantenimiento').addEventListener('click', () => this.alternarMantenimiento());
+    document.getElementById('admin-banear').addEventListener('click', () => this.banear());
+    document.getElementById('admin-mensaje').addEventListener('click', () => this.enviarMensaje());
+    document.getElementById('admin-inspeccionar').addEventListener('click', () => this.inspeccionar());
     document.getElementById('admin-organizar').addEventListener('click', () => this.entrarModo('organizar'));
     document.getElementById('admin-eliminar').addEventListener('click', () => this.entrarModo('eliminar'));
     document.getElementById('admin-exportar').addEventListener('click', () => this.exportar());
@@ -658,6 +668,103 @@ const Admin = {
     document.getElementById('admin-controles').classList.remove('oculto');
   },
 
+  // ---------- BLOQUEO DEL JUEGO (mantenimiento y baneos) ----------
+  // Devuelve null si el jugador puede jugar, o {tipo, mensaje} si está bloqueado
+  estadoBloqueo() {
+    const id = Usuarios.perfilActivo ? Usuarios.perfilActivo.id : '';
+    const ban = [...this.publicado.baneados, ...this.datos.baneados].find(b => b.id === id);
+    if (ban) return { tipo: 'ban', mensaje: ban.motivo || 'Contacta al administrador.' };
+    const mant = this.datos.mantenimiento || this.publicado.mantenimiento;
+    if (mant && mant.activo) return { tipo: 'mantenimiento', mensaje: mant.mensaje || 'Volvemos pronto.' };
+    return null;
+  },
+
+  alternarMantenimiento() {
+    const actual = this.datos.mantenimiento || this.publicado.mantenimiento;
+    if (actual && actual.activo) {
+      this.datos.mantenimiento = { activo: false, mensaje: '' };
+      Notificaciones.mostrar('🟢 Mantenimiento DESACTIVADO (publica el mundo para que aplique a todos)', 'exito', 6000);
+    } else {
+      const mensaje = prompt('Mensaje para los jugadores durante el mantenimiento:',
+        'Estamos mejorando el juego, vuelve más tarde 🌴');
+      if (mensaje === null) return;
+      this.datos.mantenimiento = { activo: true, mensaje };
+      Notificaciones.mostrar('🚧 Mantenimiento ACTIVADO (publica el mundo para que aplique a todos)', 'alerta', 6000);
+    }
+    this.guardar();
+  },
+
+  banear() {
+    const id = prompt('ID del jugador (lo ves en su tarjeta o en un reporte):');
+    if (!id || !id.trim()) return;
+    const idLimpio = id.trim();
+    const yaLocal = this.datos.baneados.findIndex(b => b.id === idLimpio);
+    const yaPublicado = this.publicado.baneados.some(b => b.id === idLimpio);
+    if (yaLocal >= 0 || yaPublicado) {
+      if (confirm('Ese jugador YA está baneado. ¿Quitarle el ban?')) {
+        if (yaLocal >= 0) this.datos.baneados.splice(yaLocal, 1);
+        this.publicado.baneados = this.publicado.baneados.filter(b => b.id !== idLimpio);
+        this.guardar();
+        Notificaciones.mostrar('🟢 Ban quitado a ' + idLimpio + ' (publica el mundo)', 'exito', 6000);
+      }
+      return;
+    }
+    const motivo = prompt('Motivo del baneo:', 'Trampas detectadas');
+    if (motivo === null) return;
+    this.datos.baneados.push({ id: idLimpio, motivo, t: Date.now() });
+    this.guardar();
+    Notificaciones.mostrar('🚫 Jugador ' + idLimpio + ' baneado (publica el mundo para que aplique)', 'alerta', 6000);
+  },
+
+  enviarMensaje() {
+    const para = prompt('¿Para quién? Escribe "todos" o el ID de un jugador:', 'todos');
+    if (!para || !para.trim()) return;
+    const texto = prompt('Mensaje:');
+    if (!texto || !texto.trim()) return;
+    this.datos.mensajes.push({
+      id: 'msg_' + Date.now().toString(36),
+      para: para.trim(), texto: texto.trim(), t: Date.now()
+    });
+    this.guardar();
+    Notificaciones.mostrar('✉️ Mensaje guardado (publica el mundo para que le llegue)', 'exito', 6000);
+  },
+
+  // Muestra al jugador los mensajes del admin que aún no ha visto
+  mostrarMensajes() {
+    if (!Guardado.datos.mensajesVistos) Guardado.datos.mensajesVistos = [];
+    const id = Usuarios.perfilActivo ? Usuarios.perfilActivo.id : '';
+    const todos = [...this.publicado.mensajes, ...this.datos.mensajes];
+    for (const m of todos) {
+      if (Guardado.datos.mensajesVistos.includes(m.id)) continue;
+      if (m.para !== 'todos' && m.para !== id) continue;
+      Notificaciones.mostrar('✉️ Mensaje del administrador: ' + m.texto, 'alerta', 8000);
+      Guardado.datos.mensajesVistos.push(m.id);
+    }
+    Guardado.guardar();
+  },
+
+  // Lee la tarjeta de jugador que alguien le mandó al admin
+  async inspeccionar() {
+    const codigo = prompt('Pega la tarjeta del jugador (empieza con TJ.):');
+    if (!codigo) return;
+    const datos = await Opciones.leerTarjeta(codigo.trim());
+    if (!datos) { alert('❌ Tarjeta inválida o alterada'); return; }
+    const resumen =
+      '🪪 TARJETA VERIFICADA (firma correcta)\n\n' +
+      'Jugador: ' + datos.nombre + '\nID: ' + datos.id + '\n' +
+      'Dinero: $' + datos.dinero + '\nVida: ' + datos.vida + '\n' +
+      'Objetos en mochila: ' + datos.objetos + '\n' +
+      'Historial íntegro: ' + (datos.integro ? 'SÍ ✅' : 'NO ⚠️ POSIBLE HACKEO') + '\n' +
+      'Generada: ' + Utilidades.fechaLegible(datos.t);
+    if (confirm(resumen + '\n\n¿Banear a este jugador?')) {
+      const motivo = prompt('Motivo del baneo:', 'Revisión del administrador');
+      if (motivo === null) return;
+      this.datos.baneados.push({ id: datos.id, motivo, t: Date.now() });
+      this.guardar();
+      Notificaciones.mostrar('🚫 ' + datos.nombre + ' baneado (publica el mundo)', 'alerta', 6000);
+    }
+  },
+
   // ---------- EXPORTAR ----------
   // Genera el contenido COMPLETO para el archivo datos/mundo.json:
   // lo ya publicado + tus cambios locales, listo para pegar en GitHub.
@@ -674,7 +781,20 @@ const Admin = {
       eliminados: [...new Set([...this.publicado.eliminados, ...this.datos.eliminados])]
         .filter(id => !id.startsWith('admx_')),
       precios: Object.assign({}, this.publicado.precios, this.datos.precios),
-      itemsNuevos: [...nuevosPorId.values()]
+      itemsNuevos: [...nuevosPorId.values()],
+      mantenimiento: this.datos.mantenimiento || this.publicado.mantenimiento,
+      baneados: (() => {
+        const porId = new Map();
+        for (const b of this.publicado.baneados) porId.set(b.id, b);
+        for (const b of this.datos.baneados) porId.set(b.id, b);
+        return [...porId.values()];
+      })(),
+      mensajes: (() => {
+        const porId = new Map();
+        for (const m of this.publicado.mensajes) porId.set(m.id, m);
+        for (const m of this.datos.mensajes) porId.set(m.id, m);
+        return [...porId.values()].slice(-20); // solo los 20 más recientes
+      })()
     }, quitarTemporales, 2);
     if (navigator.clipboard && navigator.clipboard.writeText) {
       navigator.clipboard.writeText(json)

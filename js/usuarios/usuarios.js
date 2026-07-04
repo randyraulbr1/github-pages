@@ -34,6 +34,9 @@ const Usuarios = {
   },
 
   mostrarPantalla() {
+    // La pantalla de carga cede el paso a la de registro
+    const carga = document.getElementById('pantalla-carga');
+    if (carga) carga.classList.add('oculto');
     const pantalla = document.getElementById('pantalla-usuarios');
     pantalla.classList.remove('oculto');
 
