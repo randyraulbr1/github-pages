@@ -3,6 +3,34 @@
 // (la pantalla de carga se muestra sola desde el HTML y se
 // esconde aquí cuando todo está listo)
 // ============================================================
+
+// ---------- INDICADOR DE DESCARGA (primera instalación) ----------
+// El Service Worker reporta cuántos KB lleva descargados al instalar.
+// Solo se ve en la primera carga o cuando hay actualización.
+(function escucharProgreso() {
+  if (!('serviceWorker' in navigator)) return;
+  const barra    = document.querySelector('.carga-progreso');
+  const textoCarga = document.getElementById('carga-texto') ||
+                     document.querySelector('.carga-texto');
+
+  function formatBytes(bytes) {
+    if (bytes < 1024)       return bytes + ' B';
+    if (bytes < 1048576)    return (bytes / 1024).toFixed(1) + ' KB';
+    return (bytes / 1048576).toFixed(2) + ' MB';
+  }
+
+  navigator.serviceWorker.addEventListener('message', ev => {
+    const d = ev.data;
+    if (!d || d.tipo !== 'progreso') return;
+    if (barra) barra.style.width = d.porcentaje + '%';
+    if (textoCarga) {
+      textoCarga.textContent =
+        'Descargando… ' + d.descargados + '/' + d.total +
+        ' archivos · ' + formatBytes(d.bytesTotal);
+    }
+  });
+})();
+
 (async function arrancar() {
 
   await Usuarios.iniciar();      // 1. registro / selección de jugador
