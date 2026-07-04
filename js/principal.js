@@ -76,5 +76,10 @@
 
   Notificaciones.mostrar('🌴 ¡Hola ' + Usuarios.perfilActivo.nombre + '! Arrastra el punto azul para moverte', 'info', 4500);
 
+  // Perfiles antiguos sin teléfono: recordarles registrarlo
+  if (!Usuarios.perfilActivo.telefono) {
+    Notificaciones.mostrar('📱 Registra tu número de teléfono en ⚙️ Opciones para poder recibir recompensas', 'alerta', 8000);
+  }
+
   Admin.mostrarMensajes();       // mensajes del administrador sin leer
 })();

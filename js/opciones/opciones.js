@@ -22,6 +22,7 @@ const Opciones = {
 
     document.getElementById('opcion-tarjeta').addEventListener('click', () => this.copiarTarjeta());
     document.getElementById('opcion-reportar').addEventListener('click', () => this.reportar());
+    document.getElementById('opcion-telefono').addEventListener('click', () => Usuarios.cambiarTelefono());
 
     document.getElementById('opcion-borrar').addEventListener('click', () => {
       if (confirm('¿Seguro? Se borra TODA tu partida (dinero, mochila e historial) y empiezas de cero.')) {
@@ -34,7 +35,9 @@ const Opciones = {
     document.getElementById('opciones-nombre').textContent =
       Usuarios.perfilActivo ? Usuarios.perfilActivo.nombre : '—';
     document.getElementById('opciones-id').textContent =
-      Usuarios.perfilActivo ? Usuarios.perfilActivo.id : '—';
+      Usuarios.perfilActivo
+        ? Usuarios.perfilActivo.id + ' · 📱 ' + (Usuarios.perfilActivo.telefono || 'sin número')
+        : '—';
     document.getElementById('ventana-opciones').classList.remove('oculto');
   },
 
@@ -51,6 +54,7 @@ const Opciones = {
     const datos = {
       id: Usuarios.perfilActivo.id,
       nombre: Usuarios.perfilActivo.nombre,
+      telefono: Usuarios.perfilActivo.telefono || '',
       dinero: Dinero.saldo,
       vida: Vida.actual,
       objetos: Mochila.slots.reduce((s, sl) => s + (sl ? sl.cantidad : 0), 0),

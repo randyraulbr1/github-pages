@@ -63,11 +63,20 @@ const Usuarios = {
     return d.innerHTML;
   },
 
+  telefonoValido(t) {
+    return /^\+?\d{6,15}$/.test(t);
+  },
+
   async crear() {
     const nombre = document.getElementById('registro-nombre').value.trim();
+    const telefono = document.getElementById('registro-telefono').value.trim().replace(/[\s-]/g, '');
     const pin = document.getElementById('registro-pin').value.trim();
     if (nombre.length < 2) {
       alert('Escribe tu nombre (mínimo 2 letras)');
+      return;
+    }
+    if (!this.telefonoValido(telefono)) {
+      alert('Escribe tu número de teléfono (solo números, mínimo 6 dígitos).\nA ese número llegarán tus recompensas.');
       return;
     }
     if (this.datos.lista.some(p => p.nombre.toLowerCase() === nombre.toLowerCase())) {
@@ -81,6 +90,8 @@ const Usuarios = {
     const perfil = {
       id: 'p' + Date.now().toString(36) + Math.random().toString(36).slice(2, 7),
       nombre,
+      telefono,
+      telefonoCambiadoEn: 0, // aún no ha gastado su cambio del mes
       pinHash: pin ? await Utilidades.sha256('pin-perfil|' + pin) : null,
       creado: Date.now()
     };
@@ -114,5 +125,57 @@ const Usuarios = {
     this.datos.activo = null;
     this._guardarLista();
     location.reload();
+  },
+
+  // ---------- CAMBIO DE NÚMERO DE TELÉFONO ----------
+  // Solo 1 vez al mes. El administrador puede saltarse el límite con su
+  // PIN (para corregir errores). Las recompensas llegan a este número.
+  UN_MES_MS: 30 * 24 * 60 * 60 * 1000,
+
+  async cambiarTelefono() {
+    const perfil = this.perfilActivo;
+    if (!perfil) return;
+
+    // Perfiles antiguos sin número: siempre pueden ponerlo
+    const yaTiene = !!perfil.telefono;
+    const gastadoEn = perfil.telefonoCambiadoEn || 0;
+    const faltanMs = this.UN_MES_MS - (Date.now() - gastadoEn);
+    let cambioDeAdmin = false;
+
+    if (yaTiene && gastadoEn > 0 && faltanMs > 0) {
+      const cuando = Utilidades.fechaLegible(gastadoEn + this.UN_MES_MS);
+      const esAdmin = (typeof Admin !== 'undefined' && Admin.datos && Admin.datos.pinHash) &&
+        confirm('📱 Solo puedes cambiar tu número 1 vez al mes.\n' +
+          'Podrás cambiarlo de nuevo el: ' + cuando + '\n\n' +
+          '¿Eres el ADMINISTRADOR y fue un error? Acepta para poner el PIN de admin.');
+      if (!esAdmin) {
+        Notificaciones.mostrar('📱 Podrás cambiar tu número el ' + cuando, 'alerta', 6000);
+        return;
+      }
+      const pin = prompt('PIN de administrador:');
+      if (pin === null) return;
+      const hash = await Utilidades.sha256('pin-admin|' + pin.trim());
+      if (hash !== Admin.datos.pinHash) { alert('PIN incorrecto'); return; }
+      cambioDeAdmin = true;
+    }
+
+    const nuevo = prompt('Nuevo número de teléfono (ahí llegarán tus recompensas):',
+      perfil.telefono || '');
+    if (nuevo === null) return;
+    const limpio = nuevo.trim().replace(/[\s-]/g, '');
+    if (!this.telefonoValido(limpio)) {
+      alert('Número inválido: solo números, mínimo 6 dígitos');
+      return;
+    }
+    perfil.telefono = limpio;
+    // El cambio del admin no gasta el cambio mensual del jugador
+    if (!cambioDeAdmin) perfil.telefonoCambiadoEn = Date.now();
+    this._guardarLista();
+    Notificaciones.mostrar('📱 Número actualizado: ' + limpio +
+      (cambioDeAdmin ? ' (corregido por el admin)' : ''), 'exito', 5000);
+    Historial.registrar('objetos', {
+      detalle: '📱 Número de teléfono cambiado a ' + limpio + (cambioDeAdmin ? ' (por el admin)' : ''),
+      monto: 0
+    });
   }
 };

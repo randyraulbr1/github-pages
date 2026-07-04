@@ -672,7 +672,10 @@ const Admin = {
   // Devuelve null si el jugador puede jugar, o {tipo, mensaje} si está bloqueado
   estadoBloqueo() {
     const id = Usuarios.perfilActivo ? Usuarios.perfilActivo.id : '';
-    const ban = [...this.publicado.baneados, ...this.datos.baneados].find(b => b.id === id);
+    const telefono = Usuarios.perfilActivo ? (Usuarios.perfilActivo.telefono || '') : '';
+    // El baneo funciona por ID de jugador O por número de teléfono
+    const ban = [...this.publicado.baneados, ...this.datos.baneados]
+      .find(b => b.id === id || (telefono && b.id === telefono));
     if (ban) return { tipo: 'ban', mensaje: ban.motivo || 'Contacta al administrador.' };
     const mant = this.datos.mantenimiento || this.publicado.mantenimiento;
     if (mant && mant.activo) return { tipo: 'mantenimiento', mensaje: mant.mensaje || 'Volvemos pronto.' };
@@ -695,7 +698,7 @@ const Admin = {
   },
 
   banear() {
-    const id = prompt('ID del jugador (lo ves en su tarjeta o en un reporte):');
+    const id = prompt('ID del jugador O su número de teléfono (lo ves en su tarjeta o en un reporte):');
     if (!id || !id.trim()) return;
     const idLimpio = id.trim();
     const yaLocal = this.datos.baneados.findIndex(b => b.id === idLimpio);
@@ -752,6 +755,7 @@ const Admin = {
     const resumen =
       '🪪 TARJETA VERIFICADA (firma correcta)\n\n' +
       'Jugador: ' + datos.nombre + '\nID: ' + datos.id + '\n' +
+      'Teléfono: ' + (datos.telefono || 'sin número') + '\n' +
       'Dinero: $' + datos.dinero + '\nVida: ' + datos.vida + '\n' +
       'Objetos en mochila: ' + datos.objetos + '\n' +
       'Historial íntegro: ' + (datos.integro ? 'SÍ ✅' : 'NO ⚠️ POSIBLE HACKEO') + '\n' +
