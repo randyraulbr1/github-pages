@@ -202,7 +202,7 @@
           "control": "68e382a3687042dcd0420432d9bf210eada6d12606b6ecd367d18c724c2f4b38"
         },
         "vida": 100,
-        "hambre": 50,
+        "hambre": 49,
         "xp": 0,
         "nivel": 1,
         "posicionJugador": null,
@@ -218,8 +218,8 @@
         "muerto": false,
         "armaEquipada": null
       },
-      "t": 1783287565251
+      "t": 1783287581251
     }
   },
-  "actualizadoEn": 1783287575914
+  "actualizadoEn": 1783287581404
 }
