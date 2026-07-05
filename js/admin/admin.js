@@ -722,6 +722,60 @@ const Admin = {
     this.refrescarVisibles();
     this.mostrarMensajes();
     if (typeof Notificaciones !== 'undefined') Notificaciones._actualizarBadge();
+    this._aplicarRevivirDesdeNube();
+  },
+
+  _jugadorEstaMuerto(pd, vida) {
+    if (pd && pd.muerto) return true;
+    return vida != null && vida <= 0;
+  },
+
+  _vidaMaximaJugador(partida) {
+    const nivel = partida?.nivel ?? 1;
+    return (typeof Vida !== 'undefined' && Vida.vidaMaxima)
+      ? Vida.vidaMaxima(nivel) : CONFIG.vidaMaxima;
+  },
+
+  _aplicarRevivirDesdeNube() {
+    if (typeof Usuarios === 'undefined' || !Usuarios.perfilActivo) return;
+    if (typeof Guardado === 'undefined' || !Guardado.datos) return;
+    const muertoLocal = Guardado.datos.muerto ||
+      (typeof Vida !== 'undefined' && Vida.estaMuerto && Vida.estaMuerto());
+    if (!muertoLocal) return;
+
+    const snap = (this.publicado.partidas || {})[Usuarios.perfilActivo.id];
+    if (!snap?.datos || snap.datos.muerto) return;
+    if ((snap.t || 0) <= (Guardado.datos.nubeT || 0)) return;
+
+    Guardado._aplicarSnapshot(snap.datos);
+    Guardado.datos.nubeT = snap.t;
+    Guardado.guardarAhora();
+    if (typeof Vida !== 'undefined' && typeof Vida.revivir === 'function') {
+      Vida.revivir(snap.datos.vida);
+    }
+  },
+
+  async _revivirJugador(perfil) {
+    const j = typeof perfil === 'string'
+      ? this.jugadoresGlobales().find(x => x.id === perfil)
+      : perfil;
+    if (!j) return;
+
+    const partida = await this._obtenerPartidaJugador(j);
+    if (!this._jugadorEstaMuerto(partida, partida.vida)) {
+      this._adminAviso(j.nombre + ' no está muerto');
+      return;
+    }
+
+    partida.vida = this._vidaMaximaJugador(partida);
+    partida.muerto = false;
+    if (partida.hambre == null || partida.hambre < CONFIG.hambreInicial) {
+      partida.hambre = CONFIG.hambreInicial;
+    }
+
+    await this._guardarPartidaJugador(j, partida);
+    Notificaciones.mostrar('❤️ ' + j.nombre + ' revivido', 'exito', 5000);
+    this._listarCuentasAsync();
   },
 
   _sincronizarMapaRemoto(idsObjetosAntes, idsTesorosAntes, idsMisionesAntes, eliminadosAntes) {
@@ -2170,41 +2224,49 @@ const Admin = {
           pd = {
             dinero: Guardado.datos.dinero,
             vida: Guardado.datos.vida,
-            mochila: Guardado.datos.mochila
+            mochila: Guardado.datos.mochila,
+            muerto: Guardado.datos.muerto,
+            nivel: Guardado.datos.nivel
           };
         }
         const oro = pd?.dinero?.saldo;
-        const vida = pd?.vida ?? CONFIG.vidaMaxima;
+        const nivel = pd?.nivel ?? 1;
+        const maxVida = (typeof Vida !== 'undefined' && Vida.vidaMaxima)
+          ? Vida.vidaMaxima(nivel) : CONFIG.vidaMaxima;
+        const vida = pd?.vida ?? maxVida;
+        const muerto = this._jugadorEstaMuerto(pd, vida);
         const ban = [...(this.publicado.baneados || []), ...(this.datos.baneados || [])]
           .find(b => b.id === j.id || b.id === j.telefono);
-        const pctV = Math.max(0, Math.min(100, Math.round((vida / CONFIG.vidaMaxima) * 100)));
+        const pctV = muerto ? 0 : Math.max(0, Math.min(100, Math.round((vida / maxVida) * 100)));
         const claseV = pctV > 70 ? 'alta' : pctV > 30 ? 'media' : 'baja';
         const fila = document.createElement('div');
-        fila.className = 'fila-jugador-admin';
+        fila.className = 'fila-jugador-admin' + (muerto ? ' jugador-muerto-admin' : '');
         const inicial = (j.nombre || '?').trim()[0].toUpperCase();
         let chips = '';
         if (ban && this._banActivo(ban)) chips += '<span class="stat-chip ban">🚫 Baneado</span>';
-        if (vida === 0) chips += '<span class="stat-chip muerto">💀 Muerto</span>';
+        if (muerto) chips += '<span class="stat-chip muerto">💀 Muerto</span>';
         if (oro != null) chips += '<span class="stat-chip">💰 ' + oro + '</span>';
         fila.innerHTML =
           '<div class="avatar">' + inicial + '</div>' +
           '<div class="datos"><div class="nombre">' + j.nombre + '</div>' +
           '<div class="meta">📱 ' + (j.telefono || 'sin teléfono') + '</div>' +
           '<div class="meta">ID: ' + j.id + '</div>' +
-          '<div class="jugador-barra-vida ' + claseV + '" title="Vida ' + vida + '/' + CONFIG.vidaMaxima + '">' +
+          '<div class="jugador-barra-vida ' + claseV + '" title="Vida ' + (muerto ? 0 : vida) + '/' + maxVida + '">' +
           '<div class="jugador-barra-relleno" style="width:' + pctV + '%"></div>' +
-          '<span class="jugador-barra-texto">❤️ ' + vida + '/' + CONFIG.vidaMaxima + '</span></div>' +
+          '<span class="jugador-barra-texto">❤️ ' + (muerto ? '0' : vida) + '/' + maxVida + '</span></div>' +
           (chips ? '<div class="stats">' + chips + '</div>' : '') + '</div>';
         const acciones = document.createElement('div');
         acciones.className = 'acciones';
-        const mk = (t, fn, title) => {
+        const mk = (t, fn, title, cls) => {
           const b = document.createElement('button');
           b.type = 'button';
           b.textContent = t;
           if (title) b.title = title;
+          if (cls) b.className = cls;
           b.addEventListener('click', fn);
           acciones.appendChild(b);
         };
+        if (muerto) mk('❤️', () => this._revivirJugador(j), 'Revivir jugador', 'btn-revivir-jugador');
         mk('✏️', () => this._abrirEditorJugador(local || j, !local), 'Editar cuenta e inventario');
         mk('✉️', () => this.abrirMensaje(j.id), 'Enviar mensaje');
         mk('🚫', () => this._abrirBanJugador(j), 'Banear');
@@ -2405,8 +2467,16 @@ const Admin = {
       Dinero.saldo = partida.dinero.saldo;
       Dinero.pintar();
       if (partida.muerto) Vida._activarMuerte();
-      else if (typeof Vida.revivir === 'function' && Guardado.datos.muerto) Vida.revivir(partida.vida);
-      else { Vida.actual = partida.vida; Vida.pintar(); }
+      else if (typeof Vida.revivir === 'function' && (Guardado.datos.muerto || Vida.estaMuerto())) {
+        Vida.revivir(partida.vida);
+      } else {
+        Vida.actual = partida.vida;
+        if (partida.hambre != null) {
+          Vida.hambre = partida.hambre;
+          Guardado.datos.hambre = partida.hambre;
+        }
+        Vida.pintar();
+      }
       return;
     }
 
@@ -2434,7 +2504,10 @@ const Admin = {
         mochila: partida.mochila,
         dinero: partida.dinero,
         vida: partida.vida,
+        hambre: partida.hambre ?? CONFIG.hambreInicial,
         muerto: partida.muerto,
+        xp: partida.xp,
+        nivel: partida.nivel,
         armaEquipada: partida.armaEquipada || null
       },
       t: Date.now()

@@ -1069,6 +1069,11 @@ body.sesion-cerrada .ventana { display: none !important; }
 }
 .fila-jugador-admin .stat-chip.ban { background: rgba(220,53,69,.35); color: #ffb4b4; }
 .fila-jugador-admin .stat-chip.muerto { background: rgba(80,80,80,.5); }
+.fila-jugador-admin.jugador-muerto-admin { border-color: rgba(255,69,58,.35); background: rgba(40,20,24,.55); }
+.fila-jugador-admin .acciones .btn-revivir-jugador {
+  background: rgba(48,209,88,.22); color: #7dffb0; font-weight: 700;
+}
+.fila-jugador-admin .acciones .btn-revivir-jugador:active { background: rgba(48,209,88,.4); }
 .jugador-barra-vida {
   position: relative; height: 14px; border-radius: 7px; overflow: hidden;
   margin-top: 6px; background: #2b1016; border: 1px solid rgba(255,255,255,.1);

@@ -272,6 +272,7 @@ const MundoPublico = {
     return this.actualizarMundo(mundo => {
       const actual = (mundo.partidas || {})[perfil.id];
       if (actual && actual.t > snapshot.t) return;
+      if (actual?.datos && !actual.datos.muerto && snapshot.datos?.muerto) return;
       if (!mundo.partidas) mundo.partidas = {};
       mundo.partidas[perfil.id] = snapshot;
 
