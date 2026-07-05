@@ -8,6 +8,17 @@ const Guardado = {
   _temporizador: null,
   _syncNubeTimer: null,
   _syncEnCurso: false,
+  _syncFallos: 0,
+  _syncIntervalo: null,
+
+  iniciarSyncPeriodico() {
+    if (this._syncIntervalo) return;
+    this._syncIntervalo = setInterval(() => {
+      if (typeof Usuarios !== 'undefined' && Usuarios.perfilActivo) {
+        this.sincronizarNube(true).catch(() => {});
+      }
+    }, 45000);
+  },
 
   _clave() {
     const perfil = (typeof Usuarios !== 'undefined' && Usuarios.perfilActivo)
@@ -42,6 +53,12 @@ const Guardado = {
 
     await this._fusionarDesdeNube(partidaNuevaLocal);
     await this.guardarAhora();
+    if (MundoPublico.syncDisponible()) {
+      this.sincronizarNube(true).catch(() => {});
+    } else {
+      this._avisarSinSyncNube();
+    }
+    this.iniciarSyncPeriodico();
   },
 
   _estadoNuevo() {
@@ -132,28 +149,55 @@ const Guardado = {
     if (typeof Usuarios === 'undefined' || !Usuarios.perfilActivo) return;
     if (!MundoPublico.puedeEscribir()) return;
     clearTimeout(this._syncNubeTimer);
-    this._syncNubeTimer = setTimeout(() => this.sincronizarNube(), 2500);
+    this._syncNubeTimer = setTimeout(() => this.sincronizarNube(true), 2500);
+  },
+
+  _avisarSinSyncNube() {
+    if (this._avisoSinNube) return;
+    if (typeof Usuarios !== 'undefined' && Usuarios.esAdministrador()) return;
+    if (MundoPublico.syncDisponible()) return;
+    this._avisoSinNube = true;
+    if (typeof Notificaciones !== 'undefined') {
+      Notificaciones.mostrar(
+        '⚠️ La nube aún no está activa. El admin debe configurar 🔑 Token y pulsar Sincronizar.',
+        'alerta', 10000
+      );
+    }
   },
 
   async sincronizarNube(silencioso) {
     if (this._syncEnCurso) return false;
     if (typeof Usuarios === 'undefined' || !Usuarios.perfilActivo) return false;
-    if (!MundoPublico.puedeEscribir()) return false;
+    if (!MundoPublico.puedeEscribir()) {
+      this._avisarSinSyncNube();
+      return false;
+    }
 
     this._syncEnCurso = true;
     try {
       const snapshot = this._snapshotNube();
       const ok = await MundoPublico.subirPartida(Usuarios.perfilActivo, snapshot);
       if (ok) {
+        this._syncFallos = 0;
         this.datos.nubeT = snapshot.t;
         const firma = await Utilidades.sha256(JSON.stringify(this.datos) + this.SAL);
         localStorage.setItem(this._clave(), JSON.stringify({ datos: this.datos, firma }));
         if (!silencioso && typeof Notificaciones !== 'undefined') {
-          Notificaciones.mostrar('☁️ Progreso guardado en la nube', 'info', 2500);
+          Notificaciones.mostrar('☁️ Progreso guardado en GitHub', 'info', 2500);
+        }
+      } else {
+        this._syncFallos++;
+        if (this._syncFallos >= 3 && !silencioso && typeof Notificaciones !== 'undefined') {
+          Notificaciones.mostrar('⚠️ No se pudo subir tu progreso a GitHub. Se reintentará solo.', 'alerta', 5000);
+        }
+        if (this._syncFallos < 8) {
+          clearTimeout(this._syncNubeTimer);
+          this._syncNubeTimer = setTimeout(() => this.sincronizarNube(true), 5000 + this._syncFallos * 3000);
         }
       }
       return ok;
     } catch (e) {
+      this._syncFallos++;
       return false;
     } finally {
       this._syncEnCurso = false;

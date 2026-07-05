@@ -84,6 +84,7 @@ const Admin = {
     }
     this._asegurarObjetoIconoTesoro(this.tesoroIconoMapa());
     if (this.publicado.claveSyncNube) MundoPublico._tokenDesdeMundo = this.publicado.claveSyncNube;
+    else if (this.publicado._syncToken) MundoPublico._tokenDesdeMundo = this.publicado._syncToken;
     this._aplicarTokenTelefono();
 
     if (!Array.isArray(this.publicado.misiones)) this.publicado.misiones = [];
@@ -124,6 +125,21 @@ const Admin = {
       }
     }
     this._mundoCargado = true;
+    this._ultimoPublicado = this._crudoPublicado;
+    this._detectarCambiosLocalesSinPublicar();
+  },
+
+  _detectarCambiosLocalesSinPublicar() {
+    if (!this.esAdminJugador() || !MundoPublico.puedePublicar()) return;
+    const localN = (this.datos.objetos || []).length + (this.datos.tesoros || []).length +
+      (this.datos.misiones || []).length + (this.datos.enemigos || []).length;
+    const pubN = (this.publicado.objetos || []).length + (this.publicado.tesoros || []).length +
+      (this.publicado.misiones || []).length + (this.publicado.enemigos || []).length;
+    const posLocal = Object.keys(this.datos.posiciones || {}).length;
+    const posPub = Object.keys(this.publicado.posiciones || {}).length;
+    if (localN > pubN || posLocal > posPub || Object.keys(this.datos.partidasExtra || {}).length) {
+      this._encolarPublicacion(true);
+    }
   },
 
   // ---------- VISTA COMBINADA: publicado en GitHub + borradores locales ----------
@@ -184,8 +200,9 @@ const Admin = {
   // Los jugadores lo reciben al momento por la vigilancia del mundo.
   _autoPublicar() {
     if (!this._mundoCargado) return;
+    if (!this.esAdminJugador()) return;
     if (!MundoPublico.puedePublicar()) {
-      if (this.esAdminJugador() && !this._avisoSinToken) {
+      if (!this._avisoSinToken) {
         this._avisoSinToken = true;
         Notificaciones.mostrar(
           '⚠️ Sin token GitHub: los cambios solo quedan en tu teléfono. Configura 🔑 Token y pulsa Sincronizar.',
@@ -194,13 +211,45 @@ const Admin = {
       }
       return;
     }
+    this._encolarPublicacion(true);
+  },
+
+  _encolarPublicacion(silencioso) {
+    this._pubSilencioso = silencioso;
+    this._pubPendiente = true;
     clearTimeout(this._tempPublicar);
-    this._tempPublicar = setTimeout(() => this.publicarMundo(true), 2000);
+    this._tempPublicar = setTimeout(() => this._procesarColaPublicacion(), silencioso ? 2000 : 400);
+  },
+
+  async _procesarColaPublicacion() {
+    if (!this._pubPendiente || this._publicando) return;
+    if (!this.esAdminJugador() || !MundoPublico.puedePublicar()) return;
+    this._pubPendiente = false;
+    this._publicando = true;
+    try {
+      const ok = await this.publicarMundo(this._pubSilencioso !== false);
+      if (!ok) {
+        this._intentosPub = (this._intentosPub || 0) + 1;
+        if (this._intentosPub < 10) {
+          this._pubPendiente = true;
+          const espera = Math.min(30000, 2000 + this._intentosPub * 2500);
+          clearTimeout(this._tempPublicar);
+          this._tempPublicar = setTimeout(() => this._procesarColaPublicacion(), espera);
+        } else if (this.esAdminJugador()) {
+          Notificaciones.mostrar('❌ No se pudo subir a GitHub. Revisa 🔑 Token o pulsa Sincronizar.', 'error', 8000);
+        }
+      } else {
+        this._intentosPub = 0;
+      }
+    } finally {
+      this._publicando = false;
+    }
   },
 
   // Sube el mapa a GitHub para que TODOS los jugadores lo vean
   async _publicarParaTodos(silencioso) {
     if (!this._mundoCargado) return false;
+    if (!this.esAdminJugador()) return false;
     if (!MundoPublico.puedePublicar()) {
       if (!silencioso) {
         Notificaciones.mostrar(
@@ -211,8 +260,7 @@ const Admin = {
       return false;
     }
     clearTimeout(this._tempPublicar);
-    await this.publicarMundo(silencioso !== false);
-    return true;
+    return this.publicarMundo(silencioso !== false);
   },
 
   _tokenPublicacion() {
@@ -2863,14 +2911,15 @@ const Admin = {
     input.value = '';
     const estado = document.getElementById('admin-clave-estado');
     if (estado) {
-      estado.textContent = '✅ Clave guardada en este teléfono.';
+      estado.textContent = '✅ Clave guardada. Subiendo a GitHub…';
       estado.className = 'admin-clave-estado ok';
     }
-    Notificaciones.mostrar(
-      '🔑 Clave guardada. Pulsa PUBLICAR MUNDO una vez para activar la nube a todos.',
-      'exito', 10000);
     this._volverAlPanel();
-    this._autoPublicar();
+    this._publicarParaTodos(false).then(ok => {
+      if (ok) {
+        Notificaciones.mostrar('🔑 Clave activa · mundo subido a GitHub para todos', 'exito', 8000);
+      }
+    });
   },
 
   _borrarClaveTelefono() {
@@ -2950,9 +2999,10 @@ const Admin = {
   },
 
   async publicarMundo(silencioso) {
-    if (!this._mundoCargado) return;
+    if (!this._mundoCargado) return false;
+    if (!this.esAdminJugador()) return false;
     const json = this._jsonMundo();
-    if (json === this._ultimoPublicado) return;
+    if (json === this._ultimoPublicado && !this._pubPendiente) return true;
     if (!silencioso) Notificaciones.mostrar('🌍 Publicando el mundo…', 'info');
     this._mostrarPublicando(true);
 
@@ -2970,12 +3020,13 @@ const Admin = {
         } else if (!silencioso) {
           Notificaciones.mostrar('❌ No se pudo subir a Firebase. Revisa la URL en config.js', 'error', 7000);
         }
+        return !!ok;
       } catch (e) {
         if (!silencioso) Notificaciones.mostrar('❌ Sin conexión. Intenta con WiFi', 'error', 6000);
+        return false;
       } finally {
         this._mostrarPublicando(false);
       }
-      return;
     }
 
     const token = this._tokenPublicacion();
@@ -2985,11 +3036,11 @@ const Admin = {
         Notificaciones.mostrar('🔑 Configura tu clave en Admin → Clave GitHub (en tu teléfono)', 'alerta', 8000);
         this.abrirConfiguracionClave();
       }
-      return;
+      return false;
     }
 
     let adminLocal;
-    try { adminLocal = JSON.parse(json); } catch (e) { return; }
+    try { adminLocal = JSON.parse(json); } catch (e) { return false; }
 
     const mensaje = silencioso
       ? 'Actualización automática desde el juego'
@@ -3004,21 +3055,23 @@ const Admin = {
       this._ultimoPublicado = json;
       this._crudoPublicado = json;
       try { this.publicado = Object.assign(this.publicado || {}, JSON.parse(json)); } catch (e) {}
+      if (adminLocal.claveSyncNube) MundoPublico._tokenDesdeMundo = adminLocal.claveSyncNube;
       if (silencioso) {
-        Notificaciones.mostrar('☁️ Mundo actualizado para todos', 'exito', 2500);
+        Notificaciones.mostrar('☁️ Mundo subido a GitHub', 'exito', 2500);
       } else {
-        Notificaciones.mostrar('🌍 ¡MUNDO PUBLICADO! Todos lo ven en ~1 min', 'exito', 8000);
+        Notificaciones.mostrar('🌍 ¡MUNDO PUBLICADO en GitHub! Todos lo ven en ~1 min', 'exito', 8000);
       }
     } else if (!silencioso) {
       Notificaciones.mostrar(
-        '❌ GitHub ocupado (conflicto 409). Espera 5 s y pulsa Forzar sincronización',
+        '❌ GitHub ocupado (conflicto 409). Espera unos segundos y pulsa Sincronizar',
         'error', 8000
       );
     } else {
       clearTimeout(this._tempReintento409);
-      this._tempReintento409 = setTimeout(() => this.publicarMundo(true), 5000);
+      this._tempReintento409 = setTimeout(() => this._encolarPublicacion(true), 5000);
     }
     this._mostrarPublicando(false);
+    return !!ok;
   },
 
   _mostrarPublicando(on) {

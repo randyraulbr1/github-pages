@@ -20,18 +20,28 @@ const MundoPublico = {
     return !!CONFIG.firebaseMundoUrl;
   },
 
-  // Orden: GitHub raw (rama del juego) primero; datos/mundo.json del sitio puede ir atrasado
+  // Orden: GitHub raw (servidor) — no mezclar con datos/mundo.json local viejo
   urlsLectura() {
     if (CONFIG.firebaseMundoUrl) {
       return [CONFIG.firebaseMundoUrl.replace(/\/$/, '') + '/mundo.json'];
     }
-    const lista = [];
     if (CONFIG.repoPublicacion && CONFIG.ramaPublicacion) {
-      lista.push('https://raw.githubusercontent.com/' + CONFIG.repoPublicacion + '/' +
-        CONFIG.ramaPublicacion + '/datos/mundo.json');
+      return ['https://raw.githubusercontent.com/' + CONFIG.repoPublicacion + '/' +
+        CONFIG.ramaPublicacion + '/datos/mundo.json'];
     }
-    lista.push('datos/mundo.json');
-    return lista;
+    return ['datos/mundo.json'];
+  },
+
+  _aplicarTokenDesdeTexto(texto) {
+    try {
+      const m = JSON.parse(texto);
+      if (m.claveSyncNube) this._tokenDesdeMundo = m.claveSyncNube;
+      else if (m._syncToken) this._tokenDesdeMundo = m._syncToken;
+    } catch (e) {}
+  },
+
+  syncDisponible() {
+    return !!this._tokenGitHub();
   },
 
   _versionMundo(texto) {
@@ -83,11 +93,7 @@ const MundoPublico = {
       return (b.esRaw ? 1 : 0) - (a.esRaw ? 1 : 0);
     });
     const mejor = candidatos[0].texto;
-    try {
-      const m = JSON.parse(mejor);
-      if (m.claveSyncNube) this._tokenDesdeMundo = m.claveSyncNube;
-      else if (m._syncToken) this._tokenDesdeMundo = m._syncToken;
-    } catch (e) {}
+    this._aplicarTokenDesdeTexto(mejor);
     return mejor;
   },
 
@@ -171,6 +177,7 @@ const MundoPublico = {
       if (!mundo.partidas) mundo.partidas = {};
 
       editar(mundo);
+      mundo.actualizadoEn = Date.now();
 
       const json = JSON.stringify(mundo, null, 2);
       const cuerpo = {
@@ -187,8 +194,8 @@ const MundoPublico = {
           body: JSON.stringify(cuerpo)
         });
         if (r.ok) {
-          if (mundo._syncToken) this._tokenDesdeMundo = mundo._syncToken;
           if (mundo.claveSyncNube) this._tokenDesdeMundo = mundo.claveSyncNube;
+          else if (mundo._syncToken) this._tokenDesdeMundo = mundo._syncToken;
           if (typeof Admin !== 'undefined') {
             Admin._crudoPublicado = json;
             Admin._ultimoPublicado = json;
@@ -200,6 +207,8 @@ const MundoPublico = {
           await new Promise(res => setTimeout(res, 500 + intento * 400));
           continue;
         }
+        const errTxt = await r.text().catch(() => '');
+        console.warn('GitHub PUT falló:', r.status, errTxt.slice(0, 200));
       } catch (e) {}
       break;
     }
