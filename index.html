@@ -13,7 +13,7 @@
   <script>
     // Aviso temprano en móvil (antes de cargar 20+ archivos JS)
     (function () {
-      var V = '36';
+      var V = '37';
       var texto = document.getElementById('carga-texto');
       if (texto) texto.textContent = 'Conectando…';
       var prev = localStorage.getItem('mariel_app_version');
@@ -92,21 +92,19 @@
   <div id="panel-hud-izq">
     <div id="grupo-barras">
       <div class="fila-barra" title="Vida">
-        <span class="barra-etiqueta">Nv <span id="nivel-texto">1</span></span>
         <div id="contenedor-vida">
           <div id="vida-relleno"></div>
           <span id="vida-texto">100/100</span>
         </div>
       </div>
       <div class="fila-barra" title="Hambre">
-        <span class="barra-icono">🍽️</span>
         <div id="contenedor-hambre">
           <div id="hambre-relleno"></div>
           <span id="hambre-texto">50/100</span>
         </div>
       </div>
-      <div class="fila-barra" title="Experiencia">
-        <span class="barra-icono">⭐</span>
+      <div class="fila-barra fila-barra-xp" title="Experiencia">
+        <span id="nivel-texto" class="barra-nivel">Nv 1</span>
         <div id="contenedor-xp">
           <div id="xp-relleno"></div>
           <span id="xp-texto">0/80</span>
@@ -114,9 +112,9 @@
       </div>
     </div>
     <div id="hud-acciones-mini">
-      <button id="btn-opciones" class="btn-hud-accion" type="button" title="Opciones">⚙️ <span>Opciones</span></button>
+      <button id="btn-opciones" class="btn-hud-accion" type="button" title="Opciones">⚙️</button>
       <button id="btn-notific" class="btn-hud-accion" type="button" title="Avisos">
-        🔔 <span>Avisos</span><span id="badge-avisos" class="badge-avisos oculto">●</span>
+        🔔<span id="badge-avisos" class="badge-avisos oculto">●</span>
       </button>
     </div>
     <div id="letrero-misiones" class="oculto"></div>
@@ -137,6 +135,24 @@
     <span id="admin-modo-texto"></span>
     <button id="btn-admin-confirmar">Confirmar</button>
     <button id="btn-admin-salir-modo">Salir</button>
+  </div>
+
+  <!-- COFRE: pin móvil al colocar -->
+  <div id="cofre-pin-controles" class="colocacion-controles oculto">
+    <span id="cofre-pin-texto">Arrastra el pin 🧰 y confirma</span>
+    <button type="button" id="btn-cofre-pin-confirmar">Confirmar</button>
+    <button type="button" id="btn-cofre-pin-cancelar">Cancelar</button>
+  </div>
+
+  <!-- ADMIN: cesto para borrar pines al organizar -->
+  <div id="admin-cesto-borrar" class="oculto" title="Arrastra aquí un pin para borrarlo">🗑️</div>
+
+  <!-- PUBLICANDO AL SERVIDOR -->
+  <div id="pantalla-publicando" class="oculto">
+    <div class="publicando-caja">
+      <div class="carga-logo">🌍</div>
+      <div class="publicando-texto">Publicando al mundo…</div>
+    </div>
   </div>
 
   <!-- LETRERO DE MISIONES: dentro de #panel-hud-izq -->
@@ -522,16 +538,26 @@
 
           <div id="admin-vista-cofre" class="admin-vista oculto">
             <div class="admin-clave-cuerpo">
-              <p class="admin-clave-ayuda">El panel admin sigue abierto. Elige el tipo y continúa al mapa.</p>
+              <p class="admin-clave-ayuda">Arrastra objetos ADM ∞ al cofre (6 casillas). Luego coloca el pin en el mapa.</p>
+              <div class="admin-editor-horizontal admin-cofre-horizontal">
+                <div class="admin-editor-columna">
+                  <div class="admin-editor-seccion">Contenido del cofre (6 casillas)</div>
+                  <div id="admin-cofre-rejilla" class="admin-rejilla-inventario admin-rejilla-fija"></div>
+                </div>
+                <div class="admin-editor-columna admin-editor-columna-adm">
+                  <div class="admin-editor-seccion">ADM ∞</div>
+                  <div id="admin-cofre-infinito" class="admin-rejilla-infinito"></div>
+                </div>
+              </div>
               <div class="campo-caja">
                 <input type="checkbox" id="admin-cofre-visible" checked>
-                <label for="admin-cofre-visible">Cofre visible (cualquiera puede abrirlo)</label>
+                <label for="admin-cofre-visible">Visible (cualquiera puede abrirlo)</label>
               </div>
               <div class="campo-admin oculto" id="cofre-pin-panel">
                 <label for="admin-cofre-pin">PIN de 4 números (cofre oculto)</label>
                 <input id="admin-cofre-pin" type="password" inputmode="numeric" maxlength="4" placeholder="1234" autocomplete="off">
               </div>
-              <button type="button" id="btn-admin-cofre-panel" class="btn-auth-principal">Continuar → tocar mapa</button>
+              <button type="button" id="btn-admin-cofre-panel" class="btn-auth-principal">Continuar → colocar pin</button>
             </div>
           </div>
 
@@ -540,11 +566,11 @@
               <p class="admin-clave-ayuda">Reglas de combate para todos los jugadores al publicar el mundo.</p>
               <div class="campo-doble">
                 <div class="campo-admin">
-                  <label for="admin-combate-dano-min">Daño jugador mínimo</label>
+                  <label for="admin-combate-dano-min">Daño mínimo (tirada aleatoria)</label>
                   <input id="admin-combate-dano-min" type="number" min="1" inputmode="numeric">
                 </div>
                 <div class="campo-admin">
-                  <label for="admin-combate-dano-max">Daño jugador máximo</label>
+                  <label for="admin-combate-dano-max">Daño máximo (tirada aleatoria)</label>
                   <input id="admin-combate-dano-max" type="number" min="5" inputmode="numeric">
                 </div>
               </div>
@@ -618,40 +644,40 @@
   </div>
 
   <!-- LIBRERÍAS -->
-  <script src="lib/leaflet/leaflet.js?v=36"></script>
+  <script src="lib/leaflet/leaflet.js?v=37"></script>
 
   <!-- MÓDULOS DEL JUEGO (orden importante) -->
-  <script src="js/config/config.js?v=36"></script>
-  <script src="js/nucleo/utilidades.js?v=36"></script>
-  <script src="js/mundo/mundo_publico.js?v=36"></script>
-  <script src="js/notificaciones/notificaciones.js?v=36"></script>
-  <script src="js/usuarios/usuarios.js?v=36"></script>
-  <script src="js/guardado/guardado.js?v=36"></script>
-  <script src="js/historial/historial.js?v=36"></script>
-  <script src="js/dinero/dinero.js?v=36"></script>
-  <script src="js/vida/vida.js?v=36"></script>
-  <script src="js/items/items.js?v=36"></script>
-  <script src="js/mochila/mochila.js?v=36"></script>
-  <script src="js/mapa/mapa.js?v=36"></script>
-  <script src="js/gps/gps.js?v=36"></script>
-  <script src="js/tiendas/datos_tiendas.js?v=36"></script>
-  <script src="js/tiendas/tiendas.js?v=36"></script>
-  <script src="js/pesca/pesca.js?v=36"></script>
-  <script src="js/tesoros/datos_tesoros.js?v=36"></script>
-  <script src="js/tesoros/tesoros.js?v=36"></script>
-  <script src="js/misiones/datos_misiones.js?v=36"></script>
-  <script src="js/misiones/misiones.js?v=36"></script>
-  <script src="js/cofres/cofres.js?v=36"></script>
-  <script src="js/correo/correo.js?v=36"></script>
-  <script src="js/enemigos/enemigos.js?v=36"></script>
-  <script src="js/admin/admin.js?v=36"></script>
-  <script src="js/opciones/opciones.js?v=36"></script>
-  <script src="js/principal.js?v=36"></script>
+  <script src="js/config/config.js?v=37"></script>
+  <script src="js/nucleo/utilidades.js?v=37"></script>
+  <script src="js/mundo/mundo_publico.js?v=37"></script>
+  <script src="js/notificaciones/notificaciones.js?v=37"></script>
+  <script src="js/usuarios/usuarios.js?v=37"></script>
+  <script src="js/guardado/guardado.js?v=37"></script>
+  <script src="js/historial/historial.js?v=37"></script>
+  <script src="js/dinero/dinero.js?v=37"></script>
+  <script src="js/vida/vida.js?v=37"></script>
+  <script src="js/items/items.js?v=37"></script>
+  <script src="js/mochila/mochila.js?v=37"></script>
+  <script src="js/mapa/mapa.js?v=37"></script>
+  <script src="js/gps/gps.js?v=37"></script>
+  <script src="js/tiendas/datos_tiendas.js?v=37"></script>
+  <script src="js/tiendas/tiendas.js?v=37"></script>
+  <script src="js/pesca/pesca.js?v=37"></script>
+  <script src="js/tesoros/datos_tesoros.js?v=37"></script>
+  <script src="js/tesoros/tesoros.js?v=37"></script>
+  <script src="js/misiones/datos_misiones.js?v=37"></script>
+  <script src="js/misiones/misiones.js?v=37"></script>
+  <script src="js/cofres/cofres.js?v=37"></script>
+  <script src="js/correo/correo.js?v=37"></script>
+  <script src="js/enemigos/enemigos.js?v=37"></script>
+  <script src="js/admin/admin.js?v=37"></script>
+  <script src="js/opciones/opciones.js?v=37"></script>
+  <script src="js/principal.js?v=37"></script>
   <script>
     // Registrar la app instalable (PWA)
     if ('serviceWorker' in navigator) {
       const yaTeniaVersion = !!navigator.serviceWorker.controller;
-      navigator.serviceWorker.register('sw.js?v=36', { updateViaCache: 'none' })
+      navigator.serviceWorker.register('sw.js?v=37', { updateViaCache: 'none' })
         .then(function (reg) { reg.update(); })
         .catch(function () {});
       // Cuando llega una versión nueva del juego: avisar y recargar solo

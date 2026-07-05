@@ -44,6 +44,17 @@ const Enemigos = {
     }
     for (const e of this.lista) {
       if (Admin.eliminado && Admin.eliminado(e.id)) continue;
+      const st = this._estadoGlobal()[e.id];
+      if (st && st.ocultoHasta && Date.now() < st.ocultoHasta) {
+        this._quitarMarcador(e.id);
+        continue;
+      }
+      if (st && st.ocultoHasta && Date.now() >= st.ocultoHasta) {
+        st.ocultoHasta = 0;
+        st.vida = e.vidaMax || e.vida;
+        st.ultimoGolpe = 0;
+        if (e.posOrigen) e.pos = e.posOrigen.slice();
+      }
       Admin.pos(e.id, e.pos);
       this._aplicarEstadoRemoto(e);
       if (!this._marcadores[e.id]) this._crearEnMapa(e);
@@ -183,7 +194,11 @@ const Enemigos = {
   danoJugador() {
     const cfg = this._config();
     const t = (Vida.nivel - 1) / Math.max(1, CONFIG.nivelMaximo - 1);
-    return Math.round(cfg.danoMin + t * (cfg.danoMax - cfg.danoMin));
+    const alto = Math.round(cfg.danoMin + t * (cfg.danoMax - cfg.danoMin));
+    const lo = cfg.danoMin;
+    const hi = Math.max(lo, alto);
+    if (hi <= lo) return lo;
+    return lo + Math.floor(Math.random() * (hi - lo + 1));
   },
 
   _abrirCombate(e) {
@@ -200,7 +215,8 @@ const Enemigos = {
     document.getElementById('combate-vida-texto').textContent = actual + '/' + max;
     document.getElementById('combate-vida-relleno').style.width = (actual / max * 100) + '%';
     document.getElementById('combate-info').textContent =
-      'Tu daño: ~' + this.danoJugador() + ' · XP: ' + (e.xp || 0) + ' · Daño enemigo: ' + (e.dano || 5);
+      'Daño aleatorio: ~' + this.danoJugador() + ' (nivel ' + Vida.nivel + ') · XP: ' + (e.xp || 0) +
+      ' · Daño enemigo: ' + (e.dano || 5);
     document.getElementById('ventana-combate').classList.remove('oculto');
   },
 
@@ -241,11 +257,25 @@ const Enemigos = {
       Notificaciones.mostrar('💀 ¡Derrotaste a ' + e.nombre + '!', 'exito', 5000);
       if (e.xp) Vida.ganarXp(e.xp, 'Enemigo derrotado');
       if (e.dinero) await Dinero.ganar(e.dinero, 'Botín: ' + e.nombre);
-      Admin.datos.eliminados = Admin.datos.eliminados || [];
-      if (!Admin.datos.eliminados.includes(e.id)) Admin.datos.eliminados.push(e.id);
+      for (const it of (e.recItems || [])) {
+        Mochila.agregar(it.id, it.cantidad || 1, { silencioso: true });
+      }
+      const respawn = e.respawnMin || 0;
+      if (respawn > 0) {
+        est[e.id] = {
+          vida: e.vidaMax || e.vida,
+          ultimoGolpe: 0,
+          ocultoHasta: Date.now() + respawn * 60000
+        };
+        if (e.posOrigen) e.pos = e.posOrigen.slice();
+        this._quitarMarcador(e.id);
+      } else {
+        Admin.datos.eliminados = Admin.datos.eliminados || [];
+        if (!Admin.datos.eliminados.includes(e.id)) Admin.datos.eliminados.push(e.id);
+        this._quitarMarcador(e.id);
+      }
       Admin.guardar();
       if (Admin._publicarParaTodos) Admin._publicarParaTodos(true);
-      this._quitarMarcador(e.id);
       this._cerrarCombate();
       return;
     }

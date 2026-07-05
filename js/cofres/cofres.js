@@ -7,6 +7,7 @@ const Cofres = {
   _marcadores: {},
   _circuloColocar: null,
   _modoColocar: null,
+  _colocarPin: null,
   _modoAdminSinItem: false,
   _cofrePinPendiente: null,
   _tipoVisible: true,
@@ -26,6 +27,8 @@ const Cofres = {
     enlazar('cofre-tipo-visible', () => this._elegirTipoCofre(true));
     enlazar('cofre-tipo-oculto', () => this._elegirTipoCofre(false));
     enlazar('btn-cofre-colocar-continuar', () => this._continuarColocacion());
+    enlazar('btn-cofre-pin-confirmar', () => this.confirmarPin());
+    enlazar('btn-cofre-pin-cancelar', () => this.cancelarPin());
     enlazar('btn-cofre-abrir-pin', () => this._confirmarAbrirPin());
     const pinAbrir = document.getElementById('cofre-abrir-pin');
     if (pinAbrir) {
@@ -66,13 +69,14 @@ const Cofres = {
   iniciarColocacionAdmin(datos) {
     if (!datos) return;
     this._modoAdminSinItem = true;
-    this._modoColocar = { visible: !!datos.visible, pin: datos.pin || null };
-    this._mostrarCirculoColocar();
-    if (typeof Admin !== 'undefined') {
-      Admin.modo = 'colocar_cofre';
-      Admin._mostrarControles('Toca el mapa dentro del círculo para el cofre', true);
-    }
-    Notificaciones.mostrar('📍 Toca el mapa dentro del círculo (máx. ' + CONFIG.radioColocarCofre + ' m)', 'info', 6000);
+    this._iniciarPinColocar({
+      visible: !!datos.visible,
+      pin: datos.pin || null,
+      slots: datos.slots || [],
+      restringirRadio: false,
+      esAdmin: true
+    });
+    Notificaciones.mostrar('📍 Arrastra el pin 🧰 y pulsa Confirmar', 'info', 5000);
   },
 
   usarCofreInventario() {
@@ -100,9 +104,116 @@ const Cofres = {
       }
     }
     document.getElementById('ventana-cofre-colocar').classList.add('oculto');
-    this._modoColocar = { visible, pin };
-    this._mostrarCirculoColocar();
-    Notificaciones.mostrar('📍 Toca el mapa dentro del círculo (máx. ' + CONFIG.radioColocarCofre + ' m)', 'info', 6000);
+    this._iniciarPinColocar({
+      visible,
+      pin,
+      slots: [],
+      restringirRadio: true,
+      esAdmin: false
+    });
+    Notificaciones.mostrar('📍 Arrastra el pin dentro del círculo y confirma', 'info', 6000);
+  },
+
+  _iniciarPinColocar(opts) {
+    this.cancelarPin(true);
+    this._colocarPin = Object.assign({ marcador: null, circle: null }, opts);
+    const centro = opts.restringirRadio && GPS.posicion
+      ? GPS.posicion
+      : (GPS.posicion || [Mapa.mapa.getCenter().lat, Mapa.mapa.getCenter().lng]);
+    if (opts.restringirRadio && GPS.posicion) {
+      this._colocarPin.circle = L.circle(GPS.posicion, {
+        radius: CONFIG.radioColocarCofre,
+        color: '#ffd60a', weight: 2, fillColor: '#ffd60a', fillOpacity: 0.08, dashArray: '6 8'
+      }).addTo(Mapa.mapa);
+    }
+    const marcador = L.marker(centro, {
+      draggable: true,
+      zIndexOffset: 2000,
+      icon: L.divIcon({
+        className: '',
+        html: '<div class="icono-admin-pin">🧰</div>',
+        iconSize: [34, 34],
+        iconAnchor: [17, 30]
+      })
+    }).addTo(Mapa.mapa);
+    this._colocarPin.marcador = marcador;
+    const ctrl = document.getElementById('cofre-pin-controles');
+    if (ctrl) ctrl.classList.remove('oculto');
+    if (typeof Admin !== 'undefined' && opts.esAdmin) {
+      Admin.modo = 'colocar_cofre';
+      Admin._mostrarControles('Arrastra el pin 🧰 y confirma', true);
+    }
+  },
+
+  async confirmarPin() {
+    if (!this._colocarPin || !this._colocarPin.marcador) return false;
+    const p = this._colocarPin.marcador.getLatLng();
+    const pos = [+p.lat.toFixed(6), +p.lng.toFixed(6)];
+    if (this._colocarPin.restringirRadio && GPS.posicion) {
+      const dist = Utilidades.distanciaMetros(GPS.posicion, pos);
+      if (dist > CONFIG.radioColocarCofre) {
+        Notificaciones.mostrar('El pin debe estar dentro del círculo amarillo', 'alerta');
+        return true;
+      }
+    }
+    await this._finalizarColocacion(pos);
+    return true;
+  },
+
+  cancelarPin(silencioso) {
+    if (this._colocarPin) {
+      if (this._colocarPin.marcador) this._colocarPin.marcador.remove();
+      if (this._colocarPin.circle) this._colocarPin.circle.remove();
+    }
+    this._colocarPin = null;
+    this._modoColocar = null;
+    this._modoAdminSinItem = false;
+    const ctrl = document.getElementById('cofre-pin-controles');
+    if (ctrl) ctrl.classList.add('oculto');
+    if (!silencioso && typeof Admin !== 'undefined' && Admin.modo === 'colocar_cofre') {
+      Admin.salirModo();
+    }
+  },
+
+  async _finalizarColocacion(pos) {
+    const opts = this._colocarPin;
+    if (!opts) return;
+    if (!opts.esAdmin && !this._modoAdminSinItem) {
+      if (!Mochila.quitar('cofre', 1, 'Cofre colocado')) {
+        this.cancelarPin();
+        return;
+      }
+    }
+    const slotsIniciales = new Array(this.TOTAL_SLOTS).fill(null);
+    (opts.slots || []).forEach((sl, i) => {
+      if (sl && i < this.TOTAL_SLOTS) {
+        slotsIniciales[i] = { id: sl.id, cantidad: sl.cantidad || 1 };
+      }
+    });
+    const cofre = {
+      id: 'cofre_' + Date.now().toString(36),
+      pos,
+      visible: opts.visible,
+      pinHash: opts.pin
+        ? await Utilidades.sha256('cofre-pin|' + opts.pin) : null,
+      pinRegistro: opts.pin || null,
+      slots: slotsIniciales,
+      creador: Usuarios.perfilActivo.id,
+      creadorNombre: Usuarios.perfilActivo.nombre,
+      t: Date.now()
+    };
+    if (!Guardado.datos.cofresLocales) Guardado.datos.cofresLocales = [];
+    Guardado.datos.cofresLocales.push(cofre);
+    Guardado.guardar();
+    if (typeof Admin !== 'undefined' && Admin.esAdminJugador()) {
+      Admin.datos.cofresExtra = Admin.datos.cofresExtra || [];
+      Admin.datos.cofresExtra.push(cofre);
+      Admin.guardar();
+      if (Admin._publicarParaTodos) await Admin._publicarParaTodos(true);
+    }
+    this.cancelarPin(true);
+    this._crearMarcador(cofre);
+    Notificaciones.mostrar('🧰 Cofre ' + (cofre.visible ? 'visible' : 'oculto') + ' colocado', 'exito', 5000);
   },
 
   usarLlaveMaestra() {
@@ -138,58 +249,6 @@ const Cofres = {
     } else {
       Notificaciones.mostrar('La llave no funcionó (15% de suerte). Se gastó la llave.', 'alerta', 5000);
     }
-  },
-
-  _mostrarCirculoColocar() {
-    if (!GPS.posicion || !Mapa.mapa) return;
-    if (this._circuloColocar) this._circuloColocar.remove();
-    this._circuloColocar = L.circle(GPS.posicion, {
-      radius: CONFIG.radioColocarCofre,
-      color: '#ffd60a', weight: 2, fillColor: '#ffd60a', fillOpacity: 0.08, dashArray: '6 8'
-    }).addTo(Mapa.mapa);
-    Mapa.mapa.once('click', ev => this._confirmarColocacion(ev.latlng));
-  },
-
-  async _confirmarColocacion(latlng) {
-    if (!this._modoColocar) return;
-    if (this._circuloColocar) { this._circuloColocar.remove(); this._circuloColocar = null; }
-    const dist = Utilidades.distanciaMetros(GPS.posicion, [latlng.lat, latlng.lng]);
-    if (dist > CONFIG.radioColocarCofre) {
-      Notificaciones.mostrar('Debe estar dentro del círculo', 'alerta');
-      this._modoColocar = null;
-      return;
-    }
-    if (!this._modoAdminSinItem) {
-      if (!Mochila.quitar('cofre', 1, 'Cofre colocado')) {
-        this._modoColocar = null;
-        return;
-      }
-    }
-    const cofre = {
-      id: 'cofre_' + Date.now().toString(36),
-      pos: [+latlng.lat.toFixed(6), +latlng.lng.toFixed(6)],
-      visible: this._modoColocar.visible,
-      pinHash: this._modoColocar.pin
-        ? await Utilidades.sha256('cofre-pin|' + this._modoColocar.pin) : null,
-      pinRegistro: this._modoColocar.pin || null,
-      slots: new Array(this.TOTAL_SLOTS).fill(null),
-      creador: Usuarios.perfilActivo.id,
-      creadorNombre: Usuarios.perfilActivo.nombre,
-      t: Date.now()
-    };
-    if (!Guardado.datos.cofresLocales) Guardado.datos.cofresLocales = [];
-    Guardado.datos.cofresLocales.push(cofre);
-    Guardado.guardar();
-    if (typeof Admin !== 'undefined' && Admin.esAdminJugador()) {
-      Admin.datos.cofresExtra = Admin.datos.cofresExtra || [];
-      Admin.datos.cofresExtra.push(cofre);
-      Admin.guardar();
-      Admin._publicarParaTodos(true);
-    }
-    this._modoColocar = null;
-    this._modoAdminSinItem = false;
-    this._crearMarcador(cofre);
-    Notificaciones.mostrar('🧰 Cofre ' + (cofre.visible ? 'visible' : 'oculto') + ' colocado', 'exito', 5000);
   },
 
   _pintarTodos() {

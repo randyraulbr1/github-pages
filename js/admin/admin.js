@@ -449,7 +449,7 @@ const Admin = {
   iniciarVigilancia() {
     if (this._vigilanciaActiva) return;
     this._vigilanciaActiva = true;
-    setInterval(() => this._revisarActualizacion(), 5000);
+    setInterval(() => this._revisarActualizacion(), 8000);
     document.addEventListener('visibilitychange', () => {
       if (!document.hidden) this._revisarActualizacion();
     });
@@ -462,6 +462,9 @@ const Admin = {
       if (this._crudoPublicado === null) { this._crudoPublicado = texto; return; }
       if (texto === this._crudoPublicado) {
         if (typeof Usuarios !== 'undefined') Usuarios.verificarSesionRemota();
+        if (typeof Guardado !== 'undefined' && Usuarios.perfilActivo) {
+          Guardado.sincronizarNube(true).catch(() => {});
+        }
         return;
       }
       this._aplicarMundoRemoto(texto);
@@ -719,7 +722,19 @@ const Admin = {
         '<div class="campo-doble">' +
           this._campoNumero('af-xp', 'XP al derrotarlo', 30) +
           this._campoNumero('af-dinero', 'Dinero extra $', 0) +
+        '</div>' +
+        this._campoRespawn('af-enemigo-respawn', 'Vuelve a salir', 0) +
+        '<div class="admin-editor-horizontal admin-mision-horizontal">' +
+          '<div class="admin-editor-columna">' +
+            '<div class="admin-editor-seccion">Botín al derrotarlo — arrastra ADM →</div>' +
+            '<div id="admin-enemigo-recompensas" class="admin-rejilla-inventario admin-rejilla-fija"></div>' +
+          '</div>' +
+          '<div class="admin-editor-columna admin-editor-columna-adm">' +
+            '<div class="admin-editor-seccion">ADM ∞</div>' +
+            '<div id="admin-enemigo-infinito" class="admin-rejilla-infinito"></div>' +
+          '</div>' +
         '</div>';
+      this._enemigoRecompensas = [];
       setTimeout(() => {
         const inp = document.getElementById('af-icono-enemigo');
         const rej = document.querySelector('.admin-emoji-enemigo');
@@ -728,6 +743,11 @@ const Admin = {
             btn.addEventListener('click', () => { inp.value = btn.dataset.emoji; });
           });
         }
+        this._pintarRejillaGenerica('admin-enemigo-recompensas', this._enemigoRecompensas, 'enemigo-rec-slot');
+        this._pintarInventarioInfinito(document.getElementById('admin-enemigo-infinito'), (id, cel) => {
+          cel.addEventListener('pointerdown', ev =>
+            this._arrastreAdmARejilla(ev, id, this._enemigoRecompensas, 'admin-enemigo-recompensas', 'enemigo-rec-slot'));
+        });
       }, 0);
     } else if (tipo === 'tienda_admin') {
       titulo = '🏪 Crear tienda';
@@ -745,9 +765,9 @@ const Admin = {
           '</div>' +
         '</div>';
       setTimeout(() => {
-        this._pintarTiendaAdminItems();
+        this._pintarTiendaAdminSlots();
         this._pintarInventarioInfinito(document.getElementById('admin-tienda-infinito'), (id, cel) => {
-          cel.addEventListener('click', () => this._agregarItemTiendaAdmin(id));
+          cel.addEventListener('pointerdown', ev => this._arrastreAdmATienda(ev, id));
         });
       }, 0);
     } else if (tipo === 'tesoro') {
@@ -763,12 +783,26 @@ const Admin = {
         this._campoNumero('af-dinero', 'Dinero extra $', 0);
     } else if (tipo === 'objeto') {
       titulo = '📦 Dejar objeto';
+      this._objetoItems = [];
       campos.innerHTML =
-        '<div class="campo-doble">' +
-          this._campoSelect('af-item', 'Objeto a dejar', this._opcionesItems(false)) +
-          this._campoNumero('af-cant', 'Cantidad', 1) +
+        '<div class="admin-editor-horizontal admin-mision-horizontal">' +
+          '<div class="admin-editor-columna">' +
+            '<div class="admin-editor-seccion">Objetos en el mapa — arrastra ADM →</div>' +
+            '<div id="admin-objeto-rejilla" class="admin-rejilla-inventario admin-rejilla-fija"></div>' +
+          '</div>' +
+          '<div class="admin-editor-columna admin-editor-columna-adm">' +
+            '<div class="admin-editor-seccion">ADM ∞</div>' +
+            '<div id="admin-objeto-infinito" class="admin-rejilla-infinito"></div>' +
+          '</div>' +
         '</div>' +
-        this._campoNumero('af-reaparece', 'Vuelve a aparecer a los X minutos (0 = no vuelve a salir)', 0);
+        this._campoRespawn('af-reaparece', 'Vuelve a salir', 0);
+      setTimeout(() => {
+        this._pintarRejillaGenerica('admin-objeto-rejilla', this._objetoItems, 'objeto-slot');
+        this._pintarInventarioInfinito(document.getElementById('admin-objeto-infinito'), (id, cel) => {
+          cel.addEventListener('pointerdown', ev =>
+            this._arrastreAdmARejilla(ev, id, this._objetoItems, 'admin-objeto-rejilla', 'objeto-slot'));
+        });
+      }, 0);
     } else if (tipo === 'precio') {
       titulo = '💲 Cambiar precio global';
       campos.innerHTML =
@@ -813,6 +847,86 @@ const Admin = {
   _campoSelect(id, etiqueta, opciones) {
     return '<div class="campo-admin"><label for="' + id + '">' + etiqueta + '</label>' +
       '<select id="' + id + '">' + opciones + '</select></div>';
+  },
+
+  _opcionesRespawnHtml(valor) {
+    const opts = [
+      { v: 0, t: 'Solo una vez' },
+      { v: 5, t: '5 minutos' },
+      { v: 30, t: '30 minutos' },
+      { v: 60, t: '1 hora' },
+      { v: 1440, t: '1 día' }
+    ];
+    return opts.map(o =>
+      '<option value="' + o.v + '"' + (Number(valor) === o.v ? ' selected' : '') + '>' + o.t + '</option>'
+    ).join('');
+  },
+
+  _campoRespawn(id, etiqueta, valor) {
+    return this._campoSelect(id, etiqueta, this._opcionesRespawnHtml(valor));
+  },
+
+  _pintarRejillaGenerica(rejId, arr, claseSlot) {
+    const rej = document.getElementById(rejId);
+    if (!rej) return;
+    while (arr.length < 6) arr.push(null);
+    rej.innerHTML = '';
+    arr.forEach((sl, i) => {
+      const cel = document.createElement('div');
+      cel.className = 'slot admin-slot-jugador ' + claseSlot;
+      cel.dataset.indice = i;
+      if (sl) {
+        const item = Items.seguro(sl.id);
+        cel.textContent = item.icono;
+        const cant = document.createElement('span');
+        cant.className = 'cantidad';
+        cant.textContent = sl.cantidad || 1;
+        cel.appendChild(cant);
+        cel.title = item.nombre;
+      }
+      cel.addEventListener('pointerdown', ev => this._slotRejillaArrastre(ev, arr, rejId, i, claseSlot));
+      rej.appendChild(cel);
+    });
+  },
+
+  _arrastreAdmARejilla(ev, itemId, arr, rejId, claseSlot) {
+    ev.preventDefault();
+    const act = { itemId, x0: ev.clientX, y0: ev.clientY, movio: false };
+    const mover = e => {
+      if (Math.hypot(e.clientX - act.x0, e.clientY - act.y0) >= 8) act.movio = true;
+    };
+    const soltar = e => {
+      window.removeEventListener('pointermove', mover);
+      window.removeEventListener('pointerup', soltar);
+      if (!act.movio) return;
+      const bajo = document.elementFromPoint(e.clientX, e.clientY);
+      const slot = bajo?.closest?.('.' + claseSlot);
+      if (slot) {
+        const idx = parseInt(slot.dataset.indice, 10);
+        arr[idx] = { id: act.itemId, cantidad: 1 };
+      } else {
+        const vacio = arr.findIndex(s => !s);
+        const idx = vacio >= 0 ? vacio : arr.length;
+        if (idx >= arr.length) arr.push({ id: act.itemId, cantidad: 1 });
+        else arr[idx] = { id: act.itemId, cantidad: 1 };
+      }
+      this._pintarRejillaGenerica(rejId, arr, claseSlot);
+    };
+    window.addEventListener('pointermove', mover);
+    window.addEventListener('pointerup', soltar);
+  },
+
+  _slotRejillaArrastre(ev, arr, rejId, i, claseSlot) {
+    const sl = arr[i];
+    if (!sl) return;
+    ev.preventDefault();
+    const soltar = e => {
+      window.removeEventListener('pointerup', soltar);
+      const bajo = document.elementFromPoint(e.clientX, e.clientY);
+      if (!bajo?.closest?.('.' + claseSlot)) arr[i] = null;
+      this._pintarRejillaGenerica(rejId, arr, claseSlot);
+    };
+    window.addEventListener('pointerup', soltar);
   },
 
   _valor(id) { const el = document.getElementById(id); return el ? el.value : ''; },
@@ -890,7 +1004,9 @@ const Admin = {
         nombre, icono, vida, vidaMax: vida,
         dano: Math.max(1, this._numero('af-dano') || 10),
         xp: this._numero('af-xp') || 30,
-        dinero: this._numero('af-dinero') || 0
+        dinero: this._numero('af-dinero') || 0,
+        recItems: (this._enemigoRecompensas || []).filter(Boolean),
+        respawnMin: parseInt(this._valor('af-enemigo-respawn'), 10) || 0
       };
     } else if (tipo === 'tienda_admin') {
       const nombre = this._valor('af-nombre').trim();
@@ -910,10 +1026,13 @@ const Admin = {
         dinero: this._numero('af-dinero')
       };
     } else {
+      const items = (this._objetoItems || []).filter(Boolean);
+      if (!items.length) { alert('Arrastra al menos un objeto desde ADM ∞'); return; }
       valores = {
-        itemId: this._valor('af-item'),
-        cantidad: Math.max(1, this._numero('af-cant')),
-        reaparece: this._numero('af-reaparece')
+        items,
+        itemId: items[0].id,
+        cantidad: items[0].cantidad || 1,
+        reaparece: parseInt(this._valor('af-reaparece'), 10) || 0
       };
     }
 
@@ -936,6 +1055,10 @@ const Admin = {
   },
 
   async confirmarColocacion() {
+    if (typeof Cofres !== 'undefined' && Cofres._colocarPin) {
+      await Cofres.confirmarPin();
+      return;
+    }
     const c = this._colocacion;
     if (!c || !c.marcador) return;
     const p = c.marcador.getLatLng();
@@ -1098,9 +1221,17 @@ const Admin = {
     return (o.reaparece || 0) > 0 && Date.now() - t > o.reaparece * 60000;
   },
 
+  _itemsDeObjeto(o) {
+    if (o.items && o.items.length) return o.items;
+    if (o.itemId) return [{ id: o.itemId, cantidad: o.cantidad || 1 }];
+    return [];
+  },
+
   _crearMarcadorObjeto(o) {
-    const item = Items.obtener(o.itemId);
-    if (!item) return;
+    const items = this._itemsDeObjeto(o);
+    if (!items.length) return;
+    const principal = Items.obtener(items[0].id);
+    if (!principal) return;
     o._marcador = null;
     Mapa.registrarPunto({
       id: o.id,
@@ -1113,11 +1244,18 @@ const Admin = {
   },
 
   _revisarObjeto(o) {
-    const item = Items.obtener(o.itemId);
-    if (!item) return;
+    const items = this._itemsDeObjeto(o);
+    if (!items.length) return;
+    const principal = Items.obtener(items[0].id);
+    if (!principal) return;
     const disponible = this._objetoDisponible(o);
+    const icono = items.length > 1 ? principal.icono + '<span class="obj-multi">+' + (items.length - 1) + '</span>' : principal.icono;
     if (disponible && !o._marcador) {
-      o._marcador = Mapa.crearMarcadorEmoji(o.pos, item.icono, 26);
+      o._marcador = Mapa.crearMarcadorEmoji(o.pos, principal.icono, 26);
+      if (items.length > 1) {
+        const el = o._marcador.getElement?.();
+        if (el) el.classList.add('marcador-obj-multi');
+      }
       o._marcador.on('click', () => {
         if (this.manejarClickPunto({ id: o.id, marcador: o._marcador })) return;
         this._recogerObjeto(o);
@@ -1135,14 +1273,21 @@ const Admin = {
       Notificaciones.mostrar('📍 Acércate más (' + Math.round(d) + ' m)', 'alerta');
       return;
     }
-    const item = Items.obtener(o.itemId);
-    if (!Mochila.agregar(o.itemId, o.cantidad, { silencioso: true })) return;
+    const items = this._itemsDeObjeto(o);
+    for (const it of items) {
+      if (!Mochila.agregar(it.id, it.cantidad || 1, { silencioso: true })) {
+        Notificaciones.mostrar('🎒 No tienes espacio para todo', 'error');
+        return;
+      }
+    }
     this._objetosRecogidos()[o.id] = Date.now();
     Guardado.guardar();
+    const principal = Items.obtener(items[0].id);
     const punto = Mapa.mapa.latLngToContainerPoint(o.pos);
-    Utilidades.volarHaciaMochila(item.icono, punto.x, punto.y);
-    Notificaciones.mostrar(item.icono + ' Recogiste ' + item.nombre + ' x' + o.cantidad +
-      ((o.reaparece || 0) > 0 ? ' (volverá a salir en ' + o.reaparece + ' min)' : ''), 'exito');
+    Utilidades.volarHaciaMochila(principal.icono, punto.x, punto.y);
+    const nombres = items.map(it => Items.seguro(it.id).nombre + ' x' + (it.cantidad || 1)).join(', ');
+    Notificaciones.mostrar('📦 Recogiste: ' + nombres +
+      ((o.reaparece || 0) > 0 ? ' (vuelve en ' + o.reaparece + ' min)' : ''), 'exito');
     if (o._marcador) { o._marcador.remove(); o._marcador = null; }
   },
 
@@ -1159,8 +1304,10 @@ const Admin = {
     this._ocultarPanelDerecho();
     document.getElementById('ventana-admin').classList.add('oculto');
     this.modo = modo;
+    const cesto = document.getElementById('admin-cesto-borrar');
+    if (cesto) cesto.classList.remove('oculto');
     this._mostrarControles(
-      '✋ Arrastra un pin para moverlo · Tócalo sin arrastrar para eliminarlo',
+      '✋ Arrastra un pin · Suelta en 🗑️ para borrarlo',
       false
     );
 
@@ -1212,6 +1359,10 @@ const Admin = {
         p.marcador.on('dragstart', () => { p._adminMovio = false; });
         p.marcador.on('drag', () => { p._adminMovio = true; });
         p._alSoltar = () => {
+          if (this._marcadorSobreCesto(p.marcador)) {
+            this._eliminarPin(p, true);
+            return;
+          }
           const nueva = p.marcador.getLatLng();
           p.posicion[0] = +nueva.lat.toFixed(6);
           p.posicion[1] = +nueva.lng.toFixed(6);
@@ -1223,6 +1374,10 @@ const Admin = {
       for (const o of this.objetosTodos()) {
         if (!o._marcador) continue;
         this._habilitarArrastreMarcador(o._marcador, () => {
+          if (this._marcadorSobreCesto(o._marcador)) {
+            this._eliminarPin({ id: o.id, marcador: o._marcador, nombre: Items.seguro(o.itemId || o.items?.[0]?.id)?.nombre }, true);
+            return;
+          }
           const p = o._marcador.getLatLng();
           o.pos[0] = +p.lat.toFixed(6);
           o.pos[1] = +p.lng.toFixed(6);
@@ -1233,6 +1388,10 @@ const Admin = {
       if (typeof Cofres !== 'undefined' && Cofres._marcadores) {
         for (const [id, m] of Object.entries(Cofres._marcadores)) {
           this._habilitarArrastreMarcador(m, () => {
+            if (this._marcadorSobreCesto(m)) {
+              this._eliminarPin({ id, marcador: m, nombre: 'Cofre' }, true);
+              return;
+            }
             const p = m.getLatLng();
             this.datos.posiciones[id] = [+p.lat.toFixed(6), +p.lng.toFixed(6)];
             this.guardar();
@@ -1244,17 +1403,28 @@ const Admin = {
 
   // Interceptor de toques sobre pines cuando hay un modo admin activo.
   // Devuelve true si el toque fue consumido por el modo.
+  _marcadorSobreCesto(marcador) {
+    if (!marcador || !Mapa.mapa) return false;
+    const cesto = document.getElementById('admin-cesto-borrar');
+    if (!cesto || cesto.classList.contains('oculto')) return false;
+    const pt = Mapa.mapa.latLngToContainerPoint(marcador.getLatLng());
+    const mapRect = Mapa.mapa.getContainer().getBoundingClientRect();
+    const x = mapRect.left + pt.x;
+    const y = mapRect.top + pt.y;
+    const r = cesto.getBoundingClientRect();
+    return x >= r.left && x <= r.right && y >= r.top && y <= r.bottom;
+  },
+
   manejarClickPunto(punto) {
     if (this.modo === 'organizar') {
       if (punto._adminMovio) { punto._adminMovio = false; return true; }
-      this._eliminarPin(punto);
       return true;
     }
     return this.modo === 'colocar';
   },
 
-  _eliminarPin(punto) {
-    if (!confirm('¿Eliminar este pin del mapa?' + (punto.nombre ? ' (' + punto.nombre + ')' : ''))) return;
+  _eliminarPin(punto, sinConfirm) {
+    if (!sinConfirm && !confirm('¿Eliminar este pin del mapa?' + (punto.nombre ? ' (' + punto.nombre + ')' : ''))) return;
 
     if (punto.id.startsWith('admx_')) {
       // Contenido creado por el admin: se borra el borrador local, y si
@@ -1266,6 +1436,8 @@ const Admin = {
       this.datos.misiones = this.datos.misiones.filter(x => x.id !== punto.id);
       this.datos.tesoros = this.datos.tesoros.filter(x => x.id !== punto.id);
       this.datos.objetos = this.datos.objetos.filter(x => x.id !== punto.id);
+      this.datos.enemigos = (this.datos.enemigos || []).filter(x => x.id !== punto.id);
+      this.datos.tiendasAdmin = (this.datos.tiendasAdmin || []).filter(x => x.id !== punto.id);
       if (!habiaLocal && !this.datos.eliminados.includes(punto.id)) {
         this.datos.eliminados.push(punto.id);
       }
@@ -1274,6 +1446,7 @@ const Admin = {
       if (!this.datos.eliminados.includes(punto.id)) this.datos.eliminados.push(punto.id);
     }
     this.guardar();
+    this._publicarParaTodos(true);
 
     if (punto.marcador) punto.marcador.remove();
     if (punto.esTesoroAdmin && punto.esTesoroAdmin._marcador) punto.esTesoroAdmin._marcador.remove();
@@ -1290,6 +1463,9 @@ const Admin = {
     // Quitar fantasmas y desactivar arrastres
     for (const f of this._fantasmas) f.remove();
     this._fantasmas = [];
+    const cesto = document.getElementById('admin-cesto-borrar');
+    if (cesto) cesto.classList.add('oculto');
+    if (typeof Cofres !== 'undefined') Cofres.cancelarPin(true);
     for (const p of Mapa.puntosInteractivos) {
       if (p.marcador && p.marcador.dragging) {
         p.marcador.dragging.disable();
@@ -2233,6 +2409,7 @@ const Admin = {
     const json = this._jsonMundo();
     if (json === this._ultimoPublicado) return;
     if (!silencioso) Notificaciones.mostrar('🌍 Publicando el mundo…', 'info');
+    this._mostrarPublicando(true);
 
     // Opción A: Firebase (automático, sin token en el teléfono)
     if (CONFIG.firebaseMundoUrl) {
@@ -2250,12 +2427,15 @@ const Admin = {
         }
       } catch (e) {
         if (!silencioso) Notificaciones.mostrar('❌ Sin conexión. Intenta con WiFi', 'error', 6000);
+      } finally {
+        this._mostrarPublicando(false);
       }
       return;
     }
 
     const token = this._tokenPublicacion();
     if (!token) {
+      this._mostrarPublicando(false);
       if (!silencioso) {
         Notificaciones.mostrar('🔑 Configura tu clave en Admin → Clave GitHub (en tu teléfono)', 'alerta', 8000);
         this.abrirConfiguracionClave();
@@ -2293,6 +2473,12 @@ const Admin = {
       clearTimeout(this._tempReintento409);
       this._tempReintento409 = setTimeout(() => this.publicarMundo(true), 5000);
     }
+    this._mostrarPublicando(false);
+  },
+
+  _mostrarPublicando(on) {
+    const el = document.getElementById('pantalla-publicando');
+    if (el) el.classList.toggle('oculto', !on);
   },
 
   // ---------- EXPORTAR ----------
@@ -2460,39 +2646,87 @@ const Admin = {
   },
 
   // ---------- TIENDA ADMIN ----------
+  _arrastreAdmATienda(ev, itemId) {
+    ev.preventDefault();
+    const act = { itemId, x0: ev.clientX, y0: ev.clientY, movio: false };
+    const mover = e => {
+      if (Math.hypot(e.clientX - act.x0, e.clientY - act.y0) >= 8) act.movio = true;
+    };
+    const soltar = e => {
+      window.removeEventListener('pointermove', mover);
+      window.removeEventListener('pointerup', soltar);
+      if (!act.movio) return;
+      const bajo = document.elementFromPoint(e.clientX, e.clientY);
+      if (bajo?.closest?.('#admin-tienda-items') || bajo?.closest?.('.tienda-admin-fila')) {
+        this._agregarItemTiendaAdmin(act.itemId);
+      }
+    };
+    window.addEventListener('pointermove', mover);
+    window.addEventListener('pointerup', soltar);
+  },
+
   _agregarItemTiendaAdmin(itemId) {
-    const precio = prompt('Precio de ' + Items.seguro(itemId).nombre + ':', String(Items.seguro(itemId).precio));
-    if (precio === null) return;
-    const p = Items._limitarPrecio(parseInt(precio, 10) || Items.seguro(itemId).precio);
-    const stockRaw = prompt('Cantidad en stock (0 = siempre disponible):', '0');
-    const stock = parseInt(stockRaw, 10);
     if (!this._tiendaAdminItems) this._tiendaAdminItems = [];
     this._tiendaAdminItems.push({
       id: itemId,
-      precio: p,
-      stock: isNaN(stock) ? 0 : stock,
-      infinito: !stock || stock <= 0
+      precio: Items.seguro(itemId).precio,
+      stock: 10,
+      infinito: true
     });
-    this._pintarTiendaAdminItems();
+    this._pintarTiendaAdminSlots();
   },
 
-  _pintarTiendaAdminItems() {
+  _pintarTiendaAdminSlots() {
     const cont = document.getElementById('admin-tienda-items');
     if (!cont) return;
     cont.innerHTML = '';
-    for (const it of (this._tiendaAdminItems || [])) {
+    for (let i = 0; i < (this._tiendaAdminItems || []).length; i++) {
+      const it = this._tiendaAdminItems[i];
       const item = Items.seguro(it.id);
       const fila = document.createElement('div');
-      fila.className = 'fila-tienda-admin-item';
-      fila.innerHTML = item.icono + ' ' + item.nombre + ' — $' + it.precio +
-        (it.infinito ? ' (∞)' : ' x' + it.stock);
+      fila.className = 'tienda-admin-fila';
+      fila.innerHTML =
+        '<span class="ti-icono">' + item.icono + '</span>' +
+        '<input type="number" class="ti-precio" data-i="' + i + '" value="' + it.precio + '" min="5" max="5000">' +
+        '<label class="ti-inf"><input type="checkbox" class="ti-infinito" data-i="' + i + '"' +
+          (it.infinito ? ' checked' : '') + '> ∞</label>' +
+        '<input type="number" class="ti-stock" data-i="' + i + '" value="' + (it.stock || 1) + '"' +
+          (it.infinito ? ' disabled' : '') + ' min="1">' +
+        '<button type="button" class="ti-quitar" data-i="' + i + '">✕</button>';
       cont.appendChild(fila);
     }
+    cont.querySelectorAll('.ti-precio').forEach(inp => {
+      inp.addEventListener('change', () => {
+        const i = +inp.dataset.i;
+        this._tiendaAdminItems[i].precio = Items._limitarPrecio(+inp.value || 5);
+      });
+    });
+    cont.querySelectorAll('.ti-infinito').forEach(chk => {
+      chk.addEventListener('change', () => {
+        const i = +chk.dataset.i;
+        this._tiendaAdminItems[i].infinito = chk.checked;
+        const stockInp = cont.querySelector('.ti-stock[data-i="' + i + '"]');
+        if (stockInp) stockInp.disabled = chk.checked;
+      });
+    });
+    cont.querySelectorAll('.ti-stock').forEach(inp => {
+      inp.addEventListener('change', () => {
+        const i = +inp.dataset.i;
+        this._tiendaAdminItems[i].stock = Math.max(1, parseInt(inp.value, 10) || 1);
+        this._tiendaAdminItems[i].infinito = false;
+      });
+    });
+    cont.querySelectorAll('.ti-quitar').forEach(btn => {
+      btn.addEventListener('click', () => {
+        this._tiendaAdminItems.splice(+btn.dataset.i, 1);
+        this._pintarTiendaAdminSlots();
+      });
+    });
   },
 
   // ---------- COFRE EN PANEL (sin cerrar admin) ----------
   abrirCofreEnPanel() {
-    this._tipoCofreVisible = true;
+    this._cofreSlots = new Array(6).fill(null);
     const vis = document.getElementById('admin-cofre-visible');
     if (vis) vis.checked = true;
     const pinPanel = document.getElementById('cofre-pin-panel');
@@ -2500,6 +2734,13 @@ const Admin = {
     const pin = document.getElementById('admin-cofre-pin');
     if (pin) pin.value = '';
     this._mostrarPanelDerecho('admin-vista-cofre', '🧰 Colocar cofre');
+    setTimeout(() => {
+      this._pintarRejillaGenerica('admin-cofre-rejilla', this._cofreSlots, 'cofre-slot');
+      this._pintarInventarioInfinito(document.getElementById('admin-cofre-infinito'), (id, cel) => {
+        cel.addEventListener('pointerdown', ev =>
+          this._arrastreAdmARejilla(ev, id, this._cofreSlots, 'admin-cofre-rejilla', 'cofre-slot'));
+      });
+    }, 0);
   },
 
   _continuarCofrePanel() {
@@ -2509,7 +2750,11 @@ const Admin = {
       pin = (document.getElementById('admin-cofre-pin')?.value || '').trim();
       if (!Utilidades.pinCofreValido(pin)) { alert('PIN de 4 números'); return; }
     }
-    this._cofrePanelDatos = { visible, pin };
+    this._cofrePanelDatos = {
+      visible,
+      pin,
+      slots: (this._cofreSlots || []).filter(Boolean)
+    };
     this._ocultarPanelDerecho();
     if (typeof Cofres !== 'undefined') Cofres.iniciarColocacionAdmin(this._cofrePanelDatos);
   },
@@ -2535,6 +2780,7 @@ const Admin = {
       curacionMs: Math.max(30000, this._numero('admin-combate-curacion') * 1000 || 120000)
     };
     this.guardar();
+    this._publicarParaTodos(true);
     Notificaciones.mostrar('⚔️ Reglas de combate actualizadas para todos', 'exito');
     this._volverAlPanel();
   },

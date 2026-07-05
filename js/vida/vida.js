@@ -149,7 +149,7 @@ const Vida = {
     if (ht) ht.textContent = this.hambre + '/' + CONFIG.hambreMaxima;
 
     const nl = document.getElementById('nivel-texto');
-    if (nl) nl.textContent = String(this.nivel);
+    if (nl) nl.textContent = 'Nv ' + this.nivel;
     const necesita = this.nivel >= CONFIG.nivelMaximo ? 1 : this.xpParaNivel(this.nivel);
     let acum = 0;
     for (let i = 1; i < this.nivel; i++) acum += this.xpParaNivel(i);

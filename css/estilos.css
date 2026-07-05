@@ -33,31 +33,34 @@ button { font-family: inherit; }
   display: flex;
   flex-direction: column;
   gap: 4px;
-  padding: 8px 10px;
-  border-radius: 14px;
-  background: rgba(12, 16, 28, .88);
-  border: 2px solid #1a1a1a;
-  box-shadow: 0 4px 14px rgba(0,0,0,.4);
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
+  padding: 0;
+  background: transparent;
+  border: none;
+  box-shadow: none;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
 }
 .fila-barra {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 4px;
   width: 100%;
 }
-.barra-icono { font-size: 12px; flex-shrink: 0; width: 18px; text-align: center; }
-.barra-etiqueta {
-  font-size: 10px; font-weight: 900; color: #ffe28a;
-  flex-shrink: 0; width: 32px; text-align: center;
+.barra-nivel {
+  font-size: 9px; font-weight: 800; color: #ffe28a;
+  flex-shrink: 0; width: 28px; text-align: right;
   text-shadow: 0 1px 2px rgba(0,0,0,.8);
 }
+.fila-barra-xp .barra-nivel { margin-right: 2px; }
 
+#contenedor-vida, #contenedor-hambre, #contenedor-xp {
+  position: relative; flex: 1; height: 18px;
+  min-width: 0;
+  border-radius: 9px; overflow: hidden;
+  border: 1px solid rgba(0,0,0,.45);
+}
 #contenedor-vida {
-  position: relative; flex: 1; height: 20px;
-  background: #2b1016; border-radius: 10px; overflow: hidden;
-  border: 1px solid #1a1a1a;
+  background: #2b1016;
 }
 #vida-relleno {
   position: absolute; inset: 0; width: 100%;
@@ -78,9 +81,7 @@ button { font-family: inherit; }
 }
 
 #contenedor-hambre {
-  position: relative; flex: 1; height: 16px;
-  background: #2a2010; border-radius: 8px; overflow: hidden;
-  border: 1px solid #1a1a1a;
+  background: #2a2010;
 }
 #hambre-relleno {
   position: absolute; inset: 0; height: 100%; width: 50%;
@@ -88,9 +89,7 @@ button { font-family: inherit; }
   transition: width .4s ease;
 }
 #contenedor-xp {
-  position: relative; flex: 1; height: 14px;
-  background: #1a2040; border-radius: 7px; overflow: hidden;
-  border: 1px solid #1a1a1a;
+  background: #1a2040;
 }
 #xp-relleno {
   position: absolute; inset: 0; height: 100%; width: 0;
@@ -103,19 +102,19 @@ button { font-family: inherit; }
 }
 .btn-hud-accion {
   position: relative;
-  flex: 1;
-  display: flex; align-items: center; justify-content: center; gap: 4px;
-  padding: 7px 8px;
+  flex: 0 0 auto;
+  display: flex; align-items: center; justify-content: center;
+  width: 36px; height: 36px;
+  padding: 0;
   border-radius: 10px;
-  border: 2px solid #1a1a1a;
-  background: rgba(24, 30, 47, .92);
+  border: none;
+  background: transparent;
   color: #e8eef8;
-  font-size: 11px; font-weight: 700;
+  font-size: 20px;
   cursor: pointer;
-  box-shadow: 0 2px 6px rgba(0,0,0,.35);
+  text-shadow: 0 1px 3px rgba(0,0,0,.85);
 }
-.btn-hud-accion:active { transform: scale(.96); }
-.btn-hud-accion span:not(.badge-avisos) { font-size: 10px; }
+.btn-hud-accion:active { transform: scale(.92); }
 .btn-hud-accion .badge-avisos {
   position: absolute; top: -3px; right: -3px;
   font-size: 8px; color: #ff453a;
@@ -1023,5 +1022,50 @@ body.jugador-muerto #admin-controles { pointer-events: none; opacity: .35; }
   padding: 8px 10px; border-radius: 10px; margin-bottom: 6px;
   background: rgba(255,255,255,.06); font-size: 13px;
 }
-#admin-tienda-items { padding: 4px 0; max-height: 200px; overflow-y: auto; }
+#admin-tienda-items { padding: 4px 0; max-height: 220px; overflow-y: auto; }
+
+/* —— Colocación pin / cesto / publicando —— */
+.colocacion-controles, #admin-controles {
+  position: fixed; bottom: calc(78px + env(safe-area-inset-bottom)); left: 50%;
+  transform: translateX(-50%); z-index: 2500;
+  display: flex; align-items: center; gap: 8px; flex-wrap: wrap; justify-content: center;
+  padding: 10px 14px; border-radius: 14px;
+  background: rgba(12, 16, 28, .94); border: 1px solid rgba(255,255,255,.15);
+  box-shadow: 0 4px 20px rgba(0,0,0,.45); max-width: 92vw;
+}
+.colocacion-controles button, #admin-controles button {
+  border: none; border-radius: 10px; padding: 10px 16px; font-weight: 800; cursor: pointer;
+}
+#btn-cofre-pin-confirmar, #btn-admin-confirmar { background: #30d158; color: #05310f; }
+#btn-cofre-pin-cancelar, #btn-admin-salir-modo { background: rgba(255,255,255,.12); color: #fff; }
+#admin-cesto-borrar {
+  position: fixed; bottom: calc(150px + env(safe-area-inset-bottom)); right: 14px;
+  z-index: 2400; width: 64px; height: 64px; border-radius: 16px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 32px; background: rgba(255,69,58,.2); border: 2px dashed #ff453a;
+  box-shadow: 0 4px 14px rgba(0,0,0,.4); pointer-events: none;
+}
+#admin-cesto-borrar.activo { pointer-events: auto; animation: pulso-cesto 1.2s ease infinite; }
+@keyframes pulso-cesto { 50% { transform: scale(1.05); border-color: #ff6961; } }
+#pantalla-publicando {
+  position: fixed; inset: 0; z-index: 4800;
+  background: rgba(8, 10, 18, .72);
+  display: flex; align-items: center; justify-content: center;
+}
+.publicando-caja { text-align: center; }
+.publicando-texto { font-size: 15px; color: #c8d0e0; margin-top: 8px; font-weight: 700; }
+.admin-cofre-horizontal { margin: 8px 0; }
+.tienda-admin-fila {
+  display: grid; grid-template-columns: 28px 1fr auto auto 28px; gap: 6px; align-items: center;
+  padding: 6px 8px; margin-bottom: 6px; border-radius: 10px; background: rgba(255,255,255,.06);
+  font-size: 13px;
+}
+.tienda-admin-fila .ti-precio, .tienda-admin-fila .ti-stock {
+  width: 100%; max-width: 72px; padding: 4px 6px; border-radius: 8px;
+  border: 1px solid rgba(255,255,255,.15); background: rgba(0,0,0,.25); color: #fff;
+}
+.tienda-admin-fila .ti-quitar {
+  border: none; background: rgba(255,69,58,.25); color: #ff9d96; border-radius: 8px; cursor: pointer;
+}
+.tienda-admin-fila .ti-inf { font-size: 11px; white-space: nowrap; }
 
