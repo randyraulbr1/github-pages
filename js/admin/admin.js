@@ -120,7 +120,16 @@ const Admin = {
   // solo al archivo global (con una espera corta para agrupar cambios).
   // Los jugadores lo reciben al momento por la vigilancia del mundo.
   _autoPublicar() {
-    if (!MundoPublico.puedePublicar()) return;
+    if (!MundoPublico.puedePublicar()) {
+      if (this.esAdminJugador() && !this._avisoSinToken) {
+        this._avisoSinToken = true;
+        Notificaciones.mostrar(
+          '⚠️ Sin token GitHub: los cambios solo quedan en tu teléfono. Configura 🔑 Token y pulsa Sincronizar.',
+          'alerta', 12000
+        );
+      }
+      return;
+    }
     clearTimeout(this._tempPublicar);
     this._tempPublicar = setTimeout(() => this.publicarMundo(true), 2000);
   },
@@ -325,7 +334,7 @@ const Admin = {
     enlazar('admin-mantenimiento', () => this.abrirMantenimiento());
     enlazar('admin-mensaje', () => this.abrirMensaje());
     enlazar('admin-organizar', () => this.entrarModo('organizar'));
-    enlazar('admin-jugadores', () => this.listarCuentas());
+    enlazar('admin-jugadores', () => this._listarCuentasAsync());
     enlazar('admin-cofres-ocultos', () => this.abrirCofresOcultos());
     enlazar('admin-publicar', () => this.publicarMundo(false));
     enlazar('admin-clave-publicar', () => this.abrirConfiguracionClave());
@@ -405,34 +414,81 @@ const Admin = {
     Items.aplicarMundo([...nuevosPorId.values()],
       Object.assign({}, this.publicado.precios, this.datos.precios));
 
-    for (const id of this.publicado.eliminados) {
-      if (!eliminadosAntes.has(id)) this._quitarDelMapa(id);
-    }
-
-    if (typeof Misiones !== 'undefined') {
-      for (const m of this.misionesTodas()) {
-        if (idsMisionesAntes.has(m.id) || this.eliminado(m.id)) continue;
-        this.pos(m.id, m.pos);
-        Misiones.agregarAdmin(m);
-      }
-    }
-
-    for (const t of this.tesorosTodos()) {
-      if (idsTesorosAntes.has(t.id) || this.eliminado(t.id)) continue;
-      this.pos(t.id, t.pos);
-      this._prepararTesoro(t);
-    }
-
-    for (const o of this.objetosTodos()) {
-      if (idsObjetosAntes.has(o.id) || this.eliminado(o.id)) continue;
-      this.pos(o.id, o.pos);
-      this._crearMarcadorObjeto(o);
-    }
+    this._sincronizarMapaRemoto(idsObjetosAntes, idsTesorosAntes, idsMisionesAntes, eliminadosAntes);
 
     if (typeof Cofres !== 'undefined') Cofres._pintarTodos();
     if (typeof Usuarios !== 'undefined') Usuarios.verificarSesionRemota();
 
-    Notificaciones.mostrar('🌍 ¡Mapa actualizado! Ya ves lo que creó el admin', 'exito', 5000);
+    this.mostrarMensajes();
+    if (typeof Notificaciones !== 'undefined') Notificaciones._actualizarBadge();
+
+    Notificaciones.mostrar('🌍 ¡Mundo actualizado!', 'exito', 5000);
+  },
+
+  _sincronizarMapaRemoto(idsObjetosAntes, idsTesorosAntes, idsMisionesAntes, eliminadosAntes) {
+    const idsObjetosAhora = new Set(this.objetosTodos().map(o => o.id));
+    const idsTesorosAhora = new Set(this.tesorosTodos().map(t => t.id));
+    const idsMisionesAhora = new Set(this.misionesTodas().map(m => m.id));
+
+    for (const id of this.publicado.eliminados) {
+      if (!eliminadosAntes.has(id)) this._quitarDelMapa(id);
+    }
+    for (const id of idsObjetosAntes) {
+      if (!idsObjetosAhora.has(id) || this.eliminado(id)) this._quitarDelMapa(id);
+    }
+    for (const id of idsTesorosAntes) {
+      if (!idsTesorosAhora.has(id) || this.eliminado(id)) this._quitarDelMapa(id);
+    }
+    for (const id of idsMisionesAntes) {
+      if (!idsMisionesAhora.has(id) || this.eliminado(id)) this._quitarDelMapa(id);
+    }
+
+    if (typeof Misiones !== 'undefined') {
+      for (const m of this.misionesTodas()) {
+        if (this.eliminado(m.id)) continue;
+        this.pos(m.id, m.pos);
+        const existente = Misiones.lista.find(x => x.id === m.id);
+        if (!existente) {
+          Misiones.agregarAdmin(m);
+        } else {
+          existente.pos = m.pos.slice();
+          if (Misiones._marcadores[m.id]) Misiones._marcadores[m.id].setLatLng(m.pos);
+          this._actualizarPuntoEnMapa(m.id, m.pos);
+        }
+      }
+    }
+
+    for (const t of this.tesorosTodos()) {
+      if (this.eliminado(t.id)) continue;
+      this.pos(t.id, t.pos);
+      if (!idsTesorosAntes.has(t.id)) {
+        this._prepararTesoro(t);
+      } else {
+        this._actualizarPuntoEnMapa(t.id, t.pos);
+        if (t._marcador) t._marcador.setLatLng(t.pos);
+        if (GPS.posicion) this._revisarTesoro(t, Utilidades.distanciaMetros(GPS.posicion, t.pos));
+      }
+    }
+
+    for (const o of this.objetosTodos()) {
+      if (this.eliminado(o.id)) continue;
+      this.pos(o.id, o.pos);
+      if (!idsObjetosAntes.has(o.id)) {
+        this._crearMarcadorObjeto(o);
+      } else {
+        this._actualizarPuntoEnMapa(o.id, o.pos);
+        if (o._marcador) o._marcador.setLatLng(o.pos);
+        this._revisarObjeto(o);
+      }
+    }
+  },
+
+  _actualizarPuntoEnMapa(id, pos) {
+    const p = Mapa.puntosInteractivos.find(x => x.id === id);
+    if (!p || !pos) return;
+    p.posicion[0] = pos[0];
+    p.posicion[1] = pos[1];
+    if (p.marcador && p.marcador.setLatLng) p.marcador.setLatLng(pos);
   },
 
   _quitarDelMapa(id) {
@@ -450,6 +506,8 @@ const Admin = {
       delete Misiones._marcadores[id];
       if (Misiones._lineas[id]) { Misiones._lineas[id].remove(); delete Misiones._lineas[id]; }
     }
+    const i = Mapa.puntosInteractivos.findIndex(p => p.id === id);
+    if (i >= 0) Mapa.puntosInteractivos.splice(i, 1);
   },
 
   // Admin entra directo al panel (sin contraseña en el menú).
@@ -1166,6 +1224,11 @@ const Admin = {
 
   // ---------- CUENTAS REGISTRADAS (panel admin) ----------
   listarCuentas() {
+    this._listarCuentasAsync();
+  },
+
+  async _listarCuentasAsync() {
+    await this.actualizarJugadoresGlobales();
     const cont = document.getElementById('admin-lista-jugadores');
     const buscar = document.getElementById('admin-buscar-jugador');
     if (buscar) buscar.value = '';
@@ -1785,7 +1848,9 @@ const Admin = {
     );
 
     if (ok) {
-      this._ultimoPublicado = this._crudoPublicado;
+      this._ultimoPublicado = json;
+      this._crudoPublicado = json;
+      try { this.publicado = Object.assign(this.publicado || {}, JSON.parse(json)); } catch (e) {}
       if (silencioso) {
         Notificaciones.mostrar('☁️ Mundo actualizado para todos', 'exito', 2500);
       } else {
@@ -1804,15 +1869,25 @@ const Admin = {
 
   // ---------- EXPORTAR ----------
   // Contenido COMPLETO para datos/mundo.json (publicado + cambios locales)
+  _itemsConPosicion(lista) {
+    return (lista || []).map(item => {
+      if (!item || !item.pos) return item;
+      const copia = Object.assign({}, item, { pos: item.pos.slice() });
+      this.pos(copia.id, copia.pos);
+      return copia;
+    });
+  },
+
   _jsonMundo() {
     const quitarTemporales = (clave, valor) => clave.startsWith('_') ? undefined : valor;
     const nuevosPorId = new Map();
     for (const it of this.publicado.itemsNuevos) nuevosPorId.set(it.id, it);
     for (const it of this.datos.itemsNuevos) nuevosPorId.set(it.id, it);
     return JSON.stringify({
-      misiones: this.misionesTodas(),
-      tesoros: this.tesorosTodos(),
-      objetos: this.objetosTodos(),
+      actualizadoEn: Date.now(),
+      misiones: this._itemsConPosicion(this.misionesTodas()),
+      tesoros: this._itemsConPosicion(this.tesorosTodos()),
+      objetos: this._itemsConPosicion(this.objetosTodos()),
       posiciones: Object.assign({}, this.publicado.posiciones, this.datos.posiciones),
       eliminados: [...new Set([...this.publicado.eliminados, ...this.datos.eliminados])]
         .filter(id => !id.startsWith('admx_')),

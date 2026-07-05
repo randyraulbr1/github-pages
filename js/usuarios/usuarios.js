@@ -237,7 +237,13 @@ const Usuarios = {
     this.datos.lista.push(perfil);
     this._guardarLista();
     this._registrarEnAdminLocal(perfil);
-    MundoPublico.registrarJugadorEnMundo(perfil, { pinHash: perfil.pinHash }).catch(() => {});
+    const okNube = await MundoPublico.registrarJugadorEnMundo(perfil, { pinHash: perfil.pinHash });
+    if (!okNube) {
+      Notificaciones.mostrar(
+        '⚠️ Cuenta creada aquí, pero no llegó a la nube. El admin debe tener 🔑 Token y pulsar Sincronizar.',
+        'alerta', 10000
+      );
+    }
     await this._activar(perfil);
   },
 

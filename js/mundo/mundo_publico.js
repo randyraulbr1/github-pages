@@ -20,51 +20,74 @@ const MundoPublico = {
     return !!CONFIG.firebaseMundoUrl;
   },
 
-  // Orden: primero el mismo sitio (Cuba / tcodm.com), luego GitHub raw
+  // Orden: GitHub raw (rama del juego) primero; datos/mundo.json del sitio puede ir atrasado
   urlsLectura() {
     if (CONFIG.firebaseMundoUrl) {
       return [CONFIG.firebaseMundoUrl.replace(/\/$/, '') + '/mundo.json'];
     }
-    const lista = ['datos/mundo.json'];
+    const lista = [];
     if (CONFIG.repoPublicacion && CONFIG.ramaPublicacion) {
       lista.push('https://raw.githubusercontent.com/' + CONFIG.repoPublicacion + '/' +
         CONFIG.ramaPublicacion + '/datos/mundo.json');
     }
+    lista.push('datos/mundo.json');
     return lista;
+  },
+
+  _versionMundo(texto) {
+    try {
+      const m = JSON.parse(texto);
+      if (m.actualizadoEn) return m.actualizadoEn;
+      let t = 0;
+      for (const msg of (m.mensajes || [])) t = Math.max(t, msg.t || 0);
+      for (const j of (m.jugadores || [])) {
+        t = Math.max(t, j.creado || 0, j.sesionT || 0);
+      }
+      const pos = m.posiciones || {};
+      t = Math.max(t, Object.keys(pos).length * 1000);
+      return t;
+    } catch (e) { return 0; }
   },
 
   _pesoMundo(texto) {
     try {
       const m = JSON.parse(texto);
+      const pos = m.posiciones || {};
       return (m.objetos && m.objetos.length || 0) + (m.tesoros && m.tesoros.length || 0) +
-        (m.misiones && m.misiones.length || 0) + (m.jugadores && m.jugadores.length || 0);
+        (m.misiones && m.misiones.length || 0) + (m.jugadores && m.jugadores.length || 0) +
+        (m.mensajes && m.mensajes.length || 0) + Object.keys(pos).length;
     } catch (e) { return -1; }
   },
 
   async descargar() {
     const bust = '?v=' + Date.now();
-    let mejor = null;
-    let mejorPeso = -1;
+    const candidatos = [];
     for (const base of this.urlsLectura()) {
       try {
         const url = base + (this.usaFirebase() ? '' : bust);
-        const r = await Utilidades.fetchConTimeout(url, { cache: 'no-store' }, 4000);
+        const r = await Utilidades.fetchConTimeout(url, { cache: 'no-store' }, 5000);
         if (!r.ok) continue;
         const texto = await r.text();
-        const peso = this._pesoMundo(texto);
-        if (peso >= mejorPeso) {
-          mejor = texto;
-          mejorPeso = peso;
-        }
+        candidatos.push({
+          texto,
+          version: this._versionMundo(texto),
+          peso: this._pesoMundo(texto),
+          esRaw: base.includes('raw.githubusercontent')
+        });
       } catch (e) { /* probar la siguiente URL */ }
     }
-    if (mejor) {
-      try {
-        const m = JSON.parse(mejor);
-        if (m.claveSyncNube) this._tokenDesdeMundo = m.claveSyncNube;
-        else if (m._syncToken) this._tokenDesdeMundo = m._syncToken;
-      } catch (e) {}
-    }
+    if (!candidatos.length) return null;
+    candidatos.sort((a, b) => {
+      if (b.version !== a.version) return b.version - a.version;
+      if (b.peso !== a.peso) return b.peso - a.peso;
+      return (b.esRaw ? 1 : 0) - (a.esRaw ? 1 : 0);
+    });
+    const mejor = candidatos[0].texto;
+    try {
+      const m = JSON.parse(mejor);
+      if (m.claveSyncNube) this._tokenDesdeMundo = m.claveSyncNube;
+      else if (m._syncToken) this._tokenDesdeMundo = m._syncToken;
+    } catch (e) {}
     return mejor;
   },
 
