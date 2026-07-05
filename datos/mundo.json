@@ -69,7 +69,7 @@
           null,
           {
             "id": "arroz_congri",
-            "cantidad": 1
+            "cantidad": 2
           },
           null,
           null,
@@ -95,8 +95,8 @@
         "xp": 0,
         "nivel": 1,
         "posicionJugador": [
-          22.993725837427267,
-          -82.75334715843202
+          22.993486334401865,
+          -82.75352150201799
         ],
         "tesorosRecogidos": [],
         "misiones": {},
@@ -129,14 +129,27 @@
             ],
             "hashAnterior": "GENESIS",
             "hash": "e96854a9acb4a25b2aee748379066ebc2a13245c4a98a0e77d5df69c3681d176"
+          },
+          {
+            "t": 1783286569118,
+            "detalle": "Obtenido: Arroz congrí",
+            "monto": 1,
+            "saldo": null,
+            "lugar": "campo abierto",
+            "pos": [
+              22.99343,
+              -82.753449
+            ],
+            "hashAnterior": "e96854a9acb4a25b2aee748379066ebc2a13245c4a98a0e77d5df69c3681d176",
+            "hash": "fbae5840e60927e3c722f98c907e62982acea469a7e2dbba501a57f06634524c"
           }
         ],
         "mensajesVistos": [],
         "muerto": false,
         "armaEquipada": null
       },
-      "t": 1783286564352
+      "t": 1783286573407
     }
   },
-  "actualizadoEn": 1783286564573
+  "actualizadoEn": 1783286573594
 }
