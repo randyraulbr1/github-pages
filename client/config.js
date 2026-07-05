@@ -1,22 +1,32 @@
 /**
  * Configuración del cliente Mariel Online.
  *
- * SERVER_URL:
- *   ''  → usa el mismo sitio (cuando el servidor Node sirve el juego)
- *   'https://tu-vps.com' → cuando el juego está en GitHub Pages y el servidor en otro sitio
+ * tcodm.com (GitHub Pages) = pantalla del juego, 24/7, sin tu PC.
+ * api.tcodm.com (Render/Railway) = servidor Node 24/7 en la nube, tampoco tu PC.
  */
-window.MARIEL_ONLINE = {
-  SERVER_URL: '',
+(function () {
+  const host = window.location.hostname;
+  let serverUrl = '';
 
-  // Centro de Mariel, Cuba
-  mapCenter: [22.9936, -82.7539],
-  mapZoom: 16,
-  mapMinZoom: 14,
-  mapMaxZoom: 20,
+  // En producción tcodm.com → conectar al API en la nube
+  if (host === 'tcodm.com' || host === 'www.tcodm.com') {
+    serverUrl = 'https://api.tcodm.com';
+  }
+  // En localhost con npm start → mismo origen
+  else if (host === 'localhost' || host === '127.0.0.1') {
+    serverUrl = window.location.origin;
+  }
 
-  // Límites del pueblo (igual que el juego GPS original)
-  mapBounds: [
-    [22.9650, -82.7900],
-    [23.0250, -82.7150]
-  ]
-};
+  window.MARIEL_ONLINE = {
+    SERVER_URL: serverUrl,
+
+    mapCenter: [22.9936, -82.7539],
+    mapZoom: 16,
+    mapMinZoom: 14,
+    mapMaxZoom: 20,
+    mapBounds: [
+      [22.9650, -82.7900],
+      [23.0250, -82.7150]
+    ]
+  };
+})();
