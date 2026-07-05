@@ -50,7 +50,7 @@
 
   try {
     avanzarCarga('Conectando con la nube…');
-    await pasoSeguro('clave', () => MundoPublico.cargarClaveSync());
+    await pasoSeguro('mundo-remoto', () => MundoPublico.descargar());
     await Usuarios.iniciar();
     avanzarCarga('Cargando tu partida…');
     await pasoSeguro('partida', () => Guardado.iniciar());

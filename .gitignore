@@ -26,6 +26,10 @@
 *.sql
 *.sqlite
 
+# Tokens locales (nunca subir al repositorio)
+datos/clave_sync.json
+datos/clave_sync.local.json
+
 # OS generated files #
 ######################
 .DS_Store

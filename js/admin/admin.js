@@ -63,13 +63,6 @@ const Admin = {
     if (!this.publicado.partidas) this.publicado.partidas = {};
     if (this.publicado.claveSyncNube) MundoPublico._tokenDesdeMundo = this.publicado.claveSyncNube;
 
-    const claveServidor = await MundoPublico.cargarClaveSync();
-    if (claveServidor && !this.datos.tokenPublicar) {
-      this.datos.tokenPublicar = claveServidor;
-      localStorage.setItem(this.CLAVE, JSON.stringify(this.datos,
-        (clave, valor) => clave.startsWith('_') ? undefined : valor));
-    }
-
     if (!Array.isArray(this.publicado.misiones)) this.publicado.misiones = [];
     if (!Array.isArray(this.publicado.tesoros)) this.publicado.tesoros = [];
     if (!Array.isArray(this.publicado.objetos)) this.publicado.objetos = [];
@@ -1413,15 +1406,14 @@ const Admin = {
     const yaHay = MundoPublico._tokenGitHub();
     const opcion = prompt(
       '🔑 Clave de GitHub\n\n' +
-      (yaHay ? '✅ Ya hay una clave configurada (permanente).\n\n' : '') +
+      (yaHay ? '✅ Ya hay una clave en este teléfono.\n\n' : '') +
       'Crear token nuevo:\n' +
       'https://github.com/settings/personal-access-tokens/new\n\n' +
       'Repo: randyraulbr1/github-pages\n' +
       'Permiso: Contents → Read and write\n\n' +
-      'Para dejarla SIEMPRE (recomendado):\n' +
-      'Edita en GitHub el archivo datos/clave_sync.json\n' +
-      'y pega el token en "token": "..."\n\n' +
-      'O pégala aquí una vez (se guarda en este teléfono):\n' +
+      'Pégala aquí UNA VEZ (queda guardada en este teléfono).\n' +
+      'Luego pulsa PUBLICAR MUNDO para que todos puedan guardar.\n\n' +
+      '⚠️ NO la pongas en archivos de GitHub: GitHub la bloquea.\n\n' +
       '(vacío = no cambiar, solo "x" = borrar)',
       yaHay ? '' : ''
     );
@@ -1434,8 +1426,8 @@ const Admin = {
     this.guardar();
     Notificaciones.mostrar(
       MundoPublico._tokenGitHub()
-        ? '🔑 Clave lista. Publica el mundo una vez y todos podrán guardar en la nube.'
-        : '🔑 Pon el token en datos/clave_sync.json en GitHub para que quede permanente.',
+        ? '🔑 Clave guardada. Pulsa PUBLICAR MUNDO una vez para activar la nube.'
+        : '🔑 Pega tu token de GitHub para guardar en la nube.',
       'exito', 9000);
   },
 

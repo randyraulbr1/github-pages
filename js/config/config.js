@@ -3,7 +3,7 @@
 // ============================================================
 const CONFIG = {
   // Cambiar al publicar: obliga al móvil a descartar caché vieja
-  version: '24',
+  version: '25',
 
   // Nombre reservado del administrador (solo este jugador ve el panel admin)
   adminNombre: 'randy',
@@ -47,6 +47,6 @@ const CONFIG = {
   repoPublicacion: 'randyraulbr1/github-pages',
   ramaPublicacion: 'claude/web-rpg-gps-game-n3ybow',
 
-  // Clave permanente: ponla en datos/clave_sync.json (una sola vez en GitHub)
+  // Solo desarrollo local (nunca subas un token real al repositorio)
   tokenRegistroJugadores: '',
 };
