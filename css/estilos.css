@@ -965,3 +965,63 @@ body.jugador-muerto #letrero-misiones,
 body.jugador-muerto #banner-tesoro,
 body.jugador-muerto #admin-controles { pointer-events: none; opacity: .35; }
 #pantalla-muerte { z-index: 5500; }
+
+/* —— Combate —— */
+.ventana-combate-caja { max-width: 340px; }
+.combate-cuerpo { padding: 12px 16px 18px; }
+.combate-barra-vida {
+  height: 14px; border-radius: 8px; background: rgba(255,255,255,.12);
+  overflow: hidden; margin-bottom: 6px;
+}
+.combate-vida-relleno, .enemigo-barra-relleno {
+  height: 100%; background: linear-gradient(90deg, #ff453a, #ff6961);
+  border-radius: 8px; transition: width .25s ease;
+}
+.combate-vida-texto { text-align: center; font-size: 13px; color: #c8d0e0; margin-bottom: 10px; }
+.combate-info { font-size: 12px; color: #9aa5bd; line-height: 1.45; margin: 0 0 14px; }
+.combate-botones { display: flex; gap: 10px; }
+.btn-combate-atacar, .btn-combate-huir {
+  flex: 1; border: none; border-radius: 12px; padding: 13px 10px;
+  font-weight: 800; font-size: 15px; cursor: pointer;
+}
+.btn-combate-atacar { background: #ff453a; color: #fff; }
+.btn-combate-huir { background: rgba(255,255,255,.12); color: #fff; }
+.enemigo-barra-contenedor { background: transparent !important; border: none !important; }
+.enemigo-barra-vida {
+  width: 40px; height: 6px; border-radius: 4px; background: rgba(0,0,0,.55);
+  overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,.4);
+}
+
+/* —— Misiones: rejilla de recompensa —— */
+.admin-mision-horizontal { margin-top: 8px; }
+.mision-recompensa-preview {
+  margin: 10px 0; padding: 10px; border-radius: 12px;
+  background: rgba(255,255,255,.05); border: 1px solid rgba(255,255,255,.08);
+}
+.mision-recompensa-titulo { font-size: 12px; color: #9aa5bd; margin-bottom: 8px; font-weight: 700; }
+.mision-recompensa-rejilla {
+  display: grid; grid-template-columns: repeat(6, 1fr); gap: 6px; max-width: 280px;
+}
+.mision-recompensa-slot.bloqueada { opacity: .45; filter: grayscale(.6); }
+.mision-recompensa-slot.bloqueada::after {
+  content: '🔒'; position: absolute; font-size: 10px; right: 2px; top: 0;
+}
+.mision-recompensa-slot { position: relative; min-height: 42px; }
+.mision-recompensa-preview.desbloqueada .mision-recompensa-slot.bloqueada {
+  opacity: 1; filter: none;
+}
+.mision-recompensa-preview.desbloqueada .mision-recompensa-slot.bloqueada::after { content: none; }
+
+/* —— Admin: notas y tienda —— */
+.admin-infinito-barra { padding: 6px 14px 0; }
+.btn-admin-nota-mini {
+  border: 1px dashed rgba(255,255,255,.25); border-radius: 10px; padding: 6px 10px;
+  background: rgba(255,255,255,.06); color: #fff; font-size: 12px; font-weight: 700; cursor: pointer;
+}
+.admin-slot-nota { border: 1px dashed #8ab4ff; }
+.fila-tienda-admin-item {
+  padding: 8px 10px; border-radius: 10px; margin-bottom: 6px;
+  background: rgba(255,255,255,.06); font-size: 13px;
+}
+#admin-tienda-items { padding: 4px 0; max-height: 200px; overflow-y: auto; }
+

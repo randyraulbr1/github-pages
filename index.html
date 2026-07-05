@@ -13,7 +13,7 @@
   <script>
     // Aviso temprano en móvil (antes de cargar 20+ archivos JS)
     (function () {
-      var V = '35';
+      var V = '36';
       var texto = document.getElementById('carga-texto');
       if (texto) texto.textContent = 'Conectando…';
       var prev = localStorage.getItem('mariel_app_version');
@@ -220,6 +220,24 @@
     </div>
   </div>
 
+  <!-- ============ VENTANA: COMBATE ============ -->
+  <div id="ventana-combate" class="ventana oculto">
+    <div class="ventana-caja ventana-combate-caja">
+      <div class="ventana-titulo"><span id="combate-nombre">Enemigo</span> <button class="btn-cerrar" data-cierra="ventana-combate">✕</button></div>
+      <div class="combate-cuerpo">
+        <div class="combate-barra-vida">
+          <div id="combate-vida-relleno" class="combate-vida-relleno"></div>
+        </div>
+        <div id="combate-vida-texto" class="combate-vida-texto">—</div>
+        <p id="combate-info" class="combate-info"></p>
+        <div class="combate-botones">
+          <button type="button" id="btn-combate-atacar" class="btn-combate-atacar">⚔️ Atacar</button>
+          <button type="button" id="btn-combate-huir" class="btn-combate-huir">🏃 Huir</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <!-- ============ VENTANA: PESCA ============ -->
   <div id="ventana-pesca" class="ventana oculto">
     <div class="ventana-caja">
@@ -325,6 +343,8 @@
           <button class="fila-opcion admin-nav" id="admin-crear-tesoro"><span class="icono-opcion">🎁</span> Tesoro</button>
           <button class="fila-opcion admin-nav" id="admin-dejar-objeto"><span class="icono-opcion">📦</span> Objeto</button>
           <button class="fila-opcion admin-nav" id="admin-colocar-cofre"><span class="icono-opcion">🧰</span> Cofre</button>
+          <button class="fila-opcion admin-nav" id="admin-crear-enemigo"><span class="icono-opcion">👹</span> Enemigo</button>
+          <button class="fila-opcion admin-nav" id="admin-crear-tienda"><span class="icono-opcion">🏪</span> Tienda</button>
           <button class="fila-opcion admin-nav" id="admin-organizar"><span class="icono-opcion">✋</span> Organizar pines</button>
 
           <div class="admin-seccion-titulo">⚙️ Catálogo</div>
@@ -337,6 +357,9 @@
 
           <div class="admin-seccion-titulo">🧰 Cofres</div>
           <button class="fila-opcion admin-nav" id="admin-cofres-ocultos"><span class="icono-opcion">👻</span> Ocultos</button>
+
+          <div class="admin-seccion-titulo">⚔️ Combate</div>
+          <button class="fila-opcion admin-nav" id="admin-combate-config"><span class="icono-opcion">⚔️</span> Reglas globales</button>
 
           <div class="admin-seccion-titulo">🌍 Servidor</div>
           <button class="fila-opcion admin-nav" id="admin-mantenimiento"><span class="icono-opcion">🚧</span> Mantenimiento</button>
@@ -496,6 +519,52 @@
               <button type="button" id="btn-admin-mant-quitar" class="fila-opcion ok admin-clave-borrar">Quitar mantenimiento</button>
             </div>
           </div>
+
+          <div id="admin-vista-cofre" class="admin-vista oculto">
+            <div class="admin-clave-cuerpo">
+              <p class="admin-clave-ayuda">El panel admin sigue abierto. Elige el tipo y continúa al mapa.</p>
+              <div class="campo-caja">
+                <input type="checkbox" id="admin-cofre-visible" checked>
+                <label for="admin-cofre-visible">Cofre visible (cualquiera puede abrirlo)</label>
+              </div>
+              <div class="campo-admin oculto" id="cofre-pin-panel">
+                <label for="admin-cofre-pin">PIN de 4 números (cofre oculto)</label>
+                <input id="admin-cofre-pin" type="password" inputmode="numeric" maxlength="4" placeholder="1234" autocomplete="off">
+              </div>
+              <button type="button" id="btn-admin-cofre-panel" class="btn-auth-principal">Continuar → tocar mapa</button>
+            </div>
+          </div>
+
+          <div id="admin-vista-combate" class="admin-vista oculto">
+            <div class="admin-clave-cuerpo">
+              <p class="admin-clave-ayuda">Reglas de combate para todos los jugadores al publicar el mundo.</p>
+              <div class="campo-doble">
+                <div class="campo-admin">
+                  <label for="admin-combate-dano-min">Daño jugador mínimo</label>
+                  <input id="admin-combate-dano-min" type="number" min="1" inputmode="numeric">
+                </div>
+                <div class="campo-admin">
+                  <label for="admin-combate-dano-max">Daño jugador máximo</label>
+                  <input id="admin-combate-dano-max" type="number" min="5" inputmode="numeric">
+                </div>
+              </div>
+              <div class="campo-doble">
+                <div class="campo-admin">
+                  <label for="admin-combate-radio-zona">Radio zona (m)</label>
+                  <input id="admin-combate-radio-zona" type="number" min="10" inputmode="numeric">
+                </div>
+                <div class="campo-admin">
+                  <label for="admin-combate-radio-persec">Persecución (m)</label>
+                  <input id="admin-combate-radio-persec" type="number" min="5" inputmode="numeric">
+                </div>
+              </div>
+              <div class="campo-admin">
+                <label for="admin-combate-curacion">Curación sin golpes (segundos)</label>
+                <input id="admin-combate-curacion" type="number" min="30" inputmode="numeric">
+              </div>
+              <button type="button" id="btn-admin-combate-guardar" class="btn-auth-principal">Guardar reglas</button>
+            </div>
+          </div>
         </aside>
       </div>
     </div>
@@ -549,39 +618,40 @@
   </div>
 
   <!-- LIBRERÍAS -->
-  <script src="lib/leaflet/leaflet.js?v=35"></script>
+  <script src="lib/leaflet/leaflet.js?v=36"></script>
 
   <!-- MÓDULOS DEL JUEGO (orden importante) -->
-  <script src="js/config/config.js?v=35"></script>
-  <script src="js/nucleo/utilidades.js?v=35"></script>
-  <script src="js/mundo/mundo_publico.js?v=35"></script>
-  <script src="js/notificaciones/notificaciones.js?v=35"></script>
-  <script src="js/usuarios/usuarios.js?v=35"></script>
-  <script src="js/guardado/guardado.js?v=35"></script>
-  <script src="js/historial/historial.js?v=35"></script>
-  <script src="js/dinero/dinero.js?v=35"></script>
-  <script src="js/vida/vida.js?v=35"></script>
-  <script src="js/items/items.js?v=35"></script>
-  <script src="js/mochila/mochila.js?v=35"></script>
-  <script src="js/mapa/mapa.js?v=35"></script>
-  <script src="js/gps/gps.js?v=35"></script>
-  <script src="js/tiendas/datos_tiendas.js?v=35"></script>
-  <script src="js/tiendas/tiendas.js?v=35"></script>
-  <script src="js/pesca/pesca.js?v=35"></script>
-  <script src="js/tesoros/datos_tesoros.js?v=35"></script>
-  <script src="js/tesoros/tesoros.js?v=35"></script>
-  <script src="js/misiones/datos_misiones.js?v=35"></script>
-  <script src="js/misiones/misiones.js?v=35"></script>
-  <script src="js/cofres/cofres.js?v=35"></script>
-  <script src="js/correo/correo.js?v=35"></script>
-  <script src="js/admin/admin.js?v=35"></script>
-  <script src="js/opciones/opciones.js?v=35"></script>
-  <script src="js/principal.js?v=35"></script>
+  <script src="js/config/config.js?v=36"></script>
+  <script src="js/nucleo/utilidades.js?v=36"></script>
+  <script src="js/mundo/mundo_publico.js?v=36"></script>
+  <script src="js/notificaciones/notificaciones.js?v=36"></script>
+  <script src="js/usuarios/usuarios.js?v=36"></script>
+  <script src="js/guardado/guardado.js?v=36"></script>
+  <script src="js/historial/historial.js?v=36"></script>
+  <script src="js/dinero/dinero.js?v=36"></script>
+  <script src="js/vida/vida.js?v=36"></script>
+  <script src="js/items/items.js?v=36"></script>
+  <script src="js/mochila/mochila.js?v=36"></script>
+  <script src="js/mapa/mapa.js?v=36"></script>
+  <script src="js/gps/gps.js?v=36"></script>
+  <script src="js/tiendas/datos_tiendas.js?v=36"></script>
+  <script src="js/tiendas/tiendas.js?v=36"></script>
+  <script src="js/pesca/pesca.js?v=36"></script>
+  <script src="js/tesoros/datos_tesoros.js?v=36"></script>
+  <script src="js/tesoros/tesoros.js?v=36"></script>
+  <script src="js/misiones/datos_misiones.js?v=36"></script>
+  <script src="js/misiones/misiones.js?v=36"></script>
+  <script src="js/cofres/cofres.js?v=36"></script>
+  <script src="js/correo/correo.js?v=36"></script>
+  <script src="js/enemigos/enemigos.js?v=36"></script>
+  <script src="js/admin/admin.js?v=36"></script>
+  <script src="js/opciones/opciones.js?v=36"></script>
+  <script src="js/principal.js?v=36"></script>
   <script>
     // Registrar la app instalable (PWA)
     if ('serviceWorker' in navigator) {
       const yaTeniaVersion = !!navigator.serviceWorker.controller;
-      navigator.serviceWorker.register('sw.js?v=35', { updateViaCache: 'none' })
+      navigator.serviceWorker.register('sw.js?v=36', { updateViaCache: 'none' })
         .then(function (reg) { reg.update(); })
         .catch(function () {});
       // Cuando llega una versión nueva del juego: avisar y recargar solo

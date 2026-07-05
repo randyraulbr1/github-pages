@@ -8,6 +8,8 @@
 const Tiendas = {
   tiendaAbierta: null,
   pestana: 'comprar',
+  _marcadoresAdmin: {},
+  _listaAdmin: [],
 
   iniciar() {
     for (const t of DATOS_TIENDAS) {
@@ -22,14 +24,84 @@ const Tiendas = {
         alTocar: () => this.abrir(t)
       });
     }
+    this._cargarAdmin();
     document.getElementById('pestana-comprar').addEventListener('click', () => this.cambiarPestana('comprar'));
     document.getElementById('pestana-vender').addEventListener('click', () => this.cambiarPestana('vender'));
+  },
+
+  _esTiendaAdmin(t) {
+    return !!(t && Array.isArray(t.vende) && t.vende.length && typeof t.vende[0] === 'object');
+  },
+
+  _estadoStock() {
+    if (!Admin.publicado.tiendasStock) Admin.publicado.tiendasStock = {};
+    return Admin.publicado.tiendasStock;
+  },
+
+  _stockDisponible(tiendaId, entry) {
+    if (entry.infinito) return Infinity;
+    const st = this._estadoStock();
+    const key = tiendaId + '|' + entry.id;
+    if (st[key] !== undefined) return st[key];
+    return entry.stock || 0;
+  },
+
+  _cargarAdmin() {
+    if (typeof Admin === 'undefined' || !Admin.tiendasAdminTodas) return;
+    const nuevas = Admin.tiendasAdminTodas();
+    const idsNuevos = new Set(nuevas.map(t => t.id));
+    for (const id of Object.keys(this._marcadoresAdmin)) {
+      if (!idsNuevos.has(id) || Admin.eliminado(id)) {
+        if (this._marcadoresAdmin[id].remove) this._marcadoresAdmin[id].remove();
+        delete this._marcadoresAdmin[id];
+      }
+    }
+    this._listaAdmin = nuevas.filter(t => !Admin.eliminado(t.id));
+    for (const t of this._listaAdmin) {
+      const pos = t.posicion || t.pos;
+      if (!pos) continue;
+      Admin.pos(t.id, pos);
+      if (!this._marcadoresAdmin[t.id]) {
+        const marcador = Mapa.crearMarcadorEmoji(pos, t.icono || '🏪');
+        this._marcadoresAdmin[t.id] = marcador;
+        Mapa.registrarPunto({
+          id: t.id,
+          posicion: pos,
+          radio: CONFIG.distanciaInteraccion,
+          marcador,
+          alTocar: () => this.abrir(t)
+        });
+      }
+    }
+  },
+
+  agregarAdmin(t) {
+    const pos = t.posicion || t.pos;
+    if (!pos) return;
+    Admin.pos(t.id, pos);
+    if (!this._listaAdmin.find(x => x.id === t.id)) this._listaAdmin.push(t);
+    if (this._marcadoresAdmin[t.id]) return;
+    const marcador = Mapa.crearMarcadorEmoji(pos, t.icono || '🏪');
+    this._marcadoresAdmin[t.id] = marcador;
+    Mapa.registrarPunto({
+      id: t.id,
+      posicion: pos,
+      radio: CONFIG.distanciaInteraccion,
+      marcador,
+      alTocar: () => this.abrir(t)
+    });
+  },
+
+  refrescarAdmin() {
+    this._cargarAdmin();
+    if (this.tiendaAbierta && this._esTiendaAdmin(this.tiendaAbierta)) this.pintar();
   },
 
   abrir(tienda) {
     this.tiendaAbierta = tienda;
     this.pestana = 'comprar';
-    document.getElementById('tienda-nombre').textContent = tienda.nombre;
+    const nombre = (tienda.icono ? tienda.icono + ' ' : '') + (tienda.nombre || 'Tienda');
+    document.getElementById('tienda-nombre').textContent = nombre;
     document.getElementById('ventana-tienda').classList.remove('oculto');
     this.cambiarPestana('comprar');
   },
@@ -47,13 +119,23 @@ const Tiendas = {
     if (!this.tiendaAbierta) return;
 
     if (this.pestana === 'comprar') {
+      if (this._esTiendaAdmin(this.tiendaAbierta)) {
+        for (const entry of this.tiendaAbierta.vende) {
+          const item = Items.seguro(entry.id);
+          const stock = this._stockDisponible(this.tiendaAbierta.id, entry);
+          const agotado = !entry.infinito && stock <= 0;
+          const etiqueta = agotado ? 'Agotado' : (entry.infinito ? 'Comprar' : 'Comprar (' + stock + ')');
+          cont.appendChild(this._fila(item, entry.precio, etiqueta,
+            () => this.comprarAdmin(entry), !Dinero.puedePagar(entry.precio) || agotado));
+        }
+        return;
+      }
       for (const idItem of this.tiendaAbierta.vende) {
         const item = Items.obtener(idItem);
         cont.appendChild(this._fila(item, item.precio, 'Comprar',
           () => this.comprar(idItem), !Dinero.puedePagar(item.precio)));
       }
     } else {
-      // Vender: todo lo que hay en la mochila (a mitad de precio)
       const vistos = new Set();
       let hayAlgo = false;
       for (const sl of Mochila.slots) {
@@ -95,6 +177,34 @@ const Tiendas = {
     Mochila.agregar(idItem, 1, { silencioso: true });
     Notificaciones.mostrar(item.icono + ' Compraste ' + item.nombre, 'exito');
     Misiones.evento('compra', idItem);
+    this.pintar();
+  },
+
+  async comprarAdmin(entry) {
+    const t = this.tiendaAbierta;
+    const item = Items.seguro(entry.id);
+    if (!entry.infinito && this._stockDisponible(t.id, entry) <= 0) {
+      Notificaciones.mostrar('Agotado en esta tienda', 'alerta');
+      return;
+    }
+    if (Mochila.slotsLibres() === 0 && !Mochila.tieneItem(entry.id)) {
+      Notificaciones.mostrar('🎒 No tienes espacio en la mochila', 'error');
+      return;
+    }
+    const pagado = await Dinero.gastar(entry.precio, 'Compra: ' + item.nombre + ' (' + t.nombre + ')');
+    if (!pagado) return;
+    Mochila.agregar(entry.id, 1, { silencioso: true });
+    if (!entry.infinito) {
+      const st = this._estadoStock();
+      const key = t.id + '|' + entry.id;
+      st[key] = Math.max(0, this._stockDisponible(t.id, entry) - 1);
+      if (typeof Admin !== 'undefined') {
+        Admin.guardar();
+        Admin._publicarParaTodos(true);
+      }
+    }
+    Notificaciones.mostrar(item.icono + ' Compraste ' + item.nombre, 'exito');
+    Misiones.evento('compra', entry.id);
     this.pintar();
   },
 

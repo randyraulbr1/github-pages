@@ -70,13 +70,20 @@ const Misiones = {
 
   _normalizarAdmin(m) {
     Admin.pos(m.id, m.pos);
+    let items = [];
+    if (m.recItems && m.recItems.length) {
+      items = m.recItems.filter(Boolean).map(r => ({ id: r.id, cantidad: r.cantidad || 1 }));
+    } else if (m.recItem) {
+      items = [{ id: m.recItem, cantidad: m.recCant || 1 }];
+    }
     return {
       id: m.id, titulo: m.titulo, texto: m.texto || '',
       tipo: m.reqItem ? 'entregar' : 'visitar',
       requiere: m.reqItem ? [{ id: m.reqItem, cantidad: m.reqCant || 1 }] : [],
       consumir: !!m.consumir, pos: m.pos,
       dinero: m.dinero || 0,
-      items: m.recItem ? [{ id: m.recItem, cantidad: m.recCant || 1 }] : []
+      items,
+      xp: m.xp || 25
     };
   },
 
@@ -153,13 +160,33 @@ const Misiones = {
       requisitos = '<div class="progreso">Necesitas: ' + m.requiere.map(r =>
         Items.seguro(r.id).nombre + ' ' + Mochila.contar(r.id) + '/' + r.cantidad).join(', ') + '</div>';
     }
-    const premio = '💰 $' + (m.dinero || 0) +
-      (m.items || []).map(it => ' + ' + Items.seguro(it.id).icono + ' ' + Items.seguro(it.id).nombre + ' x' + it.cantidad).join('');
+    const premioDinero = '💰 $' + (m.dinero || 0);
+    const premioItems = (m.items || []).map(it =>
+      ' + ' + Items.seguro(it.id).icono + ' ' + Items.seguro(it.id).nombre + ' x' + it.cantidad).join('');
+    const premioXp = (m.xp ? ' · ⭐ ' + m.xp + ' XP' : '');
+    const puedeRecoger = this.puedeRecolectar(m);
+    let rejillaHtml = '';
+    if ((m.items || []).length) {
+      rejillaHtml = '<div class="mision-recompensa-preview' + (puedeRecoger ? ' desbloqueada' : '') + '">' +
+        '<div class="mision-recompensa-titulo">' + (puedeRecoger ? '🎁 Recompensas' : '🔒 Recompensas (al completar)') + '</div>' +
+        '<div class="mision-recompensa-rejilla">';
+      const itemsMostrar = m.items.slice(0, 6);
+      for (const it of itemsMostrar) {
+        const item = Items.seguro(it.id);
+        rejillaHtml += '<div class="slot mision-recompensa-slot' + (puedeRecoger ? '' : ' bloqueada') + '" title="' +
+          item.nombre + '">' + item.icono + '<span class="cantidad">' + it.cantidad + '</span></div>';
+      }
+      for (let i = itemsMostrar.length; i < 6; i++) {
+        rejillaHtml += '<div class="slot mision-recompensa-slot vacia"></div>';
+      }
+      rejillaHtml += '</div></div>';
+    }
     caja.innerHTML =
       '<div class="titulo">❗ ' + m.titulo + '</div>' +
       (m.texto ? '<div class="descripcion">' + m.texto + '</div>' : '') +
       requisitos +
-      '<div class="distancia">Recompensa: ' + premio + '</div>';
+      rejillaHtml +
+      '<div class="distancia">Recompensa: ' + premioDinero + premioItems + premioXp + '</div>';
     cont.appendChild(caja);
 
     const botones = document.createElement('div');
@@ -222,7 +249,7 @@ const Misiones = {
     Notificaciones.mostrar('🎉 Recompensa recolectada: ' + m.titulo, 'exito', 5000);
     if (m.dinero) await Dinero.ganar(m.dinero, 'Misión: ' + m.titulo);
     for (const it of (m.items || [])) Mochila.agregar(it.id, it.cantidad);
-    Vida.ganarXp(25 + (m.dinero || 0), 'Misión completada');
+    Vida.ganarXp(m.xp || 25, 'Misión completada');
     this.pintarLetrero();
     this.actualizarLineas();
   },
@@ -264,7 +291,8 @@ const Misiones = {
     } else if (m.texto) requisitos = m.texto;
     else if (m.tipo === 'visitar') requisitos = 'Ve al icono ❗ de la misión';
     const premio = '$' + (m.dinero || 0) +
-      (m.items || []).map(it => ' + ' + Items.seguro(it.id).icono + ' x' + it.cantidad).join('');
+      (m.items || []).map(it => ' + ' + Items.seguro(it.id).icono + ' x' + it.cantidad).join('') +
+      (m.xp ? ' · ' + m.xp + ' XP' : '');
     const msg = '📜 ' + m.titulo + '\n\n' + requisitos + '\n\n🎁 Recompensa: ' + premio;
     if (this.puedeRecolectar(m)) {
       if (confirm(msg + '\n\n¿Ir a recolectar? (toca el icono ❗ en el mapa)')) {

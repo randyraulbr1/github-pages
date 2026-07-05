@@ -96,6 +96,7 @@
     Pesca.iniciar();
     Tesoros.iniciar();
     Misiones.iniciar();
+    if (typeof Enemigos !== 'undefined') Enemigos.iniciar();
     Correo.iniciar();
     Cofres.iniciar();
     await pasoSeguro('admin', () => { Admin.iniciar(); });

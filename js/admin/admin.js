@@ -38,6 +38,8 @@ const Admin = {
     if (!this.datos.posiciones) this.datos.posiciones = {};
     if (!this.datos.eliminados) this.datos.eliminados = [];
     if (!this.datos.partidasExtra) this.datos.partidasExtra = {};
+    if (!this.datos.enemigos) this.datos.enemigos = [];
+    if (!this.datos.tiendasAdmin) this.datos.tiendasAdmin = [];
     if (this.datos.mantenimiento === undefined) this.datos.mantenimiento = null;
 
     // El mundo oficial vive en GitHub: al actualizar datos/mundo.json,
@@ -61,6 +63,13 @@ const Admin = {
     if (!this.publicado.correoReclamados) this.publicado.correoReclamados = [];
     if (!this.publicado.correoTienda) this.publicado.correoTienda = [];
     if (!this.publicado.partidas) this.publicado.partidas = {};
+    if (!this.publicado.enemigos) this.publicado.enemigos = [];
+    if (!this.publicado.enemigosEstado) this.publicado.enemigosEstado = {};
+    if (!this.publicado.tiendasAdmin) this.publicado.tiendasAdmin = [];
+    if (!this.publicado.tiendasStock) this.publicado.tiendasStock = {};
+    if (!this.publicado.combate) {
+      this.publicado.combate = { danoMin: 5, danoMax: 85, radioZona: 40, radioPersecucion: 20, curacionMs: 120000 };
+    }
     if (this.publicado.claveSyncNube) MundoPublico._tokenDesdeMundo = this.publicado.claveSyncNube;
     this._aplicarTokenTelefono();
 
@@ -122,6 +131,23 @@ const Admin = {
       return this._combinar(this.publicado.tesoros || [], this.datos.tesoros || []);
     }
     return (this.publicado.tesoros || []).filter(e => !this.eliminado(e.id));
+  },
+  enemigosTodos() {
+    if (this.esAdminJugador()) {
+      return this._combinar(this.publicado.enemigos || [], this.datos.enemigos || []);
+    }
+    return (this.publicado.enemigos || []).filter(e => !this.eliminado(e.id));
+  },
+  tiendasAdminTodas() {
+    if (this.esAdminJugador()) {
+      return this._combinar(this.publicado.tiendasAdmin || [], this.datos.tiendasAdmin || []);
+    }
+    return (this.publicado.tiendasAdmin || []).filter(e => !this.eliminado(e.id));
+  },
+  combateConfig() {
+    return Object.assign({
+      danoMin: 5, danoMax: 85, radioZona: 40, radioPersecucion: 20, curacionMs: 120000
+    }, this.publicado.combate || {}, this.datos.combate || {});
   },
   objetosTodos() {
     if (this.esAdminJugador()) {
@@ -360,10 +386,19 @@ const Admin = {
       const el = document.getElementById(id);
       if (el) el.addEventListener('click', fn);
     };
-    enlazar('admin-colocar-cofre', () => {
-      document.getElementById('ventana-admin').classList.add('oculto');
-      Cofres.colocarDesdeAdmin();
-    });
+    enlazar('admin-colocar-cofre', () => this.abrirCofreEnPanel());
+    enlazar('admin-crear-enemigo', () => this.abrirFormulario('enemigo'));
+    enlazar('admin-crear-tienda', () => this.abrirFormulario('tienda_admin'));
+    enlazar('admin-combate-config', () => this.abrirCombateConfig());
+    enlazar('btn-admin-combate-guardar', () => this._guardarCombateConfig());
+    enlazar('btn-admin-cofre-panel', () => this._continuarCofrePanel());
+    const chkCofreVis = document.getElementById('admin-cofre-visible');
+    if (chkCofreVis) {
+      chkCofreVis.addEventListener('change', () => {
+        const pinPanel = document.getElementById('cofre-pin-panel');
+        if (pinPanel) pinPanel.classList.toggle('oculto', chkCofreVis.checked);
+      });
+    }
     enlazar('admin-crear-mision', () => this.abrirFormulario('mision'));
     enlazar('admin-crear-tesoro', () => this.abrirFormulario('tesoro'));
     enlazar('admin-dejar-objeto', () => this.abrirFormulario('objeto'));
@@ -467,6 +502,8 @@ const Admin = {
     this._sincronizarMapaRemoto(idsObjetosAntes, idsTesorosAntes, idsMisionesAntes, eliminadosAntes);
 
     if (typeof Cofres !== 'undefined') Cofres._pintarTodos();
+    if (typeof Enemigos !== 'undefined') Enemigos._recargar();
+    if (typeof Tiendas !== 'undefined' && Tiendas.refrescarAdmin) Tiendas.refrescarAdmin();
     if (typeof Usuarios !== 'undefined') Usuarios.verificarSesionRemota();
 
     this.mostrarMensajes();
@@ -637,6 +674,7 @@ const Admin = {
 
     if (tipo === 'mision') {
       titulo = '📜 Crear misión';
+      this._misionRecompensas = [];
       campos.innerHTML =
         this._campoTexto('af-titulo', 'Título de la misión', 'Ej: El encargo del pescador') +
         this._campoArea('af-texto', 'Texto que verá el jugador', 'Ej: Tráeme 5 sardinas al muelle viejo...') +
@@ -647,9 +685,71 @@ const Admin = {
         '<div class="campo-caja"><input type="checkbox" id="af-consumir"><label for="af-consumir">Quitar esos objetos al cumplir (es una entrega)</label></div>' +
         '<div class="campo-doble">' +
           this._campoNumero('af-dinero', 'Recompensa en dinero $', 50) +
-          this._campoSelect('af-rec-item', 'Objeto de recompensa', this._opcionesItems(true)) +
+          this._campoNumero('af-xp', 'Experiencia (XP)', 25) +
         '</div>' +
-        this._campoNumero('af-rec-cant', 'Cantidad del objeto de recompensa', 1);
+        '<div class="admin-editor-horizontal admin-mision-horizontal">' +
+          '<div class="admin-editor-columna">' +
+            '<div class="admin-editor-seccion">Recompensas (solo al completar) — arrastra desde ADM →</div>' +
+            '<div id="admin-mision-recompensas" class="admin-rejilla-inventario admin-rejilla-fija"></div>' +
+          '</div>' +
+          '<div class="admin-editor-columna admin-editor-columna-adm">' +
+            '<div class="admin-editor-seccion">ADM ∞</div>' +
+            '<div id="admin-mision-infinito" class="admin-rejilla-infinito"></div>' +
+          '</div>' +
+        '</div>';
+      setTimeout(() => {
+        this._pintarMisionRecompensas();
+        this._pintarInventarioInfinito(document.getElementById('admin-mision-infinito'), (id, cel) => {
+          cel.addEventListener('pointerdown', ev => this._misionArrastre(ev, id));
+        });
+      }, 0);
+    } else if (tipo === 'enemigo') {
+      titulo = '👹 Crear enemigo';
+      const nom = Enemigos.NOMBRES[Math.floor(Math.random() * Enemigos.NOMBRES.length)];
+      const ico = Enemigos.ICONOS[Math.floor(Math.random() * Enemigos.ICONOS.length)];
+      campos.innerHTML =
+        this._campoTexto('af-nombre', 'Nombre', nom) +
+        '<div class="campo-admin"><label>Icono</label>' +
+        '<input id="af-icono-enemigo" maxlength="4" value="' + ico + '">' +
+        this._rejillaEmojisHtml().replace('admin-emoji-rejilla', 'admin-emoji-rejilla admin-emoji-enemigo') + '</div>' +
+        '<div class="campo-doble">' +
+          this._campoNumero('af-vida', 'Vida', 60) +
+          this._campoNumero('af-dano', 'Daño al jugador', 12) +
+        '</div>' +
+        '<div class="campo-doble">' +
+          this._campoNumero('af-xp', 'XP al derrotarlo', 30) +
+          this._campoNumero('af-dinero', 'Dinero extra $', 0) +
+        '</div>';
+      setTimeout(() => {
+        const inp = document.getElementById('af-icono-enemigo');
+        const rej = document.querySelector('.admin-emoji-enemigo');
+        if (rej && inp) {
+          rej.querySelectorAll('.admin-emoji-btn').forEach(btn => {
+            btn.addEventListener('click', () => { inp.value = btn.dataset.emoji; });
+          });
+        }
+      }, 0);
+    } else if (tipo === 'tienda_admin') {
+      titulo = '🏪 Crear tienda';
+      this._tiendaAdminItems = [];
+      campos.innerHTML =
+        this._campoTexto('af-nombre', 'Nombre de la tienda', 'Ej: Bodega del puerto') +
+        this._campoTexto('af-icono-tienda', 'Icono', '🏪') +
+        '<div class="admin-editor-horizontal">' +
+          '<div class="admin-editor-columna">' +
+            '<div class="admin-editor-seccion">Artículos — arrastra desde ADM →</div>' +
+            '<div id="admin-tienda-items"></div>' +
+          '</div>' +
+          '<div class="admin-editor-columna admin-editor-columna-adm">' +
+            '<div id="admin-tienda-infinito" class="admin-rejilla-infinito"></div>' +
+          '</div>' +
+        '</div>';
+      setTimeout(() => {
+        this._pintarTiendaAdminItems();
+        this._pintarInventarioInfinito(document.getElementById('admin-tienda-infinito'), (id, cel) => {
+          cel.addEventListener('click', () => this._agregarItemTiendaAdmin(id));
+        });
+      }, 0);
     } else if (tipo === 'tesoro') {
       titulo = '🎁 Crear tesoro';
       campos.innerHTML =
@@ -691,7 +791,7 @@ const Admin = {
       document.getElementById('btn-admin-guardar').textContent = 'Crear objeto';
       setTimeout(() => this._enlazarEmojisObjeto(), 0);
     }
-    if (tipo === 'mision' || tipo === 'tesoro' || tipo === 'objeto') {
+    if (tipo === 'mision' || tipo === 'tesoro' || tipo === 'objeto' || tipo === 'enemigo' || tipo === 'tienda_admin') {
       document.getElementById('btn-admin-guardar').textContent = 'Continuar → colocar en el mapa';
     }
     document.getElementById('btn-admin-guardar').style.display = '';
@@ -770,6 +870,7 @@ const Admin = {
     if (tipo === 'mision') {
       const titulo = this._valor('af-titulo').trim();
       if (!titulo) { alert('Ponle un título a la misión'); return; }
+      const recItems = (this._misionRecompensas || []).filter(Boolean);
       valores = {
         titulo,
         texto: this._valor('af-texto').trim(),
@@ -777,10 +878,29 @@ const Admin = {
         reqCant: Math.max(1, this._numero('af-req-cant')),
         consumir: document.getElementById('af-consumir').checked,
         dinero: this._numero('af-dinero'),
-        recItem: this._valor('af-rec-item') || null,
-        recCant: Math.max(1, this._numero('af-rec-cant'))
+        xp: this._numero('af-xp') || 25,
+        recItems
       };
-      if (!valores.dinero && !valores.recItem) { alert('Ponle alguna recompensa (dinero u objeto)'); return; }
+      if (!valores.dinero && !recItems.length) { alert('Pon recompensa: dinero u objetos en la rejilla'); return; }
+    } else if (tipo === 'enemigo') {
+      const nombre = this._valor('af-nombre').trim() || Enemigos.NOMBRES[0];
+      const icono = (document.getElementById('af-icono-enemigo')?.value || '👹').trim();
+      const vida = Math.max(10, this._numero('af-vida') || 60);
+      valores = {
+        nombre, icono, vida, vidaMax: vida,
+        dano: Math.max(1, this._numero('af-dano') || 10),
+        xp: this._numero('af-xp') || 30,
+        dinero: this._numero('af-dinero') || 0
+      };
+    } else if (tipo === 'tienda_admin') {
+      const nombre = this._valor('af-nombre').trim();
+      if (nombre.length < 2) { alert('Ponle nombre a la tienda'); return; }
+      if (!(this._tiendaAdminItems || []).length) { alert('Añade al menos un artículo (clic en ADM ∞)'); return; }
+      valores = {
+        nombre,
+        icono: this._valor('af-icono-tienda').trim() || '🏪',
+        vende: this._tiendaAdminItems
+      };
     } else if (tipo === 'tesoro') {
       valores = {
         invisible: this._valor('af-visible') === 'invisible',
@@ -828,6 +948,24 @@ const Admin = {
       this.datos.misiones.push(m);
       Misiones.agregarAdmin(m);
       Notificaciones.mostrar('📜 Misión creada: ' + m.titulo, 'exito', 5000);
+    } else if (c.tipo === 'enemigo') {
+      const e = Object.assign({
+        id: 'enm_' + Date.now().toString(36),
+        pos,
+        posOrigen: pos.slice()
+      }, c.valores);
+      this.datos.enemigos.push(e);
+      if (typeof Enemigos !== 'undefined') Enemigos.agregarAdmin(e);
+      Notificaciones.mostrar('👹 Enemigo ' + e.nombre + ' colocado', 'exito', 5000);
+    } else if (c.tipo === 'tienda_admin') {
+      const t = Object.assign({
+        id: 'tadm_' + Date.now().toString(36),
+        posicion: pos,
+        pos
+      }, c.valores);
+      this.datos.tiendasAdmin.push(t);
+      if (typeof Tiendas !== 'undefined') Tiendas.agregarAdmin(t);
+      Notificaciones.mostrar('🏪 Tienda ' + t.nombre + ' creada', 'exito', 5000);
     } else if (c.tipo === 'tesoro') {
       const t = Object.assign({ id, pos }, c.valores);
       this.datos.tesoros.push(t);
@@ -1672,7 +1810,30 @@ const Admin = {
 
   _pintarInventarioInfinito(contenedor, enlazar) {
     if (!contenedor) return;
+    const padre = contenedor.parentElement;
+    if (!enlazar && padre) {
+      let barra = padre.querySelector('.admin-infinito-barra');
+      if (!barra) {
+        barra = document.createElement('div');
+        barra.className = 'admin-infinito-barra';
+        const btnNota = document.createElement('button');
+        btnNota.type = 'button';
+        btnNota.className = 'btn-admin-nota-mini';
+        btnNota.textContent = '📝 Crear nota';
+        btnNota.addEventListener('click', () => this._crearNotaAdmin());
+        barra.appendChild(btnNota);
+        padre.insertBefore(barra, contenedor);
+      }
+    }
     contenedor.innerHTML = '';
+    if (this._notaPendiente && !enlazar) {
+      const celNota = document.createElement('div');
+      celNota.className = 'slot admin-slot-infinito admin-slot-nota';
+      celNota.textContent = '📝';
+      celNota.title = this._notaPendiente.slice(0, 80);
+      celNota.addEventListener('pointerdown', ev => this._editorArrastre(ev, 'nota', null));
+      contenedor.appendChild(celNota);
+    }
     for (const id of this._idsCatalogoCompleto()) {
       const item = Items.seguro(id);
       const cel = document.createElement('div');
@@ -1782,6 +1943,7 @@ const Admin = {
       a.movio = true;
       let icono = '📦';
       if (a.origen === 'infinito' || a.origen === 'catalogo') icono = Items.seguro(a.ref).icono;
+      else if (a.origen === 'nota') icono = '📝';
       else if (a.origen === 'jugador' && this._editorJugador.partida.mochila[a.ref]) {
         icono = Items.seguro(this._editorJugador.partida.mochila[a.ref].id).icono;
       }
@@ -1818,6 +1980,15 @@ const Admin = {
       const id = a.ref;
       if (!this._apilarEnMochilaAdmin(ed.partida.mochila, dest, id, 1)) {
         Notificaciones.mostrar('Casilla llena o pila al máximo (' + this._maxPila(id) + ')', 'alerta', 3000);
+      }
+    } else if (a.origen === 'nota') {
+      const texto = this._notaPendiente;
+      if (!texto) return;
+      if (ed.partida.mochila[dest]) {
+        Notificaciones.mostrar('Casilla ocupada', 'alerta', 2500);
+      } else {
+        ed.partida.mochila[dest] = { id: 'nota_escrita', cantidad: 1, texto };
+        this._notaPendiente = null;
       }
     } else if (a.origen === 'jugador') {
       if (!a.movio) return;
@@ -2024,6 +2195,12 @@ const Admin = {
     remoto.cofres = admin.cofres || [];
     remoto.correoReclamados = admin.correoReclamados || [];
     remoto.correoTienda = admin.correoTienda || [];
+    remoto.enemigos = admin.enemigos || [];
+    remoto.tiendasAdmin = admin.tiendasAdmin || [];
+    remoto.tiendasStock = admin.tiendasStock || remoto.tiendasStock || {};
+    remoto.combate = admin.combate || remoto.combate;
+    if (admin.enemigosEstado) remoto.enemigosEstado = admin.enemigosEstado;
+    else if (!remoto.enemigosEstado) remoto.enemigosEstado = {};
     if (admin.claveSyncNube) remoto.claveSyncNube = admin.claveSyncNube;
 
     const porJugador = new Map();
@@ -2183,7 +2360,12 @@ const Admin = {
         }
         return porId;
       })(),
-      claveSyncNube: this._tokenPublicacion() || ''
+      claveSyncNube: this._tokenPublicacion() || '',
+      enemigos: this._itemsConPosicion(this.enemigosTodos()),
+      enemigosEstado: Object.assign({}, this.publicado.enemigosEstado || {}),
+      tiendasAdmin: this._itemsConPosicion(this.tiendasAdminTodas()),
+      tiendasStock: Object.assign({}, this.publicado.tiendasStock || {}),
+      combate: this.combateConfig()
     }, quitarTemporales, 2);
   },
 
@@ -2206,5 +2388,165 @@ const Admin = {
     } else {
       prompt('Copia este texto y pégalo en datos/mundo.json en GitHub:', json);
     }
+  },
+
+  // ---------- MISIONES: rejilla de recompensas ----------
+  _pintarMisionRecompensas() {
+    const rej = document.getElementById('admin-mision-recompensas');
+    if (!rej) return;
+    if (!this._misionRecompensas) this._misionRecompensas = [];
+    while (this._misionRecompensas.length < 6) this._misionRecompensas.push(null);
+    rej.innerHTML = '';
+    this._misionRecompensas.forEach((sl, i) => {
+      const cel = document.createElement('div');
+      cel.className = 'slot admin-slot-jugador mision-recompensa-slot';
+      cel.dataset.indice = i;
+      if (sl) {
+        const item = Items.seguro(sl.id);
+        cel.textContent = item.icono;
+        const cant = document.createElement('span');
+        cant.className = 'cantidad';
+        cant.textContent = sl.cantidad;
+        cel.appendChild(cant);
+        cel.title = item.nombre;
+      }
+      cel.addEventListener('pointerdown', ev => this._misionSlotArrastre(ev, i));
+      rej.appendChild(cel);
+    });
+  },
+
+  _misionArrastre(ev, itemId) {
+    ev.preventDefault();
+    this._misionArrastreActivo = { itemId, x0: ev.clientX, y0: ev.clientY, movio: false };
+    const mover = e => {
+      const a = this._misionArrastreActivo;
+      if (!a || Math.hypot(e.clientX - a.x0, e.clientY - a.y0) < 8) return;
+      a.movio = true;
+    };
+    const soltar = e => {
+      window.removeEventListener('pointermove', mover);
+      window.removeEventListener('pointerup', soltar);
+      const a = this._misionArrastreActivo;
+      this._misionArrastreActivo = null;
+      if (!a || !a.movio) return;
+      const bajo = document.elementFromPoint(e.clientX, e.clientY);
+      const slot = bajo?.closest?.('.mision-recompensa-slot');
+      if (!slot) {
+        const vacio = this._misionRecompensas.findIndex(s => !s);
+        const idx = vacio >= 0 ? vacio : this._misionRecompensas.length;
+        if (idx >= this._misionRecompensas.length) this._misionRecompensas.push({ id: a.itemId, cantidad: 1 });
+        else this._misionRecompensas[idx] = { id: a.itemId, cantidad: 1 };
+      } else {
+        const idx = parseInt(slot.dataset.indice, 10);
+        this._misionRecompensas[idx] = { id: a.itemId, cantidad: 1 };
+      }
+      this._pintarMisionRecompensas();
+    };
+    window.addEventListener('pointermove', mover);
+    window.addEventListener('pointerup', soltar);
+  },
+
+  _misionSlotArrastre(ev, i) {
+    const sl = this._misionRecompensas[i];
+    if (!sl) return;
+    ev.preventDefault();
+    const soltar = e => {
+      window.removeEventListener('pointerup', soltar);
+      const bajo = document.elementFromPoint(e.clientX, e.clientY);
+      if (!bajo?.closest?.('.mision-recompensa-slot')) this._misionRecompensas[i] = null;
+      this._pintarMisionRecompensas();
+    };
+    window.addEventListener('pointerup', soltar);
+  },
+
+  // ---------- TIENDA ADMIN ----------
+  _agregarItemTiendaAdmin(itemId) {
+    const precio = prompt('Precio de ' + Items.seguro(itemId).nombre + ':', String(Items.seguro(itemId).precio));
+    if (precio === null) return;
+    const p = Items._limitarPrecio(parseInt(precio, 10) || Items.seguro(itemId).precio);
+    const stockRaw = prompt('Cantidad en stock (0 = siempre disponible):', '0');
+    const stock = parseInt(stockRaw, 10);
+    if (!this._tiendaAdminItems) this._tiendaAdminItems = [];
+    this._tiendaAdminItems.push({
+      id: itemId,
+      precio: p,
+      stock: isNaN(stock) ? 0 : stock,
+      infinito: !stock || stock <= 0
+    });
+    this._pintarTiendaAdminItems();
+  },
+
+  _pintarTiendaAdminItems() {
+    const cont = document.getElementById('admin-tienda-items');
+    if (!cont) return;
+    cont.innerHTML = '';
+    for (const it of (this._tiendaAdminItems || [])) {
+      const item = Items.seguro(it.id);
+      const fila = document.createElement('div');
+      fila.className = 'fila-tienda-admin-item';
+      fila.innerHTML = item.icono + ' ' + item.nombre + ' — $' + it.precio +
+        (it.infinito ? ' (∞)' : ' x' + it.stock);
+      cont.appendChild(fila);
+    }
+  },
+
+  // ---------- COFRE EN PANEL (sin cerrar admin) ----------
+  abrirCofreEnPanel() {
+    this._tipoCofreVisible = true;
+    const vis = document.getElementById('admin-cofre-visible');
+    if (vis) vis.checked = true;
+    const pinPanel = document.getElementById('cofre-pin-panel');
+    if (pinPanel) pinPanel.classList.add('oculto');
+    const pin = document.getElementById('admin-cofre-pin');
+    if (pin) pin.value = '';
+    this._mostrarPanelDerecho('admin-vista-cofre', '🧰 Colocar cofre');
+  },
+
+  _continuarCofrePanel() {
+    const visible = document.getElementById('admin-cofre-visible')?.checked !== false;
+    let pin = null;
+    if (!visible) {
+      pin = (document.getElementById('admin-cofre-pin')?.value || '').trim();
+      if (!Utilidades.pinCofreValido(pin)) { alert('PIN de 4 números'); return; }
+    }
+    this._cofrePanelDatos = { visible, pin };
+    this._ocultarPanelDerecho();
+    if (typeof Cofres !== 'undefined') Cofres.iniciarColocacionAdmin(this._cofrePanelDatos);
+  },
+
+  // ---------- COMBATE GLOBAL ----------
+  abrirCombateConfig() {
+    const cfg = this.combateConfig();
+    const set = (id, v) => { const el = document.getElementById(id); if (el) el.value = v; };
+    set('admin-combate-dano-min', cfg.danoMin);
+    set('admin-combate-dano-max', cfg.danoMax);
+    set('admin-combate-radio-zona', cfg.radioZona);
+    set('admin-combate-radio-persec', cfg.radioPersecucion);
+    set('admin-combate-curacion', Math.round(cfg.curacionMs / 1000));
+    this._mostrarPanelDerecho('admin-vista-combate', '⚔️ Combate global');
+  },
+
+  _guardarCombateConfig() {
+    this.datos.combate = {
+      danoMin: Math.max(1, this._numero('admin-combate-dano-min') || 5),
+      danoMax: Math.max(5, this._numero('admin-combate-dano-max') || 85),
+      radioZona: Math.max(10, this._numero('admin-combate-radio-zona') || 40),
+      radioPersecucion: Math.max(5, this._numero('admin-combate-radio-persec') || 20),
+      curacionMs: Math.max(30000, this._numero('admin-combate-curacion') * 1000 || 120000)
+    };
+    this.guardar();
+    Notificaciones.mostrar('⚔️ Reglas de combate actualizadas para todos', 'exito');
+    this._volverAlPanel();
+  },
+
+  _crearNotaAdmin() {
+    const texto = prompt('Texto de la nota (máx. 200 caracteres):', '');
+    if (!texto || !texto.trim()) return;
+    this._notaPendiente = texto.trim().slice(0, 200);
+    if (this._editorJugador) {
+      if (this._editorJugador._creando) this._pintarCrearJugador();
+      else this._pintarEditorJugador();
+    }
+    Notificaciones.mostrar('📝 Nota lista — arrástrala al inventario del jugador', 'info', 4000);
   }
 };

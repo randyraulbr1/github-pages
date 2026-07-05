@@ -63,6 +63,18 @@ const Cofres = {
     this.usarCofreInventario();
   },
 
+  iniciarColocacionAdmin(datos) {
+    if (!datos) return;
+    this._modoAdminSinItem = true;
+    this._modoColocar = { visible: !!datos.visible, pin: datos.pin || null };
+    this._mostrarCirculoColocar();
+    if (typeof Admin !== 'undefined') {
+      Admin.modo = 'colocar_cofre';
+      Admin._mostrarControles('Toca el mapa dentro del círculo para el cofre', true);
+    }
+    Notificaciones.mostrar('📍 Toca el mapa dentro del círculo (máx. ' + CONFIG.radioColocarCofre + ' m)', 'info', 6000);
+  },
+
   usarCofreInventario() {
     if (!this._modoAdminSinItem && !Mochila.tieneItem('cofre')) {
       Notificaciones.mostrar('No tienes un cofre en la mochila', 'alerta');
