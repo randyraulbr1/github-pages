@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Admin — Mariel Online</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: system-ui, sans-serif; background: #0f172a; color: #e2e8f0; padding: 1rem; }
+    h1 { margin-bottom: 1rem; }
+    .oculto { display: none; }
+    section { background: #1e293b; border-radius: 12px; padding: 1rem; margin-bottom: 1rem; }
+    input, textarea, select { width: 100%; padding: .6rem; margin: .4rem 0; border-radius: 6px; border: 1px solid #475569; background: #0f172a; color: #f1f5f9; }
+    button { padding: .6rem 1rem; border: none; border-radius: 6px; background: #22c55e; color: #052e16; font-weight: 700; cursor: pointer; margin: .25rem .25rem .25rem 0; }
+    button.peligro { background: #ef4444; color: #fff; }
+    .error { color: #fca5a5; margin-top: .5rem; }
+    ul { list-style: none; }
+    li { padding: .5rem 0; border-bottom: 1px solid #334155; display: flex; justify-content: space-between; align-items: center; gap: .5rem; flex-wrap: wrap; }
+    .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+    @media (max-width: 700px) { .grid { grid-template-columns: 1fr; } }
+  </style>
+</head>
+<body>
+  <div id="login-panel">
+    <h1>🔧 Panel Admin</h1>
+    <section>
+      <input id="admin-user" type="text" value="admin" placeholder="Usuario admin">
+      <input id="admin-pass" type="password" placeholder="Contraseña admin">
+      <button id="btn-admin-login">Entrar</button>
+      <p id="login-error" class="error oculto"></p>
+      <p style="margin-top:.75rem;color:#94a3b8;font-size:.85rem">
+        Contraseña por defecto: <code>admin123</code> (cámbiala en <code>server/.env</code>)
+      </p>
+    </section>
+  </div>
+
+  <div id="admin-panel" class="oculto">
+    <h1>🔧 Mariel Online — Admin</h1>
+    <p style="margin-bottom:1rem;color:#94a3b8">Los cambios se guardan en SQLite y se avisan a todos por Socket.IO.</p>
+
+    <div class="grid">
+      <section>
+        <h2>Misiones</h2>
+        <input id="m-title" placeholder="Título de misión">
+        <textarea id="m-desc" rows="2" placeholder="Descripción"></textarea>
+        <input id="m-reward" placeholder='Recompensa JSON ej: {"xp":50,"items":[{"itemId":"coco","cantidad":1}]}'>
+        <button id="btn-create-mission">Crear misión</button>
+        <ul id="missions-list"></ul>
+      </section>
+
+      <section>
+        <h2>Objetos del mapa</h2>
+        <select id="o-type">
+          <option value="item">Item recogible</option>
+          <option value="tree">Árbol</option>
+          <option value="npc">NPC</option>
+        </select>
+        <input id="o-x" type="number" step="0.000001" placeholder="Latitud (x)" value="22.9936">
+        <input id="o-y" type="number" step="0.000001" placeholder="Longitud (y)" value="-82.7539">
+        <input id="o-data" placeholder='Datos JSON ej: {"itemId":"coco","icon":"🥥","cantidad":1}'>
+        <button id="btn-create-object">Crear objeto</button>
+        <ul id="objects-list"></ul>
+      </section>
+    </div>
+
+    <button id="btn-logout" class="peligro">Cerrar sesión admin</button>
+  </div>
+
+  <script>
+    const API = window.location.origin;
+    const TOKEN_KEY = 'mariel_admin_token';
+    let token = localStorage.getItem(TOKEN_KEY);
+
+    const $ = id => document.getElementById(id);
+
+    async function api(path, opts = {}) {
+      const headers = Object.assign({ 'Content-Type': 'application/json' }, opts.headers || {});
+      if (token) headers.Authorization = 'Bearer ' + token;
+      const r = await fetch(API + '/api/admin' + path, Object.assign({}, opts, { headers }));
+      const data = await r.json().catch(() => ({}));
+      if (!r.ok) throw new Error(data.error || 'Error');
+      return data;
+    }
+
+    $('btn-admin-login').onclick = async () => {
+      try {
+        const data = await fetch(API + '/api/admin/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            username: $('admin-user').value.trim(),
+            password: $('admin-pass').value
+          })
+        }).then(r => r.json());
+        if (!data.ok) throw new Error(data.error);
+        token = data.token;
+        localStorage.setItem(TOKEN_KEY, token);
+        showPanel();
+      } catch (e) {
+        $('login-error').textContent = e.message;
+        $('login-error').classList.remove('oculto');
+      }
+    };
+
+    $('btn-logout').onclick = () => {
+      token = null;
+      localStorage.removeItem(TOKEN_KEY);
+      location.reload();
+    };
+
+    async function loadMissions() {
+      const data = await api('/missions');
+      $('missions-list').innerHTML = data.missions.map(m => `
+        <li>
+          <span><b>${m.title}</b> ${m.isActive ? '✅' : '⏸️'}<br><small>${m.description}</small></span>
+          <span>
+            <button onclick="toggleMission(${m.id}, ${!m.isActive})">${m.isActive ? 'Desactivar' : 'Activar'}</button>
+            <button class="peligro" onclick="deleteMission(${m.id})">Borrar</button>
+          </span>
+        </li>
+      `).join('');
+    }
+
+    async function loadObjects() {
+      const data = await api('/objects');
+      $('objects-list').innerHTML = data.objects.map(o => `
+        <li>
+          <span>${o.type} #${o.id} (${o.x.toFixed(4)}, ${o.y.toFixed(4)}) ${o.data?.icon || ''}</span>
+          <button class="peligro" onclick="deleteObject(${o.id})">Borrar</button>
+        </li>
+      `).join('');
+    }
+
+    window.toggleMission = async (id, active) => {
+      await api('/missions/' + id, { method: 'PUT', body: JSON.stringify({ isActive: active }) });
+      loadMissions();
+    };
+
+    window.deleteMission = async (id) => {
+      if (!confirm('¿Borrar misión?')) return;
+      await api('/missions/' + id, { method: 'DELETE' });
+      loadMissions();
+    };
+
+    window.deleteObject = async (id) => {
+      if (!confirm('¿Borrar objeto?')) return;
+      await api('/objects/' + id, { method: 'DELETE' });
+      loadObjects();
+    };
+
+    $('btn-create-mission').onclick = async () => {
+      let reward = {};
+      try { if ($('m-reward').value.trim()) reward = JSON.parse($('m-reward').value); } catch (e) {
+        alert('JSON de recompensa inválido'); return;
+      }
+      await api('/missions', {
+        method: 'POST',
+        body: JSON.stringify({
+          title: $('m-title').value.trim(),
+          description: $('m-desc').value.trim(),
+          reward
+        })
+      });
+      $('m-title').value = '';
+      $('m-desc').value = '';
+      loadMissions();
+    };
+
+    $('btn-create-object').onclick = async () => {
+      let data = {};
+      try { if ($('o-data').value.trim()) data = JSON.parse($('o-data').value); } catch (e) {
+        alert('JSON de datos inválido'); return;
+      }
+      await api('/objects', {
+        method: 'POST',
+        body: JSON.stringify({
+          type: $('o-type').value,
+          x: parseFloat($('o-x').value),
+          y: parseFloat($('o-y').value),
+          data
+        })
+      });
+      loadObjects();
+    };
+
+    function showPanel() {
+      $('login-panel').classList.add('oculto');
+      $('admin-panel').classList.remove('oculto');
+      loadMissions();
+      loadObjects();
+    }
+
+    if (token) {
+      api('/missions').then(showPanel).catch(() => localStorage.removeItem(TOKEN_KEY));
+    }
+  </script>
+</body>
+</html>
