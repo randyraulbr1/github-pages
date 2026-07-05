@@ -13,7 +13,7 @@
   <script>
     // Aviso temprano en móvil (antes de cargar 20+ archivos JS)
     (function () {
-      var V = '34';
+      var V = '35';
       var texto = document.getElementById('carga-texto');
       if (texto) texto.textContent = 'Conectando…';
       var prev = localStorage.getItem('mariel_app_version');
@@ -88,53 +88,43 @@
   <!-- MAPA -->
   <div id="mapa"></div>
 
-  <!-- BARRA SUPERIOR: botones + barras + perfil + dinero -->
-  <div id="barra-superior">
-    <div id="hud-izquierda">
-      <div id="hud-botones-mini">
-        <button id="btn-opciones" class="btn-hud-mini" type="button" title="Opciones">⚙️</button>
-        <button id="btn-notific" class="btn-hud-mini" type="button" title="Avisos">
-          🔔<span id="badge-avisos" class="badge-avisos oculto">●</span>
-        </button>
-        <button id="btn-admin-hud" class="btn-hud-mini oculto" type="button" title="Administrador">🛠️</button>
+  <!-- PANEL HUD IZQUIERDO: barras + botones + misiones debajo -->
+  <div id="panel-hud-izq">
+    <div id="grupo-barras">
+      <div class="fila-barra" title="Vida">
+        <span class="barra-etiqueta">Nv <span id="nivel-texto">1</span></span>
+        <div id="contenedor-vida">
+          <div id="vida-relleno"></div>
+          <span id="vida-texto">100/100</span>
+        </div>
       </div>
-      <div id="grupo-barras">
-        <span id="nivel-texto" class="nivel-badge">Nv 1</span>
-        <div class="fila-barra" title="Vida">
-          <span class="barra-icono">❤️</span>
-          <div id="contenedor-vida">
-            <div id="vida-relleno"></div>
-            <span id="vida-texto">100/100</span>
-          </div>
+      <div class="fila-barra" title="Hambre">
+        <span class="barra-icono">🍽️</span>
+        <div id="contenedor-hambre">
+          <div id="hambre-relleno"></div>
+          <span id="hambre-texto">50/100</span>
         </div>
-        <div class="fila-barra" title="Hambre">
-          <span class="barra-icono">🍽️</span>
-          <div id="contenedor-hambre">
-            <div id="hambre-relleno"></div>
-            <span id="hambre-texto">50/100</span>
-          </div>
-        </div>
-        <div class="fila-barra" title="Experiencia">
-          <span class="barra-icono">⭐</span>
-          <div id="contenedor-xp">
-            <div id="xp-relleno"></div>
-            <span id="xp-texto">0/80</span>
-          </div>
+      </div>
+      <div class="fila-barra" title="Experiencia">
+        <span class="barra-icono">⭐</span>
+        <div id="contenedor-xp">
+          <div id="xp-relleno"></div>
+          <span id="xp-texto">0/80</span>
         </div>
       </div>
     </div>
-    <button id="perfil-hud" class="perfil-hud" type="button" title="Mi perfil">
-      <span class="perfil-avatar" id="perfil-avatar">?</span>
-      <span class="perfil-datos">
-        <span class="perfil-nombre" id="perfil-nombre">Jugador</span>
-        <span class="perfil-detalle" id="perfil-detalle">Nv 1 · $0</span>
-        <span class="perfil-id" id="perfil-id">—</span>
-      </span>
-    </button>
-    <div id="contenedor-dinero" title="Dinero">
-      <span class="icono-dinero">$</span>
-      <span id="dinero-cantidad">0</span>
+    <div id="hud-acciones-mini">
+      <button id="btn-opciones" class="btn-hud-accion" type="button" title="Opciones">⚙️ <span>Opciones</span></button>
+      <button id="btn-notific" class="btn-hud-accion" type="button" title="Avisos">
+        🔔 <span>Avisos</span><span id="badge-avisos" class="badge-avisos oculto">●</span>
+      </button>
     </div>
+    <div id="letrero-misiones" class="oculto"></div>
+  </div>
+
+  <div id="contenedor-dinero" title="Dinero">
+    <span class="icono-dinero">$</span>
+    <span id="dinero-cantidad">0</span>
   </div>
 
   <!-- BANNER DEL BUSCADOR DE TESOROS -->
@@ -149,13 +139,13 @@
     <button id="btn-admin-salir-modo">Salir</button>
   </div>
 
-  <!-- LETRERO DE MISIONES ACTIVAS (izquierda) -->
-  <div id="letrero-misiones" class="oculto"></div>
+  <!-- LETRERO DE MISIONES: dentro de #panel-hud-izq -->
 
   <!-- BOTONES INFERIORES (burbujas) -->
   <div id="botones-inferiores">
     <button id="btn-mochila" class="btn-burbuja"><span class="burbuja-icono">🎒</span><span class="burbuja-texto">Mochila</span></button>
     <button id="btn-gps" class="btn-burbuja"><span class="burbuja-icono">📍</span><span class="burbuja-texto">GPS</span></button>
+    <button id="btn-admin" class="btn-burbuja oculto"><span class="burbuja-icono">🛠️</span><span class="burbuja-texto">Admin</span></button>
   </div>
 
   <!-- NOTIFICACIONES -->
@@ -559,39 +549,39 @@
   </div>
 
   <!-- LIBRERÍAS -->
-  <script src="lib/leaflet/leaflet.js?v=34"></script>
+  <script src="lib/leaflet/leaflet.js?v=35"></script>
 
   <!-- MÓDULOS DEL JUEGO (orden importante) -->
-  <script src="js/config/config.js?v=34"></script>
-  <script src="js/nucleo/utilidades.js?v=34"></script>
-  <script src="js/mundo/mundo_publico.js?v=34"></script>
-  <script src="js/notificaciones/notificaciones.js?v=34"></script>
-  <script src="js/usuarios/usuarios.js?v=34"></script>
-  <script src="js/guardado/guardado.js?v=34"></script>
-  <script src="js/historial/historial.js?v=34"></script>
-  <script src="js/dinero/dinero.js?v=34"></script>
-  <script src="js/vida/vida.js?v=34"></script>
-  <script src="js/items/items.js?v=34"></script>
-  <script src="js/mochila/mochila.js?v=34"></script>
-  <script src="js/mapa/mapa.js?v=34"></script>
-  <script src="js/gps/gps.js?v=34"></script>
-  <script src="js/tiendas/datos_tiendas.js?v=34"></script>
-  <script src="js/tiendas/tiendas.js?v=34"></script>
-  <script src="js/pesca/pesca.js?v=34"></script>
-  <script src="js/tesoros/datos_tesoros.js?v=34"></script>
-  <script src="js/tesoros/tesoros.js?v=34"></script>
-  <script src="js/misiones/datos_misiones.js?v=34"></script>
-  <script src="js/misiones/misiones.js?v=34"></script>
-  <script src="js/cofres/cofres.js?v=34"></script>
-  <script src="js/correo/correo.js?v=34"></script>
-  <script src="js/admin/admin.js?v=34"></script>
-  <script src="js/opciones/opciones.js?v=34"></script>
-  <script src="js/principal.js?v=34"></script>
+  <script src="js/config/config.js?v=35"></script>
+  <script src="js/nucleo/utilidades.js?v=35"></script>
+  <script src="js/mundo/mundo_publico.js?v=35"></script>
+  <script src="js/notificaciones/notificaciones.js?v=35"></script>
+  <script src="js/usuarios/usuarios.js?v=35"></script>
+  <script src="js/guardado/guardado.js?v=35"></script>
+  <script src="js/historial/historial.js?v=35"></script>
+  <script src="js/dinero/dinero.js?v=35"></script>
+  <script src="js/vida/vida.js?v=35"></script>
+  <script src="js/items/items.js?v=35"></script>
+  <script src="js/mochila/mochila.js?v=35"></script>
+  <script src="js/mapa/mapa.js?v=35"></script>
+  <script src="js/gps/gps.js?v=35"></script>
+  <script src="js/tiendas/datos_tiendas.js?v=35"></script>
+  <script src="js/tiendas/tiendas.js?v=35"></script>
+  <script src="js/pesca/pesca.js?v=35"></script>
+  <script src="js/tesoros/datos_tesoros.js?v=35"></script>
+  <script src="js/tesoros/tesoros.js?v=35"></script>
+  <script src="js/misiones/datos_misiones.js?v=35"></script>
+  <script src="js/misiones/misiones.js?v=35"></script>
+  <script src="js/cofres/cofres.js?v=35"></script>
+  <script src="js/correo/correo.js?v=35"></script>
+  <script src="js/admin/admin.js?v=35"></script>
+  <script src="js/opciones/opciones.js?v=35"></script>
+  <script src="js/principal.js?v=35"></script>
   <script>
     // Registrar la app instalable (PWA)
     if ('serviceWorker' in navigator) {
       const yaTeniaVersion = !!navigator.serviceWorker.controller;
-      navigator.serviceWorker.register('sw.js?v=34', { updateViaCache: 'none' })
+      navigator.serviceWorker.register('sw.js?v=35', { updateViaCache: 'none' })
         .then(function (reg) { reg.update(); })
         .catch(function () {});
       // Cuando llega una versión nueva del juego: avisar y recargar solo

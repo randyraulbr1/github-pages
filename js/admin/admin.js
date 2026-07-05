@@ -213,7 +213,20 @@ const Admin = {
     for (const j of (this.datos.jugadoresExtra || [])) {
       if (j && j.id) porId.set(j.id, j);
     }
-    return [...porId.values()];
+    if (typeof Usuarios !== 'undefined' && Usuarios.datos && Usuarios.datos.lista) {
+      for (const p of Usuarios.datos.lista) {
+        if (!p || !p.id) continue;
+        const prev = porId.get(p.id) || {};
+        porId.set(p.id, Object.assign({}, prev, {
+          id: p.id,
+          nombre: p.nombre || prev.nombre,
+          telefono: p.telefono || prev.telefono || '',
+          creado: p.creado || prev.creado,
+          pinHash: p.pinHash || prev.pinHash
+        }));
+      }
+    }
+    return [...porId.values()].sort((a, b) => (a.nombre || '').localeCompare(b.nombre || ''));
   },
 
   async actualizarJugadoresGlobales() {
@@ -580,12 +593,41 @@ const Admin = {
   // ---------- FORMULARIOS ----------
   _opcionesItems(incluirNinguno) {
     let html = incluirNinguno ? '<option value="">(ninguno)</option>' : '';
-    const ordenados = Object.entries(CATALOGO_ITEMS)
-      .sort((a, b) => a[1].nombre.localeCompare(b[1].nombre));
-    for (const [id, it] of ordenados) {
+    for (const id of this._idsCatalogoCompleto()) {
+      const it = Items.seguro(id);
       html += '<option value="' + id + '">' + it.icono + ' ' + it.nombre + '</option>';
     }
     return html;
+  },
+
+  EMOJIS_OBJETO: [
+    '📦','🍎','🍞','🥖','🧀','🍖','🍗','🥩','🐟','🦐','🍤','🌮','🍕','🍔','🌭','🥪',
+    '🍹','🍺','🍷','☕','🧃','💧','🧪','💊','🩹','🔧','🔨','⚙️','🔑','🗝️','💎','💰',
+    '🪙','📜','📋','📝','🗺️','🧭','🔦','🕯️','🪓','⛏️','🎣','🪝','🧲','📡','🔫','🏹',
+    '🛡️','⚔️','🗡️','🧨','💣','🎁','🧰','👑','🪖','🥾','👢','🧤','🎒','🧳','🪴','🌿',
+    '🌺','🍀','🌵','🐚','🦀','🐙','🦞','🐠','🐡','⭐','🔥','❄️','⚡','🌙','☀️','🌴'
+  ],
+
+  _rejillaEmojisHtml() {
+    let h = '<div class="admin-emoji-rejilla" id="admin-emoji-rejilla">';
+    for (const e of this.EMOJIS_OBJETO) {
+      h += '<button type="button" class="admin-emoji-btn" data-emoji="' + e + '">' + e + '</button>';
+    }
+    h += '</div>';
+    return h;
+  },
+
+  _enlazarEmojisObjeto() {
+    const inp = document.getElementById('af-icono');
+    const rej = document.getElementById('admin-emoji-rejilla');
+    if (!inp || !rej) return;
+    rej.querySelectorAll('.admin-emoji-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        inp.value = btn.dataset.emoji;
+        rej.querySelectorAll('.admin-emoji-btn').forEach(b => b.classList.remove('sel'));
+        btn.classList.add('sel');
+      });
+    });
   },
 
   abrirFormulario(tipo) {
@@ -638,13 +680,16 @@ const Admin = {
       titulo = '➕ Crear objeto nuevo';
       campos.innerHTML =
         this._campoTexto('af-nombre', 'Nombre del objeto', 'Ej: Ron añejo') +
-        this._campoTexto('af-icono', 'Icono (un emoji)', 'Ej: 🍹') +
+        '<div class="campo-admin"><label>Icono — elige un emoji</label>' +
+        '<input id="af-icono" maxlength="4" placeholder="Ej: 🍹" readonly>' +
+        this._rejillaEmojisHtml() + '</div>' +
         '<div class="campo-doble">' +
           this._campoNumero('af-precio', 'Precio (5 a 5000)', 50) +
           this._campoNumero('af-cura', 'Cura vida (0 = no se usa)', 0) +
         '</div>' +
         this._campoTexto('af-desc', 'Descripción', 'Ej: Reserva especial del puerto');
       document.getElementById('btn-admin-guardar').textContent = 'Crear objeto';
+      setTimeout(() => this._enlazarEmojisObjeto(), 0);
     }
     if (tipo === 'mision' || tipo === 'tesoro' || tipo === 'objeto') {
       document.getElementById('btn-admin-guardar').textContent = 'Continuar → colocar en el mapa';
@@ -701,6 +746,7 @@ const Admin = {
       const nombre = this._valor('af-nombre').trim();
       const icono = this._valor('af-icono').trim() || '📦';
       if (nombre.length < 2) { alert('Ponle un nombre al objeto'); return; }
+      if (!icono) { alert('Elige un emoji para el objeto'); return; }
       const id = 'obj_' + nombre.toLowerCase().normalize('NFD').replace(/[^a-z0-9]/g, '').slice(0, 16) +
         '_' + Date.now().toString(36).slice(-4);
       const nuevo = {
@@ -962,6 +1008,14 @@ const Admin = {
     if (o._marcador) { o._marcador.remove(); o._marcador = null; }
   },
 
+  // Habilita arrastre de un marcador Leaflet (organizar pines)
+  _habilitarArrastreMarcador(marcador, alSoltar) {
+    if (!marcador || marcador === GPS.marcador) return;
+    marcador.options.draggable = true;
+    if (marcador.dragging) marcador.dragging.enable();
+    if (alSoltar) marcador.on('dragend', alSoltar);
+  },
+
   // ---------- MODOS ORGANIZAR / ELIMINAR ----------
   entrarModo(modo) {
     this._ocultarPanelDerecho();
@@ -1015,8 +1069,8 @@ const Admin = {
 
     if (modo === 'organizar') {
       for (const p of Mapa.puntosInteractivos) {
-        if (!p.marcador || !p.marcador.dragging) continue;
-        p.marcador.dragging.enable();
+        if (!p.marcador || p.marcador === GPS.marcador) continue;
+        p.marcador.off('dragend', p._alSoltar);
         p.marcador.on('dragstart', () => { p._adminMovio = false; });
         p.marcador.on('drag', () => { p._adminMovio = true; });
         p._alSoltar = () => {
@@ -1026,7 +1080,26 @@ const Admin = {
           this.datos.posiciones[p.id] = [p.posicion[0], p.posicion[1]];
           this.guardar();
         };
-        p.marcador.on('dragend', p._alSoltar);
+        this._habilitarArrastreMarcador(p.marcador, p._alSoltar);
+      }
+      for (const o of this.objetosTodos()) {
+        if (!o._marcador) continue;
+        this._habilitarArrastreMarcador(o._marcador, () => {
+          const p = o._marcador.getLatLng();
+          o.pos[0] = +p.lat.toFixed(6);
+          o.pos[1] = +p.lng.toFixed(6);
+          this.datos.posiciones[o.id] = [o.pos[0], o.pos[1]];
+          this.guardar();
+        });
+      }
+      if (typeof Cofres !== 'undefined' && Cofres._marcadores) {
+        for (const [id, m] of Object.entries(Cofres._marcadores)) {
+          this._habilitarArrastreMarcador(m, () => {
+            const p = m.getLatLng();
+            this.datos.posiciones[id] = [+p.lat.toFixed(6), +p.lng.toFixed(6)];
+            this.guardar();
+          });
+        }
       }
     }
   },
@@ -1123,7 +1196,10 @@ const Admin = {
       return { tipo: 'ban', mensaje: (ban.motivo || 'Contacta al administrador.') + hastaTxt };
     }
     const mant = this.datos.mantenimiento || this.publicado.mantenimiento;
-    if (mant && mant.activo) return { tipo: 'mantenimiento', mensaje: mant.mensaje || 'Volvemos pronto.' };
+    if (mant && mant.activo) {
+      if (this.esAdminJugador()) return null;
+      return { tipo: 'mantenimiento', mensaje: mant.mensaje || 'Volvemos pronto.' };
+    }
     return null;
   },
 
@@ -1146,7 +1222,8 @@ const Admin = {
       'Estamos mejorando el juego, vuelve más tarde 🌴';
     this.datos.mantenimiento = { activo: true, mensaje };
     this.guardar();
-    Notificaciones.mostrar('🚧 Mantenimiento activado', 'alerta', 5000);
+    Notificaciones.mostrar('🚧 Mantenimiento activado (tú como admin puedes seguir jugando)', 'alerta', 6000);
+    this._publicarParaTodos(true);
     this._volverAlPanel();
   },
 
@@ -1154,6 +1231,7 @@ const Admin = {
     this.datos.mantenimiento = { activo: false, mensaje: '' };
     this.guardar();
     Notificaciones.mostrar('🟢 Mantenimiento desactivado', 'exito', 5000);
+    this._publicarParaTodos(true);
     this._volverAlPanel();
   },
 
@@ -1283,11 +1361,20 @@ const Admin = {
       for (const j of globales) {
         const local = Usuarios.datos.lista.find(p => p.id === j.id);
         const partida = (this.publicado.partidas || {})[j.id] || (this.datos.partidasExtra || {})[j.id];
-        const pd = partida ? (partida.datos || partida) : null;
+        let pd = partida ? (partida.datos || partida) : null;
+        if (Usuarios.perfilActivo && j.id === Usuarios.perfilActivo.id && typeof Guardado !== 'undefined') {
+          pd = {
+            dinero: Guardado.datos.dinero,
+            vida: Guardado.datos.vida,
+            mochila: Guardado.datos.mochila
+          };
+        }
         const oro = pd?.dinero?.saldo;
-        const vida = pd?.vida;
+        const vida = pd?.vida ?? CONFIG.vidaMaxima;
         const ban = [...(this.publicado.baneados || []), ...(this.datos.baneados || [])]
           .find(b => b.id === j.id || b.id === j.telefono);
+        const pctV = Math.max(0, Math.min(100, Math.round((vida / CONFIG.vidaMaxima) * 100)));
+        const claseV = pctV > 70 ? 'alta' : pctV > 30 ? 'media' : 'baja';
         const fila = document.createElement('div');
         fila.className = 'fila-jugador-admin';
         const inicial = (j.nombre || '?').trim()[0].toUpperCase();
@@ -1295,12 +1382,14 @@ const Admin = {
         if (ban && this._banActivo(ban)) chips += '<span class="stat-chip ban">🚫 Baneado</span>';
         if (vida === 0) chips += '<span class="stat-chip muerto">💀 Muerto</span>';
         if (oro != null) chips += '<span class="stat-chip">💰 ' + oro + '</span>';
-        if (vida != null) chips += '<span class="stat-chip">❤️ ' + vida + '</span>';
         fila.innerHTML =
           '<div class="avatar">' + inicial + '</div>' +
           '<div class="datos"><div class="nombre">' + j.nombre + '</div>' +
           '<div class="meta">📱 ' + (j.telefono || 'sin teléfono') + '</div>' +
           '<div class="meta">ID: ' + j.id + '</div>' +
+          '<div class="jugador-barra-vida ' + claseV + '" title="Vida ' + vida + '/' + CONFIG.vidaMaxima + '">' +
+          '<div class="jugador-barra-relleno" style="width:' + pctV + '%"></div>' +
+          '<span class="jugador-barra-texto">❤️ ' + vida + '/' + CONFIG.vidaMaxima + '</span></div>' +
           (chips ? '<div class="stats">' + chips + '</div>' : '') + '</div>';
         const acciones = document.createElement('div');
         acciones.className = 'acciones';

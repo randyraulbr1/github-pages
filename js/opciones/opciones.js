@@ -5,14 +5,9 @@ const Opciones = {
 
   iniciar() {
     document.getElementById('btn-opciones').addEventListener('click', () => this.abrir());
-    const perfilBtn = document.getElementById('perfil-hud');
-    if (perfilBtn) perfilBtn.addEventListener('click', () => this.abrir());
-    const adminHud = document.getElementById('btn-admin-hud');
-    if (adminHud) {
-      adminHud.addEventListener('click', () => Admin.solicitarAcceso());
-    }
+    const adminBtn = document.getElementById('btn-admin');
+    if (adminBtn) adminBtn.addEventListener('click', () => Admin.solicitarAcceso());
     this._refrescarAdmin();
-    this.pintarPerfil();
 
     document.getElementById('opcion-centrar').addEventListener('click', () => {
       Mapa.mapa.setView(GPS.posicion, 17);
@@ -38,62 +33,41 @@ const Opciones = {
     if (rep) rep.addEventListener('click', () => this.reportar());
   },
 
-  pintarPerfil() {
+  pintarPerfilOpciones() {
     const perfil = Usuarios.perfilActivo;
-    const nom = document.getElementById('perfil-nombre');
-    const det = document.getElementById('perfil-detalle');
-    const idEl = document.getElementById('perfil-id');
-    const av = document.getElementById('perfil-avatar');
-    if (!nom || !perfil) return;
-
-    nom.textContent = perfil.nombre || 'Jugador';
+    if (!perfil) return;
+    const nom = document.getElementById('opciones-nombre');
+    const det = document.getElementById('opciones-stats');
+    const idEl = document.getElementById('opciones-id');
+    const av = document.getElementById('opciones-avatar');
+    if (nom) nom.textContent = perfil.nombre || 'Jugador';
     if (av) av.textContent = (perfil.nombre || '?').charAt(0).toUpperCase();
-
     const nivel = (typeof Vida !== 'undefined') ? Vida.nivel : 1;
     const vida = (typeof Vida !== 'undefined') ? Vida.actual : CONFIG.vidaMaxima;
     const hambre = (typeof Vida !== 'undefined') ? Vida.hambre : CONFIG.hambreInicial;
     const oro = (typeof Dinero !== 'undefined') ? Dinero.saldo : 0;
-    if (det) det.textContent = 'Nv ' + nivel + ' · ❤️ ' + vida + ' · 🍽️ ' + hambre + ' · $' + oro;
+    if (det) det.textContent = 'Nv ' + nivel + ' · ❤️ ' + vida + '/' + CONFIG.vidaMaxima +
+      ' · 🍽️ ' + hambre + '/' + CONFIG.hambreMaxima + ' · $' + oro;
     if (idEl) {
-      const tel = perfil.telefono ? '📱 ' + perfil.telefono + ' · ' : '';
-      idEl.textContent = tel + perfil.id;
+      idEl.textContent = (perfil.telefono ? '📱 ' + perfil.telefono + ' · ' : '') + perfil.id;
     }
-
-    const opAv = document.getElementById('opciones-avatar');
-    const opStats = document.getElementById('opciones-stats');
-    if (opAv) opAv.textContent = (perfil.nombre || '?').charAt(0).toUpperCase();
-    if (opStats) opStats.textContent = 'Nv ' + nivel + ' · ❤️ ' + vida + ' · 🍽️ ' + hambre + ' · $' + oro;
-
-    this._refrescarAdmin();
   },
 
   abrir() {
     this._refrescarAdmin();
-    this.pintarPerfil();
-    document.getElementById('opciones-nombre').textContent =
-      Usuarios.perfilActivo ? Usuarios.perfilActivo.nombre : '—';
-    document.getElementById('opciones-id').textContent =
-      Usuarios.perfilActivo
-        ? Usuarios.perfilActivo.id + ' · 📱 ' + (Usuarios.perfilActivo.telefono || 'sin número')
-        : '—';
+    this.pintarPerfilOpciones();
     document.getElementById('ventana-opciones').classList.remove('oculto');
   },
 
   _refrescarAdmin() {
-    const btn = document.getElementById('opcion-admin');
-    const hud = document.getElementById('btn-admin-hud');
-    const esAdmin = Usuarios.esAdministrador();
-    if (btn) btn.classList.add('oculto');
-    if (hud) hud.classList.toggle('oculto', !esAdmin);
+    const btn = document.getElementById('btn-admin');
+    if (btn) btn.classList.toggle('oculto', !Usuarios.esAdministrador());
   },
 
   cerrar() {
     document.getElementById('ventana-opciones').classList.add('oculto');
   },
 
-  // ---------- TARJETA DE JUGADOR ----------
-  // Código firmado con el estado del jugador: sirve para mostrar tu perfil
-  // a otros o para que el admin te revise (se manda por WhatsApp)
   async generarTarjeta() {
     const malas = (await Historial.verificar('dinero')).length +
                   (await Historial.verificar('objetos')).length;
@@ -135,7 +109,6 @@ const Opciones = {
     }
   },
 
-  // ---------- REPORTAR JUGADOR ----------
   reportar() {
     const idReportado = prompt('ID del jugador que quieres reportar (pídele su tarjeta o su ID):');
     if (!idReportado || !idReportado.trim()) return;

@@ -43,7 +43,18 @@ const Vida = {
     const subio = n > this.nivel;
     this.nivel = n;
     Guardado.datos.nivel = this.nivel;
-    if (subio) Notificaciones.mostrar('⭐ ¡Subiste al nivel ' + this.nivel + '!', 'exito', 5000);
+    if (subio) {
+      this.actual = CONFIG.vidaMaxima;
+      Guardado.datos.vida = this.actual;
+      if (this._muerto) {
+        this._muerto = false;
+        Guardado.datos.muerto = false;
+        const pantalla = document.getElementById('pantalla-muerte');
+        if (pantalla) pantalla.classList.add('oculto');
+        document.body.classList.remove('jugador-muerto');
+      }
+      Notificaciones.mostrar('⭐ ¡Subiste al nivel ' + this.nivel + '! Vida restaurada a ' + CONFIG.vidaMaxima, 'exito', 5000);
+    }
   },
 
   ganarXp(cantidad, motivo) {
@@ -59,6 +70,7 @@ const Vida = {
 
   _tickHambre() {
     if (this.estaMuerto()) return;
+    if (typeof Usuarios !== 'undefined' && Usuarios.esAdministrador()) return;
     if (this.hambre > 0) {
       this.hambre = Math.max(0, this.hambre - 1);
       Guardado.datos.hambre = this.hambre;
@@ -84,6 +96,7 @@ const Vida = {
 
   cambiar(cantidad, motivo) {
     if (this.estaMuerto() && cantidad < 0) return;
+    if (cantidad < 0 && typeof Usuarios !== 'undefined' && Usuarios.esAdministrador()) return;
     const antes = this.actual;
     this.actual = Math.max(0, Math.min(CONFIG.vidaMaxima, this.actual + cantidad));
     if (this.actual !== antes) {
@@ -136,7 +149,7 @@ const Vida = {
     if (ht) ht.textContent = this.hambre + '/' + CONFIG.hambreMaxima;
 
     const nl = document.getElementById('nivel-texto');
-    if (nl) nl.textContent = 'Nv ' + this.nivel;
+    if (nl) nl.textContent = String(this.nivel);
     const necesita = this.nivel >= CONFIG.nivelMaximo ? 1 : this.xpParaNivel(this.nivel);
     let acum = 0;
     for (let i = 1; i < this.nivel; i++) acum += this.xpParaNivel(i);
@@ -149,6 +162,6 @@ const Vida = {
       xt.textContent = this.nivel >= CONFIG.nivelMaximo
         ? 'MAX' : Math.floor(enNivel) + '/' + necesita;
     }
-    if (typeof Opciones !== 'undefined' && Opciones.pintarPerfil) Opciones.pintarPerfil();
+    if (typeof Opciones !== 'undefined' && Opciones.pintarPerfilOpciones) Opciones.pintarPerfilOpciones();
   }
 };
