@@ -7,7 +7,8 @@
 
   let serverUrl = '';
   if (host === 'tcodm.com' || host === 'www.tcodm.com') {
-    serverUrl = 'https://api.tcodm.com';
+    // Servidor en Render (cuando tengas api.tcodm.com, cámbialo ahí)
+    serverUrl = 'https://mariel-online.onrender.com';
   } else if (host === 'localhost' || host === '127.0.0.1') {
     serverUrl = window.location.origin;
   }
