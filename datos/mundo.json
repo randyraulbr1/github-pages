@@ -157,7 +157,7 @@
         "muerto": false,
         "armaEquipada": null
       },
-      "t": 1783288491728
+      "t": 1783288493716
     },
     "pmr8at78bi3vki": {
       "datos": {
@@ -221,5 +221,8 @@
       "t": 1783287766985
     }
   },
-  "actualizadoEn": 1783288491887
+  "actualizadoEn": 1783288493866,
+  "enemigos": [],
+  "enemigosEstado": {},
+  "tiendasAdmin": []
 }
