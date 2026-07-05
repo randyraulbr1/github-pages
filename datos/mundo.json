@@ -33,9 +33,87 @@
   },
   "baneados": [],
   "mensajes": [],
-  "jugadores": [],
+  "jugadores": [
+    {
+      "id": "pmr7x4zhznzw5o",
+      "nombre": "randy",
+      "telefono": "7709908375",
+      "creado": 1783263656375,
+      "pinHash": "4bdc96ffc0926b62d55708e3c1755ca3f04b8c28bec6fd85777117da67497f11",
+      "sesionToken": "mr7x4zi03qc2bwc2bn",
+      "sesionT": 1783263656376
+    }
+  ],
   "cofres": [],
   "correoReclamados": [],
   "correoTienda": [],
-  "partidas": {}
+  "partidas": {
+    "pmr7x4zhznzw5o": {
+      "datos": {
+        "mochila": [
+          {
+            "id": "agua",
+            "cantidad": 2
+          },
+          {
+            "id": "pan",
+            "cantidad": 1
+          },
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null
+        ],
+        "dinero": {
+          "saldo": 100,
+          "control": "68e382a3687042dcd0420432d9bf210eada6d12606b6ecd367d18c724c2f4b38"
+        },
+        "vida": 100,
+        "hambre": 49,
+        "xp": 0,
+        "nivel": 1,
+        "posicionJugador": null,
+        "tesorosRecogidos": [],
+        "misiones": {},
+        "misionesEstado": {},
+        "correoEnviados": [],
+        "correoRecibidos": [],
+        "correoTiendaLocal": [],
+        "historialDinero": [
+          {
+            "t": 1783263656478,
+            "detalle": "Dinero inicial",
+            "monto": 100,
+            "saldo": 100,
+            "lugar": "sin posición",
+            "pos": null,
+            "hashAnterior": "GENESIS",
+            "hash": "65ec4691dc9cd1f8d600d833456b400fff92fa73558eb8fad0fe636e0987ddab"
+          }
+        ],
+        "historialObjetos": [],
+        "mensajesVistos": []
+      },
+      "t": 1783263779382
+    }
+  }
 }
