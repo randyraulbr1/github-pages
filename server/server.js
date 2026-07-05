@@ -19,7 +19,7 @@ const worldRoutes = require('./routes/worldRoutes');
 
 const PORT = process.env.PORT || 3000;
 const CORS_ORIGINS = (process.env.CORS_ORIGINS ||
-  'http://localhost:3000,http://127.0.0.1:3000,https://randyraulbr1.github.io')
+  'http://localhost:3000,http://127.0.0.1:3000,https://tcodm.com,https://www.tcodm.com,https://randyraulbr1.github.io')
   .split(',')
   .map(s => s.trim())
   .filter(Boolean);
@@ -62,7 +62,8 @@ app.get('/admin', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'admin.html'));
 });
 
-// Cliente del juego + mapa Leaflet
+// Cliente del juego + mapa Leaflet (también en /client/ para GitHub Pages)
+app.use('/client', express.static(path.join(__dirname, '..', 'client')));
 app.use('/lib', express.static(path.join(__dirname, '..', 'lib')));
 app.use(express.static(path.join(__dirname, '..', 'client')));
 app.get('/', (req, res) => {
