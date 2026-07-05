@@ -58,6 +58,9 @@ const Admin = {
     for (const it of this.datos.itemsNuevos) nuevosPorId.set(it.id, it);
     Items.aplicarMundo([...nuevosPorId.values()],
       Object.assign({}, this.publicado.precios, this.datos.precios));
+
+    // Todos los jugadores vigilan el mundo desde que arranca el juego
+    this.iniciarVigilancia();
   },
 
   // ---------- VISTA COMBINADA: publicado en GitHub + borradores locales ----------
@@ -88,9 +91,23 @@ const Admin = {
     clearTimeout(this._tempPublicar);
     this._tempPublicar = setTimeout(() => {
       const json = this._jsonMundo();
-      if (json === this._ultimoPublicado) return; // nada nuevo que subir
+      if (json === this._ultimoPublicado) return;
       this.publicarMundo();
-    }, 4000);
+    }, 2000);
+  },
+
+  // Sube el mapa a GitHub para que TODOS los jugadores lo vean
+  _publicarParaTodos() {
+    if (!this.datos.tokenPublicar) {
+      Notificaciones.mostrar(
+        '⚠️ Solo TÚ ves esto en este teléfono.\n' +
+        'Ve a 🛠️ Admin → 🔑 Configurar clave → luego 🌍 PUBLICAR MUNDO',
+        'alerta', 12000
+      );
+      return;
+    }
+    clearTimeout(this._tempPublicar);
+    this.publicarMundo();
   },
 
   // Posición corregida de un pin (si el admin lo movió). Muta la base en sitio
@@ -141,16 +158,14 @@ const Admin = {
     document.getElementById('btn-admin-guardar').addEventListener('click', () => this.guardarFormulario());
     document.getElementById('btn-admin-confirmar').addEventListener('click', () => this.confirmarColocacion());
     document.getElementById('btn-admin-salir-modo').addEventListener('click', () => this.salirModo());
-
-    this.iniciarVigilancia();
   },
 
   // ---------- VIGILANCIA DEL MUNDO ----------
-  // Cada 20 segundos (y al volver a la app) el juego relee datos/mundo.json.
-  // Si el admin publicó algo nuevo, se actualiza solo: así los pines
-  // nuevos salen en todos los teléfonos sin que nadie haga nada.
+  // Cada 8 segundos relee datos/mundo.json y pinta lo nuevo en el mapa.
   iniciarVigilancia() {
-    setInterval(() => this._revisarActualizacion(), 20000);
+    if (this._vigilanciaActiva) return;
+    this._vigilanciaActiva = true;
+    setInterval(() => this._revisarActualizacion(), 8000);
     document.addEventListener('visibilitychange', () => {
       if (!document.hidden) this._revisarActualizacion();
     });
@@ -164,13 +179,80 @@ const Admin = {
       const texto = await r.text();
       if (this._crudoPublicado === null) { this._crudoPublicado = texto; return; }
       if (texto === this._crudoPublicado) return;
-      this._crudoPublicado = texto;
-      // No recargar en medio de algo (ventana abierta o admin editando)
-      const ocupado = this.modo || document.querySelector('.ventana:not(.oculto)');
-      Notificaciones.mostrar('🌍 ¡El mundo se actualizó!' +
-        (ocupado ? ' Recarga para ver lo nuevo' : ' Actualizando…'), 'exito', 5000);
-      if (!ocupado) setTimeout(() => location.reload(), 1600);
+      this._aplicarMundoRemoto(texto);
     } catch (e) { /* sin conexión: se intenta en el próximo ciclo */ }
+  },
+
+  // Aplica el mundo publicado sin recargar toda la página
+  _aplicarMundoRemoto(texto) {
+    const idsObjetosAntes = new Set(this.objetosTodos().map(o => o.id));
+    const idsTesorosAntes = new Set(this.tesorosTodos().map(t => t.id));
+    const idsMisionesAntes = new Set(this.misionesTodas().map(m => m.id));
+    const eliminadosAntes = new Set(this.publicado.eliminados || []);
+
+    this._crudoPublicado = texto;
+    try {
+      this.publicado = Object.assign({
+        misiones: [], tesoros: [], objetos: [], posiciones: {}, eliminados: [],
+        precios: {}, itemsNuevos: [], baneados: [], mensajes: [],
+        mantenimiento: { activo: false, mensaje: '' }
+      }, JSON.parse(texto));
+    } catch (e) { return; }
+
+    if (!this.publicado.precios) this.publicado.precios = {};
+    if (!this.publicado.itemsNuevos) this.publicado.itemsNuevos = [];
+    if (!this.publicado.baneados) this.publicado.baneados = [];
+    if (!this.publicado.mensajes) this.publicado.mensajes = [];
+    if (!this.publicado.mantenimiento) this.publicado.mantenimiento = { activo: false, mensaje: '' };
+
+    const nuevosPorId = new Map();
+    for (const it of this.publicado.itemsNuevos) nuevosPorId.set(it.id, it);
+    for (const it of this.datos.itemsNuevos) nuevosPorId.set(it.id, it);
+    Items.aplicarMundo([...nuevosPorId.values()],
+      Object.assign({}, this.publicado.precios, this.datos.precios));
+
+    for (const id of this.publicado.eliminados) {
+      if (!eliminadosAntes.has(id)) this._quitarDelMapa(id);
+    }
+
+    if (typeof Misiones !== 'undefined') {
+      for (const m of this.misionesTodas()) {
+        if (idsMisionesAntes.has(m.id) || this.eliminado(m.id)) continue;
+        this.pos(m.id, m.pos);
+        Misiones.agregarAdmin(m);
+      }
+    }
+
+    for (const t of this.tesorosTodos()) {
+      if (idsTesorosAntes.has(t.id) || this.eliminado(t.id)) continue;
+      this.pos(t.id, t.pos);
+      this._prepararTesoro(t);
+    }
+
+    for (const o of this.objetosTodos()) {
+      if (idsObjetosAntes.has(o.id) || this.eliminado(o.id)) continue;
+      this.pos(o.id, o.pos);
+      this._crearMarcadorObjeto(o);
+    }
+
+    Notificaciones.mostrar('🌍 ¡Mapa actualizado! Ya ves lo que creó el admin', 'exito', 5000);
+  },
+
+  _quitarDelMapa(id) {
+    for (const o of this.objetosTodos()) {
+      if (o.id !== id || !o._marcador) continue;
+      o._marcador.remove();
+      o._marcador = null;
+    }
+    for (const t of this.tesorosTodos()) {
+      if (t.id !== id) continue;
+      if (t._marcador) { t._marcador.remove(); t._marcador = null; }
+    }
+    if (typeof Misiones !== 'undefined' && Misiones._marcadores[id]) {
+      Misiones._marcadores[id].remove();
+      delete Misiones._marcadores[id];
+      if (Misiones._lineas[id]) { Misiones._lineas[id].remove(); delete Misiones._lineas[id]; }
+    }
   },
 
   // ---------- ACCESO CON PIN ----------
@@ -316,8 +398,8 @@ const Admin = {
       this.guardar();
       this._colocacion = null;
       document.getElementById('ventana-admin-form').classList.add('oculto');
-      Notificaciones.mostrar('💲 ' + Items.seguro(idItem).nombre + ' ahora vale $' + precio +
-        ' (publica el mundo para que le llegue a todos)', 'exito', 6000);
+      Notificaciones.mostrar('💲 ' + Items.seguro(idItem).nombre + ' ahora vale $' + precio, 'exito', 6000);
+      this._publicarParaTodos();
       return;
     }
     if (tipo === 'item_nuevo') {
@@ -403,7 +485,7 @@ const Admin = {
       const m = Object.assign({ id, pos }, c.valores);
       this.datos.misiones.push(m);
       Misiones.agregarAdmin(m);
-      Notificaciones.mostrar('📜 Misión creada: ' + m.titulo + ' (recuerda PUBLICAR el mundo)', 'exito', 5000);
+      Notificaciones.mostrar('📜 Misión creada: ' + m.titulo, 'exito', 5000);
     } else if (c.tipo === 'tesoro') {
       const t = Object.assign({ id, pos }, c.valores);
       this.datos.tesoros.push(t);
@@ -417,6 +499,7 @@ const Admin = {
       Notificaciones.mostrar('📦 ' + item.nombre + ' x' + o.cantidad + ' dejado en el mapa', 'exito');
     }
     this.guardar();
+    this._publicarParaTodos();
     this._colocacion = null;
     this.salirModo();
   },
@@ -936,8 +1019,12 @@ const Admin = {
 
   // ---------- PUBLICACIÓN AUTOMÁTICA (GitHub desde el teléfono) ----------
   configurarPublicacion() {
-    const token = prompt('Pega tu clave de GitHub (token con permiso de Contents en el repo).\n' +
-      'Se guarda SOLO en este teléfono:');
+    const token = prompt(
+      'Clave de GitHub para que TODOS vean el mismo mapa:\n\n' +
+      '1. Entra a github.com → Settings → Developer settings\n' +
+      '2. Fine-grained token → Contents: Read and write en tu repo\n' +
+      '3. Pega el token aquí (solo se guarda en TU teléfono):'
+    );
     if (token === null) return;
     this.datos.tokenPublicar = token.trim() || null;
     this.guardar();
@@ -973,8 +1060,8 @@ const Admin = {
       const r = await fetch(url, { method: 'PUT', headers: cabeceras, body: JSON.stringify(cuerpo) });
       if (r.ok) {
         this._ultimoPublicado = json;
-        this._crudoPublicado = null; // la vigilancia toma el nuevo como base sin recargarte
-        Notificaciones.mostrar('🌍 ¡MUNDO PUBLICADO! A los jugadores les llega solo en 20 segundos', 'exito', 8000);
+        this._crudoPublicado = json;
+        Notificaciones.mostrar('🌍 ¡MUNDO PUBLICADO! Los jugadores lo ven en ~8 segundos', 'exito', 8000);
       } else if (r.status === 401 || r.status === 403) {
         Notificaciones.mostrar('❌ La clave no tiene permiso: revisa el token en GitHub', 'error', 7000);
       } else {

@@ -10,7 +10,7 @@ const Usuarios = {
   perfilActivo: null,
   _resolver: null,
 
-  // Devuelve una promesa que se cumple cuando hay un jugador activo
+  // Devuelve una promesa que se cumple cuando hay un jugador activo elegido
   iniciar() {
     return new Promise(resolver => {
       this._resolver = resolver;
@@ -19,12 +19,7 @@ const Usuarios = {
       } catch (e) { this.datos = null; }
       if (!this.datos) this.datos = { lista: [], activo: null };
 
-      const activo = this.datos.lista.find(p => p.id === this.datos.activo);
-      if (activo) {
-        this.perfilActivo = activo;
-        resolver();
-        return;
-      }
+      // Seguridad: siempre elegir o crear jugador (nunca entrar solo)
       this.mostrarPantalla();
     });
   },
@@ -45,7 +40,7 @@ const Usuarios = {
     lista.innerHTML = '';
     for (const perfil of this.datos.lista) {
       const ficha = document.createElement('button');
-      ficha.className = 'ficha-perfil';
+      ficha.className = 'ficha-perfil' + (perfil.id === this.datos.activo ? ' activa' : '');
       ficha.innerHTML = '👤 <span>' + this._escapar(perfil.nombre) + '</span>' +
         (perfil.pinHash ? '<span class="candado">🔒</span>' : '');
       ficha.addEventListener('click', () => this.elegir(perfil));
@@ -109,7 +104,28 @@ const Usuarios = {
         return;
       }
     }
+    if (!await this._asegurarTelefono(perfil)) return;
     this._activar(perfil);
+  },
+
+  // Sin número de teléfono válido no se puede jugar
+  async _asegurarTelefono(perfil) {
+    if (perfil.telefono && this.telefonoValido(perfil.telefono)) return true;
+    const tel = prompt(
+      'Para entrar, ' + perfil.nombre + ' necesita un número de teléfono\n' +
+      '(ahí llegarán las recompensas):',
+      perfil.telefono || ''
+    );
+    if (tel === null) return false;
+    const limpio = tel.trim().replace(/[\s-]/g, '');
+    if (!this.telefonoValido(limpio)) {
+      alert('Número inválido: solo números, mínimo 6 dígitos');
+      return false;
+    }
+    perfil.telefono = limpio;
+    if (!perfil.telefonoCambiadoEn) perfil.telefonoCambiadoEn = 0;
+    this._guardarLista();
+    return true;
   },
 
   _activar(perfil) {

@@ -3,7 +3,7 @@
 // ============================================================
 const CONFIG = {
   // Cambiar al publicar: obliga al móvil a descartar caché vieja
-  version: '13',
+  version: '14',
   // Centro del pueblo de Mariel, Artemisa, Cuba
   centro: [22.9936, -82.7539],
 
