@@ -64,7 +64,8 @@ const MundoPublico = {
       const m = JSON.parse(texto);
       const pos = m.posiciones || {};
       return (m.objetos && m.objetos.length || 0) + (m.tesoros && m.tesoros.length || 0) +
-        (m.misiones && m.misiones.length || 0) + (m.jugadores && m.jugadores.length || 0) +
+        (m.misiones && m.misiones.length || 0) + (m.enemigos && m.enemigos.length || 0) +
+        (m.jugadores && m.jugadores.length || 0) +
         (m.mensajes && m.mensajes.length || 0) + Object.keys(pos).length;
     } catch (e) { return -1; }
   },
@@ -157,7 +158,8 @@ const MundoPublico = {
         misiones: [], tesoros: [], objetos: [], posiciones: {}, eliminados: [],
         precios: {}, itemsNuevos: [], mantenimiento: { activo: false, mensaje: '' },
         baneados: [], mensajes: [], jugadores: [], partidas: {}, cofres: [],
-        correoReclamados: [], correoTienda: []
+        correoReclamados: [], correoTienda: [],
+        enemigos: [], enemigosEstado: {}, tiendasAdmin: [], combate: {}
       };
       let sha = null;
 
@@ -175,6 +177,9 @@ const MundoPublico = {
 
       if (!mundo.jugadores) mundo.jugadores = [];
       if (!mundo.partidas) mundo.partidas = {};
+      if (!mundo.enemigos) mundo.enemigos = [];
+      if (!mundo.enemigosEstado) mundo.enemigosEstado = {};
+      if (!mundo.tiendasAdmin) mundo.tiendasAdmin = [];
 
       editar(mundo);
       mundo.actualizadoEn = Date.now();

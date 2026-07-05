@@ -115,9 +115,9 @@ const Admin = {
     // Admin: si hay borradores locales no publicados, subirlos en segundo plano
     if (typeof Usuarios !== 'undefined' && Usuarios.esAdministrador() && MundoPublico.puedePublicar()) {
       const localN = (this.datos.objetos || []).length + (this.datos.tesoros || []).length +
-        (this.datos.misiones || []).length;
+        (this.datos.misiones || []).length + (this.datos.enemigos || []).length;
       const pubN = (this.publicado.objetos || []).length + (this.publicado.tesoros || []).length +
-        (this.publicado.misiones || []).length;
+        (this.publicado.misiones || []).length + (this.publicado.enemigos || []).length;
       const posLocal = Object.keys(this.datos.posiciones || {}).length;
       const posPub = Object.keys(this.publicado.posiciones || {}).length;
       if (localN > pubN || posLocal > posPub) {
@@ -153,6 +153,17 @@ const Admin = {
     }
     if (adminLocal && adminLocal.claveSyncNube) {
       MundoPublico._tokenDesdeMundo = adminLocal.claveSyncNube;
+    }
+    this._limpiarBorradoresLocalesPublicados(['enemigos', 'misiones', 'tesoros', 'objetos', 'tiendasAdmin']);
+  },
+
+  _limpiarBorradoresLocalesPublicados(campos) {
+    for (const campo of campos) {
+      const pub = this.publicado[campo] || [];
+      const ids = new Set(pub.map(x => x && x.id).filter(Boolean));
+      if (this.datos[campo]) {
+        this.datos[campo] = this.datos[campo].filter(x => !ids.has(x.id));
+      }
     }
   },
 
@@ -488,6 +499,19 @@ const Admin = {
     return base;
   },
 
+  _posItem(item) {
+    if (!item || !item.id) return null;
+    if (item.pos && Array.isArray(item.pos) && item.pos.length >= 2) {
+      return this.pos(item.id, item.pos);
+    }
+    const o = (this.datos.posiciones || {})[item.id] || (this.publicado.posiciones || {})[item.id];
+    if (o && o.length >= 2) {
+      item.pos = [o[0], o[1]];
+      return item.pos;
+    }
+    return null;
+  },
+
   eliminado(id) {
     if ((this.publicado.eliminados || []).includes(id)) return true;
     return this.esAdminJugador() && (this.datos.eliminados || []).includes(id);
@@ -689,6 +713,9 @@ const Admin = {
         correoReclamados: [],
         correoTienda: [],
         partidas: {},
+        enemigos: [],
+        enemigosEstado: {},
+        tiendasAdmin: [],
         mantenimiento: { activo: false, mensaje: '' }
       }, JSON.parse(texto));
     } catch (e) { return; }
@@ -700,6 +727,9 @@ const Admin = {
     if (!this.publicado.mantenimiento) this.publicado.mantenimiento = { activo: false, mensaje: '' };
     if (!this.publicado.tesorosEstado) this.publicado.tesorosEstado = {};
     if (!this.publicado.tiendasStock) this.publicado.tiendasStock = {};
+    if (!this.publicado.enemigos) this.publicado.enemigos = [];
+    if (!this.publicado.enemigosEstado) this.publicado.enemigosEstado = {};
+    if (!this.publicado.tiendasAdmin) this.publicado.tiendasAdmin = [];
 
     const nuevosPorId = new Map();
     for (const it of this.publicado.itemsNuevos) nuevosPorId.set(it.id, it);
@@ -1497,6 +1527,8 @@ const Admin = {
         posOrigen: pos.slice()
       }, c.valores);
       this.datos.enemigos.push(e);
+      if (!this.datos.posiciones) this.datos.posiciones = {};
+      this.datos.posiciones[e.id] = pos.slice();
       if (typeof Enemigos !== 'undefined') Enemigos.agregarAdmin(e);
       Notificaciones.mostrar('👹 Enemigo ' + e.nombre + ' colocado', 'exito', 5000);
     } else if (c.tipo === 'tienda_admin') {
@@ -1522,7 +1554,10 @@ const Admin = {
     }
     localStorage.setItem(this.CLAVE, JSON.stringify(this.datos,
       (clave, valor) => clave.startsWith('_') ? undefined : valor));
-    await this._publicarParaTodos(true);
+    const ok = await this._publicarParaTodos(true);
+    if (!ok && this.esAdminJugador()) {
+      this._adminAviso('Guardado en tu teléfono. Pulsa Sincronizar para que los demás lo vean.', 'alerta');
+    }
     this._colocacion = null;
     this.salirModo();
   },
@@ -3181,11 +3216,11 @@ const Admin = {
   // Contenido COMPLETO para datos/mundo.json (publicado + cambios locales)
   _itemsConPosicion(lista) {
     return (lista || []).map(item => {
-      if (!item || !item.pos) return item;
-      const copia = Object.assign({}, item, { pos: item.pos.slice() });
-      this.pos(copia.id, copia.pos);
-      return copia;
-    });
+      if (!item) return item;
+      const pos = this._posItem(item);
+      if (!pos) return Object.assign({}, item);
+      return Object.assign({}, item, { pos: pos.slice() });
+    }).filter(item => item && item.pos && item.pos.length >= 2);
   },
 
   _jsonMundo() {

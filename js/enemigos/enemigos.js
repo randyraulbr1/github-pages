@@ -112,6 +112,8 @@ const Enemigos = {
     }
     for (const e of this.lista) {
       if (Admin.eliminado && Admin.eliminado(e.id)) continue;
+      const pos = (typeof Admin._posItem === 'function') ? Admin._posItem(e) : Admin.pos(e.id, e.pos);
+      if (!pos || pos.length < 2) continue;
       const st = this._estadoGlobal()[e.id];
       if (st && st.ocultoHasta && Date.now() < st.ocultoHasta) {
         this._quitarMarcador(e.id);
@@ -123,7 +125,6 @@ const Enemigos = {
         st.ultimoGolpe = 0;
         if (e.posOrigen) e.pos = e.posOrigen.slice();
       }
-      Admin.pos(e.id, e.pos);
       this._aplicarEstadoRemoto(e);
       if (!this._marcadores[e.id]) this._crearEnMapa(e);
       else this._actualizarMarcador(e);
