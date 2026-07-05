@@ -13,7 +13,7 @@
   <script>
     // Aviso temprano en móvil (antes de cargar 20+ archivos JS)
     (function () {
-      var V = '41';
+      var V = '42';
       var texto = document.getElementById('carga-texto');
       if (texto) texto.textContent = 'Conectando…';
       var prev = localStorage.getItem('mariel_app_version');
@@ -119,9 +119,12 @@
       </div>
     </div>
     <div id="hud-acciones-mini">
-      <button id="btn-opciones" class="btn-hud-accion" type="button" title="Opciones">⚙️</button>
-      <button id="btn-notific" class="btn-hud-accion" type="button" title="Avisos">
-        🔔<span id="badge-avisos" class="badge-avisos oculto">●</span>
+      <button id="btn-opciones" class="btn-hud-accion btn-icono-juego" type="button" title="Opciones">
+        <img src="iconos/botones/btn-opciones.png" alt="" class="btn-hud-img" width="36" height="36">
+      </button>
+      <button id="btn-notific" class="btn-hud-accion btn-icono-juego" type="button" title="Avisos">
+        <img src="iconos/botones/btn-notific.png" alt="" class="btn-hud-img" width="36" height="36">
+        <span id="badge-avisos" class="badge-avisos oculto">●</span>
       </button>
     </div>
     <div id="letrero-misiones" class="oculto"></div>
@@ -161,8 +164,14 @@
 
   <!-- BOTONES INFERIORES (burbujas) -->
   <div id="botones-inferiores">
-    <button id="btn-mochila" class="btn-burbuja"><span class="burbuja-icono">🎒</span><span class="burbuja-texto">Mochila</span></button>
-    <button id="btn-gps" class="btn-burbuja"><span class="burbuja-icono">📍</span><span class="burbuja-texto">GPS</span></button>
+    <button id="btn-mochila" class="btn-burbuja btn-icono-juego" type="button" title="Mochila">
+      <img src="iconos/botones/btn-mochila.png" alt="" class="btn-juego-img" width="54" height="54">
+      <span class="burbuja-texto">Mochila</span>
+    </button>
+    <button id="btn-gps" class="btn-burbuja btn-icono-juego" type="button" title="GPS">
+      <img src="iconos/botones/btn-gps.png" alt="" class="btn-juego-img" width="54" height="54">
+      <span class="burbuja-texto">GPS</span>
+    </button>
     <button id="btn-admin" class="btn-burbuja oculto"><span class="burbuja-icono">🛠️</span><span class="burbuja-texto">Admin</span></button>
   </div>
 
@@ -668,40 +677,40 @@
   </div>
 
   <!-- LIBRERÍAS -->
-  <script src="lib/leaflet/leaflet.js?v=41"></script>
+  <script src="lib/leaflet/leaflet.js?v=42"></script>
 
   <!-- MÓDULOS DEL JUEGO (orden importante) -->
-  <script src="js/config/config.js?v=41"></script>
-  <script src="js/nucleo/utilidades.js?v=41"></script>
-  <script src="js/mundo/mundo_publico.js?v=41"></script>
-  <script src="js/notificaciones/notificaciones.js?v=41"></script>
-  <script src="js/usuarios/usuarios.js?v=41"></script>
-  <script src="js/guardado/guardado.js?v=41"></script>
-  <script src="js/historial/historial.js?v=41"></script>
-  <script src="js/dinero/dinero.js?v=41"></script>
-  <script src="js/vida/vida.js?v=41"></script>
-  <script src="js/items/items.js?v=41"></script>
-  <script src="js/mochila/mochila.js?v=41"></script>
-  <script src="js/mapa/mapa.js?v=41"></script>
-  <script src="js/gps/gps.js?v=41"></script>
-  <script src="js/tiendas/datos_tiendas.js?v=41"></script>
-  <script src="js/tiendas/tiendas.js?v=41"></script>
-  <script src="js/pesca/pesca.js?v=41"></script>
-  <script src="js/tesoros/datos_tesoros.js?v=41"></script>
-  <script src="js/tesoros/tesoros.js?v=41"></script>
-  <script src="js/misiones/datos_misiones.js?v=41"></script>
-  <script src="js/misiones/misiones.js?v=41"></script>
-  <script src="js/cofres/cofres.js?v=41"></script>
-  <script src="js/correo/correo.js?v=41"></script>
-  <script src="js/enemigos/enemigos.js?v=41"></script>
-  <script src="js/admin/admin.js?v=41"></script>
-  <script src="js/opciones/opciones.js?v=41"></script>
-  <script src="js/principal.js?v=41"></script>
+  <script src="js/config/config.js?v=42"></script>
+  <script src="js/nucleo/utilidades.js?v=42"></script>
+  <script src="js/mundo/mundo_publico.js?v=42"></script>
+  <script src="js/notificaciones/notificaciones.js?v=42"></script>
+  <script src="js/usuarios/usuarios.js?v=42"></script>
+  <script src="js/guardado/guardado.js?v=42"></script>
+  <script src="js/historial/historial.js?v=42"></script>
+  <script src="js/dinero/dinero.js?v=42"></script>
+  <script src="js/vida/vida.js?v=42"></script>
+  <script src="js/items/items.js?v=42"></script>
+  <script src="js/mochila/mochila.js?v=42"></script>
+  <script src="js/mapa/mapa.js?v=42"></script>
+  <script src="js/gps/gps.js?v=42"></script>
+  <script src="js/tiendas/datos_tiendas.js?v=42"></script>
+  <script src="js/tiendas/tiendas.js?v=42"></script>
+  <script src="js/pesca/pesca.js?v=42"></script>
+  <script src="js/tesoros/datos_tesoros.js?v=42"></script>
+  <script src="js/tesoros/tesoros.js?v=42"></script>
+  <script src="js/misiones/datos_misiones.js?v=42"></script>
+  <script src="js/misiones/misiones.js?v=42"></script>
+  <script src="js/cofres/cofres.js?v=42"></script>
+  <script src="js/correo/correo.js?v=42"></script>
+  <script src="js/enemigos/enemigos.js?v=42"></script>
+  <script src="js/admin/admin.js?v=42"></script>
+  <script src="js/opciones/opciones.js?v=42"></script>
+  <script src="js/principal.js?v=42"></script>
   <script>
     // Registrar la app instalable (PWA)
     if ('serviceWorker' in navigator) {
       const yaTeniaVersion = !!navigator.serviceWorker.controller;
-      navigator.serviceWorker.register('sw.js?v=41', { updateViaCache: 'none' })
+      navigator.serviceWorker.register('sw.js?v=42', { updateViaCache: 'none' })
         .then(function (reg) { reg.update(); })
         .catch(function () {});
       // Cuando llega una versión nueva del juego: avisar y recargar solo

@@ -135,6 +135,25 @@ button { font-family: inherit; }
   cursor: pointer;
   text-shadow: 0 1px 3px rgba(0,0,0,.85);
 }
+.btn-hud-img, .btn-juego-img {
+  display: block;
+  object-fit: contain;
+  pointer-events: none;
+  user-select: none;
+  -webkit-user-drag: none;
+  background: transparent;
+}
+.btn-hud-img { width: 36px; height: 36px; }
+.btn-juego-img { width: 54px; height: 54px; }
+.btn-icono-juego {
+  background: transparent !important;
+  border: none;
+  box-shadow: none;
+}
+.btn-burbuja.btn-icono-juego .burbuja-icono { display: none; }
+#btn-gps.activo .btn-juego-img {
+  filter: drop-shadow(0 0 10px rgba(56,198,255,.85)) brightness(1.08);
+}
 .btn-hud-accion:active { transform: scale(.92); }
 .btn-hud-accion .badge-avisos {
   position: absolute; top: -3px; right: -3px;
@@ -185,19 +204,10 @@ button { font-family: inherit; }
   text-shadow: -1px -1px 0 #1a1a1a, 1px -1px 0 #1a1a1a, -1px 1px 0 #1a1a1a, 1px 1px 0 #1a1a1a;
   text-transform: uppercase;
 }
-/* Colores saturados por botón (estilo cartoon gomoso) */
-#btn-mochila  .burbuja-icono { background: radial-gradient(circle at 32% 26%, #ffc879, #ff9f1c 55%, #d97706 100%); }
+/* Colores saturados por botón (estilo cartoon gomoso) — admin y legacy */
 #btn-misiones .burbuja-icono { background: radial-gradient(circle at 32% 26%, #8ef2a5, #35d461 55%, #16a34a 100%); }
-#btn-notific  .burbuja-icono { background: radial-gradient(circle at 32% 26%, #ffe98a, #ffd60a 55%, #d9a406 100%); }
 #btn-historial .burbuja-icono { background: radial-gradient(circle at 32% 26%, #d3a7ff, #b06cf5 55%, #7e3ff2 100%); }
-#btn-gps      .burbuja-icono { background: radial-gradient(circle at 32% 26%, #8ec5ff, #2f8bff 55%, #1257c8 100%); }
 #btn-admin    .burbuja-icono { background: radial-gradient(circle at 32% 26%, #9ec5ff, #3d8bfd 55%, #1d4ed8 100%); }
-#btn-opciones .burbuja-icono { background: radial-gradient(circle at 32% 26%, #c3cddc, #8a97ad 55%, #5b677e 100%); }
-#btn-gps.activo .burbuja-icono {
-  background: radial-gradient(circle at 32% 26%, #baf1ff, #38c6ff 55%, #0e86d4 100%);
-  box-shadow: 0 0 14px rgba(56,198,255,.7), 0 4px 8px rgba(0,0,0,.4),
-              inset 0 4px 6px rgba(255,255,255,.5), inset 0 -6px 8px rgba(0,0,0,.28);
-}
 
 /* Aviso de actualización automática */
 #aviso-actualizacion {
