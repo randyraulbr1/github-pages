@@ -1,13 +1,34 @@
 {
   "misiones": [],
   "tesoros": [],
-  "objetos": [],
+  "objetos": [
+    {
+      "id": "admx_o_mr76zyws",
+      "pos": [
+        22.993775,
+        -82.759516
+      ],
+      "itemId": "coco",
+      "cantidad": 1,
+      "reaparece": 0
+    }
+  ],
   "posiciones": {},
   "eliminados": [],
   "precios": {},
   "itemsNuevos": [],
-  "mantenimiento": { "activo": false, "mensaje": "" },
+  "mantenimiento": {
+    "activo": false,
+    "mensaje": ""
+  },
   "baneados": [],
   "mensajes": [],
-  "jugadores": []
+  "jugadores": [
+    {
+      "id": "pmr76zfqn0g20f",
+      "nombre": "randy",
+      "telefono": "7709908375",
+      "creado": 1783219727471
+    }
+  ]
 }
