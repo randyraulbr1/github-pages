@@ -23,7 +23,12 @@
       "reaparece": 0
     }
   ],
-  "posiciones": {},
+  "posiciones": {
+    "enm_mr8cz25s": [
+      22.993597,
+      -82.757861
+    ]
+  },
   "eliminados": [],
   "precios": {},
   "itemsNuevos": [
@@ -266,8 +271,32 @@
       "t": 1783289716204
     }
   },
-  "actualizadoEn": 1783290252405,
-  "enemigos": [],
+  "actualizadoEn": 1783290253942,
+  "enemigos": [
+    {
+      "id": "enm_mr8cz25s",
+      "pos": [
+        22.993597,
+        -82.757861
+      ],
+      "posOrigen": [
+        22.993597,
+        -82.757861
+      ],
+      "nombre": "Tuerto del muelle",
+      "icono": "🦞",
+      "vida": 60,
+      "vidaMax": 60,
+      "nivel": 1,
+      "danoMin": 8,
+      "danoMax": 14,
+      "dano": 14,
+      "xp": 30,
+      "dinero": 0,
+      "recItems": [],
+      "respawnMin": 0
+    }
+  ],
   "enemigosEstado": {},
   "tiendasAdmin": [],
   "tiendasStock": {},
