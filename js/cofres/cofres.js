@@ -7,6 +7,7 @@ const Cofres = {
   _marcadores: {},
   _circuloColocar: null,
   _modoColocar: null,
+  _modoAdminSinItem: false,
   _cofrePinPendiente: null,
   _tipoVisible: true,
   verOcultos: false,
@@ -57,8 +58,13 @@ const Cofres = {
     return [...mapa.values()].filter(c => !c.eliminado);
   },
 
+  colocarDesdeAdmin() {
+    this._modoAdminSinItem = true;
+    this.usarCofreInventario();
+  },
+
   usarCofreInventario() {
-    if (!Mochila.tieneItem('cofre')) {
+    if (!this._modoAdminSinItem && !Mochila.tieneItem('cofre')) {
       Notificaciones.mostrar('No tienes un cofre en la mochila', 'alerta');
       return;
     }
@@ -132,9 +138,11 @@ const Cofres = {
       this._modoColocar = null;
       return;
     }
-    if (!Mochila.quitar('cofre', 1, 'Cofre colocado')) {
-      this._modoColocar = null;
-      return;
+    if (!this._modoAdminSinItem) {
+      if (!Mochila.quitar('cofre', 1, 'Cofre colocado')) {
+        this._modoColocar = null;
+        return;
+      }
     }
     const cofre = {
       id: 'cofre_' + Date.now().toString(36),
@@ -142,6 +150,7 @@ const Cofres = {
       visible: this._modoColocar.visible,
       pinHash: this._modoColocar.pin
         ? await Utilidades.sha256('cofre-pin|' + this._modoColocar.pin) : null,
+      pinRegistro: this._modoColocar.pin || null,
       slots: new Array(this.TOTAL_SLOTS).fill(null),
       creador: Usuarios.perfilActivo.id,
       creadorNombre: Usuarios.perfilActivo.nombre,
@@ -157,6 +166,7 @@ const Cofres = {
       Admin._publicarParaTodos(true);
     }
     this._modoColocar = null;
+    this._modoAdminSinItem = false;
     this._crearMarcador(cofre);
     Notificaciones.mostrar('🧰 Cofre ' + (cofre.visible ? 'visible' : 'oculto') + ' colocado', 'exito', 5000);
   },

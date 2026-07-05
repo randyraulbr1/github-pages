@@ -56,6 +56,15 @@
     <div id="carga-texto" class="carga-texto">Cargando el mundo…</div>
   </div>
 
+  <!-- PANTALLA: JUGADOR MUERTO (vida 0) -->
+  <div id="pantalla-muerte" class="pantalla-auth oculto">
+    <div class="auth-caja">
+      <div class="auth-titulo">💀 Has muerto</div>
+      <p class="auth-aviso">Tu vida llegó a 0. No puedes seguir jugando hasta que el administrador te reviva.</p>
+      <p class="auth-aviso">Contacta a tu administrador para continuar.</p>
+    </div>
+  </div>
+
   <!-- PANTALLA DE BLOQUEO (mantenimiento o jugador baneado) -->
   <div id="pantalla-bloqueo" class="oculto">
     <div class="bloqueo-caja">
@@ -115,7 +124,7 @@
   <!-- BOTONES INFERIORES (burbujas) -->
   <div id="botones-inferiores">
     <button id="btn-mochila" class="btn-burbuja"><span class="burbuja-icono">🎒</span><span class="burbuja-texto">Mochila</span></button>
-    <button id="btn-notific" class="btn-burbuja"><span class="burbuja-icono">🔔</span><span class="burbuja-texto">Avisos</span></button>
+    <button id="btn-notific" class="btn-burbuja"><span class="burbuja-icono">🔔</span><span class="burbuja-texto">Avisos</span><span id="badge-avisos" class="badge-avisos oculto">●</span></button>
     <button id="btn-gps" class="btn-burbuja"><span class="burbuja-icono">📍</span><span class="burbuja-texto">GPS</span></button>
     <button id="btn-opciones" class="btn-burbuja"><span class="burbuja-icono">⚙️</span><span class="burbuja-texto">Opciones</span></button>
   </div>
@@ -284,23 +293,30 @@
     <div class="ventana-caja">
       <div class="ventana-titulo">🛠️ Administrador <button class="btn-cerrar" data-cierra="ventana-admin">✕</button></div>
       <div id="lista-admin">
-        <button class="fila-opcion" id="admin-crear-mision"><span class="icono-opcion">📜</span> Crear misión</button>
+        <div class="admin-seccion-titulo">🗺️ Mapa y contenido</div>
+        <button class="fila-opcion" id="admin-crear-mision"><span class="icono-opcion">📜</span> Crear misión (recompensas)</button>
         <button class="fila-opcion" id="admin-crear-tesoro"><span class="icono-opcion">🎁</span> Crear tesoro</button>
-        <button class="fila-opcion" id="admin-dejar-objeto"><span class="icono-opcion">📦</span> Dejar objeto en el mapa</button>
+        <button class="fila-opcion" id="admin-dejar-objeto"><span class="icono-opcion">📦</span> Poner objeto en el mapa</button>
+        <button class="fila-opcion" id="admin-colocar-cofre"><span class="icono-opcion">🧰</span> Crear cofre en el mapa</button>
+        <button class="fila-opcion" id="admin-organizar"><span class="icono-opcion">✋</span> Organizar pines (arrastrar)</button>
+        <button class="fila-opcion peligro" id="admin-eliminar"><span class="icono-opcion">🗑️</span> Eliminar pines del mapa</button>
+
+        <div class="admin-seccion-titulo">⚙️ Catálogo</div>
         <button class="fila-opcion" id="admin-precios"><span class="icono-opcion">💲</span> Cambiar precio global</button>
         <button class="fila-opcion" id="admin-item-nuevo"><span class="icono-opcion">➕</span> Crear objeto nuevo</button>
-        <button class="fila-opcion" id="admin-organizar"><span class="icono-opcion">✋</span> Organizar pines (mover)</button>
-        <button class="fila-opcion peligro" id="admin-eliminar"><span class="icono-opcion">🗑️</span> Eliminar pines del mapa</button>
-        <button class="fila-opcion" id="admin-jugadores"><span class="icono-opcion">👥</span> Cuentas registradas</button>
-        <button class="fila-opcion" id="admin-ver-cofres"><span class="icono-opcion">👁️</span> Ver cofres ocultos</button>
-        <button class="fila-opcion" id="admin-ver-historial"><span class="icono-opcion">🧾</span> Ver historial del jugador actual</button>
+
+        <div class="admin-seccion-titulo">👥 Jugadores</div>
+        <button class="fila-opcion" id="admin-jugadores"><span class="icono-opcion">👥</span> Ver y editar jugadores</button>
+        <button class="fila-opcion" id="admin-mensaje"><span class="icono-opcion">✉️</span> Enviar mensaje (aviso rojo)</button>
+
+        <div class="admin-seccion-titulo">🧰 Cofres</div>
+        <button class="fila-opcion" id="admin-ver-cofres"><span class="icono-opcion">👁️</span> Ver cofres ocultos en mapa</button>
+        <button class="fila-opcion" id="admin-cofres-pin"><span class="icono-opcion">🔐</span> Ver PIN de cofres ocultos</button>
+
+        <div class="admin-seccion-titulo">🌍 Servidor</div>
         <button class="fila-opcion" id="admin-mantenimiento"><span class="icono-opcion">🚧</span> Activar / quitar mantenimiento</button>
-        <button class="fila-opcion" id="admin-mensaje"><span class="icono-opcion">✉️</span> Enviar mensaje a jugadores</button>
-        <button class="fila-opcion" id="admin-inspeccionar"><span class="icono-opcion">🔎</span> Inspeccionar tarjeta de jugador</button>
-        <button class="fila-opcion peligro" id="admin-banear"><span class="icono-opcion">🚫</span> Banear / desbanear jugador</button>
-        <button class="fila-opcion" id="admin-publicar"><span class="icono-opcion">🔄</span> Forzar sincronización (manual)</button>
-        <button class="fila-opcion" id="admin-clave-publicar"><span class="icono-opcion">🔑</span> <span id="admin-clave-etiqueta">Clave GitHub (configurar)</span></button>
-        <button class="fila-opcion" id="admin-exportar"><span class="icono-opcion">📋</span> Exportar mis creaciones (manual)</button>
+        <button class="fila-opcion" id="admin-clave-publicar"><span class="icono-opcion">🔑</span> <span id="admin-clave-etiqueta">Token GitHub</span></button>
+        <button class="fila-opcion" id="admin-publicar"><span class="icono-opcion">🔄</span> Forzar sincronización</button>
       </div>
     </div>
   </div>
@@ -308,7 +324,11 @@
   <!-- ============ VENTANA: FORMULARIO ADMIN ============ -->
   <div id="ventana-admin-form" class="ventana oculto">
     <div class="ventana-caja">
-      <div class="ventana-titulo"><span id="admin-form-titulo">Crear</span> <button class="btn-cerrar" data-cierra="ventana-admin-form">✕</button></div>
+      <div class="ventana-titulo">
+        <button type="button" class="btn-admin-volver" data-volver-admin>←</button>
+        <span id="admin-form-titulo">Crear</span>
+        <button class="btn-cerrar" data-cierra="ventana-admin-form">✕</button>
+      </div>
       <div id="admin-form-campos"></div>
       <div class="admin-form-pie">
         <button type="button" id="btn-admin-guardar">Continuar → colocar en el mapa</button>
@@ -330,10 +350,20 @@
   <!-- ============ VENTANA: EDITOR JUGADOR (ADMIN) ============ -->
   <div id="ventana-admin-editor" class="ventana oculto">
     <div class="ventana-caja ventana-admin-editor-caja">
-      <div class="ventana-titulo">✏️ <span id="admin-editor-nombre">Jugador</span> <button class="btn-cerrar" data-cierra="ventana-admin-editor">✕</button></div>
-      <div class="admin-editor-oro">
-        <label for="admin-editor-oro">💰 Oro del jugador</label>
-        <input id="admin-editor-oro" type="number" min="0" inputmode="numeric">
+      <div class="ventana-titulo">
+        <button type="button" class="btn-admin-volver" data-volver-admin>←</button>
+        ✏️ <span id="admin-editor-nombre">Jugador</span>
+        <button class="btn-cerrar" data-cierra="ventana-admin-editor">✕</button>
+      </div>
+      <div class="admin-editor-stats">
+        <div class="admin-editor-oro">
+          <label for="admin-editor-oro">💰 Oro</label>
+          <input id="admin-editor-oro" type="number" min="0" inputmode="numeric">
+        </div>
+        <div class="admin-editor-oro">
+          <label for="admin-editor-vida">❤️ Vida (0 = muerto)</label>
+          <input id="admin-editor-vida" type="number" min="0" max="100" inputmode="numeric">
+        </div>
       </div>
       <div class="admin-editor-seccion">Inventario del jugador (25 casillas) — arrastra para mover o suelta fuera para quitar</div>
       <div id="admin-rejilla-jugador" class="admin-rejilla-inventario"></div>
@@ -346,7 +376,11 @@
   <!-- ============ VENTANA: BAN JUGADOR (ADMIN) ============ -->
   <div id="ventana-admin-ban" class="ventana oculto">
     <div class="ventana-caja">
-      <div class="ventana-titulo">🚫 Banear <span id="admin-ban-nombre">—</span> <button class="btn-cerrar" data-cierra="ventana-admin-ban">✕</button></div>
+      <div class="ventana-titulo">
+        <button type="button" class="btn-admin-volver" data-volver-admin>←</button>
+        🚫 Banear <span id="admin-ban-nombre">—</span>
+        <button class="btn-cerrar" data-cierra="ventana-admin-ban">✕</button>
+      </div>
       <div class="campo-admin" style="padding:14px;">
         <label for="admin-ban-motivo">Motivo</label>
         <input id="admin-ban-motivo" placeholder="Incumplimiento de reglas">
@@ -400,9 +434,14 @@
   <!-- ============ VENTANA: CLAVE GITHUB (ADMIN) ============ -->
   <div id="ventana-admin-clave" class="ventana oculto">
     <div class="ventana-caja">
-      <div class="ventana-titulo">🔑 Clave de GitHub <button class="btn-cerrar" data-cierra="ventana-admin-clave">✕</button></div>
+      <div class="ventana-titulo">
+        <button type="button" class="btn-admin-volver" data-volver-admin>←</button>
+        🔑 Token GitHub
+        <button class="btn-cerrar" data-cierra="ventana-admin-clave">✕</button>
+      </div>
       <div class="admin-clave-cuerpo">
-        <p id="admin-clave-estado" class="admin-clave-estado">Sin clave en este teléfono.</p>
+        <p id="admin-clave-estado" class="admin-clave-estado">Sin token en este teléfono.</p>
+        <p id="admin-clave-previo" class="admin-clave-ayuda oculto"></p>
         <p class="admin-clave-ayuda">
           Pégala aquí <b>una sola vez</b>. Queda guardada en <b>tu teléfono</b> (no en GitHub).
           Luego pulsa <b>PUBLICAR MUNDO</b> para que todos puedan guardar en la nube.
@@ -418,46 +457,88 @@
         <p class="admin-clave-enlace">
           Crear token nuevo: Contents → Read and write en <code>randyraulbr1/github-pages</code>
         </p>
-        <button id="btn-admin-clave-guardar" class="btn-auth-principal">Guardar en este teléfono</button>
+        <button id="btn-admin-clave-guardar" class="btn-auth-principal">Actualizar token en este teléfono</button>
         <button id="btn-admin-clave-borrar" class="fila-opcion peligro admin-clave-borrar">🗑️ Borrar clave de este teléfono</button>
       </div>
     </div>
   </div>
 
+  <!-- ============ VENTANA: ENVIAR MENSAJE (ADMIN) ============ -->
+  <div id="ventana-admin-mensaje" class="ventana oculto">
+    <div class="ventana-caja">
+      <div class="ventana-titulo">
+        <button type="button" class="btn-admin-volver" data-volver-admin>←</button>
+        ✉️ Enviar mensaje
+        <button class="btn-cerrar" data-cierra="ventana-admin-mensaje">✕</button>
+      </div>
+      <div class="admin-clave-cuerpo">
+        <div class="campo-admin">
+          <label for="admin-msg-para">Para</label>
+          <select id="admin-msg-para"><option value="todos">Todos los jugadores</option></select>
+        </div>
+        <div class="campo-admin">
+          <label for="admin-msg-texto">Mensaje (sale en avisos con globo rojo)</label>
+          <textarea id="admin-msg-texto" maxlength="300" placeholder="Escribe tu mensaje…"></textarea>
+        </div>
+        <button type="button" id="btn-admin-msg-enviar" class="btn-auth-principal">Enviar mensaje</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ VENTANA: MANTENIMIENTO (ADMIN) ============ -->
+  <div id="ventana-admin-mantenimiento" class="ventana oculto">
+    <div class="ventana-caja">
+      <div class="ventana-titulo">
+        <button type="button" class="btn-admin-volver" data-volver-admin>←</button>
+        🚧 Mantenimiento
+        <button class="btn-cerrar" data-cierra="ventana-admin-mantenimiento">✕</button>
+      </div>
+      <div class="admin-clave-cuerpo">
+        <p id="admin-mant-estado" class="admin-clave-estado">Estado: activo en el juego</p>
+        <div class="campo-admin">
+          <label for="admin-mant-mensaje">Mensaje para jugadores</label>
+          <textarea id="admin-mant-mensaje" placeholder="Estamos mejorando el juego…"></textarea>
+        </div>
+        <button type="button" id="btn-admin-mant-activar" class="btn-auth-principal">Activar mantenimiento</button>
+        <button type="button" id="btn-admin-mant-quitar" class="fila-opcion ok admin-clave-borrar">Quitar mantenimiento</button>
+      </div>
+    </div>
+  </div>
+
   <!-- LIBRERÍAS -->
-  <script src="lib/leaflet/leaflet.js?v=28"></script>
+  <script src="lib/leaflet/leaflet.js?v=29"></script>
 
   <!-- MÓDULOS DEL JUEGO (orden importante) -->
-  <script src="js/config/config.js?v=28"></script>
-  <script src="js/nucleo/utilidades.js?v=28"></script>
-  <script src="js/mundo/mundo_publico.js?v=28"></script>
-  <script src="js/notificaciones/notificaciones.js?v=28"></script>
-  <script src="js/usuarios/usuarios.js?v=28"></script>
-  <script src="js/guardado/guardado.js?v=28"></script>
-  <script src="js/historial/historial.js?v=28"></script>
-  <script src="js/dinero/dinero.js?v=28"></script>
-  <script src="js/vida/vida.js?v=28"></script>
-  <script src="js/items/items.js?v=28"></script>
-  <script src="js/mochila/mochila.js?v=28"></script>
-  <script src="js/mapa/mapa.js?v=28"></script>
-  <script src="js/gps/gps.js?v=28"></script>
-  <script src="js/tiendas/datos_tiendas.js?v=28"></script>
-  <script src="js/tiendas/tiendas.js?v=28"></script>
-  <script src="js/pesca/pesca.js?v=28"></script>
-  <script src="js/tesoros/datos_tesoros.js?v=28"></script>
-  <script src="js/tesoros/tesoros.js?v=28"></script>
-  <script src="js/misiones/datos_misiones.js?v=28"></script>
-  <script src="js/misiones/misiones.js?v=28"></script>
-  <script src="js/cofres/cofres.js?v=28"></script>
-  <script src="js/correo/correo.js?v=28"></script>
-  <script src="js/admin/admin.js?v=28"></script>
-  <script src="js/opciones/opciones.js?v=28"></script>
-  <script src="js/principal.js?v=28"></script>
+  <script src="js/config/config.js?v=29"></script>
+  <script src="js/nucleo/utilidades.js?v=29"></script>
+  <script src="js/mundo/mundo_publico.js?v=29"></script>
+  <script src="js/notificaciones/notificaciones.js?v=29"></script>
+  <script src="js/usuarios/usuarios.js?v=29"></script>
+  <script src="js/guardado/guardado.js?v=29"></script>
+  <script src="js/historial/historial.js?v=29"></script>
+  <script src="js/dinero/dinero.js?v=29"></script>
+  <script src="js/vida/vida.js?v=29"></script>
+  <script src="js/items/items.js?v=29"></script>
+  <script src="js/mochila/mochila.js?v=29"></script>
+  <script src="js/mapa/mapa.js?v=29"></script>
+  <script src="js/gps/gps.js?v=29"></script>
+  <script src="js/tiendas/datos_tiendas.js?v=29"></script>
+  <script src="js/tiendas/tiendas.js?v=29"></script>
+  <script src="js/pesca/pesca.js?v=29"></script>
+  <script src="js/tesoros/datos_tesoros.js?v=29"></script>
+  <script src="js/tesoros/tesoros.js?v=29"></script>
+  <script src="js/misiones/datos_misiones.js?v=29"></script>
+  <script src="js/misiones/misiones.js?v=29"></script>
+  <script src="js/cofres/cofres.js?v=29"></script>
+  <script src="js/correo/correo.js?v=29"></script>
+  <script src="js/admin/admin.js?v=29"></script>
+  <script src="js/opciones/opciones.js?v=29"></script>
+  <script src="js/principal.js?v=29"></script>
   <script>
     // Registrar la app instalable (PWA)
     if ('serviceWorker' in navigator) {
       const yaTeniaVersion = !!navigator.serviceWorker.controller;
-      navigator.serviceWorker.register('sw.js?v=28', { updateViaCache: 'none' })
+      navigator.serviceWorker.register('sw.js?v=29', { updateViaCache: 'none' })
         .then(function (reg) { reg.update(); })
         .catch(function () {});
       // Cuando llega una versión nueva del juego: avisar y recargar solo

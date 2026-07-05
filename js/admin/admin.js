@@ -313,28 +313,32 @@ const Admin = {
       const el = document.getElementById(id);
       if (el) el.addEventListener('click', fn);
     };
+    enlazar('admin-colocar-cofre', () => {
+      document.getElementById('ventana-admin').classList.add('oculto');
+      Cofres.colocarDesdeAdmin();
+    });
     enlazar('admin-crear-mision', () => this.abrirFormulario('mision'));
     enlazar('admin-crear-tesoro', () => this.abrirFormulario('tesoro'));
     enlazar('admin-dejar-objeto', () => this.abrirFormulario('objeto'));
     enlazar('admin-precios', () => this.abrirFormulario('precio'));
     enlazar('admin-item-nuevo', () => this.abrirFormulario('item_nuevo'));
-    enlazar('admin-mantenimiento', () => this.alternarMantenimiento());
-    enlazar('admin-banear', () => this.banear());
-    enlazar('admin-mensaje', () => this.enviarMensaje());
-    enlazar('admin-inspeccionar', () => this.inspeccionar());
+    enlazar('admin-mantenimiento', () => this.abrirMantenimiento());
+    enlazar('admin-mensaje', () => this.abrirMensaje());
     enlazar('admin-organizar', () => this.entrarModo('organizar'));
     enlazar('admin-eliminar', () => this.entrarModo('eliminar'));
-    enlazar('admin-exportar', () => this.exportar());
     enlazar('admin-jugadores', () => this.listarCuentas());
     enlazar('admin-ver-cofres', () => Cofres.alternarVerOcultos());
-    enlazar('admin-ver-historial', () => {
-      document.getElementById('ventana-admin').classList.add('oculto');
-      Historial.abrir();
-    });
+    enlazar('admin-cofres-pin', () => this.listarCofresPin());
     enlazar('admin-publicar', () => this.publicarMundo(false));
     enlazar('admin-clave-publicar', () => this.abrirConfiguracionClave());
     enlazar('btn-admin-clave-guardar', () => this._guardarClaveTelefono());
     enlazar('btn-admin-clave-borrar', () => this._borrarClaveTelefono());
+    enlazar('btn-admin-msg-enviar', () => this._enviarMensajeUi());
+    enlazar('btn-admin-mant-activar', () => this._activarMantenimientoUi());
+    enlazar('btn-admin-mant-quitar', () => this._quitarMantenimientoUi());
+    document.querySelectorAll('[data-volver-admin]').forEach(btn => {
+      btn.addEventListener('click', () => this._volverAlPanel());
+    });
     enlazar('btn-admin-guardar', () => this.guardarFormulario());
     enlazar('btn-admin-confirmar', () => this.confirmarColocacion());
     enlazar('btn-admin-salir-modo', () => this.salirModo());
@@ -450,20 +454,19 @@ const Admin = {
     }
   },
 
-  // El PIN solo se pide la primera vez en cada teléfono; después queda desbloqueado.
+  // Admin entra directo al panel (sin contraseña en el menú).
   async solicitarAcceso() {
     if (!this.esAdminJugador()) return;
-    if (this._panelDesbloqueado()) {
-      this._actualizarEtiquetaClave();
-      document.getElementById('ventana-admin').classList.remove('oculto');
-      return;
-    }
-    const clave = prompt('Tu contraseña de cuenta (solo esta vez en este teléfono):');
-    if (clave === null) return;
-    const hash = await Utilidades.sha256('pin-perfil|' + clave);
-    if (hash !== Usuarios.perfilActivo.pinHash) { alert('Contraseña incorrecta'); return; }
     this._marcarPanelDesbloqueado();
     this._actualizarEtiquetaClave();
+    document.getElementById('ventana-admin').classList.remove('oculto');
+  },
+
+  _volverAlPanel() {
+    ['ventana-admin-form', 'ventana-admin-editor', 'ventana-admin-ban',
+      'ventana-admin-clave', 'ventana-admin-mensaje', 'ventana-admin-mantenimiento'
+    ].forEach(id => document.getElementById(id).classList.add('oculto'));
+    document.getElementById('btn-admin-guardar').style.display = '';
     document.getElementById('ventana-admin').classList.remove('oculto');
   },
 
@@ -1013,68 +1016,105 @@ const Admin = {
     return null;
   },
 
-  alternarMantenimiento() {
-    const actual = this.datos.mantenimiento || this.publicado.mantenimiento;
-    if (actual && actual.activo) {
-      this.datos.mantenimiento = { activo: false, mensaje: '' };
-      Notificaciones.mostrar('🟢 Mantenimiento DESACTIVADO (publica el mundo para que aplique a todos)', 'exito', 6000);
-    } else {
-      const mensaje = prompt('Mensaje para los jugadores durante el mantenimiento:',
-        'Estamos mejorando el juego, vuelve más tarde 🌴');
-      if (mensaje === null) return;
-      this.datos.mantenimiento = { activo: true, mensaje };
-      Notificaciones.mostrar('🚧 Mantenimiento ACTIVADO (publica el mundo para que aplique a todos)', 'alerta', 6000);
+  alternarMantenimiento() { this.abrirMantenimiento(); },
+
+  abrirMantenimiento() {
+    document.getElementById('ventana-admin').classList.add('oculto');
+    const mant = this.datos.mantenimiento || this.publicado.mantenimiento || { activo: false, mensaje: '' };
+    const estado = document.getElementById('admin-mant-estado');
+    const msg = document.getElementById('admin-mant-mensaje');
+    if (estado) {
+      estado.textContent = mant.activo ? '🚧 Mantenimiento ACTIVO' : '🟢 Juego activo para todos';
+      estado.className = 'admin-clave-estado' + (mant.activo ? '' : ' ok');
     }
-    this.guardar();
+    if (msg) msg.value = mant.mensaje || '';
+    document.getElementById('ventana-admin-mantenimiento').classList.remove('oculto');
   },
 
-  banear() {
-    const id = prompt('ID del jugador O su número de teléfono (lo ves en su tarjeta o en un reporte):');
-    if (!id || !id.trim()) return;
-    const idLimpio = id.trim();
-    const yaLocal = this.datos.baneados.findIndex(b => b.id === idLimpio);
-    const yaPublicado = this.publicado.baneados.some(b => b.id === idLimpio);
-    if (yaLocal >= 0 || yaPublicado) {
-      if (confirm('Ese jugador YA está baneado. ¿Quitarle el ban?')) {
-        if (yaLocal >= 0) this.datos.baneados.splice(yaLocal, 1);
-        this.publicado.baneados = this.publicado.baneados.filter(b => b.id !== idLimpio);
-        this.guardar();
-        Notificaciones.mostrar('🟢 Ban quitado a ' + idLimpio + ' (publica el mundo)', 'exito', 6000);
-      }
-      return;
-    }
-    const motivo = prompt('Motivo del baneo:', 'Trampas detectadas');
-    if (motivo === null) return;
-    this.datos.baneados.push({ id: idLimpio, motivo, t: Date.now() });
+  _activarMantenimientoUi() {
+    const mensaje = (document.getElementById('admin-mant-mensaje').value || '').trim() ||
+      'Estamos mejorando el juego, vuelve más tarde 🌴';
+    this.datos.mantenimiento = { activo: true, mensaje };
     this.guardar();
-    Notificaciones.mostrar('🚫 Jugador ' + idLimpio + ' baneado (publica el mundo para que aplique)', 'alerta', 6000);
+    Notificaciones.mostrar('🚧 Mantenimiento activado', 'alerta', 5000);
+    document.getElementById('ventana-admin-mantenimiento').classList.add('oculto');
+    this._volverAlPanel();
   },
 
-  enviarMensaje() {
-    const para = prompt('¿Para quién? Escribe "todos" o el ID de un jugador:', 'todos');
-    if (!para || !para.trim()) return;
-    const texto = prompt('Mensaje:');
-    if (!texto || !texto.trim()) return;
+  _quitarMantenimientoUi() {
+    this.datos.mantenimiento = { activo: false, mensaje: '' };
+    this.guardar();
+    Notificaciones.mostrar('🟢 Mantenimiento desactivado', 'exito', 5000);
+    document.getElementById('ventana-admin-mantenimiento').classList.add('oculto');
+    this._volverAlPanel();
+  },
+
+  enviarMensaje() { this.abrirMensaje(); },
+
+  abrirMensaje(paraId) {
+    document.getElementById('ventana-admin').classList.add('oculto');
+    const sel = document.getElementById('admin-msg-para');
+    sel.innerHTML = '<option value="todos">Todos los jugadores</option>';
+    for (const j of this.jugadoresGlobales()) {
+      const o = document.createElement('option');
+      o.value = j.id;
+      o.textContent = j.nombre + ' (' + j.id + ')';
+      if (paraId && j.id === paraId) o.selected = true;
+      sel.appendChild(o);
+    }
+    document.getElementById('admin-msg-texto').value = '';
+    document.getElementById('ventana-admin-mensaje').classList.remove('oculto');
+  },
+
+  _enviarMensajeUi() {
+    const para = document.getElementById('admin-msg-para').value;
+    const texto = (document.getElementById('admin-msg-texto').value || '').trim();
+    if (!texto) { alert('Escribe un mensaje'); return; }
     this.datos.mensajes.push({
       id: 'msg_' + Date.now().toString(36),
-      para: para.trim(), texto: texto.trim(), t: Date.now()
+      para, texto, t: Date.now()
     });
     this.guardar();
-    Notificaciones.mostrar('✉️ Mensaje guardado (publica el mundo para que le llegue)', 'exito', 6000);
+    Notificaciones.mostrar('✉️ Mensaje enviado', 'exito', 4000);
+    document.getElementById('ventana-admin-mensaje').classList.add('oculto');
+    this._volverAlPanel();
   },
 
-  // Muestra al jugador los mensajes del admin que aún no ha visto
   mostrarMensajes() {
     if (!Guardado.datos.mensajesVistos) Guardado.datos.mensajesVistos = [];
     const id = Usuarios.perfilActivo ? Usuarios.perfilActivo.id : '';
-    const todos = [...this.publicado.mensajes, ...this.datos.mensajes];
+    const todos = [...(this.publicado.mensajes || []), ...(this.datos.mensajes || [])];
     for (const m of todos) {
       if (Guardado.datos.mensajesVistos.includes(m.id)) continue;
       if (m.para !== 'todos' && m.para !== id) continue;
-      Notificaciones.mostrar('✉️ Mensaje del administrador: ' + m.texto, 'alerta', 8000);
+      Notificaciones.mostrarAdmin(m.texto, 10000);
       Guardado.datos.mensajesVistos.push(m.id);
     }
     Guardado.guardar();
+  },
+
+  listarCofresPin() {
+    document.getElementById('ventana-admin').classList.add('oculto');
+    document.getElementById('admin-form-titulo').textContent = '🔐 PIN de cofres ocultos';
+    const campos = document.getElementById('admin-form-campos');
+    campos.innerHTML = '';
+    document.getElementById('btn-admin-guardar').style.display = 'none';
+    const cofres = Cofres.lista();
+    const ocultos = cofres.filter(c => !c.visible);
+    if (!ocultos.length) {
+      campos.innerHTML = '<div class="campo-caja" style="padding:14px;">No hay cofres ocultos en el mundo</div>';
+    }
+    for (const c of ocultos) {
+      const fila = document.createElement('div');
+      fila.className = 'fila-jugador-admin';
+      const pin = c.pinRegistro || '(creado antes — PIN no guardado)';
+      fila.innerHTML =
+        '<div class="datos"><div class="nombre">🔒 ' + (c.creadorNombre || '—') + '</div>' +
+        '<div class="meta">PIN: <b>' + pin + '</b><br>ID: ' + c.id + '</div></div>';
+      campos.appendChild(fila);
+    }
+    this._colocacion = null;
+    document.getElementById('ventana-admin-form').classList.remove('oculto');
   },
 
   // Lee la tarjeta de jugador que alguien le mandó al admin
@@ -1103,42 +1143,68 @@ const Admin = {
   // ---------- CUENTAS REGISTRADAS (panel admin) ----------
   listarCuentas() {
     document.getElementById('ventana-admin').classList.add('oculto');
-    document.getElementById('admin-form-titulo').textContent = '👥 Cuentas registradas';
+    document.getElementById('admin-form-titulo').textContent = '👥 Jugadores';
     const campos = document.getElementById('admin-form-campos');
     campos.innerHTML = '';
     document.getElementById('btn-admin-guardar').style.display = 'none';
 
-    const globales = this.jugadoresGlobales();
-    for (const j of globales) {
-      const local = Usuarios.datos.lista.find(p => p.id === j.id);
-      const fila = document.createElement('div');
-      fila.className = 'fila-tienda';
-      const ban = [...(this.publicado.baneados || []), ...(this.datos.baneados || [])]
-        .find(b => b.id === j.id || b.id === j.telefono);
-      fila.innerHTML =
-        '<span class="icono">👤</span>' +
-        '<div class="datos"><div class="nombre">' + j.nombre +
-        (ban && this._banActivo(ban) ? ' 🚫' : '') + '</div>' +
-        '<div class="precio">📱 ' + (j.telefono || '—') + '<br>ID: ' + j.id + '</div></div>';
-      const acciones = document.createElement('div');
-      acciones.style.cssText = 'display:flex;flex-wrap:wrap;gap:4px;max-width:140px;';
-      const mk = (t, fn) => {
-        const b = document.createElement('button');
-        b.textContent = t;
-        b.style.cssText = 'border:none;border-radius:8px;padding:6px 8px;cursor:pointer;background:rgba(255,255,255,.12);color:#fff;font-size:12px;';
-        b.addEventListener('click', fn);
-        acciones.appendChild(b);
-      };
-      if (local) {
-        mk('✏️', () => this._abrirEditorJugador(local));
-      } else {
-        mk('✏️', () => this._abrirEditorJugador(j, true));
+    const buscar = document.createElement('input');
+    buscar.id = 'admin-buscar-jugador';
+    buscar.type = 'search';
+    buscar.placeholder = '🔍 Buscar por nombre, teléfono o ID…';
+    campos.appendChild(buscar);
+
+    const cont = document.createElement('div');
+    cont.id = 'admin-lista-jugadores';
+    campos.appendChild(cont);
+
+    const pintar = (filtro) => {
+      cont.innerHTML = '';
+      const f = (filtro || '').trim().toLowerCase();
+      const globales = this.jugadoresGlobales().filter(j => {
+        if (!f) return true;
+        return (j.nombre || '').toLowerCase().includes(f) ||
+          (j.telefono || '').includes(f) ||
+          (j.id || '').toLowerCase().includes(f);
+      });
+      for (const j of globales) {
+        const local = Usuarios.datos.lista.find(p => p.id === j.id);
+        const partida = (this.publicado.partidas || {})[j.id] || (this.datos.partidasExtra || {})[j.id];
+        const pd = partida ? (partida.datos || partida) : null;
+        const oro = pd?.dinero?.saldo;
+        const vida = pd?.vida;
+        const ban = [...(this.publicado.baneados || []), ...(this.datos.baneados || [])]
+          .find(b => b.id === j.id || b.id === j.telefono);
+        const fila = document.createElement('div');
+        fila.className = 'fila-jugador-admin';
+        fila.innerHTML =
+          '<div class="datos"><div class="nombre">' + j.nombre +
+          (ban && this._banActivo(ban) ? ' 🚫' : '') +
+          (vida === 0 ? ' 💀' : '') + '</div>' +
+          '<div class="meta">📱 ' + (j.telefono || '—') + ' · ID: ' + j.id +
+          (oro != null ? ' · 💰' + oro : '') +
+          (vida != null ? ' · ❤️' + vida : '') + '</div></div>';
+        const acciones = document.createElement('div');
+        acciones.className = 'acciones';
+        const mk = (t, fn) => {
+          const b = document.createElement('button');
+          b.textContent = t;
+          b.addEventListener('click', fn);
+          acciones.appendChild(b);
+        };
+        mk('✏️', () => this._abrirEditorJugador(local || j, !local));
+        mk('✉️', () => this.abrirMensaje(j.id));
+        mk('🚫', () => this._abrirBanJugador(j));
+        fila.appendChild(acciones);
+        cont.appendChild(fila);
       }
-      mk('🚫', () => this._abrirBanJugador(j));
-      fila.appendChild(acciones);
-      campos.appendChild(fila);
-    }
-    if (!globales.length) campos.innerHTML = '<div class="campo-caja">Aún no hay jugadores en el mundo publicado</div>';
+      if (!globales.length) {
+        cont.innerHTML = '<div class="campo-caja" style="padding:14px;">No hay jugadores con ese nombre</div>';
+      }
+    };
+
+    buscar.addEventListener('input', () => pintar(buscar.value));
+    pintar('');
     this._colocacion = null;
     document.getElementById('ventana-admin-form').classList.remove('oculto');
   },
@@ -1156,7 +1222,9 @@ const Admin = {
     if (perfil.id === Usuarios.perfilActivo?.id) {
       return JSON.parse(JSON.stringify({
         mochila: Guardado.datos.mochila,
-        dinero: Guardado.datos.dinero
+        dinero: Guardado.datos.dinero,
+        vida: Guardado.datos.vida,
+        muerto: Guardado.datos.muerto
       }));
     }
     const clave = CONFIG.claveGuardado + '::' + perfil.id;
@@ -1165,37 +1233,59 @@ const Admin = {
       if (p?.datos) {
         return JSON.parse(JSON.stringify({
           mochila: p.datos.mochila || new Array(25).fill(null),
-          dinero: p.datos.dinero || { saldo: CONFIG.dineroInicial }
+          dinero: p.datos.dinero || { saldo: CONFIG.dineroInicial },
+          vida: p.datos.vida ?? CONFIG.vidaMaxima,
+          muerto: !!p.datos.muerto
         }));
       }
     } catch (e) {}
     const nube = (this.publicado.partidas || {})[perfil.id];
-    if (nube?.mochila) {
-      return JSON.parse(JSON.stringify({
-        mochila: nube.mochila,
-        dinero: nube.dinero || { saldo: CONFIG.dineroInicial }
-      }));
+    if (nube) {
+      const d = nube.datos || nube;
+      if (d.mochila) {
+        return JSON.parse(JSON.stringify({
+          mochila: d.mochila,
+          dinero: d.dinero || { saldo: CONFIG.dineroInicial },
+          vida: d.vida ?? CONFIG.vidaMaxima,
+          muerto: d.vida === 0 || !!d.muerto
+        }));
+      }
     }
     const extra = (this.datos.partidasExtra || {})[perfil.id];
-    if (extra?.mochila) {
-      return JSON.parse(JSON.stringify({ mochila: extra.mochila, dinero: extra.dinero || { saldo: 0 } }));
+    if (extra) {
+      const d = extra.datos || extra;
+      if (d.mochila) {
+        return JSON.parse(JSON.stringify({
+          mochila: d.mochila,
+          dinero: d.dinero || { saldo: 0 },
+          vida: d.vida ?? CONFIG.vidaMaxima,
+          muerto: d.vida === 0 || !!d.muerto
+        }));
+      }
     }
-    return this._partidaDefault();
+    return Object.assign(this._partidaDefault(), { vida: CONFIG.vidaMaxima, muerto: false });
   },
 
   async _guardarPartidaJugador(perfil, partida) {
     if (!partida.mochila) partida.mochila = new Array(25).fill(null);
     if (!partida.dinero) partida.dinero = { saldo: 0 };
     partida.dinero.control = await Utilidades.sha256(Guardado.SAL + '|saldo|' + partida.dinero.saldo);
+    if (partida.vida == null) partida.vida = CONFIG.vidaMaxima;
+    partida.muerto = partida.vida <= 0;
 
     if (perfil.id === Usuarios.perfilActivo?.id) {
       Guardado.datos.mochila = partida.mochila;
       Guardado.datos.dinero = partida.dinero;
+      Guardado.datos.vida = partida.vida;
+      Guardado.datos.muerto = partida.muerto;
       await Guardado.guardarAhora();
       Mochila.slots = Guardado.datos.mochila;
       Mochila.pintar();
       Dinero.saldo = partida.dinero.saldo;
       Dinero.pintar();
+      if (partida.muerto) Vida._activarMuerte();
+      else if (typeof Vida.revivir === 'function' && Guardado.datos.muerto) Vida.revivir(partida.vida);
+      else { Vida.actual = partida.vida; Vida.pintar(); }
       return;
     }
 
@@ -1205,17 +1295,23 @@ const Admin = {
     if (!paquete?.datos) paquete = { datos: Guardado._estadoNuevo() };
     paquete.datos.mochila = partida.mochila;
     paquete.datos.dinero = partida.dinero;
+    paquete.datos.vida = partida.vida;
+    paquete.datos.muerto = partida.muerto;
     paquete.firma = await Utilidades.sha256(JSON.stringify(paquete.datos) + Guardado.SAL);
     localStorage.setItem(clave, JSON.stringify(paquete));
 
     if (!this.datos.partidasExtra) this.datos.partidasExtra = {};
     this.datos.partidasExtra[perfil.id] = {
-      mochila: partida.mochila,
-      dinero: partida.dinero,
+      datos: {
+        mochila: partida.mochila,
+        dinero: partida.dinero,
+        vida: partida.vida,
+        muerto: partida.muerto
+      },
       t: Date.now()
     };
     this.guardar();
-    await this._publicarParaTodos();
+    await this._publicarParaTodos(true);
   },
 
   async _abrirEditorJugador(perfil, soloGlobal) {
@@ -1231,6 +1327,7 @@ const Admin = {
     }
     document.getElementById('admin-editor-nombre').textContent = this._editorJugador.perfil.nombre;
     document.getElementById('admin-editor-oro').value = this._editorJugador.partida.dinero?.saldo ?? 0;
+    document.getElementById('admin-editor-vida').value = this._editorJugador.partida.vida ?? CONFIG.vidaMaxima;
     this._pintarEditorJugador();
     document.getElementById('ventana-admin-editor').classList.remove('oculto');
   },
@@ -1352,9 +1449,13 @@ const Admin = {
     const ed = this._editorJugador;
     if (!ed) return;
     const oro = parseInt(document.getElementById('admin-editor-oro').value, 10);
+    const vida = parseInt(document.getElementById('admin-editor-vida').value, 10);
     if (isNaN(oro) || oro < 0) { alert('Oro inválido'); return; }
+    if (isNaN(vida) || vida < 0 || vida > CONFIG.vidaMaxima) { alert('Vida inválida (0–' + CONFIG.vidaMaxima + ')'); return; }
     ed.partida.dinero = ed.partida.dinero || { saldo: 0 };
     ed.partida.dinero.saldo = oro;
+    ed.partida.vida = vida;
+    ed.partida.muerto = vida <= 0;
     await this._guardarPartidaJugador(ed.perfil, ed.partida);
     Notificaciones.mostrar('✅ Inventario de ' + ed.perfil.nombre + ' guardado', 'exito');
     document.getElementById('ventana-admin-editor').classList.add('oculto');
@@ -1446,22 +1547,29 @@ const Admin = {
     const etiq = document.getElementById('admin-clave-etiqueta');
     if (!etiq) return;
     etiq.textContent = this._tokenEnTelefono()
-      ? 'Clave GitHub ✅ (en tu teléfono)'
-      : 'Clave GitHub (configurar en tu teléfono)';
+      ? 'Token GitHub ✅'
+      : 'Token GitHub (configurar)';
   },
 
   abrirConfiguracionClave() {
     const ventana = document.getElementById('ventana-admin-clave');
     const input = document.getElementById('admin-clave-token');
     const estado = document.getElementById('admin-clave-estado');
+    const previo = document.getElementById('admin-clave-previo');
     if (!ventana || !input || !estado) return;
     input.value = '';
-    if (this._tokenEnTelefono()) {
-      estado.textContent = '✅ Ya tienes una clave guardada en este teléfono.';
+    const token = this.datos && this.datos.tokenPublicar;
+    if (token) {
+      estado.textContent = '✅ Token guardado en este teléfono.';
       estado.className = 'admin-clave-estado ok';
+      if (previo) {
+        previo.textContent = 'Token actual: ••••' + token.slice(-6) + ' (pega uno nuevo solo si quieres cambiarlo)';
+        previo.classList.remove('oculto');
+      }
     } else {
-      estado.textContent = '⚠️ Aún no hay clave en este teléfono.';
+      estado.textContent = '⚠️ Aún no hay token en este teléfono.';
       estado.className = 'admin-clave-estado';
+      if (previo) previo.classList.add('oculto');
     }
     document.getElementById('ventana-admin').classList.add('oculto');
     ventana.classList.remove('oculto');
@@ -1676,7 +1784,10 @@ const Admin = {
         return [...porId.values()].filter(t => t.cantidad > 0);
       })(),
       partidas: (() => {
-        const porId = Object.assign({}, this.publicado.partidas || {});
+        const porId = {};
+        for (const [id, p] of Object.entries(this.publicado.partidas || {})) {
+          porId[id] = p;
+        }
         for (const [id, p] of Object.entries(this.datos.partidasExtra || {})) {
           if (!porId[id] || (p.t && p.t > (porId[id].t || 0))) porId[id] = p;
         }

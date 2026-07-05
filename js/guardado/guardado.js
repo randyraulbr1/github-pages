@@ -62,6 +62,7 @@ const Guardado = {
       correoRecibidos: [],
       correoTiendaLocal: [],
       mensajesVistos: [],
+      muerto: false,
       admin: { misiones: [], tesoros: [], objetos: [] },
       nubeT: 0
     };
@@ -72,7 +73,7 @@ const Guardado = {
       'mochila', 'dinero', 'vida', 'hambre', 'xp', 'nivel', 'posicionJugador',
       'tesorosRecogidos', 'misiones', 'misionesEstado',
       'correoEnviados', 'correoRecibidos', 'correoTiendaLocal',
-      'historialDinero', 'historialObjetos', 'mensajesVistos'
+      'historialDinero', 'historialObjetos', 'mensajesVistos', 'muerto'
     ];
   },
 

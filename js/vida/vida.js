@@ -7,15 +7,23 @@ const Vida = {
   hambre: CONFIG.hambreInicial,
   xp: 0,
   nivel: 1,
+  _muerto: false,
 
   iniciar() {
     this.actual = Guardado.datos.vida ?? CONFIG.vidaMaxima;
     this.hambre = Guardado.datos.hambre ?? CONFIG.hambreInicial;
     this.xp = Guardado.datos.xp ?? 0;
     this.nivel = Guardado.datos.nivel ?? 1;
+    this._muerto = !!(Guardado.datos.muerto || this.actual <= 0);
+    if (this._muerto) this.actual = 0;
     this._recalcularNivel();
     this.pintar();
+    if (this._muerto) this._mostrarPantallaMuerte();
     setInterval(() => this._tickHambre(), CONFIG.segundosDesgasteHambre * 1000);
+  },
+
+  estaMuerto() {
+    return this._muerto || this.actual <= 0;
   },
 
   xpParaNivel(n) {
@@ -39,6 +47,7 @@ const Vida = {
   },
 
   ganarXp(cantidad, motivo) {
+    if (this.estaMuerto()) return;
     if (this.nivel >= CONFIG.nivelMaximo) return;
     this.xp += cantidad;
     Guardado.datos.xp = this.xp;
@@ -49,6 +58,7 @@ const Vida = {
   },
 
   _tickHambre() {
+    if (this.estaMuerto()) return;
     if (this.hambre > 0) {
       this.hambre = Math.max(0, this.hambre - 1);
       Guardado.datos.hambre = this.hambre;
@@ -61,6 +71,7 @@ const Vida = {
   },
 
   alimentar(cantidad, motivo) {
+    if (this.estaMuerto()) return;
     const antes = this.hambre;
     this.hambre = Math.min(CONFIG.hambreMaxima, this.hambre + cantidad);
     if (this.hambre !== antes) {
@@ -72,6 +83,7 @@ const Vida = {
   },
 
   cambiar(cantidad, motivo) {
+    if (this.estaMuerto() && cantidad < 0) return;
     const antes = this.actual;
     this.actual = Math.max(0, Math.min(CONFIG.vidaMaxima, this.actual + cantidad));
     if (this.actual !== antes) {
@@ -79,8 +91,36 @@ const Vida = {
       Guardado.guardar();
       this.pintar();
       if (motivo && cantidad > 0) Notificaciones.mostrar('❤️ ' + motivo, 'exito');
-      if (this.actual === 0) Notificaciones.mostrar('💀 Sin energía. Come para recuperar hambre y vida', 'error', 5000);
+      if (this.actual === 0) this._activarMuerte();
     }
+  },
+
+  _activarMuerte() {
+    if (this._muerto) return;
+    this._muerto = true;
+    Guardado.datos.muerto = true;
+    Guardado.datos.vida = 0;
+    Guardado.guardar();
+    this._mostrarPantallaMuerte();
+  },
+
+  _mostrarPantallaMuerte() {
+    const pantalla = document.getElementById('pantalla-muerte');
+    if (pantalla) pantalla.classList.remove('oculto');
+    document.body.classList.add('jugador-muerto');
+  },
+
+  revivir(vida) {
+    this._muerto = false;
+    Guardado.datos.muerto = false;
+    this.actual = Math.max(1, Math.min(CONFIG.vidaMaxima, vida || CONFIG.vidaMaxima));
+    Guardado.datos.vida = this.actual;
+    Guardado.guardar();
+    this.pintar();
+    const pantalla = document.getElementById('pantalla-muerte');
+    if (pantalla) pantalla.classList.add('oculto');
+    document.body.classList.remove('jugador-muerto');
+    Notificaciones.mostrar('❤️ El administrador te ha revivido', 'exito', 6000);
   },
 
   pintar() {

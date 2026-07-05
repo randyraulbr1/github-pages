@@ -131,6 +131,7 @@
     }
 
     if (typeof Admin !== 'undefined' && Admin.mostrarMensajes) Admin.mostrarMensajes();
+    if (typeof Notificaciones !== 'undefined') Notificaciones._actualizarBadge();
   } catch (e) {
     console.error('Error arrancando Mariel Explorer:', e);
     if (textoCarga) {

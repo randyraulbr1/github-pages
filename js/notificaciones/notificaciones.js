@@ -12,22 +12,31 @@ const Notificaciones = {
     n.textContent = texto;
     zona.appendChild(n);
 
-    // Entra deslizándose
     requestAnimationFrame(() => requestAnimationFrame(() => n.classList.add('visible')));
 
-    // Sale deslizándose y se elimina
     setTimeout(() => {
       n.classList.add('saliendo');
       setTimeout(() => n.remove(), 400);
     }, duracionMs);
 
-    // Guardar en el historial de avisos del jugador (últimos 10)
     if (typeof Guardado !== 'undefined' && Guardado.datos) {
       if (!Guardado.datos.notificaciones) Guardado.datos.notificaciones = [];
       Guardado.datos.notificaciones.unshift({ texto, tipo, t: Date.now() });
-      Guardado.datos.notificaciones = Guardado.datos.notificaciones.slice(0, 10);
+      Guardado.datos.notificaciones = Guardado.datos.notificaciones.slice(0, 20);
       Guardado.guardar();
+      if (tipo === 'admin') this._actualizarBadge();
     }
+  },
+
+  _actualizarBadge() {
+    const badge = document.getElementById('badge-avisos');
+    if (!badge || !Guardado.datos) return;
+    const sinLeer = (Guardado.datos.notificaciones || []).some(n => n.tipo === 'admin' && !n.leido);
+    badge.classList.toggle('oculto', !sinLeer);
+  },
+
+  mostrarAdmin(texto, duracionMs) {
+    this.mostrar('✉️ Administrador: ' + texto, 'admin', duracionMs || 10000);
   },
 
   // ---------- VENTANA DE ÚLTIMOS AVISOS ----------
@@ -43,12 +52,15 @@ const Notificaciones = {
       cont.innerHTML = '<div class="tienda-vacia">Todavía no tienes avisos</div>';
     }
     for (const aviso of lista) {
+      if (aviso.tipo === 'admin') aviso.leido = true;
       const fila = document.createElement('div');
       fila.className = 'fila-aviso ' + (aviso.tipo || 'info');
       fila.innerHTML = '<div>' + aviso.texto + '</div>' +
         '<div class="fecha">' + Utilidades.fechaLegible(aviso.t) + '</div>';
       cont.appendChild(fila);
     }
+    Guardado.guardar();
+    this._actualizarBadge();
     document.getElementById('ventana-notific').classList.remove('oculto');
   }
 };
