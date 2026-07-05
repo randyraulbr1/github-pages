@@ -53,9 +53,9 @@ const Guardado = {
 
     await this._fusionarDesdeNube(partidaNuevaLocal);
     await this.guardarAhora();
-    if (MundoPublico.syncDisponible()) {
+    if (MundoPublico.puedeEscribir()) {
       this.sincronizarNube(true).catch(() => {});
-    } else {
+    } else if (typeof Usuarios !== 'undefined' && Usuarios.esAdministrador()) {
       this._avisarSinSyncNube();
     }
     this.iniciarSyncPeriodico();
@@ -154,12 +154,12 @@ const Guardado = {
 
   _avisarSinSyncNube() {
     if (this._avisoSinNube) return;
-    if (typeof Usuarios !== 'undefined' && Usuarios.esAdministrador()) return;
-    if (MundoPublico.syncDisponible()) return;
+    if (typeof Usuarios === 'undefined' || !Usuarios.esAdministrador()) return;
+    if (MundoPublico.puedeEscribir()) return;
     this._avisoSinNube = true;
     if (typeof Notificaciones !== 'undefined') {
       Notificaciones.mostrar(
-        '⚠️ La nube aún no está activa. El admin debe configurar 🔑 Token y pulsar Sincronizar.',
+        '⚠️ Falta 🔑 Token en este teléfono (Admin → Token). Sin eso no se sube el mundo.',
         'alerta', 10000
       );
     }
@@ -169,7 +169,7 @@ const Guardado = {
     if (this._syncEnCurso) return false;
     if (typeof Usuarios === 'undefined' || !Usuarios.perfilActivo) return false;
     if (!MundoPublico.puedeEscribir()) {
-      this._avisarSinSyncNube();
+      if (Usuarios.esAdministrador()) this._avisarSinSyncNube();
       return false;
     }
 

@@ -40,6 +40,21 @@ const MundoPublico = {
     return !!this._tokenGitHub();
   },
 
+  // El login y la lectura de partida no necesitan token — solo la escritura a GitHub
+  lecturaNubeOk() {
+    return !!(CONFIG.firebaseMundoUrl || CONFIG.repoPublicacion);
+  },
+
+  async refrescarCuentasServidor() {
+    const bust = '?v=' + Date.now();
+    const [indice, textoMundo] = await Promise.all([
+      this._descargarJsonRepo(this._rutaIndiceCuentas()),
+      this.descargar()
+    ]);
+    if (textoMundo) this._mundoCache = textoMundo;
+    return { indice, mundo: textoMundo ? JSON.parse(textoMundo) : null };
+  },
+
   _versionMundo(texto) {
     try {
       const m = JSON.parse(texto);
@@ -213,19 +228,18 @@ const MundoPublico = {
       (j.nombre && j.nombre.toLowerCase() === u) ||
       (j.telefono && j.telefono === limpio));
 
-    const indice = await this._descargarJsonRepo(this._rutaIndiceCuentas());
+    const { indice, mundo } = await this.refrescarCuentasServidor().catch(() => ({ indice: null, mundo: null }));
+
     if (Array.isArray(indice)) {
       const hit = buscar(indice);
       if (hit) return hit;
     }
 
-    try {
-      const texto = await this.descargar();
-      if (texto) {
-        const hit = buscar(JSON.parse(texto).jugadores);
-        if (hit) return hit;
-      }
-    } catch (e) {}
+    if (mundo && Array.isArray(mundo.jugadores)) {
+      const hit = buscar(mundo.jugadores);
+      if (hit) return hit;
+    }
+
     return null;
   },
 

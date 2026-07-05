@@ -210,6 +210,9 @@ const Usuarios = {
       if (typeof Admin !== 'undefined') {
         try { await Admin.actualizarJugadoresGlobales(); } catch (e) {}
       }
+      try {
+        await MundoPublico.refrescarCuentasServidor();
+      } catch (e) {}
       let perfil = null;
       const global = await this._buscarEnMundo(usuario);
       if (global) {
@@ -230,8 +233,10 @@ const Usuarios = {
       } else {
         perfil = this._buscarPorLogin(usuario);
         if (!perfil) {
-          this._mostrarAvisoAuth('login',
-            'No existe esa cuenta. Regístrate o pide al admin que la cree en el servidor.');
+          const sinRed = !MundoPublico.lecturaNubeOk();
+          this._mostrarAvisoAuth('login', sinRed
+            ? 'Sin conexión al servidor. Revisa WiFi o datos móviles.'
+            : 'No existe esa cuenta. Usa el mismo nombre/teléfono y contraseña que te dio el admin.');
           return;
         }
         if (!perfil.pinHash) {
