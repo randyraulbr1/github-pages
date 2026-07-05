@@ -40,8 +40,8 @@
       "telefono": "7709908375",
       "creado": 1783263656375,
       "pinHash": "4bdc96ffc0926b62d55708e3c1755ca3f04b8c28bec6fd85777117da67497f11",
-      "sesionToken": "mr7xb25v3lff31ifow",
-      "sesionT": 1783263939763
+      "sesionToken": "mr89zka633oy2hud5i",
+      "sesionT": 1783285238382
     }
   ],
   "cofres": [],
@@ -59,7 +59,10 @@
             "id": "pan",
             "cantidad": 1
           },
-          null,
+          {
+            "id": "arroz_congri",
+            "cantidad": 1
+          },
           null,
           null,
           null,
@@ -91,7 +94,10 @@
         "hambre": 29,
         "xp": 0,
         "nivel": 1,
-        "posicionJugador": null,
+        "posicionJugador": [
+          22.993725837427267,
+          -82.75334715843202
+        ],
         "tesorosRecogidos": [],
         "misiones": {},
         "misionesEstado": {},
@@ -110,10 +116,26 @@
             "hash": "65ec4691dc9cd1f8d600d833456b400fff92fa73558eb8fad0fe636e0987ddab"
           }
         ],
-        "historialObjetos": [],
-        "mensajesVistos": []
+        "historialObjetos": [
+          {
+            "t": 1783285646629,
+            "detalle": "Obtenido: Arroz congrí",
+            "monto": 1,
+            "saldo": null,
+            "lugar": "campo abierto",
+            "pos": [
+              22.99346,
+              -82.753582
+            ],
+            "hashAnterior": "GENESIS",
+            "hash": "e96854a9acb4a25b2aee748379066ebc2a13245c4a98a0e77d5df69c3681d176"
+          }
+        ],
+        "mensajesVistos": [],
+        "muerto": false,
+        "armaEquipada": null
       },
-      "t": 1783266441251
+      "t": 1783286109538
     }
   }
 }
