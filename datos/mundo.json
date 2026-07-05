@@ -21,6 +21,22 @@
       "itemId": "cangrejo",
       "cantidad": 1,
       "reaparece": 0
+    },
+    {
+      "id": "admx_o_mr8czr0d",
+      "pos": [
+        22.992773,
+        -82.756133
+      ],
+      "items": [
+        {
+          "id": "arroz_congri",
+          "cantidad": 1
+        }
+      ],
+      "itemId": "arroz_congri",
+      "cantidad": 1,
+      "reaparece": 0
     }
   ],
   "posiciones": {
@@ -275,7 +291,7 @@
       "t": 1783289716204
     }
   },
-  "actualizadoEn": 1783290282722,
+  "actualizadoEn": 1783290286148,
   "enemigos": [
     {
       "id": "enm_mr8cze5b",
