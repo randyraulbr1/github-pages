@@ -104,8 +104,8 @@
         "xp": 0,
         "nivel": 1,
         "posicionJugador": [
-          22.99391966172959,
-          -82.75654301047328
+          22.99355546933941,
+          -82.75531053543091
         ],
         "tesorosRecogidos": [],
         "misiones": {},
@@ -157,7 +157,7 @@
         "muerto": false,
         "armaEquipada": null
       },
-      "t": 1783287543723
+      "t": 1783287552233
     },
     "pmr8at78bi3vki": {
       "datos": {
@@ -221,5 +221,5 @@
       "t": 1783287549251
     }
   },
-  "actualizadoEn": 1783287549410
+  "actualizadoEn": 1783287552507
 }
