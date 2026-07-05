@@ -126,18 +126,47 @@ const Admin = {
     }
     this._mundoCargado = true;
     this._ultimoPublicado = this._crudoPublicado;
+    if (this._crudoPublicado) this._ultimoFirmaPublicada = this._firmaMundo(this._crudoPublicado);
     this._detectarCambiosLocalesSinPublicar();
+  },
+
+  _firmaMundo(jsonStr) {
+    try {
+      const o = JSON.parse(jsonStr);
+      delete o.actualizadoEn;
+      return JSON.stringify(o);
+    } catch (e) {
+      return jsonStr || '';
+    }
+  },
+
+  _sincronizarEstadoTrasPublicar(adminLocal, json) {
+    this._ultimoPublicado = json;
+    this._crudoPublicado = json;
+    this._ultimoFirmaPublicada = this._firmaMundo(json);
+    try {
+      this.publicado = Object.assign(this.publicado || {}, JSON.parse(json));
+    } catch (e) {}
+    if (adminLocal && adminLocal.partidas) {
+      this.publicado.partidas = Object.assign({}, this.publicado.partidas || {}, adminLocal.partidas);
+      this.datos.partidasExtra = {};
+    }
+    if (adminLocal && adminLocal.claveSyncNube) {
+      MundoPublico._tokenDesdeMundo = adminLocal.claveSyncNube;
+    }
   },
 
   _detectarCambiosLocalesSinPublicar() {
     if (!this.esAdminJugador() || !MundoPublico.puedePublicar()) return;
+    const json = this._jsonMundo();
+    if (this._ultimoFirmaPublicada && this._firmaMundo(json) === this._ultimoFirmaPublicada) return;
     const localN = (this.datos.objetos || []).length + (this.datos.tesoros || []).length +
       (this.datos.misiones || []).length + (this.datos.enemigos || []).length;
     const pubN = (this.publicado.objetos || []).length + (this.publicado.tesoros || []).length +
       (this.publicado.misiones || []).length + (this.publicado.enemigos || []).length;
     const posLocal = Object.keys(this.datos.posiciones || {}).length;
     const posPub = Object.keys(this.publicado.posiciones || {}).length;
-    if (localN > pubN || posLocal > posPub || Object.keys(this.datos.partidasExtra || {}).length) {
+    if (localN > pubN || posLocal > posPub) {
       this._encolarPublicacion(true);
     }
   },
@@ -379,8 +408,7 @@ const Admin = {
     localStorage.setItem(this.CLAVE, JSON.stringify(this.datos,
       (clave, valor) => clave.startsWith('_') ? undefined : valor));
     if (!silencioso && this.esAdminJugador() && MundoPublico.puedePublicar()) {
-      clearTimeout(this._tempPublicar);
-      this._tempPublicar = setTimeout(() => this.publicarMundo(true), 1500);
+      this._encolarPublicacion(true);
     }
   },
 
@@ -3001,18 +3029,27 @@ const Admin = {
   async publicarMundo(silencioso) {
     if (!this._mundoCargado) return false;
     if (!this.esAdminJugador()) return false;
-    const json = this._jsonMundo();
-    if (json === this._ultimoPublicado && !this._pubPendiente) return true;
-    if (!silencioso) Notificaciones.mostrar('🌍 Publicando el mundo…', 'info');
-    this._mostrarPublicando(true);
+    let adminLocal;
+    try {
+      adminLocal = JSON.parse(this._jsonMundo());
+    } catch (e) {
+      return false;
+    }
+    const firma = this._firmaMundo(JSON.stringify(adminLocal));
+    if (firma === this._ultimoFirmaPublicada && !this._pubPendiente) return true;
+
+    adminLocal.actualizadoEn = Date.now();
+    const json = JSON.stringify(adminLocal, (clave, valor) =>
+      clave.startsWith('_') ? undefined : valor, 2);
+
+    if (!silencioso) Notificaciones.mostrar('🌍 Subiendo a GitHub…', 'info', 3500);
 
     // Opción A: Firebase (automático, sin token en el teléfono)
     if (CONFIG.firebaseMundoUrl) {
       try {
         const ok = await MundoPublico.publicar(json);
         if (ok) {
-          this._ultimoPublicado = json;
-          this._crudoPublicado = json;
+          this._sincronizarEstadoTrasPublicar(adminLocal, json);
           this._aplicarMundoRemoto(json);
           if (!silencioso) {
             Notificaciones.mostrar('🌍 ¡Listo! Los jugadores lo ven en ~5 segundos', 'exito', 8000);
@@ -3024,23 +3061,17 @@ const Admin = {
       } catch (e) {
         if (!silencioso) Notificaciones.mostrar('❌ Sin conexión. Intenta con WiFi', 'error', 6000);
         return false;
-      } finally {
-        this._mostrarPublicando(false);
       }
     }
 
     const token = this._tokenPublicacion();
     if (!token) {
-      this._mostrarPublicando(false);
       if (!silencioso) {
         Notificaciones.mostrar('🔑 Configura tu clave en Admin → Clave GitHub (en tu teléfono)', 'alerta', 8000);
         this.abrirConfiguracionClave();
       }
       return false;
     }
-
-    let adminLocal;
-    try { adminLocal = JSON.parse(json); } catch (e) { return false; }
 
     const mensaje = silencioso
       ? 'Actualización automática desde el juego'
@@ -3052,31 +3083,25 @@ const Admin = {
     );
 
     if (ok) {
-      this._ultimoPublicado = json;
-      this._crudoPublicado = json;
-      try { this.publicado = Object.assign(this.publicado || {}, JSON.parse(json)); } catch (e) {}
-      if (adminLocal.claveSyncNube) MundoPublico._tokenDesdeMundo = adminLocal.claveSyncNube;
-      if (silencioso) {
-        Notificaciones.mostrar('☁️ Mundo subido a GitHub', 'exito', 2500);
-      } else {
-        Notificaciones.mostrar('🌍 ¡MUNDO PUBLICADO en GitHub! Todos lo ven en ~1 min', 'exito', 8000);
+      this._sincronizarEstadoTrasPublicar(adminLocal, json);
+      if (!silencioso) {
+        Notificaciones.mostrar('🌍 ¡MUNDO PUBLICADO en GitHub!', 'exito', 6000);
       }
     } else if (!silencioso) {
       Notificaciones.mostrar(
-        '❌ GitHub ocupado (conflicto 409). Espera unos segundos y pulsa Sincronizar',
+        '❌ No se pudo subir a GitHub. Revisa el token o pulsa Sincronizar',
         'error', 8000
       );
     } else {
       clearTimeout(this._tempReintento409);
-      this._tempReintento409 = setTimeout(() => this._encolarPublicacion(true), 5000);
+      this._tempReintento409 = setTimeout(() => this._encolarPublicacion(true), 8000);
     }
-    this._mostrarPublicando(false);
     return !!ok;
   },
 
   _mostrarPublicando(on) {
     const el = document.getElementById('pantalla-publicando');
-    if (el) el.classList.toggle('oculto', !on);
+    if (el) el.classList.add('oculto');
   },
 
   // ---------- EXPORTAR ----------
@@ -3096,7 +3121,7 @@ const Admin = {
     for (const it of this.publicado.itemsNuevos) nuevosPorId.set(it.id, it);
     for (const it of this.datos.itemsNuevos) nuevosPorId.set(it.id, it);
     return JSON.stringify({
-      actualizadoEn: Date.now(),
+      actualizadoEn: this.publicado.actualizadoEn || 0,
       misiones: this._itemsConPosicion(this.misionesTodas()),
       tesoros: this._itemsConPosicion(this.tesorosTodos()),
       objetos: this._itemsConPosicion(this.objetosTodos()),
