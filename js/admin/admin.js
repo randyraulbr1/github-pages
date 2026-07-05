@@ -38,10 +38,8 @@ const Admin = {
     this.publicado = { misiones: [], tesoros: [], objetos: [], posiciones: {}, eliminados: [], precios: {}, itemsNuevos: [] };
     this._crudoPublicado = null;
     try {
-      const respuesta = await Utilidades.fetchConTimeout(
-        'datos/mundo.json?v=' + Date.now(), { cache: 'no-store' }, 8000);
-      if (respuesta.ok) {
-        const texto = await respuesta.text();
+      const texto = await MundoPublico.descargar();
+      if (texto) {
         this._crudoPublicado = texto;
         this.publicado = Object.assign(this.publicado, JSON.parse(texto));
       }
@@ -87,7 +85,7 @@ const Admin = {
   // solo al archivo global (con una espera corta para agrupar cambios).
   // Los jugadores lo reciben al momento por la vigilancia del mundo.
   _autoPublicar() {
-    if (!this.datos || !this.datos.tokenPublicar) return;
+    if (!MundoPublico.puedePublicar()) return;
     clearTimeout(this._tempPublicar);
     this._tempPublicar = setTimeout(() => {
       const json = this._jsonMundo();
@@ -98,10 +96,10 @@ const Admin = {
 
   // Sube el mapa a GitHub para que TODOS los jugadores lo vean
   _publicarParaTodos() {
-    if (!this.datos.tokenPublicar) {
+    if (!MundoPublico.puedePublicar()) {
       Notificaciones.mostrar(
-        '⚠️ Solo TÚ ves esto en este teléfono.\n' +
-        'Ve a 🛠️ Admin → 🔑 Configurar clave → luego 🌍 PUBLICAR MUNDO',
+        '⚠️ El mapa no se comparte aún.\n' +
+        'Configura Firebase en config.js (recomendado) o 🔑 clave de GitHub en Admin.',
         'alerta', 12000
       );
       return;
@@ -173,10 +171,8 @@ const Admin = {
 
   async _revisarActualizacion() {
     try {
-      const r = await Utilidades.fetchConTimeout(
-        'datos/mundo.json?v=' + Date.now(), { cache: 'no-store' }, 5000);
-      if (!r.ok) return;
-      const texto = await r.text();
+      const texto = await MundoPublico.descargar();
+      if (!texto) return;
       if (this._crudoPublicado === null) { this._crudoPublicado = texto; return; }
       if (texto === this._crudoPublicado) return;
       this._aplicarMundoRemoto(texto);
@@ -1034,11 +1030,31 @@ const Admin = {
   },
 
   async publicarMundo() {
-    if (!this.datos.tokenPublicar) {
-      Notificaciones.mostrar('🔑 Primero configura tu clave de publicación', 'alerta', 6000);
+    const json = this._jsonMundo();
+    Notificaciones.mostrar('🌍 Publicando el mundo…', 'info');
+
+    // Opción A: Firebase (automático, sin token en el teléfono)
+    if (CONFIG.firebaseMundoUrl) {
+      try {
+        const ok = await MundoPublico.publicar(json);
+        if (ok) {
+          this._ultimoPublicado = json;
+          this._crudoPublicado = json;
+          Notificaciones.mostrar('🌍 ¡Listo! Los jugadores lo ven en ~8 segundos', 'exito', 8000);
+        } else {
+          Notificaciones.mostrar('❌ No se pudo subir a Firebase. Revisa la URL en config.js', 'error', 7000);
+        }
+      } catch (e) {
+        Notificaciones.mostrar('❌ Sin conexión. Intenta con WiFi', 'error', 6000);
+      }
       return;
     }
-    Notificaciones.mostrar('🌍 Publicando el mundo…', 'info');
+
+    // Opción B: GitHub API (token en Admin)
+    if (!this.datos.tokenPublicar) {
+      Notificaciones.mostrar('🔑 Configura Firebase en config.js o tu clave de GitHub en Admin', 'alerta', 7000);
+      return;
+    }
     const url = 'https://api.github.com/repos/' + CONFIG.repoPublicacion + '/contents/datos/mundo.json';
     const cabeceras = {
       'Authorization': 'Bearer ' + this.datos.tokenPublicar,
@@ -1049,7 +1065,6 @@ const Admin = {
       const r = await fetch(url + '?ref=' + CONFIG.ramaPublicacion, { headers: cabeceras });
       if (r.ok) sha = (await r.json()).sha;
     } catch (e) {}
-    const json = this._jsonMundo();
     const cuerpo = {
       message: 'Publicar mundo desde el juego (admin)',
       content: btoa(unescape(encodeURIComponent(json))),
