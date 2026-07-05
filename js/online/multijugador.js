@@ -30,8 +30,11 @@ const Multijugador = {
 
   async sincronizarCuenta(usuario, clave) {
     const base = this.urlServidor();
-    if (!base || !usuario || !clave) return false;
-    const body = JSON.stringify({ username: usuario.trim(), password: clave });
+    const nombre = (typeof Usuarios !== 'undefined' && Usuarios.perfilActivo)
+      ? Usuarios.perfilActivo.nombre
+      : (usuario || '').trim();
+    if (!base || !nombre || !clave) return false;
+    const body = JSON.stringify({ username: nombre, password: clave });
     const headers = { 'Content-Type': 'application/json' };
     try {
       let r = await fetch(base + '/api/login', { method: 'POST', headers, body });
@@ -48,6 +51,26 @@ const Multijugador = {
     return false;
   },
 
+  /** Conecta al servidor en vivo (después de que el mapa esté listo). */
+  async conectar() {
+    const base = this.urlServidor();
+    if (!base || typeof Usuarios === 'undefined' || !Usuarios.perfilActivo) return false;
+    if (typeof Mapa === 'undefined' || !Mapa.mapa) return false;
+
+    let token = localStorage.getItem(this.TOKEN_KEY);
+    if (!token) {
+      const clave = sessionStorage.getItem('mariel_clave_servidor');
+      if (clave) {
+        await this.sincronizarCuenta(Usuarios.perfilActivo.nombre, clave);
+        token = localStorage.getItem(this.TOKEN_KEY);
+      }
+    }
+    if (!token) return false;
+
+    await this.iniciar();
+    return this.activo;
+  },
+
   async iniciar() {
     const base = this.urlServidor();
     const token = localStorage.getItem(this.TOKEN_KEY);
@@ -61,14 +84,18 @@ const Multijugador = {
     }
 
     if (this.socket) {
+      this.socket.removeAllListeners();
       this.socket.disconnect();
       this.socket = null;
     }
 
+    this.activo = false;
     this.socket = io(base, {
       auth: { token },
       transports: ['websocket', 'polling'],
-      reconnection: true
+      reconnection: true,
+      reconnectionAttempts: 8,
+      timeout: 20000
     });
 
     this._enlazarEventos();
@@ -77,6 +104,12 @@ const Multijugador = {
   },
 
   _enlazarEventos() {
+    if (!this.socket) return;
+
+    this.socket.on('connect_error', () => {
+      this.activo = false;
+    });
+
     this.socket.on('connect', () => {
       this.activo = true;
       if (typeof GPS !== 'undefined' && GPS.posicion) {
@@ -90,13 +123,7 @@ const Multijugador = {
     });
 
     this.socket.on('game:init', (data) => {
-      if (typeof Amigos !== 'undefined') Amigos.aplicarSocial(data.social);
-      if (data.mundoSnapshot && typeof Admin !== 'undefined') {
-        const localTs = Admin.publicado?.actualizadoEn || 0;
-        if ((data.mundoActualizadoEn || 0) >= localTs) {
-          Admin._aplicarMundoRemoto(JSON.stringify(data.mundoSnapshot));
-        }
-      }
+      if (typeof Amigos !== 'undefined' && data.social) Amigos.aplicarSocial(data.social);
       this.online = (data.onlinePlayers || []).filter(p => this._visible(p.playerId));
       this._redibujar(false);
       this.enviarStats(true);
@@ -149,7 +176,12 @@ const Multijugador = {
 
     this.socket.on('mundo:sync', (data) => {
       if (!data?.mundo || typeof Admin === 'undefined') return;
-      Admin._aplicarMundoRemoto(JSON.stringify(data.mundo));
+      const m = data.mundo;
+      const tieneMapa = (m.misiones?.length || 0) + (m.objetos?.length || 0) +
+        (m.enemigos?.length || 0) + (m.tesoros?.length || 0) +
+        (m.tiendasAdmin?.length || 0) + Object.keys(m.posiciones || {}).length;
+      if (!tieneMapa) return;
+      Admin._aplicarMundoRemoto(JSON.stringify(m));
       if (typeof Usuarios !== 'undefined' && !Usuarios.esAdministrador() &&
           typeof Notificaciones !== 'undefined') {
         Notificaciones.mostrar('🌍 El admin actualizó el mapa', 'info', 4000);
@@ -186,9 +218,12 @@ const Multijugador = {
       if (typeof Amigos !== 'undefined') Amigos.aplicarSocial(data);
     });
 
-    document.addEventListener('click', (ev) => {
-      if (typeof Amigos !== 'undefined') Amigos.manejarPopupClick(ev);
-    });
+    if (!this._clickAmigosOk) {
+      this._clickAmigosOk = true;
+      document.addEventListener('click', (ev) => {
+        if (typeof Amigos !== 'undefined') Amigos.manejarPopupClick(ev);
+      });
+    }
   },
 
   _miPlayerId() {

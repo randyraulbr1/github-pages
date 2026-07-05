@@ -118,7 +118,10 @@ const Admin = {
     this.iniciarVigilancia();
 
     // Admin: si hay borradores locales no publicados, subirlos en segundo plano
-    if (typeof Usuarios !== 'undefined' && Usuarios.esAdministrador() && MundoPublico.puedePublicar()) {
+    if (typeof Usuarios !== 'undefined' && Usuarios.esAdministrador()) {
+      const puedePub = MundoPublico.puedePublicar() ||
+        (typeof SyncServidor !== 'undefined' && SyncServidor.puedePublicar());
+      if (puedePub) {
       const localN = (this.datos.objetos || []).length + (this.datos.tesoros || []).length +
         (this.datos.misiones || []).length + (this.datos.enemigos || []).length;
       const pubN = (this.publicado.objetos || []).length + (this.publicado.tesoros || []).length +
@@ -127,6 +130,7 @@ const Admin = {
       const posPub = Object.keys(this.publicado.posiciones || {}).length;
       if (localN > pubN || posLocal > posPub) {
         setTimeout(() => this._publicarParaTodos(true), 3500);
+      }
       }
     }
     this._mundoCargado = true;
@@ -243,12 +247,13 @@ const Admin = {
   _autoPublicar() {
     if (!this._mundoCargado) return;
     if (!this.esAdminJugador()) return;
-    if (!MundoPublico.puedePublicar()) {
-      if (!this._avisoSinToken) {
+    const puedeServidor = typeof SyncServidor !== 'undefined' && SyncServidor.puedePublicar();
+    if (!MundoPublico.puedePublicar() && !puedeServidor) {
+      if (!this._avisoSinToken && !puedeServidor) {
         this._avisoSinToken = true;
         Notificaciones.mostrar(
-          '⚠️ Sin token en este teléfono. Admin → Token GitHub para publicar mapa y cuentas.',
-          'alerta', 12000
+          '⚠️ Inicia sesión en el juego para publicar en vivo al servidor (sin token GitHub).',
+          'alerta', 10000
         );
       }
       return;
@@ -265,7 +270,9 @@ const Admin = {
 
   async _procesarColaPublicacion() {
     if (!this._pubPendiente || this._publicando) return;
-    if (!this.esAdminJugador() || !MundoPublico.puedePublicar()) return;
+    if (!this.esAdminJugador()) return;
+    const puedeServidor = typeof SyncServidor !== 'undefined' && SyncServidor.puedePublicar();
+    if (!MundoPublico.puedePublicar() && !puedeServidor) return;
     this._pubPendiente = false;
     this._publicando = true;
     try {
@@ -3281,13 +3288,12 @@ const Admin = {
 
     if (okGitHub || okServidor) {
       this._sincronizarEstadoTrasPublicar(adminLocal, json);
-      this._aplicarMundoRemoto(json);
+      if (okGitHub) this._aplicarMundoRemoto(json);
       return true;
     }
 
     if (!CONFIG.firebaseMundoUrl && !this._tokenPublicacion() && !okServidor && !silencioso) {
-      Notificaciones.mostrar('🔑 Inicia sesión en el juego para publicar en vivo, o configura clave GitHub', 'alerta', 8000);
-      this.abrirConfiguracionClave();
+      Notificaciones.mostrar('Inicia sesión en el juego para publicar al servidor en vivo', 'alerta', 7000);
     }
     return false;
   },

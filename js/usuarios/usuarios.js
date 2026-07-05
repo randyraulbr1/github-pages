@@ -259,9 +259,7 @@ const Usuarios = {
       }
 
       await this._activar(perfil);
-      if (typeof Multijugador !== 'undefined') {
-        Multijugador.sincronizarCuenta(usuario, clave).then(() => Multijugador.iniciar()).catch(() => {});
-      }
+      sessionStorage.setItem('mariel_clave_servidor', clave);
     } catch (e) {
       console.error('Error en login:', e);
       this._mostrarAvisoAuth('login', 'Error al entrar. Intenta de nuevo.');
@@ -312,9 +310,7 @@ const Usuarios = {
       );
     }
     await this._activar(perfil);
-    if (typeof Multijugador !== 'undefined') {
-      Multijugador.sincronizarCuenta(nombre, clave).then(() => Multijugador.iniciar()).catch(() => {});
-    }
+    sessionStorage.setItem('mariel_clave_servidor', clave);
   },
 
   async _activar(perfil) {
@@ -367,6 +363,11 @@ const Usuarios = {
   },
 
   cerrarSesion() {
+    sessionStorage.removeItem('mariel_clave_servidor');
+    if (typeof Multijugador !== 'undefined' && Multijugador.socket) {
+      Multijugador.socket.disconnect();
+      Multijugador.activo = false;
+    }
     if (this.perfilActivo) {
       MundoPublico.registrarJugadorEnMundo(this.perfilActivo, {
         sesionToken: null,

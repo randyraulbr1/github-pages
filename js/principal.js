@@ -191,7 +191,11 @@ async function esperarMapaListo() {
         Notificaciones.mostrar('🌴 ¡Hola ' + Usuarios.perfilActivo.nombre + '! Toca 📍 para usar tu GPS', 'info', 4500);
       }
       if (typeof Multijugador !== 'undefined') {
-        Multijugador.iniciar().catch(() => {});
+        Multijugador.conectar().then((ok) => {
+          if (ok && typeof Notificaciones !== 'undefined') {
+            Notificaciones.mostrar('📡 Conectado al servidor en vivo', 'info', 2500);
+          }
+        }).catch(() => {});
       }
       Guardado.sincronizarNube(true).catch(() => {});
       if (!Usuarios.perfilActivo.telefono) {
