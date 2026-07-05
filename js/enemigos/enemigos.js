@@ -208,8 +208,19 @@ const Enemigos = {
 
   danoJugador() {
     const r = this._rangoDanoNivel();
-    if (r.hi <= r.lo) return r.lo;
-    return r.lo + Math.floor(Math.random() * (r.hi - r.lo + 1));
+    const arma = typeof Mochila !== 'undefined' ? Mochila.danoArmaEquipada() : 0;
+    const lo = r.lo + arma;
+    const hi = r.hi + arma;
+    if (hi <= lo) return lo;
+    return lo + Math.floor(Math.random() * (hi - lo + 1));
+  },
+
+  _textoDanoJugador() {
+    const r = this._rangoDanoNivel();
+    const arma = typeof Mochila !== 'undefined' ? Mochila.danoArmaEquipada() : 0;
+    const infoArma = typeof Mochila !== 'undefined' && Mochila.armaEquipadaId()
+      ? (' · Arma ' + (Mochila.armaEquipadaInfo()?.icono || '') + ' +' + arma) : '';
+    return (arma ? (arma + ' + ') : '') + r.lo + '–' + r.hi + ' aleatorio' + infoArma;
   },
 
   _abrirCombate(e) {
@@ -226,8 +237,10 @@ const Enemigos = {
     document.getElementById('combate-vida-texto').textContent = actual + '/' + max;
     document.getElementById('combate-vida-relleno').style.width = (actual / max * 100) + '%';
     const r = this._rangoDanoNivel();
+    const arma = typeof Mochila !== 'undefined' ? Mochila.danoArmaEquipada() : 0;
     document.getElementById('combate-info').textContent =
-      'Tu daño: ' + r.lo + '–' + r.hi + ' (nivel ' + Vida.nivel + ') · XP: ' + (e.xp || 0) +
+      'Tu daño: ' + this._textoDanoJugador() + ' = ' + (r.lo + arma) + '–' + (r.hi + arma) +
+      ' · Nv ' + Vida.nivel + ' · XP: ' + (e.xp || 0) +
       ' · Daño enemigo: ' + (e.dano || 5);
     document.getElementById('ventana-combate').classList.remove('oculto');
   },

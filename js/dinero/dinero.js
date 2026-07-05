@@ -67,7 +67,13 @@ const Dinero = {
   },
 
   pintar() {
-    document.getElementById('dinero-cantidad').textContent = this.saldo;
+    const el = document.getElementById('dinero-cantidad');
+    if (el) el.textContent = this.saldo;
+    const relleno = document.getElementById('dinero-relleno');
+    if (relleno) {
+      const max = 5000;
+      relleno.style.width = Math.min(100, (this.saldo / max) * 100) + '%';
+    }
     if (typeof Opciones !== 'undefined' && Opciones.pintarPerfilOpciones) Opciones.pintarPerfilOpciones();
   }
 };

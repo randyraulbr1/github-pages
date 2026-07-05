@@ -1906,7 +1906,7 @@ const Admin = {
           b.addEventListener('click', fn);
           acciones.appendChild(b);
         };
-        mk('✏️', () => this._abrirEditorJugador(local || j, !local), 'Editar inventario');
+        mk('✏️', () => this._abrirEditorJugador(local || j, !local), 'Editar cuenta e inventario');
         mk('✉️', () => this.abrirMensaje(j.id), 'Enviar mensaje');
         mk('🚫', () => this._abrirBanJugador(j), 'Banear');
         fila.appendChild(acciones);
@@ -2059,7 +2059,8 @@ const Admin = {
         mochila: Guardado.datos.mochila,
         dinero: Guardado.datos.dinero,
         vida: Guardado.datos.vida,
-        muerto: Guardado.datos.muerto
+        muerto: Guardado.datos.muerto,
+        armaEquipada: Guardado.datos.armaEquipada || null
       }));
     }
     const clave = CONFIG.claveGuardado + '::' + perfil.id;
@@ -2113,6 +2114,7 @@ const Admin = {
       Guardado.datos.dinero = partida.dinero;
       Guardado.datos.vida = partida.vida;
       Guardado.datos.muerto = partida.muerto;
+      if (partida.armaEquipada !== undefined) Guardado.datos.armaEquipada = partida.armaEquipada;
       await Guardado.guardarAhora();
       Mochila.slots = Guardado.datos.mochila;
       Mochila.pintar();
@@ -2132,6 +2134,7 @@ const Admin = {
     paquete.datos.dinero = partida.dinero;
     paquete.datos.vida = partida.vida;
     paquete.datos.muerto = partida.muerto;
+    if (partida.armaEquipada !== undefined) paquete.datos.armaEquipada = partida.armaEquipada;
     paquete.firma = await Utilidades.sha256(JSON.stringify(paquete.datos) + Guardado.SAL);
     localStorage.setItem(clave, JSON.stringify(paquete));
 
@@ -2141,7 +2144,8 @@ const Admin = {
         mochila: partida.mochila,
         dinero: partida.dinero,
         vida: partida.vida,
-        muerto: partida.muerto
+        muerto: partida.muerto,
+        armaEquipada: partida.armaEquipada || null
       },
       t: Date.now()
     };
@@ -2160,6 +2164,12 @@ const Admin = {
     }
     document.getElementById('admin-editor-oro').value = this._editorJugador.partida.dinero?.saldo ?? 0;
     document.getElementById('admin-editor-vida').value = this._editorJugador.partida.vida ?? CONFIG.vidaMaxima;
+    const nom = document.getElementById('admin-editor-nombre');
+    const tel = document.getElementById('admin-editor-telefono');
+    const clv = document.getElementById('admin-editor-clave');
+    if (nom) nom.value = this._editorJugador.perfil.nombre || '';
+    if (tel) tel.value = this._editorJugador.perfil.telefono || '';
+    if (clv) clv.value = '';
     this._pintarEditorJugador();
     this._mostrarPanelDerecho('admin-vista-editor', '✏️ ' + this._editorJugador.perfil.nombre);
   },
@@ -2201,20 +2211,41 @@ const Admin = {
       celNota.addEventListener('pointerdown', ev => this._editorArrastre(ev, 'nota', null));
       contenedor.appendChild(celNota);
     }
+    const porCat = { consumibles: [], armas: [], animales: [], objetos: [] };
     for (const id of this._idsCatalogoCompleto()) {
-      const item = Items.seguro(id);
-      const cel = document.createElement('div');
-      cel.className = 'slot admin-slot-infinito';
-      cel.dataset.itemId = id;
-      cel.textContent = item.icono;
-      const inf = document.createElement('span');
-      inf.className = 'cantidad infinito';
-      inf.textContent = '∞';
-      cel.appendChild(inf);
-      cel.title = item.nombre;
-      if (enlazar) enlazar(id, cel);
-      else cel.addEventListener('pointerdown', ev => this._editorArrastre(ev, 'infinito', id));
-      contenedor.appendChild(cel);
+      const cat = Items.categoriaAdm(Items.seguro(id));
+      (porCat[cat] || porCat.objetos).push(id);
+    }
+    const orden = ['consumibles', 'armas', 'animales', 'objetos'];
+    for (const cat of orden) {
+      const ids = porCat[cat];
+      if (!ids.length) continue;
+      const tit = document.createElement('div');
+      tit.className = 'admin-adm-categoria';
+      tit.textContent = Items.tituloCategoriaAdm(cat);
+      contenedor.appendChild(tit);
+      const rej = document.createElement('div');
+      rej.className = 'admin-adm-categoria-rejilla';
+      for (const id of ids) {
+        const item = Items.seguro(id);
+        const cel = document.createElement('div');
+        cel.className = 'slot admin-slot-infinito';
+        cel.dataset.itemId = id;
+        cel.textContent = item.icono;
+        const inf = document.createElement('span');
+        inf.className = 'cantidad infinito';
+        inf.textContent = '∞';
+        cel.appendChild(inf);
+        let hint = item.nombre;
+        if (item.cura) hint += ' · hambre +' + item.cura;
+        if (item.curaVida) hint += ' · vida +' + item.curaVida;
+        if (item.dano) hint += ' · daño +' + item.dano + ' (nv ' + (item.nivelMin || 1) + '–' + (item.nivelMax || 100) + ')';
+        cel.title = hint;
+        if (enlazar) enlazar(id, cel);
+        else cel.addEventListener('pointerdown', ev => this._editorArrastre(ev, 'infinito', id));
+        rej.appendChild(cel);
+      }
+      contenedor.appendChild(rej);
     }
   },
 
@@ -2372,14 +2403,42 @@ const Admin = {
     if (!ed) return;
     const oro = parseInt(document.getElementById('admin-editor-oro').value, 10);
     const vida = parseInt(document.getElementById('admin-editor-vida').value, 10);
+    const nombre = (document.getElementById('admin-editor-nombre')?.value || '').trim();
+    const telefono = (document.getElementById('admin-editor-telefono')?.value || '').trim().replace(/[\s-]/g, '');
+    const claveNueva = document.getElementById('admin-editor-clave')?.value || '';
     if (isNaN(oro) || oro < 0) { alert('Oro inválido'); return; }
     if (isNaN(vida) || vida < 0 || vida > CONFIG.vidaMaxima) { alert('Vida inválida (0–' + CONFIG.vidaMaxima + ')'); return; }
+    if (nombre.length < 2) { alert('Nombre mínimo 2 letras'); return; }
+    if (telefono && !Usuarios.telefonoValido(telefono)) { alert('Teléfono inválido'); return; }
+    const errNom = this.validarRegistro(nombre, telefono, ed.perfil.id);
+    if (errNom) { alert(errNom); return; }
+    if (claveNueva) {
+      const errClave = Utilidades.claveCuentaValida(claveNueva);
+      if (errClave) { alert(errClave); return; }
+    }
     ed.partida.dinero = ed.partida.dinero || { saldo: 0 };
     ed.partida.dinero.saldo = oro;
     ed.partida.vida = vida;
     ed.partida.muerto = vida <= 0;
+    ed.perfil.nombre = nombre;
+    ed.perfil.telefono = telefono;
+    if (claveNueva) {
+      ed.perfil.pinHash = await Utilidades.sha256('pin-perfil|' + claveNueva);
+    }
+    const local = Usuarios.datos.lista.find(p => p.id === ed.perfil.id);
+    if (local) {
+      local.nombre = nombre;
+      local.telefono = telefono;
+      if (claveNueva) local.pinHash = ed.perfil.pinHash;
+      if (Usuarios.perfilActivo && Usuarios.perfilActivo.id === local.id) {
+        Usuarios.perfilActivo.nombre = nombre;
+        Usuarios.perfilActivo.telefono = telefono;
+      }
+      Usuarios._guardarLista();
+    }
+    this.registrarJugador(ed.perfil, true);
     await this._guardarPartidaJugador(ed.perfil, ed.partida);
-    Notificaciones.mostrar('✅ Inventario de ' + ed.perfil.nombre + ' guardado', 'exito');
+    Notificaciones.mostrar('✅ Datos de ' + nombre + ' guardados', 'exito');
     this._editorJugador = null;
     this.listarCuentas();
   },

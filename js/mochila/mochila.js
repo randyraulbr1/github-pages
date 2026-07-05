@@ -25,6 +25,8 @@ const Mochila = {
     document.getElementById('btn-usar-item').addEventListener('click', () => this.usarSeleccionado());
     document.getElementById('btn-escribir-item').addEventListener('click', () => this.escribirNota());
     document.getElementById('btn-eliminar-item').addEventListener('click', () => this.eliminarSeleccionado());
+    const btnEq = document.getElementById('btn-equipar-item');
+    if (btnEq) btnEq.addEventListener('click', () => this.equiparSeleccionado());
     this.pintar();
   },
 
@@ -50,6 +52,45 @@ const Mochila = {
   },
   tieneItem(id) { return this.contar(id) > 0; },
   slotsLibres() { return this.slots.filter(s => !s).length; },
+
+  armaEquipadaId() { return Guardado.datos.armaEquipada || null; },
+
+  danoArmaEquipada() {
+    const id = this.armaEquipadaId();
+    if (!id || !this.tieneItem(id)) return 0;
+    const item = Items.obtener(id);
+    if (!item || item.tipo !== 'arma') return 0;
+    if (!Items.armaAptaParaNivel(id, Vida.nivel)) return 0;
+    return item.dano || 0;
+  },
+
+  equiparArma(id) {
+    const item = Items.obtener(id);
+    if (!item || item.tipo !== 'arma') return false;
+    if (!this.tieneItem(id)) return false;
+    if (!Items.armaAptaParaNivel(id, Vida.nivel)) {
+      Notificaciones.mostrar('Nivel ' + (item.nivelMin || 1) + '–' + (item.nivelMax || 100) + ' para esta arma', 'alerta');
+      return false;
+    }
+    Guardado.datos.armaEquipada = id;
+    Guardado.guardar();
+    this.pintar();
+    return true;
+  },
+
+  desequiparArma() {
+    Guardado.datos.armaEquipada = null;
+    Guardado.guardar();
+    this.pintar();
+  },
+
+  equiparSeleccionado() {
+    const sl = this.slots[this.slotSeleccionado];
+    if (!sl) return;
+    if (this.armaEquipadaId() === sl.id) this.desequiparArma();
+    else this.equiparArma(sl.id);
+    this.mostrarDetalle(this.slotSeleccionado);
+  },
 
   // ---------- AGREGAR / QUITAR ----------
   // Devuelve true si cupo. Registra en el historial de objetos.
@@ -110,6 +151,7 @@ const Mochila = {
         if (sl.cantidad <= 0) this.slots[i] = null;
       }
     }
+    if (this.armaEquipadaId() === id && !this.tieneItem(id)) this.desequiparArma();
     this.guardar();
     this.pintar();
     const item = Items.seguro(id);
@@ -128,6 +170,7 @@ const Mochila = {
       if (sl) {
         const item = Items.seguro(sl.id);
         celda.textContent = item.icono;
+        if (this.armaEquipadaId() === sl.id) celda.classList.add('slot-equipado');
         const cant = document.createElement('span');
         cant.className = 'cantidad';
         cant.textContent = sl.cantidad;
@@ -265,8 +308,23 @@ const Mochila = {
     document.getElementById('detalle-desc').textContent = sl.texto
       ? '«' + sl.texto + '»' : (item.desc || '');
     document.getElementById('detalle-cantidad').textContent = 'Cantidad: ' + sl.cantidad;
-    document.getElementById('btn-usar-item').style.display =
-      (item.cura || sl.id === 'cofre' || sl.id === 'llave_maestra') ? '' : 'none';
+    const btnUsar = document.getElementById('btn-usar-item');
+    const btnEq = document.getElementById('btn-equipar-item');
+    btnUsar.style.display =
+      (item.cura || item.curaVida || sl.id === 'cofre' || sl.id === 'llave_maestra') ? '' : 'none';
+    if (btnEq) {
+      if (item.tipo === 'arma') {
+        btnEq.style.display = '';
+        const eq = this.armaEquipadaId() === sl.id;
+        btnEq.textContent = eq ? 'Quitar arma' : 'Equipar';
+        const apta = Items.armaAptaParaNivel(sl.id, Vida.nivel);
+        document.getElementById('detalle-desc').textContent = (sl.texto ? '«' + sl.texto + '»' : (item.desc || '')) +
+          (item.dano ? ' · +' + item.dano + ' daño (nv ' + (item.nivelMin || 1) + '–' + (item.nivelMax || 100) + ')' : '') +
+          (!apta ? ' · Nivel insuficiente' : '');
+      } else {
+        btnEq.style.display = 'none';
+      }
+    }
     // Escribir: solo con papel en la mano y un lápiz en la mochila
     document.getElementById('btn-escribir-item').style.display =
       (sl.id === 'papel' && this.tieneItem('lapiz')) ? '' : 'none';
@@ -309,7 +367,7 @@ const Mochila = {
       Cofres.usarLlaveMaestra();
       return;
     }
-    if (item.tipo === 'comida' && item.cura) {
+    if (item.tipo === 'comida' && item.cura && !item.curaVida) {
       if (Vida.hambre >= CONFIG.hambreMaxima) {
         Notificaciones.mostrar('No tienes hambre', 'alerta');
         return;
@@ -317,6 +375,13 @@ const Mochila = {
       this.quitar(sl.id, 1, 'Consumido');
       Vida.alimentar(item.cura, item.nombre);
       Vida.ganarXp(5, 'Comer');
+    } else if (item.curaVida || (item.cura && item.tipo !== 'comida')) {
+      if (Vida.actual >= CONFIG.vidaMaxima) {
+        Notificaciones.mostrar('Ya tienes la vida al máximo', 'alerta');
+        return;
+      }
+      this.quitar(sl.id, 1, 'Consumido');
+      Vida.cambiar(item.curaVida || item.cura, item.nombre);
     } else if (item.cura) {
       if (Vida.actual >= CONFIG.vidaMaxima) {
         Notificaciones.mostrar('Ya tienes la vida al máximo', 'alerta');

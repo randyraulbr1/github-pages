@@ -38,19 +38,31 @@ const CATALOGO_ITEMS = {
   lapiz:          { nombre: 'Lápiz',             icono: '✏️', tipo: 'herramienta', precio: 30, desc: 'Sirve para escribir notas en papel.' },
   nota_escrita:   { nombre: 'Nota escrita',      icono: '📝', tipo: 'especial', precio: 5, unico: true, desc: 'Una nota escrita por un jugador.' },
 
-  // ---------- COMIDA Y MEDICINA (12) ----------
-  agua:           { nombre: 'Botella de agua',   icono: '💧', tipo: 'comida', precio: 5,  cura: 5,  desc: 'Fresca, recupera un poco de vida.' },
-  refresco:       { nombre: 'Refresco',          icono: '🥤', tipo: 'comida', precio: 10, cura: 10, desc: 'Bien frío, del timbiriche.' },
-  cafe:           { nombre: 'Café cubano',       icono: '☕', tipo: 'comida', precio: 6,  cura: 8,  desc: 'Un buchito y sigues andando.' },
-  pan:            { nombre: 'Pan',               icono: '🍞', tipo: 'comida', precio: 8,  cura: 10, desc: 'Pan de la bodega, calientico.' },
-  pizza:          { nombre: 'Pizza',             icono: '🍕', tipo: 'comida', precio: 25, cura: 25, desc: 'De queso, doblada como se debe.' },
-  pollo_asado:    { nombre: 'Pollo asado',       icono: '🍗', tipo: 'comida', precio: 35, cura: 30, desc: 'Recupera bastante vida.' },
-  arroz_congri:   { nombre: 'Arroz congrí',      icono: '🍚', tipo: 'comida', precio: 20, cura: 22, desc: 'El clásico que nunca falla.' },
-  platano_frito:  { nombre: 'Plátano frito',     icono: '🍌', tipo: 'comida', precio: 10, cura: 12, desc: 'Chatinos crujientes.' },
-  mango:          { nombre: 'Mango',             icono: '🥭', tipo: 'comida', precio: 8,  cura: 10, desc: 'Dulce, de la mata del patio.' },
-  coco:           { nombre: 'Coco',              icono: '🥥', tipo: 'comida', precio: 12, cura: 12, desc: 'Agua de coco directa de la palma.' },
-  botiquin:       { nombre: 'Botiquín',          icono: '🩹', tipo: 'comida', precio: 60, cura: 50, desc: 'Vendas y medicinas básicas.' },
-  pocion_vida:    { nombre: 'Medicina fuerte',   icono: '🧪', tipo: 'comida', precio: 120, cura: 100, desc: 'Recupera toda la vida.' },
+  // ---------- COMIDA Y MEDICINA (12) — precios realistas ----------
+  agua:           { nombre: 'Botella de agua',   icono: '💧', tipo: 'comida', precio: 18,  cura: 12, desc: 'Fresca, calma el hambre.' },
+  refresco:       { nombre: 'Refresco',          icono: '🥤', tipo: 'comida', precio: 28,  cura: 18, desc: 'Bien frío, del timbiriche.' },
+  cafe:           { nombre: 'Café cubano',       icono: '☕', tipo: 'comida', precio: 22,  cura: 14, desc: 'Un buchito y sigues andando.' },
+  pan:            { nombre: 'Pan',               icono: '🍞', tipo: 'comida', precio: 25,  cura: 16, desc: 'Pan de la bodega, calientico.' },
+  pizza:          { nombre: 'Pizza',             icono: '🍕', tipo: 'comida', precio: 65,  cura: 32, desc: 'De queso, doblada como se debe.' },
+  pollo_asado:    { nombre: 'Pollo asado',       icono: '🍗', tipo: 'comida', precio: 85,  cura: 42, desc: 'Recupera bastante hambre.' },
+  arroz_congri:   { nombre: 'Arroz congrí',      icono: '🍚', tipo: 'comida', precio: 48,  cura: 28, desc: 'El clásico que nunca falla.' },
+  platano_frito:  { nombre: 'Plátano frito',     icono: '🍌', tipo: 'comida', precio: 32,  cura: 20, desc: 'Chatinos crujientes.' },
+  mango:          { nombre: 'Mango',             icono: '🥭', tipo: 'comida', precio: 28,  cura: 16, desc: 'Dulce, de la mata del patio.' },
+  coco:           { nombre: 'Coco',              icono: '🥥', tipo: 'comida', precio: 35,  cura: 18, desc: 'Agua de coco directa de la palma.' },
+  botiquin:       { nombre: 'Botiquín',          icono: '🩹', tipo: 'comida', precio: 165, curaVida: 55, desc: 'Vendas y medicinas: recupera vida.' },
+  pocion_vida:    { nombre: 'Medicina fuerte',   icono: '🧪', tipo: 'comida', precio: 320, curaVida: 100, desc: 'Recupera toda la vida.' },
+
+  // ---------- ARMAS (10) — una por tramo de nivel, daño suma al combate global ----------
+  arma_nv1:   { nombre: 'Cuchillo de combate', icono: '🔪', tipo: 'arma', precio: 120,  dano: 5,  nivelMin: 1,  nivelMax: 10,  desc: 'Para novatos (nivel 1–10). +5 de daño.' },
+  arma_nv2:   { nombre: 'Machete',             icono: '🗡️', tipo: 'arma', precio: 350,  dano: 10, nivelMin: 11, nivelMax: 20, desc: 'Nivel 11–20. +10 de daño.' },
+  arma_nv3:   { nombre: 'Lanza corta',         icono: '🔱', tipo: 'arma', precio: 620,  dano: 15, nivelMin: 21, nivelMax: 30, desc: 'Nivel 21–30. +15 de daño.' },
+  arma_nv4:   { nombre: 'Espada corta',        icono: '⚔️', tipo: 'arma', precio: 980,  dano: 20, nivelMin: 31, nivelMax: 40, desc: 'Nivel 31–40. +20 de daño.' },
+  arma_nv5:   { nombre: 'Espada larga',        icono: '🗡️', tipo: 'arma', precio: 1450, dano: 25, nivelMin: 41, nivelMax: 50, desc: 'Nivel 41–50. +25 de daño.' },
+  arma_nv6:   { nombre: 'Hacha de guerra',     icono: '🪓', tipo: 'arma', precio: 2100, dano: 32, nivelMin: 51, nivelMax: 60, desc: 'Nivel 51–60. +32 de daño.' },
+  arma_nv7:   { nombre: 'Martillo pesado',     icono: '🔨', tipo: 'arma', precio: 2900, dano: 38, nivelMin: 61, nivelMax: 70, desc: 'Nivel 61–70. +38 de daño.' },
+  arma_nv8:   { nombre: 'Alabarda',            icono: '⚔️', tipo: 'arma', precio: 3800, dano: 45, nivelMin: 71, nivelMax: 80, desc: 'Nivel 71–80. +45 de daño.' },
+  arma_nv9:   { nombre: 'Katana',              icono: '🗡️', tipo: 'arma', precio: 4500, dano: 52, nivelMin: 81, nivelMax: 90, desc: 'Nivel 81–90. +52 de daño.' },
+  arma_nv10:  { nombre: 'Tridente legendario', icono: '🔱', tipo: 'arma', precio: 5000, dano: 60, nivelMin: 91, nivelMax: 100, desc: 'Nivel 91–100. +60 de daño.' },
 
   // ---------- TESOROS Y VALIOSOS (9) ----------
   moneda_antigua: { nombre: 'Moneda antigua',    icono: '🥉', tipo: 'tesoro', precio: 100, desc: 'Una moneda colonial oxidada.' },
@@ -94,6 +106,10 @@ const Items = {
         tipo: it.tipo || 'especial',
         precio: this._limitarPrecio(it.precio),
         cura: it.cura || undefined,
+        curaVida: it.curaVida || undefined,
+        dano: it.dano || undefined,
+        nivelMin: it.nivelMin || undefined,
+        nivelMax: it.nivelMax || undefined,
         desc: it.desc || 'Objeto creado por el administrador.'
       };
     }
@@ -118,5 +134,31 @@ const Items = {
     const lista = Object.entries(CATALOGO_ITEMS).filter(([, it]) => it.tipo === 'tesoro');
     const [id] = lista[Math.floor(Math.random() * lista.length)];
     return id;
+  },
+
+  categoriaAdm(item) {
+    if (!item) return 'objetos';
+    if (item.tipo === 'comida') return 'consumibles';
+    if (item.tipo === 'arma') return 'armas';
+    if (item.tipo === 'pez') return 'animales';
+    return 'objetos';
+  },
+
+  tituloCategoriaAdm(cat) {
+    return { consumibles: '🍽️ Consumibles', armas: '⚔️ Armas', animales: '🐟 Animales', objetos: '📦 Objetos' }[cat] || cat;
+  },
+
+  armas() {
+    return Object.entries(CATALOGO_ITEMS)
+      .filter(([, it]) => it.tipo === 'arma')
+      .map(([id, it]) => ({ id, ...it }));
+  },
+
+  armaAptaParaNivel(id, nivel) {
+    const it = this.obtener(id);
+    if (!it || it.tipo !== 'arma') return false;
+    const min = it.nivelMin || 1;
+    const max = it.nivelMax || 100;
+    return nivel >= min && nivel <= max;
   }
 };

@@ -46,6 +46,10 @@ const Vida = {
     if (subio) {
       this.actual = CONFIG.vidaMaxima;
       Guardado.datos.vida = this.actual;
+      if (typeof Mochila !== 'undefined' && Mochila.armaEquipadaId() &&
+          !Items.armaAptaParaNivel(Mochila.armaEquipadaId(), this.nivel)) {
+        Mochila.desequiparArma();
+      }
       if (this._muerto) {
         this._muerto = false;
         Guardado.datos.muerto = false;

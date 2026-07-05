@@ -13,7 +13,7 @@
   <script>
     // Aviso temprano en móvil (antes de cargar 20+ archivos JS)
     (function () {
-      var V = '39';
+      var V = '40';
       var texto = document.getElementById('carga-texto');
       if (texto) texto.textContent = 'Conectando…';
       var prev = localStorage.getItem('mariel_app_version');
@@ -110,6 +110,13 @@
           <span id="xp-texto">0/80</span>
         </div>
       </div>
+      <div class="fila-barra fila-barra-dinero" title="Dinero">
+        <span class="barra-nivel barra-dinero-icono">$</span>
+        <div id="contenedor-dinero">
+          <div id="dinero-relleno"></div>
+          <span id="dinero-cantidad">0</span>
+        </div>
+      </div>
     </div>
     <div id="hud-acciones-mini">
       <button id="btn-opciones" class="btn-hud-accion" type="button" title="Opciones">⚙️</button>
@@ -118,11 +125,6 @@
       </button>
     </div>
     <div id="letrero-misiones" class="oculto"></div>
-  </div>
-
-  <div id="contenedor-dinero" title="Dinero">
-    <span class="icono-dinero">$</span>
-    <span id="dinero-cantidad">0</span>
   </div>
 
   <!-- BANNER DEL BUSCADOR DE TESOROS -->
@@ -216,6 +218,7 @@
         </div>
         <div id="detalle-botones">
           <button id="btn-usar-item">Usar</button>
+          <button id="btn-equipar-item" style="display:none">Equipar</button>
           <button id="btn-escribir-item">Escribir</button>
           <button id="btn-eliminar-item">Eliminar</button>
         </div>
@@ -447,6 +450,20 @@
           </div>
 
           <div id="admin-vista-editor" class="admin-vista oculto">
+            <div class="admin-editor-cuenta">
+              <div class="campo-admin">
+                <label for="admin-editor-nombre">Nombre</label>
+                <input id="admin-editor-nombre" type="text" maxlength="20" autocomplete="off">
+              </div>
+              <div class="campo-admin">
+                <label for="admin-editor-telefono">Teléfono</label>
+                <input id="admin-editor-telefono" type="tel" inputmode="numeric" autocomplete="off">
+              </div>
+              <div class="campo-admin">
+                <label for="admin-editor-clave">Nueva contraseña (opcional)</label>
+                <input id="admin-editor-clave" type="password" placeholder="Dejar vacío = no cambiar" autocomplete="new-password">
+              </div>
+            </div>
             <div class="admin-editor-stats">
               <div class="admin-editor-oro">
                 <label for="admin-editor-oro">💰 Oro</label>
@@ -651,40 +668,40 @@
   </div>
 
   <!-- LIBRERÍAS -->
-  <script src="lib/leaflet/leaflet.js?v=39"></script>
+  <script src="lib/leaflet/leaflet.js?v=40"></script>
 
   <!-- MÓDULOS DEL JUEGO (orden importante) -->
-  <script src="js/config/config.js?v=39"></script>
-  <script src="js/nucleo/utilidades.js?v=39"></script>
-  <script src="js/mundo/mundo_publico.js?v=39"></script>
-  <script src="js/notificaciones/notificaciones.js?v=39"></script>
-  <script src="js/usuarios/usuarios.js?v=39"></script>
-  <script src="js/guardado/guardado.js?v=39"></script>
-  <script src="js/historial/historial.js?v=39"></script>
-  <script src="js/dinero/dinero.js?v=39"></script>
-  <script src="js/vida/vida.js?v=39"></script>
-  <script src="js/items/items.js?v=39"></script>
-  <script src="js/mochila/mochila.js?v=39"></script>
-  <script src="js/mapa/mapa.js?v=39"></script>
-  <script src="js/gps/gps.js?v=39"></script>
-  <script src="js/tiendas/datos_tiendas.js?v=39"></script>
-  <script src="js/tiendas/tiendas.js?v=39"></script>
-  <script src="js/pesca/pesca.js?v=39"></script>
-  <script src="js/tesoros/datos_tesoros.js?v=39"></script>
-  <script src="js/tesoros/tesoros.js?v=39"></script>
-  <script src="js/misiones/datos_misiones.js?v=39"></script>
-  <script src="js/misiones/misiones.js?v=39"></script>
-  <script src="js/cofres/cofres.js?v=39"></script>
-  <script src="js/correo/correo.js?v=39"></script>
-  <script src="js/enemigos/enemigos.js?v=39"></script>
-  <script src="js/admin/admin.js?v=39"></script>
-  <script src="js/opciones/opciones.js?v=39"></script>
-  <script src="js/principal.js?v=39"></script>
+  <script src="js/config/config.js?v=40"></script>
+  <script src="js/nucleo/utilidades.js?v=40"></script>
+  <script src="js/mundo/mundo_publico.js?v=40"></script>
+  <script src="js/notificaciones/notificaciones.js?v=40"></script>
+  <script src="js/usuarios/usuarios.js?v=40"></script>
+  <script src="js/guardado/guardado.js?v=40"></script>
+  <script src="js/historial/historial.js?v=40"></script>
+  <script src="js/dinero/dinero.js?v=40"></script>
+  <script src="js/vida/vida.js?v=40"></script>
+  <script src="js/items/items.js?v=40"></script>
+  <script src="js/mochila/mochila.js?v=40"></script>
+  <script src="js/mapa/mapa.js?v=40"></script>
+  <script src="js/gps/gps.js?v=40"></script>
+  <script src="js/tiendas/datos_tiendas.js?v=40"></script>
+  <script src="js/tiendas/tiendas.js?v=40"></script>
+  <script src="js/pesca/pesca.js?v=40"></script>
+  <script src="js/tesoros/datos_tesoros.js?v=40"></script>
+  <script src="js/tesoros/tesoros.js?v=40"></script>
+  <script src="js/misiones/datos_misiones.js?v=40"></script>
+  <script src="js/misiones/misiones.js?v=40"></script>
+  <script src="js/cofres/cofres.js?v=40"></script>
+  <script src="js/correo/correo.js?v=40"></script>
+  <script src="js/enemigos/enemigos.js?v=40"></script>
+  <script src="js/admin/admin.js?v=40"></script>
+  <script src="js/opciones/opciones.js?v=40"></script>
+  <script src="js/principal.js?v=40"></script>
   <script>
     // Registrar la app instalable (PWA)
     if ('serviceWorker' in navigator) {
       const yaTeniaVersion = !!navigator.serviceWorker.controller;
-      navigator.serviceWorker.register('sw.js?v=39', { updateViaCache: 'none' })
+      navigator.serviceWorker.register('sw.js?v=40', { updateViaCache: 'none' })
         .then(function (reg) { reg.update(); })
         .catch(function () {});
       // Cuando llega una versión nueva del juego: avisar y recargar solo
