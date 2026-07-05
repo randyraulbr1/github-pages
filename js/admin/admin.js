@@ -98,8 +98,8 @@ const Admin = {
   _publicarParaTodos() {
     if (!MundoPublico.puedePublicar()) {
       Notificaciones.mostrar(
-        '⚠️ El mapa no se comparte aún.\n' +
-        'Configura Firebase en config.js (recomendado) o 🔑 clave de GitHub en Admin.',
+        '⚠️ Configura la 🔑 clave de GitHub en Admin\n' +
+        '(🛠️ → Configurar clave de publicación)',
         'alerta', 12000
       );
       return;
@@ -1016,17 +1016,20 @@ const Admin = {
   // ---------- PUBLICACIÓN AUTOMÁTICA (GitHub desde el teléfono) ----------
   configurarPublicacion() {
     const token = prompt(
-      'Clave de GitHub para que TODOS vean el mismo mapa:\n\n' +
-      '1. Entra a github.com → Settings → Developer settings\n' +
-      '2. Fine-grained token → Contents: Read and write en tu repo\n' +
-      '3. Pega el token aquí (solo se guarda en TU teléfono):'
+      '🔑 Clave de GitHub (para Cuba, sin Firebase):\n\n' +
+      '1. En PC entra a github.com → tu foto → Settings\n' +
+      '2. Developer settings → Fine-grained tokens → Generate\n' +
+      '3. Repo: randyraulbr1/github-pages\n' +
+      '4. Permiso: Contents → Read and write\n' +
+      '5. Copia el token y pégalo aquí\n\n' +
+      '(Solo se guarda en TU teléfono. Luego al pulsar Confirmar sube solo.)'
     );
     if (token === null) return;
     this.datos.tokenPublicar = token.trim() || null;
     this.guardar();
     Notificaciones.mostrar(this.datos.tokenPublicar
-      ? '🔑 Clave guardada: ya puedes PUBLICAR MUNDO con un toque'
-      : '🔑 Clave borrada', 'exito', 6000);
+      ? '🔑 ¡Listo! Al crear en el mapa y pulsar Confirmar, todos lo verán'
+      : '🔑 Clave borrada', 'exito', 8000);
   },
 
   async publicarMundo() {
@@ -1052,7 +1055,7 @@ const Admin = {
 
     // Opción B: GitHub API (token en Admin)
     if (!this.datos.tokenPublicar) {
-      Notificaciones.mostrar('🔑 Configura Firebase en config.js o tu clave de GitHub en Admin', 'alerta', 7000);
+      Notificaciones.mostrar('🔑 Configura tu clave de GitHub en Admin (🔑 Configurar clave)', 'alerta', 7000);
       return;
     }
     const url = 'https://api.github.com/repos/' + CONFIG.repoPublicacion + '/contents/datos/mundo.json';

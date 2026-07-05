@@ -5,9 +5,7 @@ const CONFIG = {
   // Cambiar al publicar: obliga al móvil a descartar caché vieja
   version: '15',
 
-  // Mapa compartido: pega aquí la URL de Firebase (una sola vez, desde PC).
-  // Ejemplo: 'https://mariel-explorer-default-rtdb.firebaseio.com'
-  // Con esto, al pulsar Confirmar el admin sube solo y todos lo ven.
+  // Cuba: dejar vacío. Usar clave de GitHub en Admin (🔑 Configurar clave de publicación).
   firebaseMundoUrl: '',
   // Centro del pueblo de Mariel, Artemisa, Cuba
   centro: [22.9936, -82.7539],
