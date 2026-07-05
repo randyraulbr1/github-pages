@@ -62,6 +62,7 @@ const Admin = {
     if (!this.publicado.correoTienda) this.publicado.correoTienda = [];
     if (!this.publicado.partidas) this.publicado.partidas = {};
     if (this.publicado.claveSyncNube) MundoPublico._tokenDesdeMundo = this.publicado.claveSyncNube;
+    this._aplicarTokenTelefono();
 
     if (!Array.isArray(this.publicado.misiones)) this.publicado.misiones = [];
     if (!Array.isArray(this.publicado.tesoros)) this.publicado.tesoros = [];
@@ -311,7 +312,9 @@ const Admin = {
       Historial.abrir();
     });
     enlazar('admin-publicar', () => this.publicarMundo());
-    enlazar('admin-clave-publicar', () => this.configurarPublicacion());
+    enlazar('admin-clave-publicar', () => this.abrirConfiguracionClave());
+    enlazar('btn-admin-clave-guardar', () => this._guardarClaveTelefono());
+    enlazar('btn-admin-clave-borrar', () => this._borrarClaveTelefono());
     enlazar('btn-admin-guardar', () => this.guardarFormulario());
     enlazar('btn-admin-confirmar', () => this.confirmarColocacion());
     enlazar('btn-admin-salir-modo', () => this.salirModo());
@@ -436,6 +439,7 @@ const Admin = {
     if (clave === null) return;
     const hash = await Utilidades.sha256('pin-perfil|' + clave);
     if (hash !== Usuarios.perfilActivo.pinHash) { alert('Contraseña incorrecta'); return; }
+    this._actualizarEtiquetaClave();
     document.getElementById('ventana-admin').classList.remove('oculto');
   },
 
@@ -1401,34 +1405,98 @@ const Admin = {
     this.listarJugadores();
   },
 
-  // ---------- PUBLICACIÓN AUTOMÁTICA (GitHub desde el teléfono) ----------
-  configurarPublicacion() {
-    const yaHay = MundoPublico._tokenGitHub();
-    const opcion = prompt(
-      '🔑 Clave de GitHub\n\n' +
-      (yaHay ? '✅ Ya hay una clave en este teléfono.\n\n' : '') +
-      'Crear token nuevo:\n' +
-      'https://github.com/settings/personal-access-tokens/new\n\n' +
-      'Repo: randyraulbr1/github-pages\n' +
-      'Permiso: Contents → Read and write\n\n' +
-      'Pégala aquí UNA VEZ (queda guardada en este teléfono).\n' +
-      'Luego pulsa PUBLICAR MUNDO para que todos puedan guardar.\n\n' +
-      '⚠️ NO la pongas en archivos de GitHub: GitHub la bloquea.\n\n' +
-      '(vacío = no cambiar, solo "x" = borrar)',
-      yaHay ? '' : ''
-    );
-    if (opcion === null) return;
-    if (opcion.trim().toLowerCase() === 'x') {
-      this.datos.tokenPublicar = null;
-    } else if (opcion.trim()) {
-      this.datos.tokenPublicar = opcion.trim();
+  // ---------- CLAVE GITHUB (solo en el teléfono del admin) ----------
+  _tokenEnTelefono() {
+    return !!(this.datos && this.datos.tokenPublicar);
+  },
+
+  _aplicarTokenTelefono() {
+    if (this.datos && this.datos.tokenPublicar) {
+      MundoPublico._tokenDesdeMundo = this.datos.tokenPublicar;
     }
-    this.guardar();
+    this._actualizarEtiquetaClave();
+  },
+
+  _actualizarEtiquetaClave() {
+    const etiq = document.getElementById('admin-clave-etiqueta');
+    if (!etiq) return;
+    etiq.textContent = this._tokenEnTelefono()
+      ? 'Clave GitHub ✅ (en tu teléfono)'
+      : 'Clave GitHub (configurar en tu teléfono)';
+  },
+
+  abrirConfiguracionClave() {
+    const ventana = document.getElementById('ventana-admin-clave');
+    const input = document.getElementById('admin-clave-token');
+    const estado = document.getElementById('admin-clave-estado');
+    if (!ventana || !input || !estado) return;
+    input.value = '';
+    if (this._tokenEnTelefono()) {
+      estado.textContent = '✅ Ya tienes una clave guardada en este teléfono.';
+      estado.className = 'admin-clave-estado ok';
+    } else {
+      estado.textContent = '⚠️ Aún no hay clave en este teléfono.';
+      estado.className = 'admin-clave-estado';
+    }
+    document.getElementById('ventana-admin').classList.add('oculto');
+    ventana.classList.remove('oculto');
+    setTimeout(() => input.focus(), 200);
+  },
+
+  _guardarClaveTelefono() {
+    const input = document.getElementById('admin-clave-token');
+    const token = (input && input.value || '').trim();
+    if (!token) {
+      alert('Pega tu token de GitHub en el campo de arriba.');
+      return;
+    }
+    if (token.length < 20) {
+      alert('Ese token parece muy corto. Revisa que lo hayas copiado completo.');
+      return;
+    }
+    this.datos.tokenPublicar = token;
+    localStorage.setItem(this.CLAVE, JSON.stringify(this.datos,
+      (clave, valor) => clave.startsWith('_') ? undefined : valor));
+    this._aplicarTokenTelefono();
+    input.value = '';
+    const estado = document.getElementById('admin-clave-estado');
+    if (estado) {
+      estado.textContent = '✅ Clave guardada en este teléfono.';
+      estado.className = 'admin-clave-estado ok';
+    }
     Notificaciones.mostrar(
-      MundoPublico._tokenGitHub()
-        ? '🔑 Clave guardada. Pulsa PUBLICAR MUNDO una vez para activar la nube.'
-        : '🔑 Pega tu token de GitHub para guardar en la nube.',
-      'exito', 9000);
+      '🔑 Clave guardada. Pulsa PUBLICAR MUNDO una vez para activar la nube a todos.',
+      'exito', 10000);
+    document.getElementById('ventana-admin-clave').classList.add('oculto');
+    document.getElementById('ventana-admin').classList.remove('oculto');
+    this._autoPublicar();
+  },
+
+  _borrarClaveTelefono() {
+    if (!this._tokenEnTelefono()) {
+      Notificaciones.mostrar('No hay clave guardada en este teléfono', 'info');
+      return;
+    }
+    if (!confirm('¿Borrar la clave de GitHub de este teléfono?')) return;
+    this.datos.tokenPublicar = '';
+    localStorage.setItem(this.CLAVE, JSON.stringify(this.datos,
+      (clave, valor) => clave.startsWith('_') ? undefined : valor));
+    if (this.publicado && this.publicado.claveSyncNube) {
+      MundoPublico._tokenDesdeMundo = this.publicado.claveSyncNube;
+    } else {
+      MundoPublico._tokenDesdeMundo = null;
+    }
+    this._actualizarEtiquetaClave();
+    const estado = document.getElementById('admin-clave-estado');
+    if (estado) {
+      estado.textContent = 'Clave borrada de este teléfono.';
+      estado.className = 'admin-clave-estado';
+    }
+    Notificaciones.mostrar('🗑️ Clave borrada de este teléfono', 'alerta');
+  },
+
+  configurarPublicacion() {
+    this.abrirConfiguracionClave();
   },
 
   async publicarMundo() {
@@ -1455,7 +1523,8 @@ const Admin = {
 
     // Opción B: GitHub API (token en Admin)
     if (!this.datos.tokenPublicar) {
-      Notificaciones.mostrar('🔑 Configura tu clave de GitHub en Admin (🔑 Configurar clave)', 'alerta', 7000);
+      Notificaciones.mostrar('🔑 Primero configura tu clave en Admin → Clave GitHub (en tu teléfono)', 'alerta', 8000);
+      this.abrirConfiguracionClave();
       return;
     }
     const url = 'https://api.github.com/repos/' + CONFIG.repoPublicacion + '/contents/datos/mundo.json';
@@ -1543,7 +1612,9 @@ const Admin = {
         }
         return porId;
       })(),
-      claveSyncNube: this.datos.tokenPublicar || (this.publicado.claveSyncNube || '')
+      claveSyncNube: this.datos.tokenPublicar !== undefined
+        ? (this.datos.tokenPublicar || '')
+        : (this.publicado.claveSyncNube || '')
     }, quitarTemporales, 2);
   },
 

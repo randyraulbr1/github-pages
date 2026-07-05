@@ -573,3 +573,12 @@ body.sesion-cerrada .ventana { display: none !important; }
 
 #cofre-mochila-titulo { padding: 8px 14px 0; font-size: 13px; color: #9aa5bd; }
 #cofre-info { padding: 8px 14px; font-size: 13px; color: #c5d0e8; }
+
+.admin-clave-cuerpo { padding: 0 14px 16px; display: flex; flex-direction: column; gap: 10px; }
+.admin-clave-estado { margin: 0; padding: 10px 12px; border-radius: 10px; font-size: 14px; font-weight: 600; background: rgba(255,193,7,.15); color: #ffc107; }
+.admin-clave-estado.ok { background: rgba(40,167,69,.2); color: #6ee7a0; }
+.admin-clave-ayuda { margin: 0; font-size: 13px; line-height: 1.45; color: #b8c4dc; }
+.admin-clave-aviso { color: #ffb4b4; font-size: 12px; }
+.admin-clave-enlace { margin: 0; font-size: 12px; color: #8ab4ff; }
+.admin-clave-enlace code { font-size: 11px; color: #c5d0e8; }
+.admin-clave-borrar { margin-top: 4px; text-align: center; border-radius: 12px; }

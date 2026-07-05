@@ -90,11 +90,11 @@ const MundoPublico = {
 
   _tokenGitHub() {
     if (CONFIG.tokenRegistroJugadores) return CONFIG.tokenRegistroJugadores;
-    if (this._tokenDesdeMundo) return this._tokenDesdeMundo;
     try {
       const d = JSON.parse(localStorage.getItem('mariel_admin_v1') || 'null');
       if (d && d.tokenPublicar) return d.tokenPublicar;
     } catch (e) {}
+    if (this._tokenDesdeMundo) return this._tokenDesdeMundo;
     return null;
   },
 
