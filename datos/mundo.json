@@ -26,7 +26,16 @@
   "posiciones": {},
   "eliminados": [],
   "precios": {},
-  "itemsNuevos": [],
+  "itemsNuevos": [
+    {
+      "id": "marcador_tesoro_mapa",
+      "nombre": "Icono mapa tesoro",
+      "icono": "🎁",
+      "precio": 0,
+      "tipo": "especial",
+      "desc": "Marcador de tesoros en el mapa"
+    }
+  ],
   "mantenimiento": {
     "activo": false,
     "mensaje": ""
@@ -40,22 +49,24 @@
       "telefono": "7709908375",
       "creado": 1783263656375,
       "pinHash": "4bdc96ffc0926b62d55708e3c1755ca3f04b8c28bec6fd85777117da67497f11",
-      "sesionToken": "mr8cgkf7wz1tr308eg",
-      "sesionT": 1783289390947
+      "sesionToken": "mr8cyhf6ekpp3b9sap",
+      "sesionT": 1783290226866
     },
     {
       "id": "pmr8cj06j7ehv1",
       "nombre": "33",
       "telefono": "2352647625",
       "creado": 1783289504683,
-      "pinHash": "4bdc96ffc0926b62d55708e3c1755ca3f04b8c28bec6fd85777117da67497f11"
+      "pinHash": "4bdc96ffc0926b62d55708e3c1755ca3f04b8c28bec6fd85777117da67497f11",
+      "sesionT": 0
     },
     {
       "id": "pmr8cnje4g4ky2",
       "nombre": "55",
       "telefono": "2352647627",
       "creado": 1783289716204,
-      "pinHash": "4bdc96ffc0926b62d55708e3c1755ca3f04b8c28bec6fd85777117da67497f11"
+      "pinHash": "4bdc96ffc0926b62d55708e3c1755ca3f04b8c28bec6fd85777117da67497f11",
+      "sesionT": 0
     }
   ],
   "cofres": [],
@@ -255,8 +266,18 @@
       "t": 1783289716204
     }
   },
-  "actualizadoEn": 1783289770896,
+  "actualizadoEn": 1783290233065,
   "enemigos": [],
   "enemigosEstado": {},
-  "tiendasAdmin": []
+  "tiendasAdmin": [],
+  "tiendasStock": {},
+  "combate": {
+    "danoMin": 5,
+    "danoMax": 8,
+    "nivelReferencia": 1,
+    "radioZona": 40,
+    "radioPersecucion": 20,
+    "curacionMs": 120000
+  },
+  "moverPinJugador": false
 }
