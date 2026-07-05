@@ -2,7 +2,8 @@
 // TIENDAS
 // Aparecen en el mapa. Solo se pueden abrir estando a menos de
 // 20 metros. Permiten COMPRAR (precio completo) y VENDER
-// (mitad de precio). Todo pasa por el sistema de dinero y
+// (mitad de precio; tiendas admin: 30% del precio de tienda).
+// Todo pasa por el sistema de dinero y
 // queda registrado en los historiales.
 // ============================================================
 const Tiendas = {
@@ -44,6 +45,16 @@ const Tiendas = {
     const key = tiendaId + '|' + entry.id;
     if (st[key] !== undefined) return st[key];
     return entry.stock || 0;
+  },
+
+  _precioVenta(itemId) {
+    const item = Items.seguro(itemId);
+    if (!this.tiendaAbierta || !this._esTiendaAdmin(this.tiendaAbierta)) {
+      return Math.max(1, Math.floor(item.precio / 2));
+    }
+    const entry = this.tiendaAbierta.vende.find(e => e.id === itemId);
+    const base = entry ? entry.precio : item.precio;
+    return Math.max(1, Math.floor(base * 0.3));
   },
 
   _cargarAdmin() {
@@ -143,7 +154,7 @@ const Tiendas = {
         vistos.add(sl.id);
         hayAlgo = true;
         const item = Items.seguro(sl.id);
-        const precioVenta = Math.max(1, Math.floor(item.precio / 2));
+        const precioVenta = this._precioVenta(sl.id);
         cont.appendChild(this._fila(item, precioVenta, 'Vender (' + Mochila.contar(sl.id) + ')',
           () => this.vender(sl.id), false));
       }
@@ -210,9 +221,22 @@ const Tiendas = {
 
   async vender(idItem) {
     const item = Items.seguro(idItem);
-    const precioVenta = Math.max(1, Math.floor(item.precio / 2));
+    const precioVenta = this._precioVenta(idItem);
+    const esAdmin = this.tiendaAbierta && this._esTiendaAdmin(this.tiendaAbierta);
     if (!Mochila.quitar(idItem, 1, 'Vendido')) return;
     await Dinero.ganar(precioVenta, 'Venta: ' + item.nombre + ' (' + this.tiendaAbierta.nombre + ')');
+    if (esAdmin) {
+      const entry = this.tiendaAbierta.vende.find(e => e.id === idItem);
+      if (entry && !entry.infinito) {
+        const st = this._estadoStock();
+        const key = this.tiendaAbierta.id + '|' + entry.id;
+        st[key] = this._stockDisponible(this.tiendaAbierta.id, entry) + 1;
+        if (typeof Admin !== 'undefined') {
+          Admin.guardar();
+          Admin._publicarParaTodos(true);
+        }
+      }
+    }
     Notificaciones.mostrar('💵 Vendiste ' + item.nombre + ' por $' + precioVenta, 'exito');
     this.pintar();
   }

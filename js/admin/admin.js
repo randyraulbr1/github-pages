@@ -71,8 +71,16 @@ const Admin = {
     if (!this.publicado.tiendasAdmin) this.publicado.tiendasAdmin = [];
     if (!this.publicado.tiendasStock) this.publicado.tiendasStock = {};
     if (!this.publicado.combate) {
-      this.publicado.combate = { danoMin: 5, danoMax: 85, radioZona: 40, radioPersecucion: 20, curacionMs: 120000 };
+      this.publicado.combate = {
+        danoMin: 5, danoMax: 8, nivelReferencia: 1,
+        radioZona: 40, radioPersecucion: 20, curacionMs: 120000
+      };
     }
+    if (!this.publicado.tesorosEstado) this.publicado.tesorosEstado = {};
+    if (!this.datos.tesoroIconoMapa && this.publicado.tesoroIconoMapa) {
+      this.datos.tesoroIconoMapa = this.publicado.tesoroIconoMapa;
+    }
+    this._asegurarObjetoIconoTesoro(this.tesoroIconoMapa());
     if (this.publicado.claveSyncNube) MundoPublico._tokenDesdeMundo = this.publicado.claveSyncNube;
     this._aplicarTokenTelefono();
 
@@ -149,7 +157,8 @@ const Admin = {
   },
   combateConfig() {
     return Object.assign({
-      danoMin: 5, danoMax: 85, radioZona: 40, radioPersecucion: 20, curacionMs: 120000
+      danoMin: 5, danoMax: 8, nivelReferencia: 1,
+      radioZona: 40, radioPersecucion: 20, curacionMs: 120000
     }, this.publicado.combate || {}, this.datos.combate || {});
   },
   objetosTodos() {
@@ -528,6 +537,8 @@ const Admin = {
     if (!this.publicado.baneados) this.publicado.baneados = [];
     if (!this.publicado.mensajes) this.publicado.mensajes = [];
     if (!this.publicado.mantenimiento) this.publicado.mantenimiento = { activo: false, mensaje: '' };
+    if (!this.publicado.tesorosEstado) this.publicado.tesorosEstado = {};
+    if (!this.publicado.tiendasStock) this.publicado.tiendasStock = {};
 
     const nuevosPorId = new Map();
     for (const it of this.publicado.itemsNuevos) nuevosPorId.set(it.id, it);
@@ -547,6 +558,7 @@ const Admin = {
       if (typeof GPS !== 'undefined') GPS._actualizarArrastre();
     }
 
+    this.refrescarVisibles();
     this.mostrarMensajes();
     if (typeof Notificaciones !== 'undefined') Notificaciones._actualizarBadge();
 
@@ -740,9 +752,7 @@ const Admin = {
         '</div>';
       setTimeout(() => {
         this._pintarMisionRecompensas();
-        this._pintarInventarioInfinito(document.getElementById('admin-mision-infinito'), (id, cel) => {
-          cel.addEventListener('pointerdown', ev => this._misionArrastre(ev, id));
-        });
+        this._enlazarAdmRejilla('admin-mision-infinito', this._misionRecompensas, 'admin-mision-recompensas', 'mision-recompensa-slot');
       }, 0);
     } else if (tipo === 'enemigo') {
       titulo = '👹 Crear enemigo';
@@ -782,43 +792,61 @@ const Admin = {
           });
         }
         this._pintarRejillaGenerica('admin-enemigo-recompensas', this._enemigoRecompensas, 'enemigo-rec-slot');
-        this._pintarInventarioInfinito(document.getElementById('admin-enemigo-infinito'), (id, cel) => {
-          cel.addEventListener('pointerdown', ev =>
-            this._arrastreAdmARejilla(ev, id, this._enemigoRecompensas, 'admin-enemigo-recompensas', 'enemigo-rec-slot'));
-        });
+        this._enlazarAdmRejilla('admin-enemigo-infinito', this._enemigoRecompensas, 'admin-enemigo-recompensas', 'enemigo-rec-slot');
       }, 0);
     } else if (tipo === 'tienda_admin') {
       titulo = '🏪 Crear tienda';
-      this._tiendaAdminItems = [];
+      this._tiendaAdminSlots = [null];
       campos.innerHTML =
         this._campoTexto('af-nombre', 'Nombre de la tienda', 'Ej: Bodega del puerto') +
-        this._campoTexto('af-icono-tienda', 'Icono', '🏪') +
-        '<div class="admin-editor-horizontal">' +
+        this._campoTexto('af-icono-tienda', 'Icono en el mapa', '🏪') +
+        '<div class="admin-editor-horizontal admin-mision-horizontal">' +
           '<div class="admin-editor-columna">' +
-            '<div class="admin-editor-seccion">Artículos — arrastra desde ADM →</div>' +
-            '<div id="admin-tienda-items"></div>' +
+            '<div class="admin-editor-seccion">Artículos — toca o arrastra ADM → (aparece otra casilla)</div>' +
+            '<div id="admin-tienda-rejilla" class="admin-rejilla-inventario admin-rejilla-fija admin-tienda-rejilla"></div>' +
+            '<div id="admin-tienda-detalle"></div>' +
           '</div>' +
           '<div class="admin-editor-columna admin-editor-columna-adm">' +
+            '<div class="admin-editor-seccion">ADM ∞ — un toque añade</div>' +
             '<div id="admin-tienda-infinito" class="admin-rejilla-infinito"></div>' +
           '</div>' +
         '</div>';
       setTimeout(() => {
-        this._pintarTiendaAdminSlots();
+        this._pintarTiendaRejillaDinamica();
         this._pintarInventarioInfinito(document.getElementById('admin-tienda-infinito'), (id, cel) => {
           cel.addEventListener('pointerdown', ev => this._arrastreAdmATienda(ev, id));
         });
       }, 0);
     } else if (tipo === 'tesoro') {
       titulo = '🎁 Crear tesoro';
+      this._tesoroItems = [];
+      const iconoDef = this.tesoroIconoMapa();
       campos.innerHTML =
         this._campoSelect('af-visible', 'Tipo de tesoro',
           '<option value="visible">Visible en el mapa</option><option value="invisible">Invisible (avisa metros aproximados)</option>') +
         this._campoSelect('af-item-ver', 'Objeto necesario para detectarlo', this._opcionesItems(true)) +
         '<div class="campo-doble">' +
-          this._campoSelect('af-rec-item', 'Objeto del tesoro', this._opcionesItems(false)) +
-          this._campoNumero('af-rec-cant', 'Cantidad', 1) +
+          this._campoTexto('af-icono-mapa', 'Icono en el mapa (variable global)', iconoDef) +
+          this._campoNumero('af-nivel-min', 'Nivel mínimo del jugador', 1) +
         '</div>' +
-        this._campoNumero('af-dinero', 'Dinero extra $', 0);
+        '<div class="campo-doble">' +
+          this._campoNumero('af-dinero', 'Dinero extra $', 0) +
+        '</div>' +
+        this._campoRespawn('af-tesoro-respawn', 'Vuelve a salir', 0) +
+        '<div class="admin-editor-horizontal admin-mision-horizontal">' +
+          '<div class="admin-editor-columna">' +
+            '<div class="admin-editor-seccion">Contenido (6 casillas) — toca o arrastra ADM →</div>' +
+            '<div id="admin-tesoro-rejilla" class="admin-rejilla-inventario admin-rejilla-fija"></div>' +
+          '</div>' +
+          '<div class="admin-editor-columna admin-editor-columna-adm">' +
+            '<div class="admin-editor-seccion">ADM ∞</div>' +
+            '<div id="admin-tesoro-infinito" class="admin-rejilla-infinito"></div>' +
+          '</div>' +
+        '</div>';
+      setTimeout(() => {
+        this._pintarRejillaGenerica('admin-tesoro-rejilla', this._tesoroItems, 'tesoro-slot');
+        this._enlazarAdmRejilla('admin-tesoro-infinito', this._tesoroItems, 'admin-tesoro-rejilla', 'tesoro-slot');
+      }, 0);
     } else if (tipo === 'objeto') {
       titulo = '📦 Dejar objeto';
       this._objetoItems = [];
@@ -836,10 +864,7 @@ const Admin = {
         this._campoRespawn('af-reaparece', 'Vuelve a salir', 0);
       setTimeout(() => {
         this._pintarRejillaGenerica('admin-objeto-rejilla', this._objetoItems, 'objeto-slot');
-        this._pintarInventarioInfinito(document.getElementById('admin-objeto-infinito'), (id, cel) => {
-          cel.addEventListener('pointerdown', ev =>
-            this._arrastreAdmARejilla(ev, id, this._objetoItems, 'admin-objeto-rejilla', 'objeto-slot'));
-        });
+        this._enlazarAdmRejilla('admin-objeto-infinito', this._objetoItems, 'admin-objeto-rejilla', 'objeto-slot');
       }, 0);
     } else if (tipo === 'precio') {
       titulo = '💲 Cambiar precio global';
@@ -927,6 +952,23 @@ const Admin = {
     });
   },
 
+  _tapAdmARejilla(itemId, arr, rejId, claseSlot) {
+    while (arr.length < 6) arr.push(null);
+    const max = CONFIG.maxPila || 10;
+    const mismo = arr.findIndex(s => s && s.id === itemId);
+    if (mismo >= 0) {
+      arr[mismo].cantidad = Math.min(max, (arr[mismo].cantidad || 1) + 1);
+    } else {
+      const vacio = arr.findIndex(s => !s);
+      if (vacio < 0) {
+        Notificaciones.mostrar('Rejilla llena (máx. 6 casillas)', 'alerta', 2500);
+        return;
+      }
+      arr[vacio] = { id: itemId, cantidad: 1 };
+    }
+    this._pintarRejillaGenerica(rejId, arr, claseSlot);
+  },
+
   _arrastreAdmARejilla(ev, itemId, arr, rejId, claseSlot) {
     ev.preventDefault();
     const act = { itemId, x0: ev.clientX, y0: ev.clientY, movio: false };
@@ -936,7 +978,10 @@ const Admin = {
     const soltar = e => {
       window.removeEventListener('pointermove', mover);
       window.removeEventListener('pointerup', soltar);
-      if (!act.movio) return;
+      if (!act.movio) {
+        this._tapAdmARejilla(act.itemId, arr, rejId, claseSlot);
+        return;
+      }
       const bajo = document.elementFromPoint(e.clientX, e.clientY);
       const slot = bajo?.closest?.('.' + claseSlot);
       if (slot) {
@@ -944,14 +989,71 @@ const Admin = {
         arr[idx] = { id: act.itemId, cantidad: 1 };
       } else {
         const vacio = arr.findIndex(s => !s);
-        const idx = vacio >= 0 ? vacio : arr.length;
-        if (idx >= arr.length) arr.push({ id: act.itemId, cantidad: 1 });
-        else arr[idx] = { id: act.itemId, cantidad: 1 };
+        if (vacio >= 0) arr[vacio] = { id: act.itemId, cantidad: 1 };
       }
       this._pintarRejillaGenerica(rejId, arr, claseSlot);
     };
     window.addEventListener('pointermove', mover);
     window.addEventListener('pointerup', soltar);
+  },
+
+  _enlazarAdmRejilla(infinitoId, arr, rejId, claseSlot) {
+    const inf = document.getElementById(infinitoId);
+    if (!inf) return;
+    this._pintarInventarioInfinito(inf, (id, cel) => {
+      cel.addEventListener('pointerdown', ev => this._arrastreAdmARejilla(ev, id, arr, rejId, claseSlot));
+    });
+  },
+
+  tesoroIconoMapa() {
+    return (this.datos.tesoroIconoMapa || this.publicado.tesoroIconoMapa || '🎁').trim() || '🎁';
+  },
+
+  _asegurarObjetoIconoTesoro(icono) {
+    const id = 'marcador_tesoro_mapa';
+    if (!Items.obtener(id)) {
+      const nuevo = {
+        id, nombre: 'Icono mapa tesoro', icono: icono || '🎁',
+        precio: 0, tipo: 'especial', desc: 'Marcador de tesoros en el mapa'
+      };
+      this.datos.itemsNuevos = this.datos.itemsNuevos || [];
+      if (!this.datos.itemsNuevos.find(x => x.id === id)) {
+        this.datos.itemsNuevos.push(nuevo);
+        Items.aplicarMundo([nuevo], {});
+      }
+    }
+    return id;
+  },
+
+  combateRangoNivel(nivel) {
+    const cfg = this.combateConfig();
+    const ref = Math.max(1, cfg.nivelReferencia || 1);
+    const f = Math.max(1, nivel) / ref;
+    const lo = Math.max(1, Math.round(cfg.danoMin * f));
+    const hi = Math.max(lo, Math.round(cfg.danoMax * f));
+    return { lo, hi };
+  },
+
+  _pintarGraficaCombate() {
+    const cont = document.getElementById('admin-combate-grafica');
+    if (!cont) return;
+    let html = '<div class="combate-grafica-titulo">Daño por nivel (1–100): tirada aleatoria entre mín y máx</div>' +
+      '<div class="combate-grafica-barras combate-grafica-scroll">';
+    let maxHi = 1;
+    const datos = [];
+    for (let n = 1; n <= 100; n++) {
+      const r = this.combateRangoNivel(n);
+      maxHi = Math.max(maxHi, r.hi);
+      datos.push({ n, r });
+    }
+    for (const d of datos) {
+      const pct = Math.round((d.r.hi / maxHi) * 100);
+      html += '<div class="combate-graf-fila"><span class="combate-graf-nv">Nv ' + d.n + '</span>' +
+        '<div class="combate-graf-barra"><div class="combate-graf-relleno" style="width:' + pct + '%"></div></div>' +
+        '<span class="combate-graf-val">' + d.r.lo + '–' + d.r.hi + '</span></div>';
+    }
+    html += '</div>';
+    cont.innerHTML = html;
   },
 
   _slotRejillaArrastre(ev, arr, rejId, i, claseSlot) {
@@ -1049,19 +1151,31 @@ const Admin = {
     } else if (tipo === 'tienda_admin') {
       const nombre = this._valor('af-nombre').trim();
       if (nombre.length < 2) { alert('Ponle nombre a la tienda'); return; }
-      if (!(this._tiendaAdminItems || []).length) { alert('Añade al menos un artículo (clic en ADM ∞)'); return; }
+      const vende = (this._tiendaAdminSlots || []).filter(Boolean);
+      if (!vende.length) { alert('Añade al menos un artículo (toca ADM ∞)'); return; }
       valores = {
         nombre,
         icono: this._valor('af-icono-tienda').trim() || '🏪',
-        vende: this._tiendaAdminItems
+        vende
       };
     } else if (tipo === 'tesoro') {
+      const recItems = (this._tesoroItems || []).filter(Boolean);
+      if (!recItems.length && !this._numero('af-dinero')) {
+        alert('Pon recompensas en la rejilla o dinero $'); return;
+      }
+      const iconoMapa = (this._valor('af-icono-mapa') || '🎁').trim() || '🎁';
+      this.datos.tesoroIconoMapa = iconoMapa;
+      this._asegurarObjetoIconoTesoro(iconoMapa);
       valores = {
         invisible: this._valor('af-visible') === 'invisible',
         itemParaVer: this._valor('af-item-ver') || null,
-        recItem: this._valor('af-rec-item'),
-        recCant: Math.max(1, this._numero('af-rec-cant')),
-        dinero: this._numero('af-dinero')
+        iconoMapa,
+        nivelMin: Math.max(1, this._numero('af-nivel-min') || 1),
+        recItems,
+        recItem: recItems[0]?.id,
+        recCant: recItems[0]?.cantidad || 1,
+        dinero: this._numero('af-dinero'),
+        respawnMin: parseInt(this._valor('af-tesoro-respawn'), 10) || 0
       };
     } else {
       const items = (this._objetoItems || []).filter(Boolean);
@@ -1081,6 +1195,7 @@ const Admin = {
 
   // ---------- COLOCAR EL PIN EN EL MAPA ----------
   _empezarColocacion() {
+    document.getElementById('ventana-admin').classList.add('oculto');
     this.modo = 'colocar';
     const centro = Mapa.mapa.getCenter();
     const marcador = L.marker([centro.lat, centro.lng], {
@@ -1153,8 +1268,26 @@ const Admin = {
 
 
   // ---------- TESOROS DEL ADMIN ----------
+  _tesorosEstadoGlobal() {
+    if (!this.publicado.tesorosEstado) this.publicado.tesorosEstado = {};
+    return this.publicado.tesorosEstado;
+  },
+
+  _tesoroDisponible(t) {
+    const st = this._tesorosEstadoGlobal()[t.id];
+    if (!st || !st.recogidoAt) return true;
+    if (!t.respawnMin) return false;
+    return Date.now() - st.recogidoAt > t.respawnMin * 60000;
+  },
+
+  _itemsDeTesoro(t) {
+    if (t.recItems && t.recItems.length) return t.recItems;
+    if (t.recItem) return [{ id: t.recItem, cantidad: t.recCant || 1 }];
+    return [];
+  },
+
   _prepararTesoro(t) {
-    if (this._progreso().tesoros.includes(t.id)) return;
+    if (!this._tesoroDisponible(t)) return;
     t._marcador = null;
     Mapa.registrarPunto({
       id: t.id,
@@ -1171,18 +1304,19 @@ const Admin = {
   },
 
   _revisarTesoro(t, distancia) {
-    if (this._progreso().tesoros.includes(t.id)) return;
+    if (!this._tesoroDisponible(t)) {
+      if (t._marcador) { t._marcador.remove(); t._marcador = null; }
+      return;
+    }
     const detecta = this._puedeDetectar(t);
-
-    // Visible: el icono 🎁 se ve siempre que el jugador pueda detectarlo.
-    // Invisible: el icono solo aparece a menos de 10 m (los metros van en el banner).
+    const icono = t.iconoMapa || this.tesoroIconoMapa();
     const debeVerse = detecta && (!t.invisible || distancia <= CONFIG.distanciaVerTesoro);
 
     if (debeVerse && !t._marcador) {
       t._marcador = L.marker(t.pos, {
         icon: L.divIcon({
           className: '',
-          html: '<div class="icono-tesoro">🎁</div>',
+          html: '<div class="icono-tesoro">' + icono + '</div>',
           iconSize: [34, 34], iconAnchor: [17, 17]
         })
       }).addTo(Mapa.mapa);
@@ -1200,17 +1334,15 @@ const Admin = {
   tesorosDetectables() {
     const lista = [];
     for (const t of this.tesorosTodos()) {
-      if (this._progreso().tesoros.includes(t.id)) continue;
+      if (!this._tesoroDisponible(t)) continue;
       if (t.invisible && this._puedeDetectar(t)) lista.push(t.pos);
     }
     return lista;
   },
 
-  // La mochila cambió: puede que ahora se vea (o deje de verse) un tesoro
   refrescarVisibles() {
     if (!GPS.posicion) return;
     for (const t of this.tesorosTodos()) {
-      if (this._progreso().tesoros.includes(t.id)) continue;
       this._revisarTesoro(t, Utilidades.distanciaMetros(GPS.posicion, t.pos));
     }
   },
@@ -1221,20 +1353,35 @@ const Admin = {
       Notificaciones.mostrar('📍 Acércate más (' + Math.round(d) + ' m)', 'alerta');
       return;
     }
-    if (this._progreso().tesoros.includes(t.id)) return;
-    this._progreso().tesoros.push(t.id);
+    if (!this._tesoroDisponible(t)) return;
+    if (t.nivelMin && Vida.nivel < t.nivelMin) {
+      Notificaciones.mostrar('⭐ Necesitas nivel ' + t.nivelMin + ' (tienes ' + Vida.nivel + ')', 'alerta', 4000);
+      return;
+    }
+    const items = this._itemsDeTesoro(t);
+    for (const it of items) {
+      if (!Mochila.agregar(it.id, it.cantidad || 1, { silencioso: true })) {
+        Notificaciones.mostrar('🎒 No tienes espacio para todo el tesoro', 'error');
+        return;
+      }
+    }
+    const est = this._tesorosEstadoGlobal();
+    est[t.id] = { recogidoAt: Date.now() };
+    if (!this._progreso().tesoros.includes(t.id)) this._progreso().tesoros.push(t.id);
     Guardado.guardar();
+    this.guardar();
+    this._publicarParaTodos(true);
 
     const punto = Mapa.mapa.latLngToContainerPoint(t.pos);
-    Utilidades.volarHaciaMochila('🎁', punto.x, punto.y);
+    Utilidades.volarHaciaMochila(t.iconoMapa || this.tesoroIconoMapa(), punto.x, punto.y);
     if (t._marcador) { t._marcador.remove(); t._marcador = null; }
 
-    const item = Items.obtener(t.recItem);
+    const nombres = items.map(it => Items.seguro(it.id).icono + ' x' + (it.cantidad || 1)).join(', ');
     setTimeout(async () => {
-      Mochila.agregar(t.recItem, t.recCant, { silencioso: true });
-      if (t.dinero) await Dinero.ganar(t.dinero, 'Tesoro encontrado: ' + item.nombre);
-      Notificaciones.mostrar('🎁 ¡Tesoro! ' + item.icono + ' ' + item.nombre + ' x' + t.recCant +
-        (t.dinero ? ' + $' + t.dinero : ''), 'exito', 5000);
+      if (t.dinero) await Dinero.ganar(t.dinero, 'Tesoro encontrado');
+      Notificaciones.mostrar('🎁 ¡Tesoro! ' + nombres +
+        (t.dinero ? ' + $' + t.dinero : '') +
+        (t.respawnMin ? ' (vuelve en ' + t.respawnMin + ' min)' : ''), 'exito', 5000);
       if (typeof Tesoros !== 'undefined') Tesoros.refrescarBanner();
     }, 800);
   },
@@ -2596,6 +2743,8 @@ const Admin = {
       enemigosEstado: Object.assign({}, this.publicado.enemigosEstado || {}),
       tiendasAdmin: this._itemsConPosicion(this.tiendasAdminTodas()),
       tiendasStock: Object.assign({}, this.publicado.tiendasStock || {}),
+      tesorosEstado: Object.assign({}, this.publicado.tesorosEstado || {}),
+      tesoroIconoMapa: this.tesoroIconoMapa(),
       combate: this.combateConfig(),
       moverPinJugador: !!this.datos.moverPinJugador
     }, quitarTemporales, 2);
@@ -2701,71 +2850,96 @@ const Admin = {
     const soltar = e => {
       window.removeEventListener('pointermove', mover);
       window.removeEventListener('pointerup', soltar);
-      if (!act.movio) return;
-      const bajo = document.elementFromPoint(e.clientX, e.clientY);
-      if (bajo?.closest?.('#admin-tienda-items') || bajo?.closest?.('.tienda-admin-fila')) {
-        this._agregarItemTiendaAdmin(act.itemId);
+      if (!act.movio) {
+        this._agregarATiendaRejilla(act.itemId);
+        return;
       }
+      const bajo = document.elementFromPoint(e.clientX, e.clientY);
+      if (bajo?.closest?.('.tienda-slot')) this._agregarATiendaRejilla(act.itemId);
     };
     window.addEventListener('pointermove', mover);
     window.addEventListener('pointerup', soltar);
   },
 
-  _agregarItemTiendaAdmin(itemId) {
-    if (!this._tiendaAdminItems) this._tiendaAdminItems = [];
-    this._tiendaAdminItems.push({
+  _agregarATiendaRejilla(itemId) {
+    if (!this._tiendaAdminSlots) this._tiendaAdminSlots = [null];
+    const vacio = this._tiendaAdminSlots.findIndex(s => !s);
+    const idx = vacio >= 0 ? vacio : this._tiendaAdminSlots.length;
+    if (vacio < 0) this._tiendaAdminSlots.push(null);
+    this._tiendaAdminSlots[idx] = {
       id: itemId,
       precio: Items.seguro(itemId).precio,
       stock: 10,
       infinito: true
-    });
-    this._pintarTiendaAdminSlots();
+    };
+    if (!this._tiendaAdminSlots.some(s => !s)) this._tiendaAdminSlots.push(null);
+    this._pintarTiendaRejillaDinamica();
   },
 
-  _pintarTiendaAdminSlots() {
-    const cont = document.getElementById('admin-tienda-items');
-    if (!cont) return;
-    cont.innerHTML = '';
-    for (let i = 0; i < (this._tiendaAdminItems || []).length; i++) {
-      const it = this._tiendaAdminItems[i];
+  _pintarTiendaRejillaDinamica() {
+    const rej = document.getElementById('admin-tienda-rejilla');
+    const det = document.getElementById('admin-tienda-detalle');
+    if (!rej || !this._tiendaAdminSlots) return;
+    if (!this._tiendaAdminSlots.some(s => !s)) this._tiendaAdminSlots.push(null);
+    rej.innerHTML = '';
+    this._tiendaAdminSlots.forEach((sl, i) => {
+      const cel = document.createElement('div');
+      cel.className = 'slot admin-slot-jugador tienda-slot' + (sl ? '' : ' vacia');
+      cel.dataset.indice = i;
+      if (sl) {
+        cel.textContent = Items.seguro(sl.id).icono;
+        cel.title = Items.seguro(sl.id).nombre;
+      }
+      rej.appendChild(cel);
+    });
+    if (!det) return;
+    det.innerHTML = '';
+    this._tiendaAdminSlots.filter(Boolean).forEach((it, i) => {
       const item = Items.seguro(it.id);
       const fila = document.createElement('div');
       fila.className = 'tienda-admin-fila';
       fila.innerHTML =
         '<span class="ti-icono">' + item.icono + '</span>' +
+        '<span class="ti-nombre">' + item.nombre + '</span>' +
         '<input type="number" class="ti-precio" data-i="' + i + '" value="' + it.precio + '" min="5" max="5000">' +
         '<label class="ti-inf"><input type="checkbox" class="ti-infinito" data-i="' + i + '"' +
           (it.infinito ? ' checked' : '') + '> ∞</label>' +
         '<input type="number" class="ti-stock" data-i="' + i + '" value="' + (it.stock || 1) + '"' +
           (it.infinito ? ' disabled' : '') + ' min="1">' +
         '<button type="button" class="ti-quitar" data-i="' + i + '">✕</button>';
-      cont.appendChild(fila);
-    }
-    cont.querySelectorAll('.ti-precio').forEach(inp => {
+      det.appendChild(fila);
+    });
+    const slots = this._tiendaAdminSlots.filter(Boolean);
+    det.querySelectorAll('.ti-precio').forEach(inp => {
       inp.addEventListener('change', () => {
         const i = +inp.dataset.i;
-        this._tiendaAdminItems[i].precio = Items._limitarPrecio(+inp.value || 5);
+        if (slots[i]) slots[i].precio = Items._limitarPrecio(+inp.value || 5);
       });
     });
-    cont.querySelectorAll('.ti-infinito').forEach(chk => {
+    det.querySelectorAll('.ti-infinito').forEach(chk => {
       chk.addEventListener('change', () => {
         const i = +chk.dataset.i;
-        this._tiendaAdminItems[i].infinito = chk.checked;
-        const stockInp = cont.querySelector('.ti-stock[data-i="' + i + '"]');
+        if (!slots[i]) return;
+        slots[i].infinito = chk.checked;
+        const stockInp = det.querySelector('.ti-stock[data-i="' + i + '"]');
         if (stockInp) stockInp.disabled = chk.checked;
       });
     });
-    cont.querySelectorAll('.ti-stock').forEach(inp => {
+    det.querySelectorAll('.ti-stock').forEach(inp => {
       inp.addEventListener('change', () => {
         const i = +inp.dataset.i;
-        this._tiendaAdminItems[i].stock = Math.max(1, parseInt(inp.value, 10) || 1);
-        this._tiendaAdminItems[i].infinito = false;
+        if (!slots[i]) return;
+        slots[i].stock = Math.max(1, parseInt(inp.value, 10) || 1);
+        slots[i].infinito = false;
       });
     });
-    cont.querySelectorAll('.ti-quitar').forEach(btn => {
+    det.querySelectorAll('.ti-quitar').forEach(btn => {
       btn.addEventListener('click', () => {
-        this._tiendaAdminItems.splice(+btn.dataset.i, 1);
-        this._pintarTiendaAdminSlots();
+        const i = +btn.dataset.i;
+        const id = slots[i]?.id;
+        this._tiendaAdminSlots = this._tiendaAdminSlots.filter(s => !s || s.id !== id);
+        if (!this._tiendaAdminSlots.length) this._tiendaAdminSlots = [null];
+        this._pintarTiendaRejillaDinamica();
       });
     });
   },
@@ -2782,10 +2956,7 @@ const Admin = {
     this._mostrarPanelDerecho('admin-vista-cofre', '🧰 Colocar cofre');
     setTimeout(() => {
       this._pintarRejillaGenerica('admin-cofre-rejilla', this._cofreSlots, 'cofre-slot');
-      this._pintarInventarioInfinito(document.getElementById('admin-cofre-infinito'), (id, cel) => {
-        cel.addEventListener('pointerdown', ev =>
-          this._arrastreAdmARejilla(ev, id, this._cofreSlots, 'admin-cofre-rejilla', 'cofre-slot'));
-      });
+      this._enlazarAdmRejilla('admin-cofre-infinito', this._cofreSlots, 'admin-cofre-rejilla', 'cofre-slot');
     }, 0);
   },
 
@@ -2811,20 +2982,34 @@ const Admin = {
     const set = (id, v) => { const el = document.getElementById(id); if (el) el.value = v; };
     set('admin-combate-dano-min', cfg.danoMin);
     set('admin-combate-dano-max', cfg.danoMax);
+    set('admin-combate-nivel-ref', cfg.nivelReferencia || 1);
     set('admin-combate-radio-zona', cfg.radioZona);
     set('admin-combate-radio-persec', cfg.radioPersecucion);
     set('admin-combate-curacion', Math.round(cfg.curacionMs / 1000));
+    this._pintarGraficaCombate();
+    const inputs = ['admin-combate-dano-min', 'admin-combate-dano-max', 'admin-combate-nivel-ref'];
+    inputs.forEach(id => {
+      const el = document.getElementById(id);
+      if (el && !el._graficaEnlazada) {
+        el._graficaEnlazada = true;
+        el.addEventListener('input', () => this._pintarGraficaCombate());
+      }
+    });
     this._mostrarPanelDerecho('admin-vista-combate', '⚔️ Combate global');
   },
 
   _guardarCombateConfig() {
     this.datos.combate = {
       danoMin: Math.max(1, this._numero('admin-combate-dano-min') || 5),
-      danoMax: Math.max(5, this._numero('admin-combate-dano-max') || 85),
+      danoMax: Math.max(1, this._numero('admin-combate-dano-max') || 8),
+      nivelReferencia: Math.max(1, this._numero('admin-combate-nivel-ref') || 1),
       radioZona: Math.max(10, this._numero('admin-combate-radio-zona') || 40),
       radioPersecucion: Math.max(5, this._numero('admin-combate-radio-persec') || 20),
       curacionMs: Math.max(30000, this._numero('admin-combate-curacion') * 1000 || 120000)
     };
+    if (this.datos.combate.danoMax < this.datos.combate.danoMin) {
+      this.datos.combate.danoMax = this.datos.combate.danoMin;
+    }
     this.guardar();
     this._publicarParaTodos(true);
     Notificaciones.mostrar('⚔️ Reglas de combate actualizadas para todos', 'exito');

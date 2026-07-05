@@ -68,6 +68,8 @@ const Cofres = {
 
   iniciarColocacionAdmin(datos) {
     if (!datos) return;
+    const adm = document.getElementById('ventana-admin');
+    if (adm) adm.classList.add('oculto');
     this._modoAdminSinItem = true;
     this._iniciarPinColocar({
       visible: !!datos.visible,

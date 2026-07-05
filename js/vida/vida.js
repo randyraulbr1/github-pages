@@ -139,6 +139,13 @@ const Vida = {
   pintar() {
     const pctVida = (this.actual / CONFIG.vidaMaxima) * 100;
     document.getElementById('vida-relleno').style.width = pctVida + '%';
+    const contVida = document.getElementById('contenedor-vida');
+    if (contVida) {
+      contVida.classList.remove('vida-alta', 'vida-media', 'vida-baja');
+      if (pctVida >= 60) contVida.classList.add('vida-alta');
+      else if (pctVida >= 30) contVida.classList.add('vida-media');
+      else contVida.classList.add('vida-baja');
+    }
     const vt = document.getElementById('vida-texto');
     if (vt) vt.textContent = this.actual + '/' + CONFIG.vidaMaxima;
 

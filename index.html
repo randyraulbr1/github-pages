@@ -13,7 +13,7 @@
   <script>
     // Aviso temprano en móvil (antes de cargar 20+ archivos JS)
     (function () {
-      var V = '38';
+      var V = '39';
       var texto = document.getElementById('carga-texto');
       if (texto) texto.textContent = 'Conectando…';
       var prev = localStorage.getItem('mariel_app_version');
@@ -565,15 +565,20 @@
           <div id="admin-vista-combate" class="admin-vista oculto">
             <div class="admin-clave-cuerpo">
               <p class="admin-clave-ayuda">Reglas de combate para todos los jugadores al publicar el mundo.</p>
+              <p class="admin-clave-ayuda">Daño de referencia en el nivel indicado (ej. nivel 4: entre mín y máx). Escala en todos los niveles.</p>
               <div class="campo-doble">
                 <div class="campo-admin">
-                  <label for="admin-combate-dano-min">Daño mínimo (tirada aleatoria)</label>
+                  <label for="admin-combate-dano-min">Daño mínimo (nivel de referencia)</label>
                   <input id="admin-combate-dano-min" type="number" min="1" inputmode="numeric">
                 </div>
                 <div class="campo-admin">
-                  <label for="admin-combate-dano-max">Daño máximo (tirada aleatoria)</label>
-                  <input id="admin-combate-dano-max" type="number" min="5" inputmode="numeric">
+                  <label for="admin-combate-dano-max">Daño máximo (nivel de referencia)</label>
+                  <input id="admin-combate-dano-max" type="number" min="1" inputmode="numeric">
                 </div>
+              </div>
+              <div class="campo-admin">
+                <label for="admin-combate-nivel-ref">Nivel de referencia (ej. 4 → daño entre mín y máx en nv. 4)</label>
+                <input id="admin-combate-nivel-ref" type="number" min="1" max="100" inputmode="numeric">
               </div>
               <div class="campo-doble">
                 <div class="campo-admin">
@@ -590,6 +595,7 @@
                 <input id="admin-combate-curacion" type="number" min="30" inputmode="numeric">
               </div>
               <button type="button" id="btn-admin-combate-guardar" class="btn-auth-principal">Guardar reglas</button>
+              <div id="admin-combate-grafica"></div>
             </div>
           </div>
         </aside>
@@ -645,40 +651,40 @@
   </div>
 
   <!-- LIBRERÍAS -->
-  <script src="lib/leaflet/leaflet.js?v=38"></script>
+  <script src="lib/leaflet/leaflet.js?v=39"></script>
 
   <!-- MÓDULOS DEL JUEGO (orden importante) -->
-  <script src="js/config/config.js?v=38"></script>
-  <script src="js/nucleo/utilidades.js?v=38"></script>
-  <script src="js/mundo/mundo_publico.js?v=38"></script>
-  <script src="js/notificaciones/notificaciones.js?v=38"></script>
-  <script src="js/usuarios/usuarios.js?v=38"></script>
-  <script src="js/guardado/guardado.js?v=38"></script>
-  <script src="js/historial/historial.js?v=38"></script>
-  <script src="js/dinero/dinero.js?v=38"></script>
-  <script src="js/vida/vida.js?v=38"></script>
-  <script src="js/items/items.js?v=38"></script>
-  <script src="js/mochila/mochila.js?v=38"></script>
-  <script src="js/mapa/mapa.js?v=38"></script>
-  <script src="js/gps/gps.js?v=38"></script>
-  <script src="js/tiendas/datos_tiendas.js?v=38"></script>
-  <script src="js/tiendas/tiendas.js?v=38"></script>
-  <script src="js/pesca/pesca.js?v=38"></script>
-  <script src="js/tesoros/datos_tesoros.js?v=38"></script>
-  <script src="js/tesoros/tesoros.js?v=38"></script>
-  <script src="js/misiones/datos_misiones.js?v=38"></script>
-  <script src="js/misiones/misiones.js?v=38"></script>
-  <script src="js/cofres/cofres.js?v=38"></script>
-  <script src="js/correo/correo.js?v=38"></script>
-  <script src="js/enemigos/enemigos.js?v=38"></script>
-  <script src="js/admin/admin.js?v=38"></script>
-  <script src="js/opciones/opciones.js?v=38"></script>
-  <script src="js/principal.js?v=38"></script>
+  <script src="js/config/config.js?v=39"></script>
+  <script src="js/nucleo/utilidades.js?v=39"></script>
+  <script src="js/mundo/mundo_publico.js?v=39"></script>
+  <script src="js/notificaciones/notificaciones.js?v=39"></script>
+  <script src="js/usuarios/usuarios.js?v=39"></script>
+  <script src="js/guardado/guardado.js?v=39"></script>
+  <script src="js/historial/historial.js?v=39"></script>
+  <script src="js/dinero/dinero.js?v=39"></script>
+  <script src="js/vida/vida.js?v=39"></script>
+  <script src="js/items/items.js?v=39"></script>
+  <script src="js/mochila/mochila.js?v=39"></script>
+  <script src="js/mapa/mapa.js?v=39"></script>
+  <script src="js/gps/gps.js?v=39"></script>
+  <script src="js/tiendas/datos_tiendas.js?v=39"></script>
+  <script src="js/tiendas/tiendas.js?v=39"></script>
+  <script src="js/pesca/pesca.js?v=39"></script>
+  <script src="js/tesoros/datos_tesoros.js?v=39"></script>
+  <script src="js/tesoros/tesoros.js?v=39"></script>
+  <script src="js/misiones/datos_misiones.js?v=39"></script>
+  <script src="js/misiones/misiones.js?v=39"></script>
+  <script src="js/cofres/cofres.js?v=39"></script>
+  <script src="js/correo/correo.js?v=39"></script>
+  <script src="js/enemigos/enemigos.js?v=39"></script>
+  <script src="js/admin/admin.js?v=39"></script>
+  <script src="js/opciones/opciones.js?v=39"></script>
+  <script src="js/principal.js?v=39"></script>
   <script>
     // Registrar la app instalable (PWA)
     if ('serviceWorker' in navigator) {
       const yaTeniaVersion = !!navigator.serviceWorker.controller;
-      navigator.serviceWorker.register('sw.js?v=38', { updateViaCache: 'none' })
+      navigator.serviceWorker.register('sw.js?v=39', { updateViaCache: 'none' })
         .then(function (reg) { reg.update(); })
         .catch(function () {});
       // Cuando llega una versión nueva del juego: avisar y recargar solo

@@ -32,7 +32,22 @@ const Enemigos = {
 
   _config() {
     if (typeof Admin !== 'undefined' && Admin.combateConfig) return Admin.combateConfig();
-    return { danoMin: 5, danoMax: 85, radioZona: 40, radioPersecucion: 20, curacionMs: 120000 };
+    return {
+      danoMin: 5, danoMax: 8, nivelReferencia: 1,
+      radioZona: 40, radioPersecucion: 20, curacionMs: 120000
+    };
+  },
+
+  _rangoDanoNivel() {
+    if (typeof Admin !== 'undefined' && Admin.combateRangoNivel) {
+      return Admin.combateRangoNivel(Vida.nivel);
+    }
+    const cfg = this._config();
+    const ref = Math.max(1, cfg.nivelReferencia || 1);
+    const f = Math.max(1, Vida.nivel) / ref;
+    const lo = Math.max(1, Math.round(cfg.danoMin * f));
+    const hi = Math.max(lo, Math.round(cfg.danoMax * f));
+    return { lo, hi };
   },
 
   _recargar() {
@@ -192,13 +207,9 @@ const Enemigos = {
   },
 
   danoJugador() {
-    const cfg = this._config();
-    const t = (Vida.nivel - 1) / Math.max(1, CONFIG.nivelMaximo - 1);
-    const alto = Math.round(cfg.danoMin + t * (cfg.danoMax - cfg.danoMin));
-    const lo = cfg.danoMin;
-    const hi = Math.max(lo, alto);
-    if (hi <= lo) return lo;
-    return lo + Math.floor(Math.random() * (hi - lo + 1));
+    const r = this._rangoDanoNivel();
+    if (r.hi <= r.lo) return r.lo;
+    return r.lo + Math.floor(Math.random() * (r.hi - r.lo + 1));
   },
 
   _abrirCombate(e) {
@@ -214,8 +225,9 @@ const Enemigos = {
     document.getElementById('combate-nombre').textContent = (e.icono || '👹') + ' ' + (e.nombre || 'Enemigo');
     document.getElementById('combate-vida-texto').textContent = actual + '/' + max;
     document.getElementById('combate-vida-relleno').style.width = (actual / max * 100) + '%';
+    const r = this._rangoDanoNivel();
     document.getElementById('combate-info').textContent =
-      'Daño aleatorio: ~' + this.danoJugador() + ' (nivel ' + Vida.nivel + ') · XP: ' + (e.xp || 0) +
+      'Tu daño: ' + r.lo + '–' + r.hi + ' (nivel ' + Vida.nivel + ') · XP: ' + (e.xp || 0) +
       ' · Daño enemigo: ' + (e.dano || 5);
     document.getElementById('ventana-combate').classList.remove('oculto');
   },

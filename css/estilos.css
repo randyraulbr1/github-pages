@@ -57,15 +57,22 @@ button { font-family: inherit; }
   position: relative; flex: 1; height: 18px;
   min-width: 0;
   border-radius: 9px; overflow: hidden;
-  border: 1px solid rgba(0,0,0,.45);
+  border: 1px solid rgba(255,255,255,.35);
+  background: rgba(255,255,255,.1);
 }
 #contenedor-vida {
-  background: #2b1016;
+  background: rgba(255,255,255,.08);
 }
 #vida-relleno {
   position: absolute; inset: 0; width: 100%;
+  background: linear-gradient(180deg, #5ce883 0%, #30d158 48%, #1e8a3e 100%);
+  transition: width .4s ease, background .3s ease;
+}
+#contenedor-vida.vida-media #vida-relleno {
+  background: linear-gradient(180deg, #ffd060 0%, #ffb020 48%, #c8860a 100%);
+}
+#contenedor-vida.vida-baja #vida-relleno {
   background: linear-gradient(180deg, #ff7186 0%, #ff2a4b 48%, #c11031 100%);
-  transition: width .4s ease;
 }
 #contenedor-vida::after {
   content: ''; position: absolute; left: 0; right: 0; top: 0; height: 45%;
@@ -81,15 +88,15 @@ button { font-family: inherit; }
 }
 
 #contenedor-hambre {
-  background: #2a2010;
+  background: rgba(255,255,255,.08);
 }
 #hambre-relleno {
   position: absolute; inset: 0; height: 100%; width: 50%;
-  background: linear-gradient(90deg, #c8860a, #ffb020);
+  background: linear-gradient(90deg, #e8940a, #ffb020, #ffc840);
   transition: width .4s ease;
 }
 #contenedor-xp {
-  background: #1a2040;
+  background: rgba(255,255,255,.08);
 }
 #xp-relleno {
   position: absolute; inset: 0; height: 100%; width: 0;
@@ -1067,4 +1074,28 @@ body.jugador-muerto #admin-controles { pointer-events: none; opacity: .35; }
 .tienda-admin-fila .ti-quitar {
   border: none; background: rgba(255,69,58,.25); color: #ff9d96; border-radius: 8px; cursor: pointer;
 }
+.admin-tienda-rejilla { min-height: 52px; }
+#admin-combate-grafica { margin-top: 12px; }
+.combate-grafica-titulo {
+  font-size: 12px; font-weight: 700; color: #a8b4c8; margin-bottom: 8px;
+}
+.combate-grafica-barras { display: flex; flex-direction: column; gap: 3px; }
+.combate-grafica-scroll {
+  max-height: 220px; overflow-y: auto; padding-right: 4px;
+  border-radius: 10px; background: rgba(0,0,0,.15); padding: 8px;
+}
+.combate-graf-fila {
+  display: grid; grid-template-columns: 42px 1fr 56px; gap: 6px; align-items: center;
+  font-size: 11px;
+}
+.combate-graf-nv { color: #8a9bb0; font-weight: 700; font-variant-numeric: tabular-nums; }
+.combate-graf-barra {
+  height: 10px; border-radius: 5px; background: rgba(255,255,255,.1); overflow: hidden;
+}
+.combate-graf-relleno {
+  height: 100%; border-radius: 5px;
+  background: linear-gradient(90deg, #ff6b4a, #ff453a);
+  transition: width .2s ease;
+}
+.combate-graf-val { color: #e8eef8; font-weight: 700; font-variant-numeric: tabular-nums; text-align: right; }
 .admin-nav.admin-toggle-on { background: rgba(48, 209, 88, .18); border-color: #30d158; }
