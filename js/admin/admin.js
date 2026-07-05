@@ -31,11 +31,12 @@ const Admin = {
     if (!this.datos.itemsNuevos) this.datos.itemsNuevos = [];
     if (!this.datos.baneados) this.datos.baneados = [];
     if (!this.datos.mensajes) this.datos.mensajes = [];
+    if (!this.datos.jugadoresExtra) this.datos.jugadoresExtra = [];
     if (this.datos.mantenimiento === undefined) this.datos.mantenimiento = null;
 
     // El mundo oficial vive en GitHub: al actualizar datos/mundo.json,
     // todos los jugadores reciben las misiones nuevas al recargar el juego
-    this.publicado = { misiones: [], tesoros: [], objetos: [], posiciones: {}, eliminados: [], precios: {}, itemsNuevos: [] };
+    this.publicado = { misiones: [], tesoros: [], objetos: [], posiciones: {}, eliminados: [], precios: {}, itemsNuevos: [], jugadores: [] };
     this._crudoPublicado = null;
     try {
       const texto = await MundoPublico.descargar();
@@ -49,6 +50,7 @@ const Admin = {
     if (!this.publicado.baneados) this.publicado.baneados = [];
     if (!this.publicado.mensajes) this.publicado.mensajes = [];
     if (!this.publicado.mantenimiento) this.publicado.mantenimiento = { activo: false, mensaje: '' };
+    if (!this.publicado.jugadores) this.publicado.jugadores = [];
 
     // Aplicar al catálogo los objetos nuevos y precios globales
     const nuevosPorId = new Map();
@@ -68,9 +70,18 @@ const Admin = {
     for (const e of locales) porId.set(e.id, e);
     return [...porId.values()].filter(e => !this.eliminado(e.id));
   },
-  misionesTodas() { return this._combinar(this.publicado.misiones, this.datos.misiones); },
-  tesorosTodos() { return this._combinar(this.publicado.tesoros, this.datos.tesoros); },
-  objetosTodos() { return this._combinar(this.publicado.objetos, this.datos.objetos); },
+  misionesTodas() {
+    if (this.esAdminJugador()) return this._combinar(this.publicado.misiones, this.datos.misiones);
+    return (this.publicado.misiones || []).filter(e => !this.eliminado(e.id));
+  },
+  tesorosTodos() {
+    if (this.esAdminJugador()) return this._combinar(this.publicado.tesoros, this.datos.tesoros);
+    return (this.publicado.tesoros || []).filter(e => !this.eliminado(e.id));
+  },
+  objetosTodos() {
+    if (this.esAdminJugador()) return this._combinar(this.publicado.objetos, this.datos.objetos);
+    return (this.publicado.objetos || []).filter(e => !this.eliminado(e.id));
+  },
 
   guardar() {
     // Las claves que empiezan con "_" son estado temporal (marcadores de
@@ -95,17 +106,118 @@ const Admin = {
   },
 
   // Sube el mapa a GitHub para que TODOS los jugadores lo vean
-  _publicarParaTodos() {
+  async _publicarParaTodos() {
     if (!MundoPublico.puedePublicar()) {
       Notificaciones.mostrar(
         '⚠️ Configura la 🔑 clave de GitHub en Admin\n' +
         '(🛠️ → Configurar clave de publicación)',
         'alerta', 12000
       );
-      return;
+      return false;
     }
     clearTimeout(this._tempPublicar);
-    this.publicarMundo();
+    await this.publicarMundo();
+    return true;
+  },
+
+  // ---------- ADMINISTRADOR (solo el jugador "randy") ----------
+  esAdminJugador() {
+    return typeof Usuarios !== 'undefined' && Usuarios.esAdministrador();
+  },
+
+  jugadoresGlobales() {
+    if (!this.publicado) this.publicado = { jugadores: [] };
+    if (!this.datos) this.datos = { jugadoresExtra: [] };
+    const porId = new Map();
+    for (const j of (this.publicado.jugadores || [])) {
+      if (j && j.id) porId.set(j.id, j);
+    }
+    for (const j of (this.datos.jugadoresExtra || [])) {
+      if (j && j.id) porId.set(j.id, j);
+    }
+    return [...porId.values()];
+  },
+
+  async actualizarJugadoresGlobales() {
+    if (!this.publicado) this.publicado = { jugadores: [] };
+    try {
+      const texto = await MundoPublico.descargar();
+      if (!texto) return;
+      const p = JSON.parse(texto);
+      if (Array.isArray(p.jugadores)) this.publicado.jugadores = p.jugadores;
+    } catch (e) { /* sin conexión */ }
+  },
+
+  validarRegistro(nombre, telefono, perfilIdExcluir) {
+    if (!this.publicado) this.publicado = { jugadores: [] };
+    if (!this.datos) this.datos = { jugadoresExtra: [] };
+    const n = nombre.trim().toLowerCase();
+    const adminNom = CONFIG.adminNombre.toLowerCase();
+    if (n === adminNom) {
+      const randy = this.jugadoresGlobales().find(j => j.nombre && j.nombre.toLowerCase() === adminNom);
+      if (randy && perfilIdExcluir !== randy.id) {
+        return 'El nombre "' + CONFIG.adminNombre + '" está reservado para el administrador';
+      }
+    }
+    for (const j of this.jugadoresGlobales()) {
+      if (j.nombre && j.nombre.toLowerCase() === n && j.id !== perfilIdExcluir) {
+        return 'Ya existe un jugador llamado "' + nombre + '" en el juego';
+      }
+      if (j.telefono && telefono && j.telefono === telefono && j.id !== perfilIdExcluir) {
+        return 'Ese número ya está registrado a "' + j.nombre + '"';
+      }
+    }
+    for (const p of Usuarios.datos.lista) {
+      if (perfilIdExcluir && p.id === perfilIdExcluir) continue;
+      if (p.nombre.toLowerCase() === n) return 'Ya existe un jugador con ese nombre en este teléfono';
+      if (telefono && p.telefono === telefono) return 'Ese número ya está en este teléfono (' + p.nombre + ')';
+    }
+    return null;
+  },
+
+  registrarJugador(perfil, silencioso) {
+    if (!perfil || !perfil.id) return;
+    if (!this.datos) {
+      try { this.datos = JSON.parse(localStorage.getItem(this.CLAVE) || 'null'); } catch (e) {}
+    }
+    if (!this.datos) this.datos = { jugadoresExtra: [], misiones: [], tesoros: [], objetos: [], posiciones: {}, eliminados: [] };
+    if (!this.datos.jugadoresExtra) this.datos.jugadoresExtra = [];
+    const entrada = {
+      id: perfil.id,
+      nombre: perfil.nombre,
+      telefono: perfil.telefono || '',
+      creado: perfil.creado || Date.now()
+    };
+    const idx = this.datos.jugadoresExtra.findIndex(j => j.id === perfil.id);
+    if (idx >= 0) this.datos.jugadoresExtra[idx] = entrada;
+    else this.datos.jugadoresExtra.push(entrada);
+    localStorage.setItem(this.CLAVE, JSON.stringify(this.datos,
+      (clave, valor) => clave.startsWith('_') ? undefined : valor));
+    if (!silencioso && this.esAdminJugador() && MundoPublico.puedePublicar()) {
+      clearTimeout(this._tempPublicar);
+      this._tempPublicar = setTimeout(() => this.publicarMundo(), 1500);
+    }
+  },
+
+  _jugadoresParaPublicar() {
+    const porId = new Map();
+    for (const j of (this.publicado.jugadores || [])) {
+      if (j && j.id) porId.set(j.id, j);
+    }
+    for (const j of (this.datos.jugadoresExtra || [])) {
+      if (j && j.id) porId.set(j.id, j);
+    }
+    if (Usuarios.datos && Usuarios.datos.lista) {
+      for (const p of Usuarios.datos.lista) {
+        porId.set(p.id, {
+          id: p.id,
+          nombre: p.nombre,
+          telefono: p.telefono || '',
+          creado: p.creado || Date.now()
+        });
+      }
+    }
+    return [...porId.values()].sort((a, b) => (a.nombre || '').localeCompare(b.nombre || ''));
   },
 
   // Posición corregida de un pin (si el admin lo movió). Muta la base en sitio
@@ -117,7 +229,8 @@ const Admin = {
   },
 
   eliminado(id) {
-    return this.datos.eliminados.includes(id) || this.publicado.eliminados.includes(id);
+    if ((this.publicado.eliminados || []).includes(id)) return true;
+    return this.esAdminJugador() && (this.datos.eliminados || []).includes(id);
   },
 
   // Progreso del jugador actual sobre el contenido creado por el admin
@@ -129,6 +242,9 @@ const Admin = {
   // ---------- ARRANQUE (después de los módulos base) ----------
   iniciar() {
     this._progreso();
+    if (this.esAdminJugador() && Usuarios.datos && Usuarios.datos.lista) {
+      for (const p of Usuarios.datos.lista) this.registrarJugador(p, true);
+    }
     // (las misiones del admin las gestiona el módulo Misiones)
     for (const t of this.tesorosTodos()) { this.pos(t.id, t.pos); this._prepararTesoro(t); }
     for (const o of this.objetosTodos()) { this.pos(o.id, o.pos); this._crearMarcadorObjeto(o); }
@@ -159,11 +275,11 @@ const Admin = {
   },
 
   // ---------- VIGILANCIA DEL MUNDO ----------
-  // Cada 8 segundos relee datos/mundo.json y pinta lo nuevo en el mapa.
+  // Cada 5 segundos relee el mundo y pinta lo nuevo en el mapa.
   iniciarVigilancia() {
     if (this._vigilanciaActiva) return;
     this._vigilanciaActiva = true;
-    setInterval(() => this._revisarActualizacion(), 8000);
+    setInterval(() => this._revisarActualizacion(), 5000);
     document.addEventListener('visibilitychange', () => {
       if (!document.hidden) this._revisarActualizacion();
     });
@@ -190,7 +306,7 @@ const Admin = {
     try {
       this.publicado = Object.assign({
         misiones: [], tesoros: [], objetos: [], posiciones: {}, eliminados: [],
-        precios: {}, itemsNuevos: [], baneados: [], mensajes: [],
+        precios: {}, itemsNuevos: [], baneados: [], mensajes: [], jugadores: [],
         mantenimiento: { activo: false, mensaje: '' }
       }, JSON.parse(texto));
     } catch (e) { return; }
@@ -255,6 +371,10 @@ const Admin = {
   // El PIN solo se pide la PRIMERA vez en cada teléfono; después queda
   // desbloqueado (guardado en el dispositivo del admin).
   async solicitarAcceso() {
+    if (!this.esAdminJugador()) {
+      alert('Solo el administrador (' + CONFIG.adminNombre + ') puede usar este panel.');
+      return;
+    }
     if (this.datos.pinHash && this.datos.desbloqueado) {
       document.getElementById('ventana-admin').classList.remove('oculto');
       return;
@@ -469,7 +589,7 @@ const Admin = {
     this._mostrarControles('Arrastra el pin 📌 a su lugar y confirma', true);
   },
 
-  confirmarColocacion() {
+  async confirmarColocacion() {
     const c = this._colocacion;
     if (!c || !c.marcador) return;
     const p = c.marcador.getLatLng();
@@ -494,8 +614,9 @@ const Admin = {
       const item = Items.obtener(o.itemId);
       Notificaciones.mostrar('📦 ' + item.nombre + ' x' + o.cantidad + ' dejado en el mapa', 'exito');
     }
-    this.guardar();
-    this._publicarParaTodos();
+    localStorage.setItem(this.CLAVE, JSON.stringify(this.datos,
+      (clave, valor) => clave.startsWith('_') ? undefined : valor));
+    await this._publicarParaTodos();
     this._colocacion = null;
     this.salirModo();
   },
@@ -894,9 +1015,33 @@ const Admin = {
   // ---------- JUGADORES DE ESTE TELÉFONO ----------
   listarJugadores() {
     document.getElementById('ventana-admin').classList.add('oculto');
-    document.getElementById('admin-form-titulo').textContent = '👥 Jugadores de este teléfono';
+    document.getElementById('admin-form-titulo').textContent = '👥 Jugadores registrados';
     const campos = document.getElementById('admin-form-campos');
     campos.innerHTML = '';
+
+    const globales = this.jugadoresGlobales();
+    if (globales.length) {
+      const tituloGlobal = document.createElement('div');
+      tituloGlobal.className = 'campo-caja';
+      tituloGlobal.textContent = '🌍 Todos los jugadores del juego (' + globales.length + ')';
+      campos.appendChild(tituloGlobal);
+      for (const j of globales) {
+        const filaG = document.createElement('div');
+        filaG.className = 'fila-tienda';
+        filaG.innerHTML =
+          '<span class="icono">👤</span>' +
+          '<div class="datos"><div class="nombre">' + j.nombre +
+          (j.nombre.toLowerCase() === CONFIG.adminNombre.toLowerCase() ? ' 🛠️ ADM' : '') +
+          '</div><div class="precio">📱 ' + (j.telefono || 'sin número') + '<br>ID: ' + j.id + '</div></div>';
+        campos.appendChild(filaG);
+      }
+    }
+
+    const tituloLocal = document.createElement('div');
+    tituloLocal.className = 'campo-caja';
+    tituloLocal.style.marginTop = '12px';
+    tituloLocal.textContent = '📱 En este teléfono';
+    campos.appendChild(tituloLocal);
     document.getElementById('btn-admin-guardar').textContent = '➕ Crear jugador nuevo';
 
     for (const perfil of Usuarios.datos.lista) {
@@ -1043,7 +1188,8 @@ const Admin = {
         if (ok) {
           this._ultimoPublicado = json;
           this._crudoPublicado = json;
-          Notificaciones.mostrar('🌍 ¡Listo! Los jugadores lo ven en ~8 segundos', 'exito', 8000);
+          this._aplicarMundoRemoto(json);
+          Notificaciones.mostrar('🌍 ¡Listo! Los jugadores lo ven en ~5 segundos', 'exito', 8000);
         } else {
           Notificaciones.mostrar('❌ No se pudo subir a Firebase. Revisa la URL en config.js', 'error', 7000);
         }
@@ -1079,7 +1225,8 @@ const Admin = {
       if (r.ok) {
         this._ultimoPublicado = json;
         this._crudoPublicado = json;
-        Notificaciones.mostrar('🌍 ¡MUNDO PUBLICADO! Los jugadores lo ven en ~8 segundos', 'exito', 8000);
+        this._aplicarMundoRemoto(json);
+        Notificaciones.mostrar('🌍 ¡MUNDO PUBLICADO! Todos lo ven en ~1 min (recarga si no aparece)', 'exito', 10000);
       } else if (r.status === 401 || r.status === 403) {
         Notificaciones.mostrar('❌ La clave no tiene permiso: revisa el token en GitHub', 'error', 7000);
       } else {
@@ -1118,7 +1265,8 @@ const Admin = {
         for (const m of this.publicado.mensajes) porId.set(m.id, m);
         for (const m of this.datos.mensajes) porId.set(m.id, m);
         return [...porId.values()].slice(-20);
-      })()
+      })(),
+      jugadores: this._jugadoresParaPublicar()
     }, quitarTemporales, 2);
   },
 

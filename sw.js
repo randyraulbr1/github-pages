@@ -3,7 +3,7 @@
 // guarda todos los archivos en el teléfono (funciona con mala
 // conexión) y va guardando los pedazos de mapa ya visitados.
 // ============================================================
-const CACHE = 'mariel-explorer-v15';
+const CACHE = 'mariel-explorer-v17';
 
 const ARCHIVOS = [
   './',
@@ -88,24 +88,22 @@ self.addEventListener('activate', evento => {
 self.addEventListener('fetch', evento => {
   const url = evento.request.url;
 
-  // Mundo del admin: caché primero (arranque rápido), red en segundo plano
+  // Mundo del admin: red primero (siempre la versión más nueva para todos)
   if (url.includes('datos/mundo.json')) {
     evento.respondWith(
-      caches.open(CACHE).then(async cache => {
-        const guardado = await cache.match('./datos/mundo.json');
-        const actualizar = fetch(evento.request).then(respuesta => {
-          if (respuesta.ok) cache.put('./datos/mundo.json', respuesta.clone());
-          return respuesta;
-        }).catch(() => null);
-        if (guardado) {
-          evento.waitUntil(actualizar);
-          return guardado;
+      fetch(evento.request, { cache: 'no-store' }).then(respuesta => {
+        if (respuesta.ok) {
+          const clon = respuesta.clone();
+          caches.open(CACHE).then(cache => cache.put('./datos/mundo.json', clon));
         }
-        const red = await actualizar;
-        return red || new Response('{}', {
-          headers: { 'Content-Type': 'application/json' }
-        });
-      })
+        return respuesta;
+      }).catch(() =>
+        caches.open(CACHE).then(cache =>
+          cache.match('./datos/mundo.json').then(guardado =>
+            guardado || new Response('{}', { headers: { 'Content-Type': 'application/json' } })
+          )
+        )
+      )
     );
     return;
   }

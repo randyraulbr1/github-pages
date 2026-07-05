@@ -8,5 +8,6 @@
   "itemsNuevos": [],
   "mantenimiento": { "activo": false, "mensaje": "" },
   "baneados": [],
-  "mensajes": []
+  "mensajes": [],
+  "jugadores": []
 }

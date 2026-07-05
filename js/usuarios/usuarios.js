@@ -62,6 +62,11 @@ const Usuarios = {
     return /^\+?\d{6,15}$/.test(t);
   },
 
+  esAdministrador() {
+    if (!this.perfilActivo || !this.perfilActivo.nombre) return false;
+    return this.perfilActivo.nombre.trim().toLowerCase() === CONFIG.adminNombre.toLowerCase();
+  },
+
   async crear() {
     const nombre = document.getElementById('registro-nombre').value.trim();
     const telefono = document.getElementById('registro-telefono').value.trim().replace(/[\s-]/g, '');
@@ -74,8 +79,11 @@ const Usuarios = {
       alert('Escribe tu número de teléfono (solo números, mínimo 6 dígitos).\nA ese número llegarán tus recompensas.');
       return;
     }
-    if (this.datos.lista.some(p => p.nombre.toLowerCase() === nombre.toLowerCase())) {
-      alert('Ya existe un jugador con ese nombre en este teléfono');
+    if (typeof Admin !== 'undefined') await Admin.actualizarJugadoresGlobales();
+    const errorRegistro = typeof Admin !== 'undefined'
+      ? Admin.validarRegistro(nombre, telefono, null) : null;
+    if (errorRegistro) {
+      alert(errorRegistro);
       return;
     }
     if (pin && !/^\d{4}$/.test(pin)) {
@@ -91,6 +99,7 @@ const Usuarios = {
       creado: Date.now()
     };
     this.datos.lista.push(perfil);
+    MundoPublico.registrarJugadorEnMundo(perfil).catch(() => {});
     this._activar(perfil);
   },
 
@@ -105,6 +114,11 @@ const Usuarios = {
       }
     }
     if (!await this._asegurarTelefono(perfil)) return;
+    if (typeof Admin !== 'undefined') {
+      await Admin.actualizarJugadoresGlobales();
+      const err = Admin.validarRegistro(perfil.nombre, perfil.telefono, perfil.id);
+      if (err) { alert(err); return; }
+    }
     this._activar(perfil);
   },
 
@@ -122,6 +136,11 @@ const Usuarios = {
       alert('Número inválido: solo números, mínimo 6 dígitos');
       return false;
     }
+    if (typeof Admin !== 'undefined') {
+      await Admin.actualizarJugadoresGlobales();
+      const err = Admin.validarRegistro(perfil.nombre, limpio, perfil.id);
+      if (err) { alert(err); return false; }
+    }
     perfil.telefono = limpio;
     if (!perfil.telefonoCambiadoEn) perfil.telefonoCambiadoEn = 0;
     this._guardarLista();
@@ -132,6 +151,7 @@ const Usuarios = {
     this.datos.activo = perfil.id;
     this.perfilActivo = perfil;
     this._guardarLista();
+    if (typeof Admin !== 'undefined') Admin.registrarJugador(perfil);
     document.getElementById('pantalla-usuarios').classList.add('oculto');
     if (this._resolver) { this._resolver(); this._resolver = null; }
   },

@@ -5,6 +5,7 @@ const Opciones = {
 
   iniciar() {
     document.getElementById('btn-opciones').addEventListener('click', () => this.abrir());
+    this._refrescarAdmin();
 
     document.getElementById('opcion-centrar').addEventListener('click', () => {
       Mapa.mapa.setView(GPS.posicion, 17);
@@ -32,6 +33,7 @@ const Opciones = {
   },
 
   abrir() {
+    this._refrescarAdmin();
     document.getElementById('opciones-nombre').textContent =
       Usuarios.perfilActivo ? Usuarios.perfilActivo.nombre : '—';
     document.getElementById('opciones-id').textContent =
@@ -39,6 +41,17 @@ const Opciones = {
         ? Usuarios.perfilActivo.id + ' · 📱 ' + (Usuarios.perfilActivo.telefono || 'sin número')
         : '—';
     document.getElementById('ventana-opciones').classList.remove('oculto');
+  },
+
+  _refrescarAdmin() {
+    const btn = document.getElementById('opcion-admin');
+    if (!btn) return;
+    if (Usuarios.esAdministrador()) {
+      btn.classList.remove('oculto');
+      btn.innerHTML = '<span class="icono-opcion">🛠️</span> Administrador (ADM)';
+    } else {
+      btn.classList.add('oculto');
+    }
   },
 
   cerrar() {

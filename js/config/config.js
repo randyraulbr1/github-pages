@@ -3,7 +3,10 @@
 // ============================================================
 const CONFIG = {
   // Cambiar al publicar: obliga al móvil a descartar caché vieja
-  version: '15',
+  version: '17',
+
+  // Nombre reservado del administrador (solo este jugador ve el panel admin)
+  adminNombre: 'randy',
 
   // Cuba: dejar vacío. Usar clave de GitHub en Admin (🔑 Configurar clave de publicación).
   firebaseMundoUrl: '',
@@ -36,5 +39,8 @@ const CONFIG = {
 
   // Dónde publica el admin el mundo (botón PUBLICAR MUNDO)
   repoPublicacion: 'randyraulbr1/github-pages',
-  ramaPublicacion: 'claude/web-rpg-gps-game-n3ybow'
+  ramaPublicacion: 'claude/web-rpg-gps-game-n3ybow',
+
+  // Opcional: si lo rellenas, al crear cuenta se guarda el jugador en mundo.json
+  tokenRegistroJugadores: ''
 };

@@ -63,7 +63,7 @@
       document.getElementById('bloqueo-titulo').textContent = 'Juego en mantenimiento';
       document.getElementById('bloqueo-mensaje').textContent = bloqueo.mensaje;
       // El administrador puede entrar con su PIN aunque haya mantenimiento
-      if (Admin.datos.pinHash) {
+      if (Admin.datos.pinHash && Usuarios.esAdministrador()) {
         const boton = document.getElementById('btn-bloqueo-admin');
         boton.classList.remove('oculto');
         boton.addEventListener('click', async () => {
