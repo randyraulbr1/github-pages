@@ -9,6 +9,32 @@ const Usuarios = {
   _sesionCerrada: false,
   _mundoCache: null,
 
+  _CUENTAS_RESET_V: '56',
+
+  _aplicarResetCuentasV56() {
+    if (localStorage.getItem('mariel_cuentas_reset_v') === this._CUENTAS_RESET_V) return;
+    if (this.datos) {
+      this.datos.lista = [];
+      this.datos.sesionId = null;
+      this.datos.activo = null;
+      this._guardarLista();
+    }
+    localStorage.setItem('mariel_cuentas_reset_v', this._CUENTAS_RESET_V);
+  },
+
+  async _partidaInicialRegistro() {
+    const datos = typeof Guardado !== 'undefined' && Guardado._estadoNuevo
+      ? Guardado._estadoNuevo()
+      : {
+        mochila: null, dinero: null, vida: CONFIG.vidaMaxima, hambre: CONFIG.hambreInicial,
+        xp: 0, nivel: 1, muerto: false
+      };
+    datos.dinero = { saldo: CONFIG.dineroInicial };
+    const sal = typeof Guardado !== 'undefined' ? Guardado.SAL : 'mariel-explorer::sal-de-integridad::2026';
+    datos.dinero.control = await Utilidades.sha256(sal + '|saldo|' + datos.dinero.saldo);
+    return { datos, t: Date.now() };
+  },
+
   iniciar() {
     return new Promise(resolver => {
       this._resolver = resolver;
@@ -16,6 +42,7 @@ const Usuarios = {
         this.datos = JSON.parse(localStorage.getItem(this.CLAVE) || 'null');
       } catch (e) { this.datos = null; }
       if (!this.datos) this.datos = { lista: [], activo: null, sesionId: null };
+      this._aplicarResetCuentasV56();
 
       const sesion = this.datos.sesionId && this.datos.lista.find(p => p.id === this.datos.sesionId);
       if (sesion) {
@@ -161,13 +188,11 @@ const Usuarios = {
   },
 
   _publicarSesionEnFondo(perfil, token) {
-    MundoPublico.registrarJugadorEnMundo(perfil, {
-      pinHash: perfil.pinHash,
+    MundoPublico.guardarCuenta(Object.assign({}, perfil, {
       sesionToken: token,
       sesionT: perfil.sesionT
-    }).catch(() => {});
+    }), null).catch(() => {});
     this._registrarEnAdminLocal(perfil);
-    // No publicar el mundo aquí: Admin.cargar() aún no terminó y se podría pisar mundo.json
   },
 
   async iniciarSesion() {
@@ -185,18 +210,12 @@ const Usuarios = {
       if (typeof Admin !== 'undefined') {
         try { await Admin.actualizarJugadoresGlobales(); } catch (e) {}
       }
-      let perfil = this._buscarPorLogin(usuario);
-
-      if (!perfil) {
-        const global = await this._buscarEnMundo(usuario);
-        if (!global) {
-          this._mostrarAvisoAuth('login',
-            'No existe esa cuenta en el servidor. Pide al admin que la cree y pulse Sincronizar.');
-          return;
-        }
+      let perfil = null;
+      const global = await this._buscarEnMundo(usuario);
+      if (global) {
         if (!global.pinHash) {
           this._mostrarAvisoAuth('login',
-            'Tu cuenta está en el servidor sin contraseña. Regístrate de nuevo o pide al admin que publique el mundo.');
+            'Tu cuenta está en el servidor sin contraseña. Pide al admin que la configure.');
           return;
         }
         if (hash !== global.pinHash) { this._mostrarAvisoAuth('login', 'Contraseña incorrecta'); return; }
@@ -208,17 +227,24 @@ const Usuarios = {
           pinHash: global.pinHash,
           creado: global.creado || Date.now()
         };
-        const idx = this.datos.lista.findIndex(p => p.id === perfil.id);
-        if (idx >= 0) this.datos.lista[idx] = Object.assign(this.datos.lista[idx], perfil);
-        else this.datos.lista.push(perfil);
-        this._guardarLista();
       } else {
+        perfil = this._buscarPorLogin(usuario);
+        if (!perfil) {
+          this._mostrarAvisoAuth('login',
+            'No existe esa cuenta. Regístrate o pide al admin que la cree en el servidor.');
+          return;
+        }
         if (!perfil.pinHash) {
           this._mostrarAvisoAuth('login', 'Esta cuenta es antigua. Crea una cuenta nueva.');
           return;
         }
         if (hash !== perfil.pinHash) { this._mostrarAvisoAuth('login', 'Contraseña incorrecta'); return; }
       }
+
+      const idx = this.datos.lista.findIndex(p => p.id === perfil.id);
+      if (idx >= 0) this.datos.lista[idx] = Object.assign(this.datos.lista[idx], perfil);
+      else this.datos.lista.push(perfil);
+      this._guardarLista();
 
       if (typeof Admin !== 'undefined') {
         try {
@@ -269,7 +295,8 @@ const Usuarios = {
     this.datos.lista.push(perfil);
     this._guardarLista();
     this._registrarEnAdminLocal(perfil);
-    const okNube = await MundoPublico.guardarCuenta(perfil, null);
+    const snap = await this._partidaInicialRegistro();
+    const okNube = await MundoPublico.guardarCuenta(perfil, snap);
     if (!okNube) {
       Notificaciones.mostrar(
         '⚠️ Cuenta creada aquí, pero no llegó a la nube. El admin debe tener 🔑 Token y pulsar Sincronizar.',

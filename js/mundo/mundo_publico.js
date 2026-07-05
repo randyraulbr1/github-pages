@@ -289,14 +289,15 @@ const MundoPublico = {
       'Índice cuentas: ' + perfil.nombre
     );
 
-    await this.registrarJugadorEnMundo(perfil, {
+    const okMundo = await this.registrarJugadorEnMundo(perfil, {
       pinHash: cuenta.pinHash,
       sesionToken: cuenta.sesionToken,
       sesionT: cuenta.sesionT,
       partida: cuenta.partida
     });
 
-    return okArchivo && okIndice;
+    // El login usa índice + mundo.json; el archivo individual es opcional
+    return okIndice || okMundo;
   },
 
   async subirPartidaCuenta(perfil, snapshot) {

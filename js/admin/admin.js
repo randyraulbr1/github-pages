@@ -39,6 +39,13 @@ const Admin = {
     if (!this.datos.eliminados) this.datos.eliminados = [];
     if (!this.datos.partidasExtra) this.datos.partidasExtra = {};
     if (!this.datos.jugadoresPinAdmin) this.datos.jugadoresPinAdmin = {};
+    if (localStorage.getItem('mariel_cuentas_reset_v') !== '56') {
+      this.datos.jugadoresExtra = [];
+      this.datos.partidasExtra = {};
+      this.datos.jugadoresPinAdmin = {};
+      localStorage.setItem(this.CLAVE, JSON.stringify(this.datos,
+        (clave, valor) => clave.startsWith('_') ? undefined : valor));
+    }
     if (this.datos.verCofresOcultos === undefined) this.datos.verCofresOcultos = false;
     if (!this.datos.enemigos) this.datos.enemigos = [];
     if (!this.datos.tiendasAdmin) this.datos.tiendasAdmin = [];
