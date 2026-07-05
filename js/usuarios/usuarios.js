@@ -304,9 +304,7 @@ const Usuarios = {
     const okNube = await MundoPublico.guardarCuenta(perfil, snap);
     if (!okNube) {
       Notificaciones.mostrar(
-        MundoPublico.usaFirebase()
-          ? '⚠️ No se pudo guardar en Firebase. Revisa firebaseMundoUrl en config.js'
-          : '⚠️ Cuenta creada aquí, pero no llegó a la nube. Configura Firebase o 🔑 Token GitHub.',
+        '⚠️ Cuenta creada aquí, pero no llegó al servidor. El admin debe tener 🔑 Token y pulsar Sincronizar.',
         'alerta', 10000
       );
     }

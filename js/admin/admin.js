@@ -92,10 +92,6 @@ const Admin = {
     this._asegurarObjetoIconoTesoro(this.tesoroIconoMapa());
     this._aplicarTokenTelefono();
 
-    if (MundoPublico.usaFirebase()) {
-      MundoPublico.migrarDesdeGitHubSiVacio().catch(() => {});
-    }
-
     if (!Array.isArray(this.publicado.misiones)) this.publicado.misiones = [];
     if (!Array.isArray(this.publicado.tesoros)) this.publicado.tesoros = [];
     if (!Array.isArray(this.publicado.objetos)) this.publicado.objetos = [];
@@ -251,9 +247,7 @@ const Admin = {
       if (!this._avisoSinToken) {
         this._avisoSinToken = true;
         Notificaciones.mostrar(
-          MundoPublico.usaFirebase()
-            ? '⚠️ Firebase configurado pero no responde. Revisa firebaseMundoUrl en config.js'
-            : '⚠️ Sin nube activa. Configura Firebase en config.js (sin tokens) o 🔑 Token GitHub.',
+          '⚠️ Sin token en este teléfono. Admin → Token GitHub para publicar mapa y cuentas.',
           'alerta', 12000
         );
       }
@@ -285,9 +279,7 @@ const Admin = {
           this._tempPublicar = setTimeout(() => this._procesarColaPublicacion(), espera);
         } else if (this.esAdminJugador()) {
           Notificaciones.mostrar(
-            MundoPublico.usaFirebase()
-              ? '❌ No se pudo subir a Firebase. Revisa firebaseMundoUrl en config.js'
-              : '❌ No se pudo subir a GitHub. Revisa 🔑 Token o pulsa Sincronizar.',
+            '❌ No se pudo subir a GitHub. Revisa 🔑 Token o pulsa Sincronizar.',
             'error', 8000
           );
         }
@@ -380,18 +372,6 @@ const Admin = {
       if (texto) {
         const p = JSON.parse(texto);
         if (Array.isArray(p.jugadores)) this.publicado.jugadores = p.jugadores;
-      }
-      const indice = await MundoPublico._descargarJsonRepo(MundoPublico._rutaIndiceCuentas());
-      if (Array.isArray(indice) && indice.length) {
-        const porId = new Map();
-        for (const j of (this.publicado.jugadores || [])) {
-          if (j && j.id) porId.set(j.id, j);
-        }
-        for (const j of indice) {
-          if (!j || !j.id) continue;
-          porId.set(j.id, Object.assign({}, porId.get(j.id) || {}, j));
-        }
-        this.publicado.jugadores = [...porId.values()];
       }
     } catch (e) { /* sin conexión */ }
   },
@@ -3044,25 +3024,13 @@ const Admin = {
   _actualizarEtiquetaClave() {
     const etiq = document.getElementById('admin-clave-etiqueta');
     if (!etiq) return;
-    if (MundoPublico.usaFirebase()) {
-      etiq.textContent = 'Nube Firebase ✅';
-      return;
-    }
     etiq.textContent = this._tokenEnTelefono()
       ? 'Token GitHub ✅'
       : 'Token GitHub (configurar)';
   },
 
   abrirConfiguracionClave() {
-    const panelFirebase = document.getElementById('admin-firebase-activo');
     const panelGitHub = document.getElementById('admin-github-token');
-    if (MundoPublico.usaFirebase()) {
-      if (panelFirebase) panelFirebase.classList.remove('oculto');
-      if (panelGitHub) panelGitHub.classList.add('oculto');
-      this._mostrarPanelDerecho('admin-vista-clave', '☁️ Nube Firebase');
-      return;
-    }
-    if (panelFirebase) panelFirebase.classList.add('oculto');
     if (panelGitHub) panelGitHub.classList.remove('oculto');
     const input = document.getElementById('admin-clave-token');
     const estado = document.getElementById('admin-clave-estado');

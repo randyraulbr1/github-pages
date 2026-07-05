@@ -1,7 +1,7 @@
 // ============================================================
 // MUNDO PÚBLICO — mapa compartido entre todos los jugadores
-// Lee/escribe el mundo en Firebase (automático al pulsar Confirmar)
-// o en datos/mundo.json de GitHub Pages como respaldo.
+// Todo vive en datos/mundo.json (GitHub Pages, sin VPN).
+// Admin escribe con token GitHub; jugadores solo leen el mismo archivo.
 // ============================================================
 const MundoPublico = {
 
@@ -161,16 +161,15 @@ const MundoPublico = {
     } catch (e) { return false; }
   },
 
-  // Orden: Firebase (sin tokens) — GitHub raw — local
+  // Mismo sitio primero (Cuba, sin VPN) — raw GitHub como respaldo
   urlsLectura() {
-    if (CONFIG.firebaseMundoUrl) {
-      return [this._urlFirebase('mundo')];
-    }
+    const urls = ['datos/mundo.json'];
     if (CONFIG.repoPublicacion && CONFIG.ramaPublicacion) {
-      return ['https://raw.githubusercontent.com/' + CONFIG.repoPublicacion + '/' +
-        CONFIG.ramaPublicacion + '/datos/mundo.json'];
+      urls.push('https://raw.githubusercontent.com/' + CONFIG.repoPublicacion + '/' +
+        CONFIG.ramaPublicacion + '/datos/mundo.json');
     }
-    return ['datos/mundo.json'];
+    if (CONFIG.firebaseMundoUrl) urls.push(this._urlFirebase('mundo'));
+    return urls;
   },
 
   _aplicarTokenDesdeTexto(texto) {
@@ -184,7 +183,7 @@ const MundoPublico = {
 
   // El login y la lectura de partida no necesitan token — solo la escritura a GitHub
   lecturaNubeOk() {
-    return !!(CONFIG.firebaseMundoUrl || CONFIG.repoPublicacion);
+    return true;
   },
 
   async refrescarCuentasServidor() {
@@ -197,13 +196,13 @@ const MundoPublico = {
       if (mundo) this._mundoCache = JSON.stringify(mundo);
       return { indice: ind, mundo };
     }
-    const bust = '?v=' + Date.now();
-    const [indice, textoMundo] = await Promise.all([
-      this._descargarJsonRepo(this._rutaIndiceCuentas()),
-      this.descargar()
-    ]);
+    const textoMundo = await this.descargar();
     if (textoMundo) this._mundoCache = textoMundo;
-    return { indice, mundo: textoMundo ? JSON.parse(textoMundo) : null };
+    let mundo = null;
+    if (textoMundo) {
+      try { mundo = JSON.parse(textoMundo); } catch (e) {}
+    }
+    return { indice: mundo ? this._indiceDesdeMundo(mundo) : null, mundo };
   },
 
   _versionMundo(texto) {
@@ -253,7 +252,7 @@ const MundoPublico = {
     candidatos.sort((a, b) => {
       if (b.version !== a.version) return b.version - a.version;
       if (b.peso !== a.peso) return b.peso - a.peso;
-      return (b.esRaw ? 1 : 0) - (a.esRaw ? 1 : 0);
+      return (a.esRaw ? 1 : 0) - (b.esRaw ? 1 : 0);
     });
     const mejor = candidatos[0].texto;
     this._aplicarTokenDesdeTexto(mejor);
@@ -386,13 +385,13 @@ const MundoPublico = {
 
     const { indice, mundo } = await this.refrescarCuentasServidor().catch(() => ({ indice: null, mundo: null }));
 
-    if (Array.isArray(indice)) {
-      const hit = buscar(indice);
+    if (mundo && Array.isArray(mundo.jugadores)) {
+      const hit = buscar(mundo.jugadores);
       if (hit) return hit;
     }
 
-    if (mundo && Array.isArray(mundo.jugadores)) {
-      const hit = buscar(mundo.jugadores);
+    if (Array.isArray(indice)) {
+      const hit = buscar(indice);
       if (hit) return hit;
     }
 
@@ -410,9 +409,6 @@ const MundoPublico = {
       const partida = (mundo.partidas || {})[id] || null;
       return Object.assign({}, j, partida ? { partida } : {});
     }
-    const archivo = await this._descargarJsonRepo(this._rutaCuenta(id));
-    if (archivo && archivo.id) return archivo;
-
     try {
       const texto = await this.descargar();
       if (!texto) return null;
@@ -429,52 +425,14 @@ const MundoPublico = {
     if (this.usaFirebase()) return this._guardarCuentaFirebase(perfil, partidaSnap);
     if (!this._tokenGitHub() || !CONFIG.repoPublicacion) return false;
 
-    let cuenta = await this.cargarCuenta(perfil.id) || {};
-    cuenta = Object.assign({}, cuenta, {
-      id: perfil.id,
-      nombre: perfil.nombre,
-      telefono: perfil.telefono || '',
-      pinHash: perfil.pinHash || cuenta.pinHash || '',
-      creado: perfil.creado || cuenta.creado || Date.now()
-    });
-    if ('sesionToken' in perfil) cuenta.sesionToken = perfil.sesionToken;
-    if (perfil.sesionT) cuenta.sesionT = perfil.sesionT;
-    if (partidaSnap) {
-      const prev = cuenta.partida;
-      if (!prev || !prev.t || (partidaSnap.t || 0) >= (prev.t || 0)) {
-        cuenta.partida = partidaSnap;
-      }
-    }
+    const extras = {
+      pinHash: perfil.pinHash,
+      sesionToken: perfil.sesionToken,
+      sesionT: perfil.sesionT
+    };
+    if (partidaSnap) extras.partida = partidaSnap;
 
-    const okArchivo = await this._escribirArchivoGitHub(
-      this._rutaCuenta(perfil.id),
-      cuenta,
-      'Cuenta jugador: ' + perfil.nombre
-    );
-
-    let indice = await this._descargarJsonRepo(this._rutaIndiceCuentas());
-    if (!Array.isArray(indice)) indice = [];
-    const entrada = this._perfilIndice(cuenta);
-    const idx = indice.findIndex(x => x.id === perfil.id);
-    if (idx >= 0) indice[idx] = Object.assign({}, indice[idx], entrada);
-    else indice.push(entrada);
-    indice.sort((a, b) => (a.nombre || '').localeCompare(b.nombre || ''));
-
-    const okIndice = await this._escribirArchivoGitHub(
-      this._rutaIndiceCuentas(),
-      indice,
-      'Índice cuentas: ' + perfil.nombre
-    );
-
-    const okMundo = await this.registrarJugadorEnMundo(perfil, {
-      pinHash: cuenta.pinHash,
-      sesionToken: cuenta.sesionToken,
-      sesionT: cuenta.sesionT,
-      partida: cuenta.partida
-    });
-
-    // El login usa índice + mundo.json; el archivo individual es opcional
-    return okIndice || okMundo;
+    return this.registrarJugadorEnMundo(perfil, extras);
   },
 
   async subirPartidaCuenta(perfil, snapshot) {
