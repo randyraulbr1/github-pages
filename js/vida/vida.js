@@ -86,8 +86,6 @@ const Vida = {
   pintar() {
     const pctVida = (this.actual / CONFIG.vidaMaxima) * 100;
     document.getElementById('vida-relleno').style.width = pctVida + '%';
-    const vt = document.getElementById('vida-texto');
-    if (vt) vt.textContent = this.actual;
 
     const pctHam = (this.hambre / CONFIG.hambreMaxima) * 100;
     const hr = document.getElementById('hambre-relleno');

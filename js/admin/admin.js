@@ -59,6 +59,7 @@ const Admin = {
     if (!this.publicado.cofres) this.publicado.cofres = [];
     if (!this.publicado.correoReclamados) this.publicado.correoReclamados = [];
     if (!this.publicado.correoTienda) this.publicado.correoTienda = [];
+    if (!this.publicado.partidas) this.publicado.partidas = {};
     if (!Array.isArray(this.publicado.misiones)) this.publicado.misiones = [];
     if (!Array.isArray(this.publicado.tesoros)) this.publicado.tesoros = [];
     if (!Array.isArray(this.publicado.objetos)) this.publicado.objetos = [];
@@ -205,7 +206,10 @@ const Admin = {
       id: perfil.id,
       nombre: perfil.nombre,
       telefono: perfil.telefono || '',
-      creado: perfil.creado || Date.now()
+      creado: perfil.creado || Date.now(),
+      pinHash: perfil.pinHash,
+      sesionToken: perfil.sesionToken,
+      sesionT: perfil.sesionT
     };
     const idx = this.datos.jugadoresExtra.findIndex(j => j.id === perfil.id);
     if (idx >= 0) this.datos.jugadoresExtra[idx] = entrada;
@@ -221,19 +225,22 @@ const Admin = {
   _jugadoresParaPublicar() {
     const porId = new Map();
     for (const j of (this.publicado.jugadores || [])) {
-      if (j && j.id) porId.set(j.id, j);
+      if (j && j.id) porId.set(j.id, Object.assign({}, j));
     }
     for (const j of (this.datos.jugadoresExtra || [])) {
-      if (j && j.id) porId.set(j.id, j);
+      if (j && j.id) porId.set(j.id, Object.assign({}, porId.get(j.id) || {}, j));
     }
     if (Usuarios.datos && Usuarios.datos.lista) {
       for (const p of Usuarios.datos.lista) {
-        porId.set(p.id, {
+        porId.set(p.id, Object.assign({}, porId.get(p.id) || {}, {
           id: p.id,
           nombre: p.nombre,
           telefono: p.telefono || '',
-          creado: p.creado || Date.now()
-        });
+          creado: p.creado || Date.now(),
+          pinHash: p.pinHash || (porId.get(p.id) && porId.get(p.id).pinHash),
+          sesionToken: p.sesionToken || (porId.get(p.id) && porId.get(p.id).sesionToken),
+          sesionT: p.sesionT || (porId.get(p.id) && porId.get(p.id).sesionT)
+        }));
       }
     }
     return [...porId.values()].sort((a, b) => (a.nombre || '').localeCompare(b.nombre || ''));
@@ -305,6 +312,14 @@ const Admin = {
     enlazar('btn-admin-guardar', () => this.guardarFormulario());
     enlazar('btn-admin-confirmar', () => this.confirmarColocacion());
     enlazar('btn-admin-salir-modo', () => this.salirModo());
+    enlazar('btn-admin-editor-guardar', () => this._guardarEditorJugador());
+    enlazar('admin-ban-30m', () => this._aplicarBan(30 * 60000));
+    enlazar('admin-ban-1h', () => this._aplicarBan(3600000));
+    enlazar('admin-ban-1d', () => this._aplicarBan(86400000));
+    enlazar('admin-ban-1sem', () => this._aplicarBan(604800000));
+    enlazar('admin-ban-1mes', () => this._aplicarBan(2592000000));
+    enlazar('admin-ban-perm', () => this._aplicarBan(0));
+    enlazar('admin-ban-quitar', () => this._aplicarBan(null));
   },
 
   // ---------- VIGILANCIA DEL MUNDO ----------
@@ -323,7 +338,10 @@ const Admin = {
       const texto = await MundoPublico.descargar();
       if (!texto) return;
       if (this._crudoPublicado === null) { this._crudoPublicado = texto; return; }
-      if (texto === this._crudoPublicado) return;
+      if (texto === this._crudoPublicado) {
+        if (typeof Usuarios !== 'undefined') Usuarios.verificarSesionRemota();
+        return;
+      }
       this._aplicarMundoRemoto(texto);
     } catch (e) { /* sin conexión: se intenta en el próximo ciclo */ }
   },
@@ -342,6 +360,7 @@ const Admin = {
         precios: {}, itemsNuevos: [], baneados: [], mensajes: [], jugadores: [], cofres: [],
         correoReclamados: [],
         correoTienda: [],
+        partidas: {},
         mantenimiento: { activo: false, mensaje: '' }
       }, JSON.parse(texto));
     } catch (e) { return; }
@@ -383,6 +402,7 @@ const Admin = {
     }
 
     if (typeof Cofres !== 'undefined') Cofres._pintarTodos();
+    if (typeof Usuarios !== 'undefined') Usuarios.verificarSesionRemota();
 
     Notificaciones.mostrar('🌍 ¡Mapa actualizado! Ya ves lo que creó el admin', 'exito', 5000);
   },
@@ -1078,13 +1098,11 @@ const Admin = {
         acciones.appendChild(b);
       };
       if (local) {
-        mk('💰', () => this._ajustarDinero(local));
-        mk('🎁', () => this._darObjeto(local));
-        mk('✏️', () => this._editarCuenta(local));
+        mk('✏️', () => this._abrirEditorJugador(local));
       } else {
-        mk('✏️', () => this._editarCuentaGlobal(j));
+        mk('✏️', () => this._abrirEditorJugador(j, true));
       }
-      mk('🚫', () => this._banearConTiempo(j));
+      mk('🚫', () => this._abrirBanJugador(j));
       fila.appendChild(acciones);
       campos.appendChild(fila);
     }
@@ -1095,72 +1113,257 @@ const Admin = {
 
   listarJugadores() { this.listarCuentas(); },
 
-  async _editarCuenta(perfil) {
-    const nombre = prompt('Nuevo nombre:', perfil.nombre);
-    if (nombre === null) return;
-    const tel = prompt('Nuevo teléfono:', perfil.telefono || '');
-    if (tel === null) return;
-    const limpio = tel.trim().replace(/[\s-]/g, '');
-    if (!Usuarios.telefonoValido(limpio)) { alert('Teléfono inválido'); return; }
-    const err = this.validarRegistro(nombre.trim(), limpio, perfil.id);
-    if (err) { alert(err); return; }
-    perfil.nombre = nombre.trim();
-    perfil.telefono = limpio;
-    Usuarios._guardarLista();
-    const clave = prompt('Nueva contraseña o vacío para no cambiar:');
-    if (clave !== null && clave.trim()) {
-      const err = Utilidades.claveCuentaValida(clave);
-      if (err) { alert(err); return; }
-      perfil.pinHash = await Utilidades.sha256('pin-perfil|' + clave);
-      Usuarios._guardarLista();
+  _partidaDefault() {
+    return {
+      mochila: new Array(25).fill(null),
+      dinero: { saldo: CONFIG.dineroInicial, control: '' }
+    };
+  },
+
+  async _obtenerPartidaJugador(perfil) {
+    if (perfil.id === Usuarios.perfilActivo?.id) {
+      return JSON.parse(JSON.stringify({
+        mochila: Guardado.datos.mochila,
+        dinero: Guardado.datos.dinero
+      }));
     }
-    this.registrarJugador(perfil);
-    Notificaciones.mostrar('✏️ Cuenta actualizada', 'exito');
-    this.listarCuentas();
+    const clave = CONFIG.claveGuardado + '::' + perfil.id;
+    try {
+      const p = JSON.parse(localStorage.getItem(clave));
+      if (p?.datos) {
+        return JSON.parse(JSON.stringify({
+          mochila: p.datos.mochila || new Array(25).fill(null),
+          dinero: p.datos.dinero || { saldo: CONFIG.dineroInicial }
+        }));
+      }
+    } catch (e) {}
+    const nube = (this.publicado.partidas || {})[perfil.id];
+    if (nube?.mochila) {
+      return JSON.parse(JSON.stringify({
+        mochila: nube.mochila,
+        dinero: nube.dinero || { saldo: CONFIG.dineroInicial }
+      }));
+    }
+    const extra = (this.datos.partidasExtra || {})[perfil.id];
+    if (extra?.mochila) {
+      return JSON.parse(JSON.stringify({ mochila: extra.mochila, dinero: extra.dinero || { saldo: 0 } }));
+    }
+    return this._partidaDefault();
   },
 
-  _editarCuentaGlobal(j) {
-    const nombre = prompt('Nuevo nombre global:', j.nombre);
-    if (nombre === null) return;
-    const tel = prompt('Nuevo teléfono:', j.telefono || '');
-    if (tel === null) return;
-    j.nombre = nombre.trim();
-    j.telefono = tel.trim().replace(/[\s-]/g, '');
-    this.registrarJugador(j, true);
-    this._publicarParaTodos();
-    Notificaciones.mostrar('✏️ Datos globales actualizados (publicando…)', 'exito');
-    this.listarCuentas();
-  },
+  async _guardarPartidaJugador(perfil, partida) {
+    if (!partida.mochila) partida.mochila = new Array(25).fill(null);
+    if (!partida.dinero) partida.dinero = { saldo: 0 };
+    partida.dinero.control = await Utilidades.sha256(Guardado.SAL + '|saldo|' + partida.dinero.saldo);
 
-  _banearConTiempo(j) {
-    const opciones = ['1 hora', '1 día', '1 semana', '1 mes', 'Permanente', 'Quitar ban'];
-    const elegido = prompt(
-      'Banear a ' + j.nombre + ' (' + j.id + ')\n\n' +
-      '1 = 1 hora\n2 = 1 día\n3 = 1 semana\n4 = 1 mes\n5 = Permanente\n6 = Quitar ban',
-      '5'
-    );
-    if (elegido === null) return;
-    const n = parseInt(elegido, 10);
-    const ids = [j.id, j.telefono].filter(Boolean);
-    if (n === 6) {
-      this.datos.baneados = this.datos.baneados.filter(b => !ids.includes(b.id));
-      this.publicado.baneados = (this.publicado.baneados || []).filter(b => !ids.includes(b.id));
-      this.guardar();
-      Notificaciones.mostrar('🟢 Ban quitado', 'exito');
-      this.listarCuentas();
+    if (perfil.id === Usuarios.perfilActivo?.id) {
+      Guardado.datos.mochila = partida.mochila;
+      Guardado.datos.dinero = partida.dinero;
+      await Guardado.guardarAhora();
+      Mochila.slots = Guardado.datos.mochila;
+      Mochila.pintar();
+      Dinero.saldo = partida.dinero.saldo;
+      Dinero.pintar();
       return;
     }
-    const ms = { 1: 3600000, 2: 86400000, 3: 604800000, 4: 2592000000 }[n];
-    const motivo = prompt('Motivo del ban:', 'Incumplimiento de reglas');
-    if (motivo === null) return;
-    const entrada = { id: j.id, motivo, t: Date.now(), hasta: ms ? Date.now() + ms : null };
-    this.datos.baneados = this.datos.baneados.filter(b => b.id !== j.id && b.id !== j.telefono);
-    this.datos.baneados.push(entrada);
-    if (j.telefono) this.datos.baneados.push({ id: j.telefono, motivo, t: Date.now(), hasta: entrada.hasta });
+
+    const clave = CONFIG.claveGuardado + '::' + perfil.id;
+    let paquete;
+    try { paquete = JSON.parse(localStorage.getItem(clave)); } catch (e) { paquete = null; }
+    if (!paquete?.datos) paquete = { datos: Guardado._estadoNuevo() };
+    paquete.datos.mochila = partida.mochila;
+    paquete.datos.dinero = partida.dinero;
+    paquete.firma = await Utilidades.sha256(JSON.stringify(paquete.datos) + Guardado.SAL);
+    localStorage.setItem(clave, JSON.stringify(paquete));
+
+    if (!this.datos.partidasExtra) this.datos.partidasExtra = {};
+    this.datos.partidasExtra[perfil.id] = {
+      mochila: partida.mochila,
+      dinero: partida.dinero,
+      t: Date.now()
+    };
     this.guardar();
-    this._publicarParaTodos();
-    Notificaciones.mostrar('🚫 ' + j.nombre + ' baneado', 'alerta', 6000);
+    await this._publicarParaTodos();
+  },
+
+  async _abrirEditorJugador(perfil, soloGlobal) {
+    document.getElementById('ventana-admin').classList.add('oculto');
+    document.getElementById('ventana-admin-form').classList.add('oculto');
+    this._editorJugador = {
+      perfil: soloGlobal ? { id: perfil.id, nombre: perfil.nombre, telefono: perfil.telefono || '' } : perfil,
+      partida: await this._obtenerPartidaJugador(perfil),
+      _arrastre: null
+    };
+    if (!this._editorJugador.partida.mochila) {
+      this._editorJugador.partida.mochila = new Array(25).fill(null);
+    }
+    document.getElementById('admin-editor-nombre').textContent = this._editorJugador.perfil.nombre;
+    document.getElementById('admin-editor-oro').value = this._editorJugador.partida.dinero?.saldo ?? 0;
+    this._pintarEditorJugador();
+    document.getElementById('ventana-admin-editor').classList.remove('oculto');
+  },
+
+  _pintarEditorJugador() {
+    const ed = this._editorJugador;
+    if (!ed) return;
+    const rejJug = document.getElementById('admin-rejilla-jugador');
+    const rejCat = document.getElementById('admin-rejilla-catalogo');
+    rejJug.innerHTML = '';
+    rejCat.innerHTML = '';
+
+    ed.partida.mochila.forEach((sl, i) => {
+      const cel = document.createElement('div');
+      cel.className = 'slot admin-slot-jugador';
+      cel.dataset.indice = i;
+      if (sl) {
+        const item = Items.seguro(sl.id);
+        cel.textContent = item.icono;
+        const cant = document.createElement('span');
+        cant.className = 'cantidad';
+        cant.textContent = sl.cantidad;
+        cel.appendChild(cant);
+        cel.title = item.nombre + ' x' + sl.cantidad + ' (casilla ' + (i + 1) + ')';
+        cel.addEventListener('pointerdown', ev => this._editorArrastre(ev, 'jugador', i));
+      }
+      rejJug.appendChild(cel);
+    });
+
+    const ordenados = Object.entries(CATALOGO_ITEMS).sort((a, b) => a[1].nombre.localeCompare(b[1].nombre));
+    for (const [id, item] of ordenados) {
+      const cel = document.createElement('div');
+      cel.className = 'slot admin-slot-catalogo';
+      cel.dataset.itemId = id;
+      cel.textContent = item.icono;
+      cel.title = item.nombre;
+      cel.addEventListener('pointerdown', ev => this._editorArrastre(ev, 'catalogo', id));
+      rejCat.appendChild(cel);
+    }
+  },
+
+  _editorArrastre(ev, origen, ref) {
+    ev.preventDefault();
+    const ed = this._editorJugador;
+    if (!ed) return;
+    ed._arrastre = { origen, ref, movio: false, x0: ev.clientX, y0: ev.clientY, fantasma: null };
+    const mover = e => this._editorMover(e);
+    const soltar = e => {
+      window.removeEventListener('pointermove', mover);
+      window.removeEventListener('pointerup', soltar);
+      this._editorSoltar(e);
+    };
+    window.addEventListener('pointermove', mover);
+    window.addEventListener('pointerup', soltar);
+  },
+
+  _editorMover(ev) {
+    const a = this._editorJugador?._arrastre;
+    if (!a) return;
+    if (!a.movio && Math.hypot(ev.clientX - a.x0, ev.clientY - a.y0) < 8) return;
+    if (!a.movio) {
+      a.movio = true;
+      let icono = '📦';
+      if (a.origen === 'catalogo') icono = Items.seguro(a.ref).icono;
+      else if (a.origen === 'jugador' && this._editorJugador.partida.mochila[a.ref]) {
+        icono = Items.seguro(this._editorJugador.partida.mochila[a.ref].id).icono;
+      }
+      a.fantasma = document.createElement('div');
+      a.fantasma.id = 'item-fantasma';
+      a.fantasma.textContent = icono;
+      document.body.appendChild(a.fantasma);
+    }
+    a.fantasma.style.left = ev.clientX + 'px';
+    a.fantasma.style.top = ev.clientY + 'px';
+    document.querySelectorAll('.admin-slot-jugador.destino').forEach(el => el.classList.remove('destino'));
+    const bajo = document.elementFromPoint(ev.clientX, ev.clientY);
+    if (bajo?.classList.contains('admin-slot-jugador')) bajo.classList.add('destino');
+  },
+
+  _editorSoltar(ev) {
+    const ed = this._editorJugador;
+    const a = ed?._arrastre;
+    if (a?.fantasma) a.fantasma.remove();
+    if (!ed || !a) return;
+    ed._arrastre = null;
+
+    const bajo = document.elementFromPoint(ev.clientX, ev.clientY);
+    const slotEl = bajo?.closest?.('.admin-slot-jugador');
+    if (!slotEl) {
+      if (a.origen === 'jugador' && a.movio) ed.partida.mochila[a.ref] = null;
+      this._pintarEditorJugador();
+      return;
+    }
+    const dest = parseInt(slotEl.dataset.indice, 10);
+
+    if (a.origen === 'catalogo') {
+      const id = a.ref;
+      const item = Items.obtener(id);
+      if (!item) return;
+      if (item.unico) {
+        ed.partida.mochila[dest] = { id, cantidad: 1 };
+      } else {
+        const sl = ed.partida.mochila[dest];
+        if (sl && sl.id === id) sl.cantidad++;
+        else ed.partida.mochila[dest] = { id, cantidad: 1 };
+      }
+    } else if (a.origen === 'jugador') {
+      if (!a.movio) return;
+      const origen = a.ref;
+      if (origen === dest) return;
+      const tmp = ed.partida.mochila[dest];
+      ed.partida.mochila[dest] = ed.partida.mochila[origen];
+      ed.partida.mochila[origen] = tmp;
+    }
+    this._pintarEditorJugador();
+  },
+
+  async _guardarEditorJugador() {
+    const ed = this._editorJugador;
+    if (!ed) return;
+    const oro = parseInt(document.getElementById('admin-editor-oro').value, 10);
+    if (isNaN(oro) || oro < 0) { alert('Oro inválido'); return; }
+    ed.partida.dinero = ed.partida.dinero || { saldo: 0 };
+    ed.partida.dinero.saldo = oro;
+    await this._guardarPartidaJugador(ed.perfil, ed.partida);
+    Notificaciones.mostrar('✅ Inventario de ' + ed.perfil.nombre + ' guardado', 'exito');
+    document.getElementById('ventana-admin-editor').classList.add('oculto');
+    this._editorJugador = null;
     this.listarCuentas();
+  },
+
+  _abrirBanJugador(j) {
+    document.getElementById('ventana-admin').classList.add('oculto');
+    document.getElementById('ventana-admin-form').classList.add('oculto');
+    this._banObjetivo = j;
+    document.getElementById('admin-ban-nombre').textContent = j.nombre;
+    document.getElementById('ventana-admin-ban').classList.remove('oculto');
+  },
+
+  _aplicarBan(ms) {
+    const j = this._banObjetivo;
+    if (!j) return;
+    if (ms === null) {
+      const ids = [j.id, j.telefono].filter(Boolean);
+      this.datos.baneados = (this.datos.baneados || []).filter(b => !ids.includes(b.id));
+      this.publicado.baneados = (this.publicado.baneados || []).filter(b => !ids.includes(b.id));
+      this.guardar();
+      Notificaciones.mostrar('🟢 Ban quitado a ' + j.nombre, 'exito');
+    } else {
+      const motivo = document.getElementById('admin-ban-motivo').value.trim() || 'Incumplimiento de reglas';
+      const entrada = { id: j.id, motivo, t: Date.now(), hasta: ms > 0 ? Date.now() + ms : null };
+      this.datos.baneados = (this.datos.baneados || []).filter(b => b.id !== j.id && b.id !== j.telefono);
+      this.datos.baneados.push(entrada);
+      if (j.telefono) this.datos.baneados.push({ id: j.telefono, motivo, t: Date.now(), hasta: entrada.hasta });
+      this.guardar();
+      this._publicarParaTodos();
+      Notificaciones.mostrar('🚫 ' + j.nombre + ' baneado', 'alerta', 6000);
+    }
+    document.getElementById('ventana-admin-ban').classList.add('oculto');
+    this._banObjetivo = null;
+    this.listarCuentas();
+  },
+
+  async _editarCuenta(perfil) {
+    this._abrirEditorJugador(perfil);
   },
 
   // ----- Motor para editar la partida guardada de cualquier jugador -----
@@ -1183,55 +1386,6 @@ const Admin = {
       Guardado.SAL + '|' + e.t + '|' + e.detalle + '|' + e.monto + '|' + e.saldo + '|' +
       (e.lugar ?? '') + '|' + (e.pos ? e.pos.join(',') : '') + '|' + e.hashAnterior);
     lista.push(e);
-  },
-
-  async _ajustarDinero(perfil) {
-    const v = prompt('Cantidad de dinero a AGREGAR a ' + perfil.nombre + ' (negativa para quitar):', '100');
-    if (v === null) return;
-    const cantidad = parseInt(v, 10);
-    if (!cantidad) return;
-    if (perfil.id === Usuarios.perfilActivo.id) {
-      if (cantidad > 0) await Dinero.ganar(cantidad, 'Ajuste del administrador');
-      else await Dinero.gastar(-cantidad, 'Ajuste del administrador');
-    } else {
-      await this._editarSave(perfil, async datosSave => {
-        datosSave.dinero.saldo = Math.max(0, datosSave.dinero.saldo + cantidad);
-        datosSave.dinero.control = await Utilidades.sha256(Guardado.SAL + '|saldo|' + datosSave.dinero.saldo);
-        await this._anotarHistorialSave(datosSave, 'dinero', 'Ajuste del administrador',
-          cantidad, datosSave.dinero.saldo);
-      });
-    }
-    Notificaciones.mostrar('💰 Dinero de ' + perfil.nombre + ' ajustado (' +
-      (cantidad > 0 ? '+' : '') + cantidad + ')', 'exito');
-    this.listarJugadores();
-  },
-
-  async _darObjeto(perfil) {
-    const id = prompt('ID del objeto (ej: sardina, cana_pescar, perla, papel):');
-    if (!id || !Items.obtener(id.trim())) { if (id !== null) alert('No existe un objeto con ese ID'); return; }
-    const idItem = id.trim();
-    const cantidad = Math.max(1, parseInt(prompt('Cantidad:', '1') || '1', 10) || 1);
-    if (perfil.id === Usuarios.perfilActivo.id) {
-      Mochila.agregar(idItem, cantidad);
-    } else {
-      await this._editarSave(perfil, async datosSave => {
-        const slots = datosSave.mochila || [];
-        let restante = cantidad;
-        if (!Items.obtener(idItem).unico) {
-          for (const sl of slots) if (sl && sl.id === idItem && restante > 0) { sl.cantidad += restante; restante = 0; }
-        }
-        for (let i = 0; i < slots.length && restante > 0; i++) {
-          if (!slots[i]) {
-            const cuanto = Items.obtener(idItem).unico ? 1 : restante;
-            slots[i] = { id: idItem, cantidad: cuanto };
-            restante -= cuanto;
-          }
-        }
-        await this._anotarHistorialSave(datosSave, 'objetos',
-          'Regalo del administrador: ' + Items.seguro(idItem).nombre, cantidad);
-      });
-    }
-    Notificaciones.mostrar('🎁 ' + Items.seguro(idItem).nombre + ' x' + cantidad + ' para ' + perfil.nombre, 'exito');
   },
 
   _eliminarJugador(perfil) {
@@ -1367,6 +1521,13 @@ const Admin = {
           porId.set(t.id, t);
         }
         return [...porId.values()].filter(t => t.cantidad > 0);
+      })(),
+      partidas: (() => {
+        const porId = Object.assign({}, this.publicado.partidas || {});
+        for (const [id, p] of Object.entries(this.datos.partidasExtra || {})) {
+          if (!porId[id] || (p.t && p.t > (porId[id].t || 0))) porId[id] = p;
+        }
+        return porId;
       })()
     }, quitarTemporales, 2);
   },

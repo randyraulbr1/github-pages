@@ -1,11 +1,12 @@
 // ============================================================
-// USUARIOS — login, registro y sesión
+// USUARIOS — login, registro, sesión única
 // ============================================================
 const Usuarios = {
   CLAVE: 'mariel_perfiles_v2',
   datos: null,
   perfilActivo: null,
   _resolver: null,
+  _sesionCerrada: false,
 
   iniciar() {
     return new Promise(resolver => {
@@ -87,29 +88,83 @@ const Usuarios = {
       p.nombre.toLowerCase() === u || (p.telefono && p.telefono === limpio));
   },
 
+  _buscarGlobal(usuario) {
+    if (typeof Admin === 'undefined') return null;
+    const u = usuario.trim().toLowerCase();
+    const limpio = usuario.trim().replace(/[\s-]/g, '');
+    return Admin.jugadoresGlobales().find(j =>
+      (j.nombre && j.nombre.toLowerCase() === u) ||
+      (j.telefono && j.telefono === limpio));
+  },
+
+  _generarTokenSesion() {
+    return Date.now().toString(36) + Math.random().toString(36).slice(2, 12);
+  },
+
+  async _publicarSesion(perfil, token) {
+    perfil.sesionToken = token;
+    perfil.sesionT = Date.now();
+    this._guardarLista();
+    MundoPublico.registrarJugadorEnMundo(perfil, {
+      pinHash: perfil.pinHash,
+      sesionToken: token,
+      sesionT: perfil.sesionT
+    }).catch(() => {});
+    if (typeof Admin !== 'undefined') {
+      Admin.registrarJugador(perfil, true);
+      if (Admin.esAdminJugador()) Admin._publicarParaTodos();
+    }
+  },
+
   async iniciarSesion() {
     const usuario = document.getElementById('login-usuario').value.trim();
     const clave = document.getElementById('login-clave').value;
     if (!usuario) { alert('Escribe tu nombre o teléfono'); return; }
     if (!clave) { alert('Escribe tu contraseña'); return; }
 
-    const perfil = this._buscarPorLogin(usuario);
-    if (!perfil) { alert('No existe esa cuenta en este teléfono.\nRegístrate primero.'); return; }
-    if (!perfil.pinHash) {
-      alert('Esta cuenta es antigua. Crea una cuenta nueva.');
-      return;
-    }
+    if (typeof Admin !== 'undefined') await Admin.actualizarJugadoresGlobales();
+
+    let perfil = this._buscarPorLogin(usuario);
     const hash = await Utilidades.sha256('pin-perfil|' + clave);
-    if (hash !== perfil.pinHash) { alert('Contraseña incorrecta'); return; }
+
+    if (!perfil) {
+      const global = this._buscarGlobal(usuario);
+      if (!global) {
+        alert('No existe esa cuenta.\nComprueba nombre/teléfono o regístrate.');
+        return;
+      }
+      if (!global.pinHash) {
+        alert('Esta cuenta aún no tiene contraseña en el servidor.\nCrea una cuenta nueva o pide al admin que publique el mundo.');
+        return;
+      }
+      if (hash !== global.pinHash) { alert('Contraseña incorrecta'); return; }
+      perfil = {
+        id: global.id,
+        nombre: global.nombre,
+        telefono: global.telefono || '',
+        telefonoCambiadoEn: 0,
+        pinHash: global.pinHash,
+        creado: global.creado || Date.now()
+      };
+      const idx = this.datos.lista.findIndex(p => p.id === perfil.id);
+      if (idx >= 0) this.datos.lista[idx] = Object.assign(this.datos.lista[idx], perfil);
+      else this.datos.lista.push(perfil);
+      this._guardarLista();
+    } else {
+      if (!perfil.pinHash) {
+        alert('Esta cuenta es antigua. Crea una cuenta nueva.');
+        return;
+      }
+      if (hash !== perfil.pinHash) { alert('Contraseña incorrecta'); return; }
+    }
 
     if (typeof Admin !== 'undefined') {
-      await Admin.actualizarJugadoresGlobales();
       const err = Admin.validarRegistro(perfil.nombre, perfil.telefono, perfil.id);
       if (err) { alert(err); return; }
       const ban = Admin.estadoBloqueoPara(perfil);
       if (ban) { alert('🚫 ' + ban.mensaje); return; }
     }
-    this._activar(perfil);
+    await this._activar(perfil);
   },
 
   async crear() {
@@ -141,21 +196,57 @@ const Usuarios = {
       creado: Date.now()
     };
     this.datos.lista.push(perfil);
-    MundoPublico.registrarJugadorEnMundo(perfil).catch(() => {});
-    this._activar(perfil);
+    MundoPublico.registrarJugadorEnMundo(perfil, { pinHash: perfil.pinHash }).catch(() => {});
+    await this._activar(perfil);
   },
 
-  _activar(perfil) {
+  async _activar(perfil) {
     this.datos.activo = perfil.id;
     this.datos.sesionId = perfil.id;
     this.perfilActivo = perfil;
-    this._guardarLista();
-    if (typeof Admin !== 'undefined') Admin.registrarJugador(perfil);
+    this._sesionCerrada = false;
+    const token = this._generarTokenSesion();
+    await this._publicarSesion(perfil, token);
     this._ocultarAuth();
     if (this._resolver) { this._resolver(); this._resolver = null; }
   },
 
+  iniciarVigilanciaSesion() {
+    if (this._vigilanciaSesion) return;
+    this._vigilanciaSesion = setInterval(() => this.verificarSesionRemota(), 5000);
+    document.addEventListener('visibilitychange', () => {
+      if (!document.hidden) this.verificarSesionRemota();
+    });
+  },
+
+  async verificarSesionRemota() {
+    if (!this.perfilActivo || this._sesionCerrada) return;
+    if (typeof Admin === 'undefined') return;
+    try {
+      await Admin.actualizarJugadoresGlobales();
+      const global = Admin.jugadoresGlobales().find(j => j.id === this.perfilActivo.id);
+      if (!global || !global.sesionToken) return;
+      if (global.sesionToken !== this.perfilActivo.sesionToken) {
+        this._mostrarSesionCerrada();
+      }
+    } catch (e) {}
+  },
+
+  _mostrarSesionCerrada() {
+    if (this._sesionCerrada) return;
+    this._sesionCerrada = true;
+    document.body.classList.add('sesion-cerrada');
+    document.querySelectorAll('.ventana').forEach(v => v.classList.add('oculto'));
+    document.getElementById('pantalla-sesion-remota').classList.remove('oculto');
+  },
+
   cerrarSesion() {
+    if (this.perfilActivo) {
+      MundoPublico.registrarJugadorEnMundo(this.perfilActivo, {
+        sesionToken: null,
+        sesionT: Date.now()
+      }).catch(() => {});
+    }
     this.datos.sesionId = null;
     this.datos.activo = null;
     this.perfilActivo = null;
@@ -202,8 +293,10 @@ document.addEventListener('DOMContentLoaded', () => {
   const irLog = document.getElementById('btn-ir-login');
   const btnLog = document.getElementById('btn-iniciar-sesion');
   const btnReg = document.getElementById('btn-crear-perfil');
+  const btnSalirRemoto = document.getElementById('btn-sesion-remota-salir');
   if (irReg) irReg.addEventListener('click', () => Usuarios.mostrarRegistro());
   if (irLog) irLog.addEventListener('click', () => Usuarios.mostrarLogin());
   if (btnLog) btnLog.addEventListener('click', () => Usuarios.iniciarSesion());
   if (btnReg) btnReg.addEventListener('click', () => Usuarios.crear());
+  if (btnSalirRemoto) btnSalirRemoto.addEventListener('click', () => Usuarios.cerrarSesion());
 });

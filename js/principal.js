@@ -54,6 +54,7 @@
     await pasoSeguro('partida', () => Guardado.iniciar());
     avanzarCarga('Descargando el mundo…');
     await pasoSeguro('mundo', () => Admin.cargar());
+    Usuarios.iniciarVigilanciaSesion();
 
     const bloqueo = Admin.estadoBloqueo();
     if (bloqueo) {

@@ -36,5 +36,6 @@
   "jugadores": [],
   "cofres": [],
   "correoReclamados": [],
-  "correoTienda": []
+  "correoTienda": [],
+  "partidas": {}
 }

@@ -13,7 +13,7 @@
   <script>
     // Aviso temprano en móvil (antes de cargar 20+ archivos JS)
     (function () {
-      var V = '19';
+      var V = '21';
       var texto = document.getElementById('carga-texto');
       if (texto) texto.textContent = 'Conectando…';
       var prev = localStorage.getItem('mariel_app_version');
@@ -66,6 +66,16 @@
     </div>
   </div>
 
+  <!-- PANTALLA: OTRO DISPOSITIVO INICIÓ SESIÓN -->
+  <div id="pantalla-sesion-remota" class="pantalla-auth oculto">
+    <div class="auth-caja">
+      <div class="auth-titulo">📱</div>
+      <div class="auth-sub">Otro dispositivo inició sesión en tu cuenta</div>
+      <p class="auth-aviso">Por seguridad solo puede haber una sesión activa. Cierra sesión aquí para entrar en el otro dispositivo.</p>
+      <button id="btn-sesion-remota-salir" class="btn-auth-principal">Cerrar sesión</button>
+    </div>
+  </div>
+
   <!-- MAPA -->
   <div id="mapa"></div>
 
@@ -74,7 +84,6 @@
     <div id="grupo-barras">
       <div id="contenedor-vida" title="Vida">
         <div id="vida-relleno"></div>
-        <span id="vida-texto">100</span>
       </div>
       <div id="contenedor-hambre" title="Hambre"><div id="hambre-relleno"></div></div>
       <div id="contenedor-xp" title="Experiencia">
@@ -316,40 +325,76 @@
     </div>
   </div>
 
+  <!-- ============ VENTANA: EDITOR JUGADOR (ADMIN) ============ -->
+  <div id="ventana-admin-editor" class="ventana oculto">
+    <div class="ventana-caja ventana-admin-editor-caja">
+      <div class="ventana-titulo">✏️ <span id="admin-editor-nombre">Jugador</span> <button class="btn-cerrar" data-cierra="ventana-admin-editor">✕</button></div>
+      <div class="admin-editor-oro">
+        <label for="admin-editor-oro">💰 Oro del jugador</label>
+        <input id="admin-editor-oro" type="number" min="0" inputmode="numeric">
+      </div>
+      <div class="admin-editor-seccion">Inventario del jugador (25 casillas) — arrastra para mover o suelta fuera para quitar</div>
+      <div id="admin-rejilla-jugador" class="admin-rejilla-inventario"></div>
+      <div class="admin-editor-seccion">Catálogo de objetos — arrastra al inventario</div>
+      <div id="admin-rejilla-catalogo" class="admin-rejilla-catalogo"></div>
+      <button id="btn-admin-editor-guardar" class="btn-auth-principal" style="margin:12px 14px 14px;">Guardar cambios</button>
+    </div>
+  </div>
+
+  <!-- ============ VENTANA: BAN JUGADOR (ADMIN) ============ -->
+  <div id="ventana-admin-ban" class="ventana oculto">
+    <div class="ventana-caja">
+      <div class="ventana-titulo">🚫 Banear <span id="admin-ban-nombre">—</span> <button class="btn-cerrar" data-cierra="ventana-admin-ban">✕</button></div>
+      <div class="campo-admin" style="padding:14px;">
+        <label for="admin-ban-motivo">Motivo</label>
+        <input id="admin-ban-motivo" placeholder="Incumplimiento de reglas">
+      </div>
+      <div class="admin-ban-botones">
+        <button id="admin-ban-30m" class="admin-ban-btn">30 min</button>
+        <button id="admin-ban-1h" class="admin-ban-btn">1 hora</button>
+        <button id="admin-ban-1d" class="admin-ban-btn">1 día</button>
+        <button id="admin-ban-1sem" class="admin-ban-btn">1 semana</button>
+        <button id="admin-ban-1mes" class="admin-ban-btn">1 mes</button>
+        <button id="admin-ban-perm" class="admin-ban-btn peligro">Permanente</button>
+        <button id="admin-ban-quitar" class="admin-ban-btn ok">Quitar ban</button>
+      </div>
+    </div>
+  </div>
+
   <!-- LIBRERÍAS -->
-  <script src="lib/leaflet/leaflet.js?v=20"></script>
+  <script src="lib/leaflet/leaflet.js?v=21"></script>
 
   <!-- MÓDULOS DEL JUEGO (orden importante) -->
-  <script src="js/config/config.js?v=20"></script>
-  <script src="js/nucleo/utilidades.js?v=20"></script>
-  <script src="js/mundo/mundo_publico.js?v=20"></script>
-  <script src="js/notificaciones/notificaciones.js?v=20"></script>
-  <script src="js/usuarios/usuarios.js?v=20"></script>
-  <script src="js/guardado/guardado.js?v=20"></script>
-  <script src="js/historial/historial.js?v=20"></script>
-  <script src="js/dinero/dinero.js?v=20"></script>
-  <script src="js/vida/vida.js?v=20"></script>
-  <script src="js/items/items.js?v=20"></script>
-  <script src="js/mochila/mochila.js?v=20"></script>
-  <script src="js/mapa/mapa.js?v=20"></script>
-  <script src="js/gps/gps.js?v=20"></script>
-  <script src="js/tiendas/datos_tiendas.js?v=20"></script>
-  <script src="js/tiendas/tiendas.js?v=20"></script>
-  <script src="js/pesca/pesca.js?v=20"></script>
-  <script src="js/tesoros/datos_tesoros.js?v=20"></script>
-  <script src="js/tesoros/tesoros.js?v=20"></script>
-  <script src="js/misiones/datos_misiones.js?v=20"></script>
-  <script src="js/misiones/misiones.js?v=20"></script>
-  <script src="js/cofres/cofres.js?v=20"></script>
-  <script src="js/correo/correo.js?v=20"></script>
-  <script src="js/admin/admin.js?v=20"></script>
-  <script src="js/opciones/opciones.js?v=20"></script>
-  <script src="js/principal.js?v=20"></script>
+  <script src="js/config/config.js?v=21"></script>
+  <script src="js/nucleo/utilidades.js?v=21"></script>
+  <script src="js/mundo/mundo_publico.js?v=21"></script>
+  <script src="js/notificaciones/notificaciones.js?v=21"></script>
+  <script src="js/usuarios/usuarios.js?v=21"></script>
+  <script src="js/guardado/guardado.js?v=21"></script>
+  <script src="js/historial/historial.js?v=21"></script>
+  <script src="js/dinero/dinero.js?v=21"></script>
+  <script src="js/vida/vida.js?v=21"></script>
+  <script src="js/items/items.js?v=21"></script>
+  <script src="js/mochila/mochila.js?v=21"></script>
+  <script src="js/mapa/mapa.js?v=21"></script>
+  <script src="js/gps/gps.js?v=21"></script>
+  <script src="js/tiendas/datos_tiendas.js?v=21"></script>
+  <script src="js/tiendas/tiendas.js?v=21"></script>
+  <script src="js/pesca/pesca.js?v=21"></script>
+  <script src="js/tesoros/datos_tesoros.js?v=21"></script>
+  <script src="js/tesoros/tesoros.js?v=21"></script>
+  <script src="js/misiones/datos_misiones.js?v=21"></script>
+  <script src="js/misiones/misiones.js?v=21"></script>
+  <script src="js/cofres/cofres.js?v=21"></script>
+  <script src="js/correo/correo.js?v=21"></script>
+  <script src="js/admin/admin.js?v=21"></script>
+  <script src="js/opciones/opciones.js?v=21"></script>
+  <script src="js/principal.js?v=21"></script>
   <script>
     // Registrar la app instalable (PWA)
     if ('serviceWorker' in navigator) {
       const yaTeniaVersion = !!navigator.serviceWorker.controller;
-      navigator.serviceWorker.register('sw.js?v=20', { updateViaCache: 'none' })
+      navigator.serviceWorker.register('sw.js?v=21', { updateViaCache: 'none' })
         .then(function (reg) { reg.update(); })
         .catch(function () {});
       // Cuando llega una versión nueva del juego: avisar y recargar solo

@@ -103,40 +103,64 @@ const MundoPublico = {
     } catch (e) { return false; }
   },
 
-  // Añade el jugador a la lista global en mundo.json (si hay token de GitHub)
-  async registrarJugadorEnMundo(perfil) {
+  async registrarJugadorEnMundo(perfil, extras) {
     if (!perfil || !CONFIG.repoPublicacion) return false;
     const token = this._tokenGitHub();
     if (!token) return false;
     let mundo = {
       misiones: [], tesoros: [], objetos: [], posiciones: {}, eliminados: [],
       precios: {}, itemsNuevos: [], mantenimiento: { activo: false, mensaje: '' },
-      baneados: [], mensajes: [], jugadores: []
+      baneados: [], mensajes: [], jugadores: [], partidas: {}
     };
     try {
       const texto = await this.descargar();
       if (texto) mundo = Object.assign(mundo, JSON.parse(texto));
     } catch (e) {}
     if (!mundo.jugadores) mundo.jugadores = [];
+    if (!mundo.partidas) mundo.partidas = {};
+
     const n = perfil.nombre.trim().toLowerCase();
     const adminNom = (CONFIG.adminNombre || 'randy').toLowerCase();
-    if (n === adminNom) {
-      const randy = mundo.jugadores.find(j => j.nombre && j.nombre.toLowerCase() === adminNom);
-      if (randy && randy.id !== perfil.id) return false;
+    let j = mundo.jugadores.find(x => x.id === perfil.id);
+    if (!j) {
+      if (n === adminNom) {
+        const randy = mundo.jugadores.find(x => x.nombre && x.nombre.toLowerCase() === adminNom);
+        if (randy && randy.id !== perfil.id) return false;
+      }
+      for (const otro of mundo.jugadores) {
+        if (otro.nombre && otro.nombre.toLowerCase() === n && otro.id !== perfil.id) return false;
+        if (otro.telefono && perfil.telefono && otro.telefono === perfil.telefono && otro.id !== perfil.id) return false;
+      }
+      j = {
+        id: perfil.id,
+        nombre: perfil.nombre,
+        telefono: perfil.telefono || '',
+        creado: perfil.creado || Date.now()
+      };
+      mundo.jugadores.push(j);
     }
-    for (const j of mundo.jugadores) {
-      if (j.id === perfil.id) return true;
-      if (j.nombre && j.nombre.toLowerCase() === n) return false;
-      if (j.telefono && perfil.telefono && j.telefono === perfil.telefono) return false;
+    if (perfil.pinHash) j.pinHash = perfil.pinHash;
+    if (perfil.nombre) j.nombre = perfil.nombre;
+    if (perfil.telefono) j.telefono = perfil.telefono;
+    if (extras) {
+      if (extras.pinHash) j.pinHash = extras.pinHash;
+      if ('sesionToken' in extras) j.sesionToken = extras.sesionToken;
+      if (extras.sesionT) j.sesionT = extras.sesionT;
+      if (extras.partida) {
+        mundo.partidas[perfil.id] = extras.partida;
+      }
     }
-    mundo.jugadores.push({
-      id: perfil.id,
-      nombre: perfil.nombre,
-      telefono: perfil.telefono || '',
-      creado: perfil.creado || Date.now()
-    });
     const json = JSON.stringify(mundo, null, 2);
     return await this._putMundoGitHub(json);
+  },
+
+  async leerJugadorGlobal(id) {
+    try {
+      const texto = await this.descargar();
+      if (!texto) return null;
+      const m = JSON.parse(texto);
+      return (m.jugadores || []).find(j => j.id === id) || null;
+    } catch (e) { return null; }
   },
 
   async correoYaReclamado(codigo) {
