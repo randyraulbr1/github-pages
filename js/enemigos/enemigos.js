@@ -317,14 +317,14 @@ const Enemigos = {
 
       this._actualizarVisibilidadZonas(e, d);
 
-      if (enExterior && d > 3) {
+      if (enZona && d > 3) {
         const m = this._marcadores[e.id];
         const ll = m.getLatLng();
         const t = enAtaque ? 0.18 : 0.12;
         const nlat = ll.lat + (GPS.posicion[0] - ll.lat) * t;
         const nlng = ll.lng + (GPS.posicion[1] - ll.lng) * t;
         this._moverEnemigo(e, nlat, nlng);
-      } else if (e.posOrigen && d > radioExt * 1.12) {
+      } else if (e.posOrigen) {
         const o = e.posOrigen;
         const distOrigen = Utilidades.distanciaMetros(e.pos, o);
         if (distOrigen > 2) {
@@ -337,7 +337,7 @@ const Enemigos = {
         }
       }
 
-      if (enAtaque && !this._enCombate) this._golpeAutomatico(e);
+      if (enAtaque && enZona && !this._enCombate) this._golpeAutomatico(e);
       this._actualizarBarra(e);
     }
   },

@@ -364,9 +364,22 @@ const Admin = {
     }
     try {
       const texto = await MundoPublico.descargar();
-      if (!texto) return;
-      const p = JSON.parse(texto);
-      if (Array.isArray(p.jugadores)) this.publicado.jugadores = p.jugadores;
+      if (texto) {
+        const p = JSON.parse(texto);
+        if (Array.isArray(p.jugadores)) this.publicado.jugadores = p.jugadores;
+      }
+      const indice = await MundoPublico._descargarJsonRepo(MundoPublico._rutaIndiceCuentas());
+      if (Array.isArray(indice) && indice.length) {
+        const porId = new Map();
+        for (const j of (this.publicado.jugadores || [])) {
+          if (j && j.id) porId.set(j.id, j);
+        }
+        for (const j of indice) {
+          if (!j || !j.id) continue;
+          porId.set(j.id, Object.assign({}, porId.get(j.id) || {}, j));
+        }
+        this.publicado.jugadores = [...porId.values()];
+      }
     } catch (e) { /* sin conexión */ }
   },
 
@@ -2432,20 +2445,23 @@ const Admin = {
 
     this.registrarJugador(perfil, true);
     this._pinAdminSet(perfil.id, clave);
+    if (typeof Usuarios !== 'undefined' && Usuarios.datos) {
+      if (!Usuarios.datos.lista.find(p => p.id === perfil.id)) {
+        Usuarios.datos.lista.push(Object.assign({}, perfil));
+        Usuarios._guardarLista();
+      }
+    }
     if (!this.datos.partidasExtra) this.datos.partidasExtra = {};
     const snap = { datos: partida, t: Date.now() };
     this.datos.partidasExtra[perfil.id] = snap;
     this.guardar();
 
-    const ok = await MundoPublico.registrarJugadorEnMundo(perfil, {
-      pinHash: perfil.pinHash,
-      partida: snap
-    });
+    const ok = await MundoPublico.guardarCuenta(perfil, snap);
     await this._publicarParaTodos(true);
 
     this._editorJugador = null;
     Notificaciones.mostrar(
-      (ok ? '✅' : '⚠️') + ' Cuenta de ' + nombre + ' creada. Inicia sesión con nombre y contraseña.',
+      (ok ? '✅' : '⚠️') + ' Cuenta de ' + nombre + ' en el servidor. Entra con nombre y contraseña.',
       ok ? 'exito' : 'alerta', 9000);
     this._listarCuentasAsync();
   },
@@ -2464,6 +2480,12 @@ const Admin = {
     });
     if (perfil.id === Usuarios.perfilActivo?.id) {
       return JSON.parse(JSON.stringify(base(Guardado.datos)));
+    }
+    if (typeof MundoPublico !== 'undefined' && MundoPublico.cargarCuenta) {
+      const cuenta = await MundoPublico.cargarCuenta(perfil.id);
+      if (cuenta?.partida?.datos) {
+        return JSON.parse(JSON.stringify(base(cuenta.partida.datos)));
+      }
     }
     const clave = CONFIG.claveGuardado + '::' + perfil.id;
     try {
@@ -2534,7 +2556,7 @@ const Admin = {
     localStorage.setItem(clave, JSON.stringify(paquete));
 
     if (!this.datos.partidasExtra) this.datos.partidasExtra = {};
-    this.datos.partidasExtra[perfil.id] = {
+    const snap = {
       datos: {
         mochila: partida.mochila,
         dinero: partida.dinero,
@@ -2547,7 +2569,11 @@ const Admin = {
       },
       t: Date.now()
     };
+    this.datos.partidasExtra[perfil.id] = snap;
     this.guardar();
+    if (MundoPublico.puedeEscribir()) {
+      await MundoPublico.guardarCuenta(perfil, snap);
+    }
     await this._publicarParaTodos(true);
   },
 
@@ -2919,6 +2945,7 @@ const Admin = {
     this._editorJugador = null;
     document.getElementById('ventana-admin')?.classList.add('oculto');
     sessionStorage.setItem('mariel_cambio_sesion', entrada.id);
+    sessionStorage.setItem('mariel_forzar_mundo', '1');
     if (window.MarielBoot) MarielBoot.mostrar('Entrando como ' + entrada.nombre + '…');
     location.reload();
   },

@@ -132,6 +132,179 @@ const MundoPublico = {
     return 'https://api.github.com/repos/' + CONFIG.repoPublicacion + '/contents/datos/mundo.json';
   },
 
+  _rutaIndiceCuentas() { return 'datos/jugadores/indice.json'; },
+  _rutaCuenta(id) { return 'datos/jugadores/' + id + '.json'; },
+
+  _urlRawRepo(ruta) {
+    return 'https://raw.githubusercontent.com/' + CONFIG.repoPublicacion + '/' +
+      CONFIG.ramaPublicacion + '/' + ruta;
+  },
+
+  async _descargarJsonRepo(ruta) {
+    const bust = '?v=' + Date.now();
+    const urls = CONFIG.repoPublicacion
+      ? [this._urlRawRepo(ruta), ruta]
+      : [ruta];
+    for (const base of urls) {
+      try {
+        const url = base + bust;
+        const r = await Utilidades.fetchConTimeout(url, { cache: 'no-store' }, 6000);
+        if (!r.ok) continue;
+        return JSON.parse(await r.text());
+      } catch (e) {}
+    }
+    return null;
+  },
+
+  async _leerArchivoGitHubAPI(ruta, token) {
+    const url = 'https://api.github.com/repos/' + CONFIG.repoPublicacion +
+      '/contents/' + ruta + '?ref=' + CONFIG.ramaPublicacion;
+    const r = await fetch(url, { headers: this._cabecerasGitHub(token) });
+    if (!r.ok) return { obj: null, sha: null };
+    const meta = await r.json();
+    const texto = decodeURIComponent(escape(atob(meta.content.replace(/\n/g, ''))));
+    return { obj: JSON.parse(texto), sha: meta.sha };
+  },
+
+  async _escribirArchivoGitHub(ruta, obj, mensaje) {
+    const token = this._tokenGitHub();
+    if (!token || !CONFIG.repoPublicacion) return false;
+    for (let intento = 0; intento < 6; intento++) {
+      let sha = null;
+      try {
+        const api = await this._leerArchivoGitHubAPI(ruta, token);
+        sha = api.sha;
+      } catch (e) {}
+      const json = JSON.stringify(obj, null, 2);
+      const cuerpo = {
+        message: mensaje || ('Actualizar ' + ruta),
+        content: btoa(unescape(encodeURIComponent(json))),
+        branch: CONFIG.ramaPublicacion
+      };
+      if (sha) cuerpo.sha = sha;
+      try {
+        const url = 'https://api.github.com/repos/' + CONFIG.repoPublicacion + '/contents/' + ruta;
+        const r = await fetch(url, {
+          method: 'PUT',
+          headers: this._cabecerasGitHub(token),
+          body: JSON.stringify(cuerpo)
+        });
+        if (r.ok) return true;
+        if (r.status === 409) {
+          await new Promise(res => setTimeout(res, 500 + intento * 400));
+          continue;
+        }
+      } catch (e) {}
+      break;
+    }
+    return false;
+  },
+
+  _perfilIndice(perfil) {
+    return {
+      id: perfil.id,
+      nombre: perfil.nombre,
+      telefono: perfil.telefono || '',
+      pinHash: perfil.pinHash || '',
+      creado: perfil.creado || Date.now()
+    };
+  },
+
+  async buscarCuentaPorLogin(usuario) {
+    const u = usuario.trim().toLowerCase();
+    const limpio = usuario.trim().replace(/[\s-]/g, '');
+    const buscar = lista => (lista || []).find(j =>
+      (j.nombre && j.nombre.toLowerCase() === u) ||
+      (j.telefono && j.telefono === limpio));
+
+    const indice = await this._descargarJsonRepo(this._rutaIndiceCuentas());
+    if (Array.isArray(indice)) {
+      const hit = buscar(indice);
+      if (hit) return hit;
+    }
+
+    try {
+      const texto = await this.descargar();
+      if (texto) {
+        const hit = buscar(JSON.parse(texto).jugadores);
+        if (hit) return hit;
+      }
+    } catch (e) {}
+    return null;
+  },
+
+  async cargarCuenta(id) {
+    if (!id) return null;
+    const archivo = await this._descargarJsonRepo(this._rutaCuenta(id));
+    if (archivo && archivo.id) return archivo;
+
+    try {
+      const texto = await this.descargar();
+      if (!texto) return null;
+      const m = JSON.parse(texto);
+      const j = (m.jugadores || []).find(x => x.id === id);
+      if (!j) return null;
+      const partida = (m.partidas || {})[id] || null;
+      return Object.assign({}, j, partida ? { partida } : {});
+    } catch (e) { return null; }
+  },
+
+  async guardarCuenta(perfil, partidaSnap) {
+    if (!perfil?.id || !this._tokenGitHub() || !CONFIG.repoPublicacion) return false;
+
+    let cuenta = await this.cargarCuenta(perfil.id) || {};
+    cuenta = Object.assign({}, cuenta, {
+      id: perfil.id,
+      nombre: perfil.nombre,
+      telefono: perfil.telefono || '',
+      pinHash: perfil.pinHash || cuenta.pinHash || '',
+      creado: perfil.creado || cuenta.creado || Date.now()
+    });
+    if ('sesionToken' in perfil) cuenta.sesionToken = perfil.sesionToken;
+    if (perfil.sesionT) cuenta.sesionT = perfil.sesionT;
+    if (partidaSnap) {
+      const prev = cuenta.partida;
+      if (!prev || !prev.t || (partidaSnap.t || 0) >= (prev.t || 0)) {
+        cuenta.partida = partidaSnap;
+      }
+    }
+
+    const okArchivo = await this._escribirArchivoGitHub(
+      this._rutaCuenta(perfil.id),
+      cuenta,
+      'Cuenta jugador: ' + perfil.nombre
+    );
+
+    let indice = await this._descargarJsonRepo(this._rutaIndiceCuentas());
+    if (!Array.isArray(indice)) indice = [];
+    const entrada = this._perfilIndice(cuenta);
+    const idx = indice.findIndex(x => x.id === perfil.id);
+    if (idx >= 0) indice[idx] = Object.assign({}, indice[idx], entrada);
+    else indice.push(entrada);
+    indice.sort((a, b) => (a.nombre || '').localeCompare(b.nombre || ''));
+
+    const okIndice = await this._escribirArchivoGitHub(
+      this._rutaIndiceCuentas(),
+      indice,
+      'Índice cuentas: ' + perfil.nombre
+    );
+
+    await this.registrarJugadorEnMundo(perfil, {
+      pinHash: cuenta.pinHash,
+      sesionToken: cuenta.sesionToken,
+      sesionT: cuenta.sesionT,
+      partida: cuenta.partida
+    });
+
+    return okArchivo && okIndice;
+  },
+
+  async subirPartidaCuenta(perfil, snapshot) {
+    if (!perfil?.id || !snapshot) return false;
+    if (!this._tokenGitHub()) return this.subirPartida(perfil, snapshot);
+    return this.guardarCuenta(perfil, snapshot);
+  },
+
   _cabecerasGitHub(token) {
     return {
       'Authorization': 'Bearer ' + token,
@@ -299,6 +472,8 @@ const MundoPublico = {
   },
 
   async leerPartida(perfilId) {
+    const cuenta = await this.cargarCuenta(perfilId);
+    if (cuenta?.partida) return cuenta.partida;
     try {
       const texto = await this.descargar();
       if (!texto) return null;
@@ -308,6 +483,8 @@ const MundoPublico = {
   },
 
   async buscarJugadorPorLogin(usuario) {
+    const cuenta = await this.buscarCuentaPorLogin(usuario);
+    if (cuenta) return cuenta;
     try {
       const texto = await this.descargar();
       if (!texto) return null;

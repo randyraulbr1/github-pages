@@ -113,6 +113,11 @@ const Usuarios = {
   },
 
   async _buscarEnMundo(usuario) {
+    if (typeof MundoPublico !== 'undefined' && MundoPublico.buscarCuentaPorLogin) {
+      const cuenta = await MundoPublico.buscarCuentaPorLogin(usuario);
+      if (cuenta) return cuenta;
+    }
+
     const u = usuario.trim().toLowerCase();
     const limpio = usuario.trim().replace(/[\s-]/g, '');
     const buscar = lista => (lista || []).find(j =>
@@ -177,13 +182,16 @@ const Usuarios = {
 
     try {
       const hash = await Utilidades.sha256('pin-perfil|' + clave);
+      if (typeof Admin !== 'undefined') {
+        try { await Admin.actualizarJugadoresGlobales(); } catch (e) {}
+      }
       let perfil = this._buscarPorLogin(usuario);
 
       if (!perfil) {
         const global = await this._buscarEnMundo(usuario);
         if (!global) {
           this._mostrarAvisoAuth('login',
-            'No existe esa cuenta. Si te registraste en otro teléfono, el admin debe publicar el mundo. Si fue aquí, regístrate de nuevo.');
+            'No existe esa cuenta en el servidor. Pide al admin que la cree y pulse Sincronizar.');
           return;
         }
         if (!global.pinHash) {
@@ -213,7 +221,6 @@ const Usuarios = {
       }
 
       if (typeof Admin !== 'undefined') {
-        try { await Admin.actualizarJugadoresGlobales(); } catch (e) {}
         try {
           const ban = Admin.estadoBloqueoPara(perfil);
           if (ban) { this._mostrarAvisoAuth('login', '🚫 ' + ban.mensaje); return; }
@@ -262,7 +269,7 @@ const Usuarios = {
     this.datos.lista.push(perfil);
     this._guardarLista();
     this._registrarEnAdminLocal(perfil);
-    const okNube = await MundoPublico.registrarJugadorEnMundo(perfil, { pinHash: perfil.pinHash });
+    const okNube = await MundoPublico.guardarCuenta(perfil, null);
     if (!okNube) {
       Notificaciones.mostrar(
         '⚠️ Cuenta creada aquí, pero no llegó a la nube. El admin debe tener 🔑 Token y pulsar Sincronizar.',

@@ -176,7 +176,7 @@ const Guardado = {
     this._syncEnCurso = true;
     try {
       const snapshot = this._snapshotNube();
-      const ok = await MundoPublico.subirPartida(Usuarios.perfilActivo, snapshot);
+      const ok = await MundoPublico.subirPartidaCuenta(Usuarios.perfilActivo, snapshot);
       if (ok) {
         this._syncFallos = 0;
         this.datos.nubeT = snapshot.t;

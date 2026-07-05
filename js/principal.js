@@ -96,6 +96,9 @@ async function esperarMapaListo() {
     MarielBoot.mostrar('Conectando con la nube…');
 
     // —— FASE 1: MUNDO SIEMPRE PRIMERO (antes de sesión o partida) ——
+    if (sessionStorage.getItem('mariel_forzar_mundo')) {
+      sessionStorage.removeItem('mariel_forzar_mundo');
+    }
     await pasoSeguro('mundo-remoto', () => MundoPublico.descargar());
     avanzarCarga('Descargando el mundo…');
     await pasoSeguro('mundo', () => Admin.cargar());
