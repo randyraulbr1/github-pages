@@ -1,0 +1,26 @@
+name: Mariel — sync cuentas
+
+on:
+  push:
+    branches: [claude/web-rpg-gps-game-n3ybow]
+    paths:
+      - 'datos/mundo.json'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  sync-indice:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Reconstruir indice.json desde mundo.json
+        run: node scripts/mariel-sync-indice-local.js
+      - name: Commit si hubo cambios
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add datos/jugadores/indice.json
+          git diff --staged --quiet || git commit -m "Sync índice cuentas desde mundo.json"
+          git push

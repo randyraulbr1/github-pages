@@ -33,11 +33,7 @@ const MundoPublico = {
   },
 
   _aplicarTokenDesdeTexto(texto) {
-    try {
-      const m = JSON.parse(texto);
-      if (m.claveSyncNube) this._tokenDesdeMundo = m.claveSyncNube;
-      else if (m._syncToken) this._tokenDesdeMundo = m._syncToken;
-    } catch (e) {}
+    // No cargar PAT desde mundo.json: GitHub bloquea tokens en el repo (secret scanning)
   },
 
   syncDisponible() {
@@ -373,8 +369,6 @@ const MundoPublico = {
           body: JSON.stringify(cuerpo)
         });
         if (r.ok) {
-          if (mundo.claveSyncNube) this._tokenDesdeMundo = mundo.claveSyncNube;
-          else if (mundo._syncToken) this._tokenDesdeMundo = mundo._syncToken;
           if (typeof Admin !== 'undefined') {
             Admin._crudoPublicado = json;
             Admin._ultimoPublicado = json;

@@ -90,8 +90,6 @@ const Admin = {
       this.datos.tesoroIconoMapa = this.publicado.tesoroIconoMapa;
     }
     this._asegurarObjetoIconoTesoro(this.tesoroIconoMapa());
-    if (this.publicado.claveSyncNube) MundoPublico._tokenDesdeMundo = this.publicado.claveSyncNube;
-    else if (this.publicado._syncToken) MundoPublico._tokenDesdeMundo = this.publicado._syncToken;
     this._aplicarTokenTelefono();
 
     if (!Array.isArray(this.publicado.misiones)) this.publicado.misiones = [];
@@ -157,9 +155,6 @@ const Admin = {
     if (adminLocal && adminLocal.partidas) {
       this.publicado.partidas = Object.assign({}, this.publicado.partidas || {}, adminLocal.partidas);
       this.datos.partidasExtra = {};
-    }
-    if (adminLocal && adminLocal.claveSyncNube) {
-      MundoPublico._tokenDesdeMundo = adminLocal.claveSyncNube;
     }
     this._limpiarBorradoresLocalesPublicados(['enemigos', 'misiones', 'tesoros', 'objetos', 'tiendasAdmin']);
   },
@@ -606,6 +601,7 @@ const Admin = {
     enlazar('admin-publicar', () => this.publicarMundo(false));
     enlazar('admin-clave-publicar', () => this.abrirConfiguracionClave());
     enlazar('btn-admin-clave-guardar', () => this._guardarClaveTelefono());
+    enlazar('btn-admin-crear-token', () => this.abrirCrearTokenGitHub());
     enlazar('btn-admin-clave-borrar', () => this._borrarClaveTelefono());
     enlazar('btn-admin-msg-enviar', () => this._enviarMensajeUi());
     enlazar('btn-admin-mant-activar', () => this._activarMantenimientoUi());
@@ -3065,15 +3061,47 @@ const Admin = {
     setTimeout(() => input.focus(), 200);
   },
 
-  _guardarClaveTelefono() {
+  async _probarTokenGitHub(token) {
+    if (!token || !CONFIG.repoPublicacion) return false;
+    try {
+      const url = 'https://api.github.com/repos/' + CONFIG.repoPublicacion +
+        '/contents/datos/mundo.json?ref=' + CONFIG.ramaPublicacion;
+      const r = await fetch(url, {
+        headers: { Authorization: 'Bearer ' + token, Accept: 'application/vnd.github+json' }
+      });
+      return r.ok;
+    } catch (e) { return false; }
+  },
+
+  _urlCrearTokenGitHub() {
+    return 'https://github.com/settings/tokens/new?scopes=repo&description=MarielExplorer';
+  },
+
+  abrirCrearTokenGitHub() {
+    window.open(this._urlCrearTokenGitHub(), '_blank', 'noopener');
+    Notificaciones.mostrar(
+      '1) Crea el token en GitHub · 2) Cópialo · 3) Pégalo aquí y pulsa Guardar',
+      'info', 12000
+    );
+  },
+
+  async _guardarClaveTelefono() {
     const input = document.getElementById('admin-clave-token');
+    const btn = document.getElementById('btn-admin-clave-guardar');
     const token = (input && input.value || '').trim();
     if (!token) {
-      alert('Pega tu token de GitHub en el campo de arriba.');
+      alert('Pega tu token de GitHub en el campo de arriba, o pulsa «Crear token en GitHub».');
       return;
     }
     if (token.length < 20) {
       alert('Ese token parece muy corto. Revisa que lo hayas copiado completo.');
+      return;
+    }
+    if (btn) { btn.disabled = true; btn.textContent = 'Comprobando…'; }
+    const valido = await this._probarTokenGitHub(token);
+    if (!valido) {
+      if (btn) { btn.disabled = false; btn.textContent = 'Guardar token'; }
+      alert('Token inválida o sin permiso de escritura en randyraulbr1/github-pages.');
       return;
     }
     this.datos.tokenPublicar = token;
@@ -3083,13 +3111,34 @@ const Admin = {
     input.value = '';
     const estado = document.getElementById('admin-clave-estado');
     if (estado) {
-      estado.textContent = '✅ Clave guardada. Subiendo a GitHub…';
+      estado.textContent = '✅ Token guardada en este teléfono. Sincronizando…';
       estado.className = 'admin-clave-estado ok';
     }
+    if (btn) { btn.disabled = false; btn.textContent = 'Guardar token'; }
     this._volverAlPanel();
     this._publicarParaTodos(false).then(ok => {
-      if (ok) this._avisoSyncManual('🔑 Token activo · mundo en GitHub');
+      if (ok) this._avisoSyncManual('🔑 Token activa · cuentas y mundo en GitHub');
+      else Notificaciones.mostrar('Token guardada aquí. Pulsa Sincronizar en Admin.', 'alerta', 8000);
     });
+    this._dispararSyncIndiceAccion().catch(() => {});
+  },
+
+  async _dispararSyncIndiceAccion() {
+    const token = this._tokenPublicacion();
+    if (!token || !CONFIG.repoPublicacion) return false;
+    try {
+      const r = await fetch('https://api.github.com/repos/' + CONFIG.repoPublicacion +
+        '/actions/workflows/mariel-sync-cuentas.yml/dispatches', {
+        method: 'POST',
+        headers: {
+          Authorization: 'Bearer ' + token,
+          Accept: 'application/vnd.github+json',
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ ref: CONFIG.ramaPublicacion })
+      });
+      return r.ok || r.status === 204;
+    } catch (e) { return false; }
   },
 
   _borrarClaveTelefono() {
@@ -3101,11 +3150,7 @@ const Admin = {
     this.datos.tokenPublicar = '';
     localStorage.setItem(this.CLAVE, JSON.stringify(this.datos,
       (clave, valor) => clave.startsWith('_') ? undefined : valor));
-    if (this.publicado && this.publicado.claveSyncNube) {
-      MundoPublico._tokenDesdeMundo = this.publicado.claveSyncNube;
-    } else {
-      MundoPublico._tokenDesdeMundo = null;
-    }
+    MundoPublico._tokenDesdeMundo = null;
     this._actualizarEtiquetaClave();
     const estado = document.getElementById('admin-clave-estado');
     if (estado) {
@@ -3141,7 +3186,8 @@ const Admin = {
     if (admin.moverPinJugador !== undefined) remoto.moverPinJugador = !!admin.moverPinJugador;
     if (admin.enemigosEstado) remoto.enemigosEstado = admin.enemigosEstado;
     else if (!remoto.enemigosEstado) remoto.enemigosEstado = {};
-    if (admin.claveSyncNube) remoto.claveSyncNube = admin.claveSyncNube;
+    delete remoto.claveSyncNube;
+    delete remoto._syncToken;
 
     const porJugador = new Map();
     for (const j of (remoto.jugadores || [])) {
@@ -3311,7 +3357,6 @@ const Admin = {
         }
         return porId;
       })(),
-      claveSyncNube: this._tokenPublicacion() || '',
       enemigos: this._itemsConPosicion(this.enemigosTodos()),
       enemigosEstado: Object.assign({}, this.publicado.enemigosEstado || {}),
       tiendasAdmin: this._itemsConPosicion(this.tiendasAdminTodas()),
