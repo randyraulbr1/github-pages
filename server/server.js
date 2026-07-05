@@ -62,10 +62,17 @@ app.get('/admin', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'admin.html'));
 });
 
-// Cliente del juego
+// Cliente del juego + mapa Leaflet
+app.use('/lib', express.static(path.join(__dirname, '..', 'lib')));
 app.use(express.static(path.join(__dirname, '..', 'client')));
 app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, '..', 'client', 'index.html'));
+});
+
+// Entrada desde GitHub Pages: /online/
+app.use('/online', express.static(path.join(__dirname, '..', 'online')));
+app.get('/online', (req, res) => {
+  res.sendFile(path.join(__dirname, '..', 'online', 'index.html'));
 });
 
 app.get('/health', (req, res) => {

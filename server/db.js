@@ -74,7 +74,13 @@ function initDb() {
     );
   `);
 
-  seedWorldIfEmpty();
+  // Solo si la BD está vacía: semilla mínima; importMundo trae datos reales de mundo.json
+  // seedWorldIfEmpty(); — desactivado, usa importMundo.js
+  try {
+    const { importarDesdeMundoJson } = require('./importMundo');
+    const imp = importarDesdeMundoJson(db);
+    if (imp.objetos) console.log('   Importados', imp.objetos, 'objetos desde datos/mundo.json');
+  } catch (e) { /* sin mundo.json */ }
 }
 
 /** Objetos iniciales del mapa (como el coco y cangrejo del juego original). */

@@ -1,16 +1,13 @@
 /**
- * Cliente del juego — solo envía intenciones al servidor.
- * El servidor valida, guarda en SQLite y avisa a todos por Socket.IO.
+ * Mariel Online — cliente con mapa Leaflet (Mariel, Cuba).
+ * Solo envía intenciones; el servidor decide y avisa a todos.
  */
 (function () {
   'use strict';
 
-  const API = window.location.origin;
+  const CFG = window.MARIEL_ONLINE || {};
+  const API = (CFG.SERVER_URL || window.location.origin).replace(/\/$/, '');
   const TOKEN_KEY = 'mariel_online_token';
-
-  // Centro del mapa: Mariel, Cuba
-  const MAP_CENTER = { lat: 22.9936, lng: -82.7539 };
-  const MAP_SCALE = 80000; // píxeles por grado
 
   let token = localStorage.getItem(TOKEN_KEY);
   let socket = null;
@@ -18,27 +15,28 @@
   let worldObjects = [];
   let missions = [];
   let onlinePlayers = [];
-  let selectedObjectId = null;
+  let map = null;
+  let miMarcador = null;
+  let marcadores = { jugadores: {}, objetos: {} };
+  let gpsActivo = false;
+  let gpsWatch = null;
 
   const $ = (id) => document.getElementById(id);
-  const canvas = $('mapa');
-  const ctx = canvas.getContext('2d');
 
-  // --- Auth UI ---
-  $('ir-registro').onclick = () => {
-    $('form-login').classList.add('oculto');
-    $('form-registro').classList.remove('oculto');
-    hideError();
-  };
-  $('ir-login').onclick = () => {
-    $('form-registro').classList.add('oculto');
-    $('form-login').classList.remove('oculto');
-    hideError();
-  };
+  // --- UI auth ---
+  $('ir-registro').onclick = () => { toggleAuth('registro'); hideError(); };
+  $('ir-login').onclick = () => { toggleAuth('login'); hideError(); };
+  $('btn-login').onclick = login;
+  $('btn-registro').onclick = register;
+  $('btn-logout').onclick = logout;
+  $('btn-ayuda').onclick = () => $('modal-ayuda').classList.remove('oculto');
+  $('btn-cerrar-ayuda').onclick = () => $('modal-ayuda').classList.add('oculto');
+  $('btn-gps').onclick = toggleGps;
 
-  $('btn-login').onclick = () => login();
-  $('btn-registro').onclick = () => register();
-  $('btn-logout').onclick = () => logout();
+  function toggleAuth(modo) {
+    $('form-login').classList.toggle('oculto', modo !== 'login');
+    $('form-registro').classList.toggle('oculto', modo !== 'registro');
+  }
 
   async function api(path, opts = {}) {
     const headers = Object.assign({ 'Content-Type': 'application/json' }, opts.headers || {});
@@ -49,13 +47,15 @@
     return data;
   }
 
-  function showError(msg) {
-    $('auth-error').textContent = msg;
-    $('auth-error').classList.remove('oculto');
-  }
+  function showError(msg) { $('auth-error').textContent = msg; $('auth-error').classList.remove('oculto'); }
+  function hideError() { $('auth-error').classList.add('oculto'); }
 
-  function hideError() {
-    $('auth-error').classList.add('oculto');
+  function toast(msg, ms) {
+    const el = $('toast');
+    el.textContent = msg;
+    el.classList.remove('oculto');
+    clearTimeout(toast._t);
+    toast._t = setTimeout(() => el.classList.add('oculto'), ms || 3500);
   }
 
   async function login() {
@@ -63,33 +63,22 @@
     try {
       const data = await api('/api/login', {
         method: 'POST',
-        body: JSON.stringify({
-          username: $('login-user').value.trim(),
-          password: $('login-pass').value
-        })
+        body: JSON.stringify({ username: $('login-user').value.trim(), password: $('login-pass').value })
       });
       onAuthSuccess(data);
-    } catch (e) {
-      showError(e.message);
-    }
+    } catch (e) { showError(e.message); }
   }
 
   async function register() {
     hideError();
-    const pass = $('reg-pass').value;
-    if (pass !== $('reg-pass2').value) return showError('Las contraseñas no coinciden');
+    if ($('reg-pass').value !== $('reg-pass2').value) return showError('Las contraseñas no coinciden');
     try {
       const data = await api('/api/register', {
         method: 'POST',
-        body: JSON.stringify({
-          username: $('reg-user').value.trim(),
-          password: pass
-        })
+        body: JSON.stringify({ username: $('reg-user').value.trim(), password: $('reg-pass').value })
       });
       onAuthSuccess(data);
-    } catch (e) {
-      showError(e.message);
-    }
+    } catch (e) { showError(e.message); }
   }
 
   function onAuthSuccess(data) {
@@ -102,47 +91,183 @@
   function logout() {
     token = null;
     localStorage.removeItem(TOKEN_KEY);
+    if (gpsWatch) navigator.geolocation.clearWatch(gpsWatch);
     if (socket) socket.disconnect();
-    socket = null;
-    $('pantalla-juego').classList.add('oculto');
-    $('pantalla-auth').classList.remove('oculto');
+    location.reload();
   }
 
-  // --- Juego ---
+  // --- Mapa Leaflet ---
+  function initMap() {
+    if (map) return;
+    const center = CFG.mapCenter || [22.9936, -82.7539];
+    map = L.map('map', {
+      center,
+      zoom: CFG.mapZoom || 16,
+      minZoom: CFG.mapMinZoom || 14,
+      maxZoom: CFG.mapMaxZoom || 20,
+      zoomControl: true
+    });
+
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      attribution: '© OpenStreetMap'
+    }).addTo(map);
+
+    if (CFG.mapBounds) {
+      map.setMaxBounds(L.latLngBounds(CFG.mapBounds));
+    }
+
+    map.on('click', (e) => {
+      moverA(e.latlng.lat, e.latlng.lng);
+    });
+  }
+
+  function iconoHtml(texto, extra) {
+    return L.divIcon({
+      className: 'marca-jugador ' + (extra || ''),
+      html: '<div>' + texto + '</div>',
+      iconSize: [30, 30],
+      iconAnchor: [15, 15]
+    });
+  }
+
+  function iconoObjeto(obj) {
+    const icon = obj.data?.icon || (obj.type === 'tree' ? '🌴' : '📦');
+    return L.divIcon({
+      className: 'marca-objeto',
+      html: icon,
+      iconSize: [32, 32],
+      iconAnchor: [16, 16]
+    });
+  }
+
+  function actualizarMiMarcador() {
+    if (!player || !map) return;
+    const latlng = [player.x, player.y];
+    if (!miMarcador) {
+      miMarcador = L.marker(latlng, { icon: iconoHtml('🔴', 'marca-yo'), zIndexOffset: 1000 }).addTo(map);
+      miMarcador.bindTooltip(player.name + ' (tú)', { permanent: false });
+    } else {
+      miMarcador.setLatLng(latlng);
+    }
+  }
+
+  function pintarObjetos() {
+    for (const id of Object.keys(marcadores.objetos)) {
+      if (!worldObjects.find(o => o.id === parseInt(id, 10))) {
+        map.removeLayer(marcadores.objetos[id]);
+        delete marcadores.objetos[id];
+      }
+    }
+    for (const obj of worldObjects) {
+      const latlng = [obj.x, obj.y];
+      let m = marcadores.objetos[obj.id];
+      if (!m) {
+        m = L.marker(latlng, { icon: iconoObjeto(obj) }).addTo(map);
+        m.on('click', (ev) => {
+          L.DomEvent.stopPropagation(ev);
+          interactuar(obj);
+        });
+        const tip = (obj.data?.itemId || obj.type) +
+          (obj.data?.hp ? ' HP:' + obj.data.hp : '');
+        m.bindTooltip(tip);
+        marcadores.objetos[obj.id] = m;
+      } else {
+        m.setLatLng(latlng);
+      }
+    }
+  }
+
+  function pintarJugadoresOnline() {
+    for (const id of Object.keys(marcadores.jugadores)) {
+      if (!onlinePlayers.find(p => p.playerId === parseInt(id, 10))) {
+        map.removeLayer(marcadores.jugadores[id]);
+        delete marcadores.jugadores[id];
+      }
+    }
+    for (const p of onlinePlayers) {
+      if (p.playerId === player?.id) continue;
+      const latlng = [p.x, p.y];
+      let m = marcadores.jugadores[p.playerId];
+      if (!m) {
+        m = L.marker(latlng, { icon: iconoHtml('🔵') }).addTo(map);
+        m.bindTooltip(p.name);
+        marcadores.jugadores[p.playerId] = m;
+      } else {
+        m.setLatLng(latlng);
+      }
+    }
+  }
+
+  function moverA(lat, lng) {
+    if (!socket || !player) return;
+    socket.emit('player:move', { x: lat, y: lng }, (res) => {
+      if (!res?.ok) { toast(res?.error || 'No puedes ir tan lejos'); return; }
+      player.x = res.x;
+      player.y = res.y;
+      actualizarMiMarcador();
+    });
+  }
+
+  function interactuar(obj) {
+    if (obj.type === 'tree') {
+      socket.emit('world:cutTree', { objectId: obj.id }, (res) => {
+        toast(res?.ok ? '🌴 Golpeaste el árbol' : (res?.error || 'No se pudo'));
+      });
+    } else if (obj.type === 'item') {
+      socket.emit('world:pickup', { objectId: obj.id }, (res) => {
+        if (res?.ok) {
+          player.inventory = res.inventory;
+          renderInventory();
+          toast('Recogiste ' + (obj.data?.itemId || 'objeto'));
+        } else toast(res?.error || 'No se pudo recoger');
+      });
+    }
+  }
+
+  function toggleGps() {
+    if (!navigator.geolocation) return toast('GPS no disponible en este dispositivo');
+    gpsActivo = !gpsActivo;
+    $('btn-gps').classList.toggle('activo', gpsActivo);
+    if (!gpsActivo) {
+      if (gpsWatch) navigator.geolocation.clearWatch(gpsWatch);
+      gpsWatch = null;
+      return toast('GPS desactivado');
+    }
+    toast('GPS activo — camina en Mariel');
+    gpsWatch = navigator.geolocation.watchPosition(
+      (pos) => moverA(pos.coords.latitude, pos.coords.longitude),
+      () => toast('No se pudo leer el GPS'),
+      { enableHighAccuracy: true, maximumAge: 3000, timeout: 10000 }
+    );
+  }
+
+  // --- Socket ---
   function startGame() {
     $('pantalla-auth').classList.add('oculto');
     $('pantalla-juego').classList.remove('oculto');
+    initMap();
     updatePlayerUI();
 
     socket = io(API, { auth: { token } });
 
-    socket.on('connect_error', (e) => log('Error Socket: ' + e.message));
+    socket.on('connect_error', (e) => toast('Sin conexión: ' + e.message, 6000));
     socket.on('game:init', onGameInit);
     socket.on('player:move', onPlayerMove);
-    socket.on('player:online', (p) => { onlinePlayers.push(p); renderOnline(); });
+    socket.on('player:online', (p) => { onlinePlayers.push(p); renderOnline(); pintarJugadoresOnline(); });
     socket.on('player:offline', (p) => {
       onlinePlayers = onlinePlayers.filter(x => x.playerId !== p.playerId);
-      renderOnline();
+      renderOnline(); pintarJugadoresOnline();
     });
     socket.on('player:updateStats', onStatsUpdate);
     socket.on('world:updateObject', onWorldUpdate);
     socket.on('world:removeObject', onWorldRemove);
-    socket.on('mission:create', (m) => { missions.unshift(m); renderMissions(); log('Nueva misión: ' + m.title); });
-    socket.on('mission:update', (m) => {
-      if (m.deleted) missions = missions.filter(x => x.id !== m.id);
-      else {
-        const i = missions.findIndex(x => x.id === m.id);
-        if (i >= 0) missions[i] = m; else if (m.isActive) missions.push(m);
-      }
-      renderMissions();
-    });
+    socket.on('mission:create', (m) => { missions.unshift(m); renderMissions(); toast('Nueva misión: ' + m.title); });
+    socket.on('mission:update', onMissionUpdate);
     socket.on('player:updateInventory', (p) => {
       if (p.inventory) { player.inventory = p.inventory; renderInventory(); }
     });
 
-    canvas.onclick = onMapClick;
-    resizeCanvas();
-    window.addEventListener('resize', resizeCanvas);
+    setTimeout(() => map.invalidateSize(), 300);
   }
 
   function onGameInit(data) {
@@ -154,40 +279,51 @@
     renderOnline();
     renderMissions();
     renderInventory();
-    drawMap();
-    log('Conectado al mundo compartido');
+    actualizarMiMarcador();
+    pintarObjetos();
+    pintarJugadoresOnline();
+    map.setView([player.x, player.y], CFG.mapZoom || 16);
+    toast('Conectado al mundo compartido');
   }
 
   function onPlayerMove(data) {
     if (data.playerId === player.id) {
       player.x = data.x;
       player.y = data.y;
+      actualizarMiMarcador();
     } else {
       const p = onlinePlayers.find(x => x.playerId === data.playerId);
-      if (p) { p.x = data.x; p.y = data.y; }
+      if (p) { p.x = data.x; p.y = data.y; pintarJugadoresOnline(); }
     }
-    drawMap();
   }
 
   function onStatsUpdate(data) {
-    if (data.playerId === player.id) {
-      if (data.hp !== undefined) player.hp = data.hp;
-      if (data.hunger !== undefined) player.hunger = data.hunger;
-      if (data.xp !== undefined) player.xp = data.xp;
-      if (data.level !== undefined) player.level = data.level;
-      updatePlayerUI();
-    }
+    if (data.playerId !== player.id) return;
+    if (data.hp !== undefined) player.hp = data.hp;
+    if (data.hunger !== undefined) player.hunger = data.hunger;
+    if (data.xp !== undefined) player.xp = data.xp;
+    if (data.level !== undefined) player.level = data.level;
+    updatePlayerUI();
   }
 
   function onWorldUpdate(obj) {
     const i = worldObjects.findIndex(x => x.id === obj.id);
     if (i >= 0) worldObjects[i] = obj; else worldObjects.push(obj);
-    drawMap();
+    pintarObjetos();
   }
 
   function onWorldRemove(data) {
     worldObjects = worldObjects.filter(x => x.id !== data.id);
-    drawMap();
+    pintarObjetos();
+  }
+
+  function onMissionUpdate(m) {
+    if (m.deleted) missions = missions.filter(x => x.id !== m.id);
+    else {
+      const i = missions.findIndex(x => x.id === m.id);
+      if (i >= 0) missions[i] = m; else if (m.isActive) missions.push(m);
+    }
+    renderMissions();
   }
 
   function updatePlayerUI() {
@@ -199,26 +335,23 @@
   }
 
   function renderOnline() {
+    $('online-count').textContent = onlinePlayers.length;
     $('online-list').innerHTML = onlinePlayers.map(p =>
-      `<li>${esc(p.name)}</li>`
-    ).join('') || '<li>Nadie más</li>';
+      '<li>' + esc(p.name) + '</li>'
+    ).join('') || '<li>Solo tú</li>';
   }
 
   function renderMissions() {
     $('missions-list').innerHTML = missions.map(m =>
-      `<li><b>${esc(m.title)}</b> — ${esc(m.description)}</li>`
-    ).join('') || '<li>Sin misiones activas</li>';
+      '<li><b>' + esc(m.title) + '</b></li>'
+    ).join('') || '<li>Sin misiones</li>';
   }
 
   function renderInventory() {
     const inv = player?.inventory || [];
     $('inventory-list').innerHTML = inv.map(it =>
-      `<li>${it.icon || '📦'} ${esc(it.itemId)} x${it.cantidad || 1}</li>`
+      '<li>' + (it.icon || '📦') + ' ' + esc(it.itemId) + ' x' + (it.cantidad || 1) + '</li>'
     ).join('') || '<li>Vacía</li>';
-  }
-
-  function log(msg) {
-    $('game-log').textContent = msg;
   }
 
   function esc(s) {
@@ -226,153 +359,10 @@
       ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
   }
 
-  // --- Mapa canvas (coordenadas GPS simplificadas) ---
-  function latLngToPixel(lat, lng) {
-    const w = canvas.width;
-    const h = canvas.height;
-    const x = (lng - MAP_CENTER.lng) * MAP_SCALE + w / 2;
-    const y = (MAP_CENTER.lat - lat) * MAP_SCALE + h / 2;
-    return { x, y };
-  }
-
-  function pixelToLatLng(x, y) {
-    const w = canvas.width;
-    const h = canvas.height;
-    const lng = (x - w / 2) / MAP_SCALE + MAP_CENTER.lng;
-    const lat = MAP_CENTER.lat - (y - h / 2) / MAP_SCALE;
-    return { lat, lng };
-  }
-
-  function resizeCanvas() {
-    const wrap = $('mapa-wrap');
-    const w = Math.min(wrap.clientWidth - 16, 800);
-    canvas.width = w;
-    canvas.height = Math.round(w * 0.625);
-    drawMap();
-  }
-
-  function drawMap() {
-    const w = canvas.width;
-    const h = canvas.height;
-    ctx.fillStyle = '#166534';
-    ctx.fillRect(0, 0, w, h);
-
-    // Grid
-    ctx.strokeStyle = 'rgba(255,255,255,.08)';
-    for (let i = 0; i < w; i += 40) {
-      ctx.beginPath(); ctx.moveTo(i, 0); ctx.lineTo(i, h); ctx.stroke();
-    }
-    for (let j = 0; j < h; j += 40) {
-      ctx.beginPath(); ctx.moveTo(0, j); ctx.lineTo(w, j); ctx.stroke();
-    }
-
-    // Objetos del mundo
-    for (const obj of worldObjects) {
-      const p = latLngToPixel(obj.x, obj.y);
-      const icon = obj.data?.icon || (obj.type === 'tree' ? '🌴' : '📦');
-      ctx.font = '22px serif';
-      ctx.textAlign = 'center';
-      ctx.fillText(icon, p.x, p.y);
-      if (obj.type === 'tree' && obj.data?.hp) {
-        ctx.font = '10px sans-serif';
-        ctx.fillStyle = '#fef08a';
-        ctx.fillText('HP:' + obj.data.hp, p.x, p.y + 14);
-        ctx.fillStyle = '#fff';
-      }
-    }
-
-    // Otros jugadores
-    for (const op of onlinePlayers) {
-      if (op.playerId === player?.id) continue;
-      const p = latLngToPixel(op.x, op.y);
-      ctx.fillStyle = '#3b82f6';
-      ctx.beginPath();
-      ctx.arc(p.x, p.y, 8, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.fillStyle = '#fff';
-      ctx.font = '10px sans-serif';
-      ctx.fillText(op.name, p.x, p.y - 12);
-    }
-
-    // Jugador local
-    if (player) {
-      const p = latLngToPixel(player.x, player.y);
-      ctx.fillStyle = '#ef4444';
-      ctx.beginPath();
-      ctx.arc(p.x, p.y, 10, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.strokeStyle = '#fff';
-      ctx.lineWidth = 2;
-      ctx.stroke();
-    }
-  }
-
-  function onMapClick(ev) {
-    const rect = canvas.getBoundingClientRect();
-    const scaleX = canvas.width / rect.width;
-    const scaleY = canvas.height / rect.height;
-    const px = (ev.clientX - rect.left) * scaleX;
-    const py = (ev.clientY - rect.top) * scaleY;
-    const { lat, lng } = pixelToLatLng(px, py);
-
-    // ¿Clic en objeto cercano?
-    const hit = findNearbyObject(px, py);
-    if (hit) {
-      interactWithObject(hit);
-      return;
-    }
-
-    // Mover jugador (intención → servidor valida)
-    socket.emit('player:move', { x: lng, y: lat }, (res) => {
-      if (!res?.ok) {
-        log(res?.error || 'Movimiento rechazado');
-        return;
-      }
-      player.x = res.x;
-      player.y = res.y;
-      drawMap();
-    });
-  }
-
-  function findNearbyObject(px, py) {
-    let best = null;
-    let bestDist = 30;
-    for (const obj of worldObjects) {
-      const p = latLngToPixel(obj.x, obj.y);
-      const d = Math.hypot(p.x - px, p.y - py);
-      if (d < bestDist) { bestDist = d; best = obj; }
-    }
-    return best;
-  }
-
-  function interactWithObject(obj) {
-    if (obj.type === 'tree') {
-      socket.emit('world:cutTree', { objectId: obj.id }, (res) => {
-        log(res?.ok ? '🌴 Golpeaste el árbol' : (res?.error || 'No se pudo'));
-      });
-    } else if (obj.type === 'item') {
-      socket.emit('world:pickup', { objectId: obj.id }, (res) => {
-        if (res?.ok) {
-          player.inventory = res.inventory;
-          renderInventory();
-          log('Recogiste ' + (obj.data?.itemId || 'objeto'));
-        } else {
-          log(res?.error || 'No se pudo recoger');
-        }
-      });
-    }
-  }
-
-  // Auto-login si hay token guardado
   if (token) {
-    api('/api/player/me')
-      .then((data) => {
-        player = data.player;
-        startGame();
-      })
-      .catch(() => {
-        localStorage.removeItem(TOKEN_KEY);
-        token = null;
-      });
+    api('/api/player/me').then((data) => {
+      player = data.player;
+      startGame();
+    }).catch(() => localStorage.removeItem(TOKEN_KEY));
   }
 })();

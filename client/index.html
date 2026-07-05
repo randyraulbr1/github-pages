@@ -4,18 +4,19 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>Mariel Online — Mundo Compartido</title>
+  <link rel="stylesheet" href="/lib/leaflet/leaflet.css">
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
   <div id="pantalla-auth" class="pantalla">
     <div class="tarjeta-auth">
       <h1>🌍 Mariel Online</h1>
-      <p class="subtitulo">Mundo compartido en tiempo real</p>
+      <p class="subtitulo">Mundo único · Tiempo real · Sin VPN</p>
 
       <div id="form-login">
         <input id="login-user" type="text" placeholder="Usuario" autocomplete="username">
         <input id="login-pass" type="password" placeholder="Contraseña" autocomplete="current-password">
-        <button id="btn-login" class="btn-principal">Entrar</button>
+        <button id="btn-login" class="btn-principal">Entrar al mundo</button>
         <p class="enlace" id="ir-registro">¿No tienes cuenta? Regístrate</p>
       </div>
 
@@ -28,6 +29,7 @@
       </div>
 
       <p id="auth-error" class="error oculto"></p>
+      <p class="ayuda-auth">El servidor guarda tu cuenta y posición. Todos ven el mismo mapa.</p>
     </div>
   </div>
 
@@ -37,32 +39,50 @@
         <span id="stat-nombre">—</span>
         <span>❤️ <b id="stat-hp">100</b></span>
         <span>🍖 <b id="stat-hunger">50</b></span>
-        <span>⭐ Nv.<b id="stat-level">1</b></span>
+        <span>⭐ <b id="stat-level">1</b></span>
       </div>
-      <button id="btn-logout" class="btn-mini">Salir</button>
+      <div class="barra-botones">
+        <button id="btn-gps" class="btn-mini" title="Usar mi ubicación GPS">📍 GPS</button>
+        <button id="btn-ayuda" class="btn-mini">❓</button>
+        <button id="btn-logout" class="btn-mini">Salir</button>
+      </div>
     </header>
 
-    <div id="mapa-wrap">
-      <canvas id="mapa" width="800" height="500"></canvas>
-      <div id="lista-online" class="panel-lateral">
-        <h3>Jugadores online</h3>
+    <div id="map"></div>
+
+    <div id="panel-flotante" class="panel-flotante">
+      <div class="panel-seccion">
+        <h3>👥 Online (<span id="online-count">0</span>)</h3>
         <ul id="online-list"></ul>
+      </div>
+      <div class="panel-seccion">
+        <h3>📋 Misiones</h3>
+        <ul id="missions-list"></ul>
+      </div>
+      <div class="panel-seccion">
+        <h3>🎒 Mochila</h3>
+        <ul id="inventory-list"></ul>
       </div>
     </div>
 
-    <div id="panel-misiones" class="panel-inferior">
-      <h3>Misiones activas</h3>
-      <ul id="missions-list"></ul>
-    </div>
+    <div id="toast" class="toast oculto"></div>
 
-    <div id="panel-inventario" class="panel-inventario">
-      <h3>Mochila</h3>
-      <ul id="inventory-list"></ul>
+    <div id="modal-ayuda" class="modal oculto">
+      <div class="modal-cuerpo">
+        <h2>Cómo jugar</h2>
+        <ul>
+          <li><b>Toca el mapa</b> para caminar (el servidor valida el movimiento)</li>
+          <li><b>Toca un objeto</b> (🥥 🦀 🌴) para recogerlo o golpearlo</li>
+          <li><b>📍 GPS</b> usa tu ubicación real en Mariel</li>
+          <li>Todos ven los mismos cambios al instante</li>
+        </ul>
+        <button id="btn-cerrar-ayuda" class="btn-principal">Entendido</button>
+      </div>
     </div>
-
-    <p id="game-log" class="log"></p>
   </div>
 
+  <script src="config.js"></script>
+  <script src="/lib/leaflet/leaflet.js"></script>
   <script src="/socket.io/socket.io.js"></script>
   <script src="game.js"></script>
 </body>
