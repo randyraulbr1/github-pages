@@ -67,12 +67,14 @@ const Dinero = {
   },
 
   pintar() {
-    const el = document.getElementById('dinero-cantidad');
-    if (el) el.textContent = this.saldo;
-    const relleno = document.getElementById('dinero-relleno');
+    const cant = this.saldo;
+    const texto = '$' + cant;
+    const el = document.getElementById('mochila-dinero-cantidad');
+    if (el) el.textContent = texto;
+    const relleno = document.getElementById('mochila-dinero-relleno');
     if (relleno) {
       const max = 5000;
-      relleno.style.width = Math.min(100, (this.saldo / max) * 100) + '%';
+      relleno.style.width = Math.min(100, (cant / max) * 100) + '%';
     }
     if (typeof Opciones !== 'undefined' && Opciones.pintarPerfilOpciones) Opciones.pintarPerfilOpciones();
   }

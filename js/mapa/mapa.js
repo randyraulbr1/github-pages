@@ -142,7 +142,8 @@ const Mapa = {
     if (typeof Admin !== 'undefined' && Admin.modo) return;
     this._mapaMovidoPorUsuario = false;
     this._cancelarRecuperacionZoom();
-    const zoom = CONFIG.zoomSeguimientoJugador || CONFIG.zoomInicial;
+    const zoomObj = CONFIG.zoomSeguimientoJugador ?? CONFIG.zoomMaximo;
+    const zoom = Math.min(this.mapa.getMaxZoom(), zoomObj);
     this.mapa.setView(GPS.posicion, zoom, { animate: animar !== false });
   },
 

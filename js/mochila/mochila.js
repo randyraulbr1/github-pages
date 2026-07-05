@@ -33,6 +33,7 @@ const Mochila = {
   abrir() {
     document.getElementById('ventana-mochila').classList.remove('oculto');
     this.ocultarDetalle();
+    if (typeof Dinero !== 'undefined') Dinero.pintar();
     this.pintar();
   },
 
@@ -52,6 +53,41 @@ const Mochila = {
   },
   tieneItem(id) { return this.contar(id) > 0; },
   slotsLibres() { return this.slots.filter(s => !s).length; },
+
+  /** Simula si caben todos los ítems de una recompensa sin modificar la mochila */
+  puedeRecibirRecompensa(items) {
+    if (!items || !items.length) return true;
+    const sim = this.slots.map(s => (s ? { id: s.id, cantidad: s.cantidad } : null));
+    for (const it of items) {
+      const item = Items.obtener(it.id);
+      if (!item) return false;
+      let restante = it.cantidad || 1;
+      const maxPila = item.unico ? 1 : (CONFIG.maxPila || 10);
+      if (item.unico) {
+        for (let i = 0; i < sim.length && restante > 0; i++) {
+          if (!sim[i]) { sim[i] = { id: it.id, cantidad: 1 }; restante--; }
+        }
+      } else {
+        for (const sl of sim) {
+          if (restante <= 0) break;
+          if (sl && sl.id === it.id && sl.cantidad < maxPila) {
+            const cabe = Math.min(restante, maxPila - sl.cantidad);
+            sl.cantidad += cabe;
+            restante -= cabe;
+          }
+        }
+        for (let i = 0; i < sim.length && restante > 0; i++) {
+          if (!sim[i]) {
+            const poner = Math.min(restante, maxPila);
+            sim[i] = { id: it.id, cantidad: poner };
+            restante -= poner;
+          }
+        }
+      }
+      if (restante > 0) return false;
+    }
+    return true;
+  },
 
   armaEquipadaId() { return Guardado.datos.armaEquipada || null; },
 

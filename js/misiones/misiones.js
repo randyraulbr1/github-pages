@@ -66,6 +66,10 @@ const Misiones = {
 
     for (const m of this.lista) this._crearMarcador(m);
     this.pintarLetrero();
+    document.getElementById('overlay-mision-cerrar')?.addEventListener('click', () => this._cerrarOverlay());
+    document.getElementById('overlay-mision-activa')?.addEventListener('click', ev => {
+      if (ev.target.id === 'overlay-mision-activa') this._cerrarOverlay();
+    });
   },
 
   _normalizarAdmin(m) {
@@ -87,7 +91,6 @@ const Misiones = {
     };
   },
 
-  // El admin acaba de crear una misión: entra al juego al momento
   agregarAdmin(mAdmin) {
     const m = this._normalizarAdmin(mAdmin);
     this.lista.push(m);
@@ -105,18 +108,36 @@ const Misiones = {
       marcador,
       alTocar: () => this.abrirMision(m)
     });
+    this._actualizarIconoMapa(m);
+  },
+
+  _actualizarIconoMapa(m) {
+    const mar = this._marcadores[m.id];
+    if (!mar) return;
+    const el = mar.getElement()?.querySelector('.icono-mapa');
+    if (!el) return;
+    const e = this._estado(m.id);
+    const premio = ['aceptada', 'lista'].includes(e.estado) && this.puedeRecolectar(m);
+    el.classList.toggle('mision-premio', premio);
+  },
+
+  _actualizarIconosMapa() {
+    for (const m of this.lista) this._actualizarIconoMapa(m);
   },
 
   // ---------- LÓGICA DE OBJETIVOS ----------
   puedeRecolectar(m) {
     const e = this._estado(m.id);
     if (!['aceptada', 'lista'].includes(e.estado)) return false;
-    if (m.tipo === 'visitar') return true; // el objetivo ES llegar al icono
+    if (m.tipo === 'visitar') return true;
     if (m.tipo === 'contar') return e.progreso >= m.meta;
     return m.requiere.every(r => Mochila.contar(r.id) >= r.cantidad);
   },
 
-  // Revisa si alguna misión aceptada ya cumplió su objetivo (para la línea)
+  _inventarioLlenoRecompensa(m) {
+    return (m.items || []).length > 0 && !Mochila.puedeRecibirRecompensa(m.items);
+  },
+
   refrescar() {
     for (const m of this.lista) {
       const e = this._estado(m.id);
@@ -125,9 +146,9 @@ const Misiones = {
     }
     this.pintarLetrero();
     this.actualizarLineas();
+    this._actualizarIconosMapa();
   },
 
-  // Los módulos avisan aquí: Misiones.evento('pez_capturado')
   evento(nombre) {
     for (const m of this.lista) {
       if (m.tipo !== 'contar' || m.evento !== nombre) continue;
@@ -143,6 +164,27 @@ const Misiones = {
     }
     this.pintarLetrero();
     this.actualizarLineas();
+    this._actualizarIconosMapa();
+  },
+
+  _textoRequisitos(m) {
+    const e = this._estado(m.id);
+    if (m.tipo === 'contar') return 'Progreso: ' + e.progreso + ' / ' + m.meta;
+    if (m.requiere.length) {
+      return 'Necesitas: ' + m.requiere.map(r =>
+        Items.seguro(r.id).nombre + ' ' + Mochila.contar(r.id) + '/' + r.cantidad).join(', ');
+    }
+    if (m.texto) return m.texto;
+    if (m.tipo === 'visitar') return 'Ve al icono ❗ de la misión en el mapa';
+    return '';
+  },
+
+  _textoPremio(m) {
+    const premioDinero = (m.dinero ? '💰 $' + m.dinero : '');
+    const premioItems = (m.items || []).map(it =>
+      Items.seguro(it.id).icono + ' ' + Items.seguro(it.id).nombre + ' x' + it.cantidad).join(' · ');
+    const premioXp = (m.xp ? '⭐ ' + m.xp + ' XP' : '');
+    return [premioDinero, premioItems, premioXp].filter(Boolean).join(' · ');
   },
 
   // ---------- VENTANA DE LA MISIÓN (al tocar el icono) ----------
@@ -154,17 +196,9 @@ const Misiones = {
 
     const caja = document.createElement('div');
     caja.className = 'mision';
-    let requisitos = '';
-    if (m.tipo === 'contar') requisitos = '<div class="progreso">Progreso: ' + e.progreso + ' / ' + m.meta + '</div>';
-    if (m.requiere.length) {
-      requisitos = '<div class="progreso">Necesitas: ' + m.requiere.map(r =>
-        Items.seguro(r.id).nombre + ' ' + Mochila.contar(r.id) + '/' + r.cantidad).join(', ') + '</div>';
-    }
-    const premioDinero = '💰 $' + (m.dinero || 0);
-    const premioItems = (m.items || []).map(it =>
-      ' + ' + Items.seguro(it.id).icono + ' ' + Items.seguro(it.id).nombre + ' x' + it.cantidad).join('');
-    const premioXp = (m.xp ? ' · ⭐ ' + m.xp + ' XP' : '');
+    const requisitos = this._textoRequisitos(m);
     const puedeRecoger = this.puedeRecolectar(m);
+    const inventarioLleno = puedeRecoger && this._inventarioLlenoRecompensa(m);
     let rejillaHtml = '';
     if ((m.items || []).length) {
       rejillaHtml = '<div class="mision-recompensa-preview' + (puedeRecoger ? ' desbloqueada' : '') + '">' +
@@ -184,19 +218,21 @@ const Misiones = {
     caja.innerHTML =
       '<div class="titulo">❗ ' + m.titulo + '</div>' +
       (m.texto ? '<div class="descripcion">' + m.texto + '</div>' : '') +
-      requisitos +
+      (requisitos ? '<div class="progreso">' + requisitos + '</div>' : '') +
       rejillaHtml +
-      '<div class="distancia">Recompensa: ' + premioDinero + premioItems + premioXp + '</div>';
+      '<div class="distancia">Recompensa: ' + this._textoPremio(m) + '</div>' +
+      (inventarioLleno ? '<div class="mision-aviso-lleno">🎒 Tu inventario está lleno. Libera espacio y vuelve a recoger.</div>' : '');
     cont.appendChild(caja);
 
     const botones = document.createElement('div');
-    botones.style.cssText = 'display:flex; gap:8px;';
+    botones.style.cssText = 'display:flex; gap:8px; flex-wrap:wrap;';
     if (e.estado === 'disponible') {
       botones.appendChild(this._boton('✅ Aceptar misión', '#30d158', '#05310f', () => this.aceptar(m)));
-    } else {
-      if (this.puedeRecolectar(m)) {
+    } else if (puedeRecoger) {
+      if (!inventarioLleno) {
         botones.appendChild(this._boton('🎁 Recolectar recompensa', '#ffd60a', '#3d3200', () => this.recolectar(m)));
       }
+    } else {
       botones.appendChild(this._boton('✖ Abandonar', '#ff453a', '#fff', () => this.abandonar(m)));
     }
     cont.appendChild(botones);
@@ -207,7 +243,7 @@ const Misiones = {
     const b = document.createElement('button');
     b.textContent = texto;
     b.style.cssText = 'flex:1; border:none; border-radius:12px; padding:13px; font-weight:800; font-size:14px;' +
-      'cursor:pointer; background:' + fondo + '; color:' + color + ';';
+      'cursor:pointer; background:' + fondo + '; color:' + color + '; min-width:140px;';
     b.addEventListener('click', accion);
     return b;
   },
@@ -227,12 +263,17 @@ const Misiones = {
     if (!confirm('¿Abandonar la misión "' + m.titulo + '"?\n\nPerderás todo el progreso de esta misión.')) return;
     this._poner(m.id, { estado: 'disponible', progreso: 0 });
     document.getElementById('ventana-misiones').classList.add('oculto');
+    this._cerrarOverlay();
     Notificaciones.mostrar('✖ Misión abandonada: ' + m.titulo, 'alerta');
     this.refrescar();
   },
 
   async recolectar(m) {
     if (!this.puedeRecolectar(m)) return;
+    if (this._inventarioLlenoRecompensa(m)) {
+      Notificaciones.mostrar('🎒 Tu inventario está lleno. Libera espacio y vuelve a recoger tu premio.', 'alerta', 6000);
+      return;
+    }
     const d = Utilidades.distanciaMetros(GPS.posicion, m.pos);
     if (d > CONFIG.distanciaInteraccion) {
       Notificaciones.mostrar('📍 Ve al icono de la misión para recolectar (' + Math.round(d) + ' m)', 'alerta');
@@ -243,15 +284,76 @@ const Misiones = {
     }
     this._poner(m.id, { estado: 'recolectada' });
     document.getElementById('ventana-misiones').classList.add('oculto');
+    this._cerrarOverlay();
     if (this._marcadores[m.id]) { this._marcadores[m.id].remove(); delete this._marcadores[m.id]; }
     if (this._lineas[m.id]) { this._lineas[m.id].remove(); delete this._lineas[m.id]; }
 
     Notificaciones.mostrar('🎉 Recompensa recolectada: ' + m.titulo, 'exito', 5000);
     if (m.dinero) await Dinero.ganar(m.dinero, 'Misión: ' + m.titulo);
-    for (const it of (m.items || [])) Mochila.agregar(it.id, it.cantidad);
+    for (const it of (m.items || [])) Mochila.agregar(it.id, it.cantidad, { silencioso: true });
+    if ((m.items || []).length) {
+      const nombres = m.items.map(it => Items.seguro(it.id).icono + ' x' + it.cantidad).join(' ');
+      Notificaciones.mostrar('🎁 ' + nombres, 'exito', 4000);
+    }
     Vida.ganarXp(m.xp || 25, 'Misión completada');
     this.pintarLetrero();
     this.actualizarLineas();
+    this._actualizarIconosMapa();
+  },
+
+  // ---------- CARTEL CENTRAL (al tocar letrero) ----------
+  _cerrarOverlay() {
+    document.getElementById('overlay-mision-activa')?.classList.add('oculto');
+  },
+
+  _mostrarOverlay(m) {
+    const overlay = document.getElementById('overlay-mision-activa');
+    const titulo = document.getElementById('overlay-mision-titulo');
+    const texto = document.getElementById('overlay-mision-texto');
+    const extra = document.getElementById('overlay-mision-extra');
+    const botones = document.getElementById('overlay-mision-botones');
+    if (!overlay || !titulo || !texto || !extra || !botones) return;
+
+    const puedeRecoger = this.puedeRecolectar(m);
+    const inventarioLleno = puedeRecoger && this._inventarioLlenoRecompensa(m);
+    titulo.textContent = '📜 ' + m.titulo;
+    texto.textContent = m.texto || this._textoRequisitos(m);
+    let extraHtml = '';
+    if (puedeRecoger) {
+      extraHtml += '<div class="overlay-mision-estado lista">🎁 ¡Misión completada! Ve al icono ❗ y recoge tu premio.</div>';
+      if (inventarioLleno) {
+        extraHtml += '<div class="overlay-mision-estado lleno">🎒 Tu inventario está lleno. Tendrás que recoger cuando tengas espacio.</div>';
+      }
+    } else {
+      const req = this._textoRequisitos(m);
+      if (req && req !== texto.textContent) extraHtml += '<div class="overlay-mision-estado">' + req + '</div>';
+    }
+    extraHtml += '<div class="overlay-mision-premio">Recompensa: ' + this._textoPremio(m) + '</div>';
+    extra.innerHTML = extraHtml;
+
+    botones.innerHTML = '';
+    if (puedeRecoger) {
+      if (!inventarioLleno) {
+        botones.appendChild(this._botonOverlay('🎁 Recolectar', () => {
+          this._cerrarOverlay();
+          this.abrirMision(m);
+        }));
+      }
+    } else if (this._estado(m.id).estado !== 'disponible') {
+      botones.appendChild(this._botonOverlay('✖ Abandonar', () => this.abandonar(m), 'peligro'));
+    }
+    botones.appendChild(this._botonOverlay('Cerrar', () => this._cerrarOverlay(), 'secundario'));
+
+    overlay.classList.remove('oculto');
+  },
+
+  _botonOverlay(texto, accion, tipo) {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'overlay-mision-btn' + (tipo ? ' ' + tipo : '');
+    b.textContent = texto;
+    b.addEventListener('click', accion);
+    return b;
   },
 
   // ---------- LETRERO IZQUIERDO ----------
@@ -264,56 +366,35 @@ const Misiones = {
     cont.innerHTML = '';
     activas.slice(0, this.MAX_ACTIVAS).forEach((m, i) => {
       const e = this._estado(m.id);
+      const lista = this.puedeRecolectar(m);
       let estadoTxt = '';
-      if (this.puedeRecolectar(m)) estadoTxt = '🎁 ¡Sigue la línea y recoge tu premio!';
+      if (lista) estadoTxt = '🎁 ¡Sigue la línea y recoge tu premio!';
       else if (m.tipo === 'contar') estadoTxt = e.progreso + ' / ' + m.meta;
       else if (m.requiere.length) estadoTxt = m.requiere.map(r =>
         Items.seguro(r.id).nombre + ' ' + Mochila.contar(r.id) + '/' + r.cantidad).join(', ');
       const fila = document.createElement('div');
-      fila.className = 'mision-letrero' + (this.puedeRecolectar(m) ? ' lista' : '');
+      fila.className = 'mision-letrero' + (lista ? ' lista' : '');
       fila.innerHTML =
-        '<span class="punto-color" style="background:' + this.COLORES[i % 3] + '"></span>' +
+        '<span class="punto-color' + (lista ? ' premio' : '') + '" style="background:' + this.COLORES[i % 3] + '"></span>' +
         '<div class="datos-letrero"><div class="titulo-letrero">' + m.titulo +
-        (this.puedeRecolectar(m) ? ' ➜' : '') + '</div>' +
+        (lista ? ' ➜' : '') + '</div>' +
         (estadoTxt ? '<div class="estado-letrero">' + estadoTxt + '</div>' : '') + '</div>';
-      fila.addEventListener('click', () => this._popupLetrero(m));
+      fila.addEventListener('click', () => this._mostrarOverlay(m));
       cont.appendChild(fila);
     });
+    this._actualizarIconosMapa();
   },
 
-  _popupLetrero(m) {
-    const e = this._estado(m.id);
-    let requisitos = '';
-    if (m.tipo === 'contar') requisitos = 'Hacer: ' + e.progreso + ' / ' + m.meta;
-    else if (m.requiere.length) {
-      requisitos = 'Necesitas: ' + m.requiere.map(r =>
-        Items.seguro(r.id).nombre + ' ' + Mochila.contar(r.id) + '/' + r.cantidad).join(', ');
-    } else if (m.texto) requisitos = m.texto;
-    else if (m.tipo === 'visitar') requisitos = 'Ve al icono ❗ de la misión';
-    const premio = '$' + (m.dinero || 0) +
-      (m.items || []).map(it => ' + ' + Items.seguro(it.id).icono + ' x' + it.cantidad).join('') +
-      (m.xp ? ' · ' + m.xp + ' XP' : '');
-    const msg = '📜 ' + m.titulo + '\n\n' + requisitos + '\n\n🎁 Recompensa: ' + premio;
-    if (this.puedeRecolectar(m)) {
-      if (confirm(msg + '\n\n¿Ir a recolectar? (toca el icono ❗ en el mapa)')) {
-        document.getElementById('ventana-misiones').classList.add('oculto');
-        this.abrirMision(m);
-      }
-      return;
-    }
-    if (confirm(msg + '\n\n¿Abandonar esta misión?\nSe pierde el progreso.')) this.abandonar(m);
-  },
+  _popupLetrero(m) { this._mostrarOverlay(m); },
 
   // ---------- LÍNEAS GUÍA EN EL MAPA ----------
   actualizarLineas() {
     if (!GPS.posicion || !Mapa.mapa) return;
     const activas = this.activas();
-    // Quitar líneas que ya no aplican
     for (const [id, linea] of Object.entries(this._lineas)) {
       const m = activas.find(x => x.id === id);
       if (!m || !this.puedeRecolectar(m)) { linea.remove(); delete this._lineas[id]; }
     }
-    // Dibujar/mover las líneas de misiones cumplidas
     activas.forEach((m, i) => {
       if (!this.puedeRecolectar(m)) return;
       const color = this.COLORES[i % 3];

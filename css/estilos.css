@@ -125,7 +125,8 @@ button { font-family: inherit; }
   position: relative;
   flex: 0 0 auto;
   display: flex; align-items: center; justify-content: center;
-  width: 36px; height: 36px;
+  width: clamp(32px, 9vw, 42px);
+  height: clamp(32px, 9vw, 42px);
   padding: 0;
   border-radius: 10px;
   border: none;
@@ -142,9 +143,16 @@ button { font-family: inherit; }
   user-select: none;
   -webkit-user-drag: none;
   background: transparent;
+  max-width: 100%;
 }
-.btn-hud-img { width: 36px; height: 36px; }
-.btn-juego-img { width: 54px; height: 54px; }
+.btn-hud-img {
+  width: clamp(32px, 9vw, 42px);
+  height: clamp(32px, 9vw, 42px);
+}
+.btn-juego-img {
+  width: clamp(46px, 13vw, 60px);
+  height: clamp(46px, 13vw, 60px);
+}
 .btn-icono-juego {
   background: transparent !important;
   border: none;
@@ -176,14 +184,24 @@ button { font-family: inherit; }
 .parpadeo { animation: parpadear 1s infinite; display: inline-block; }
 @keyframes parpadear { 50% { opacity: .25; } }
 @media (prefers-reduced-motion: reduce) {
-  .parpadeo, .icono-mapa.cerca, .icono-tesoro { animation: none !important; }
+  .parpadeo, .icono-mapa.cerca, .icono-tesoro, .icono-mapa.mision-premio, .mision-letrero.lista, .mision-letrero .punto-color.premio { animation: none !important; }
 }
 
 /* ============ BOTONES INFERIORES (burbujas estilo juego) ============ */
 #botones-inferiores {
   position: fixed; bottom: calc(10px + env(safe-area-inset-bottom)); left: 50%; transform: translateX(-50%);
-  z-index: 1000; display: flex; gap: 8px; align-items: flex-end;
-  max-width: 100vw; padding: 0 6px;
+  z-index: 1000; display: flex; gap: clamp(6px, 2vw, 14px); align-items: flex-end;
+  max-width: min(100vw, 480px); padding: 0 clamp(6px, 2vw, 16px);
+}
+@media (min-width: 768px) {
+  #botones-inferiores { max-width: 520px; gap: 16px; }
+  #panel-hud-izq { max-width: min(280px, 28vw); }
+  .btn-juego-img { width: clamp(52px, 8vw, 64px); height: clamp(52px, 8vw, 64px); }
+  .btn-hud-img, .btn-hud-accion { width: clamp(36px, 5vw, 44px); height: clamp(36px, 5vw, 44px); }
+}
+@media (min-width: 1024px) {
+  #botones-inferiores { bottom: calc(16px + env(safe-area-inset-bottom)); }
+  #panel-hud-izq { left: 16px; max-width: 300px; }
 }
 .btn-burbuja {
   display: flex; flex-direction: column; align-items: center; gap: 3px;
@@ -732,8 +750,118 @@ body.en-auth #zona-notificaciones { display: none !important; }
   border: none; border-radius: 12px; background: transparent;
   color: #8ab4ff; font-size: 14px; cursor: pointer;
 }
-.mision-letrero.lista { border-color: #ffd60a; box-shadow: 0 0 8px rgba(255,214,10,.35); }
+.mision-letrero.lista { border-color: #ffd60a; box-shadow: 0 0 10px rgba(255,214,10,.45); animation: misionLetreroBrillo 1.4s ease-in-out infinite; }
+.mision-letrero .punto-color.premio { box-shadow: 0 0 8px #ffd60a; animation: misionLetreroBrillo 1.4s ease-in-out infinite; }
+@keyframes misionLetreroBrillo {
+  0%, 100% { opacity: 1; }
+  50% { opacity: .65; }
+}
 .mision-letrero { cursor: pointer; }
+
+.icono-mapa.mision-premio {
+  filter: drop-shadow(0 0 6px #ffd60a) drop-shadow(0 0 14px rgba(255,180,0,.85));
+  animation: misionIconoBrillo 1.1s ease-in-out infinite;
+}
+@keyframes misionIconoBrillo {
+  0%, 100% { transform: scale(1); opacity: 1; }
+  50% { transform: scale(1.18); opacity: .88; }
+}
+.mision-aviso-lleno {
+  margin-top: 10px; padding: 10px 12px; border-radius: 12px;
+  background: rgba(255,159,10,.15); border: 1px solid rgba(255,159,10,.4);
+  color: #ffd08a; font-size: 13px; line-height: 1.4;
+}
+
+/* ============ CARTEL MISIÓN (centro) ============ */
+.overlay-mision {
+  position: fixed; inset: 0; z-index: 2500;
+  display: flex; align-items: center; justify-content: center;
+  padding: 16px;
+  background: rgba(8,10,18,.72);
+  backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px);
+}
+.overlay-mision-caja {
+  position: relative;
+  width: min(92vw, 380px);
+  max-height: min(80vh, 520px);
+  overflow-y: auto;
+  padding: 22px 18px 18px;
+  border-radius: 20px;
+  background: linear-gradient(165deg, rgba(28,34,52,.98), rgba(16,20,31,.98));
+  border: 2px solid rgba(255,255,255,.12);
+  box-shadow: 0 16px 48px rgba(0,0,0,.55);
+}
+.overlay-mision-cerrar {
+  position: absolute; top: 10px; right: 10px;
+  width: 34px; height: 34px; border-radius: 50%;
+  border: 1px solid rgba(255,255,255,.15);
+  background: rgba(255,255,255,.08); color: #fff;
+  font-size: 16px; cursor: pointer;
+}
+.overlay-mision-titulo {
+  font-size: clamp(17px, 4.5vw, 20px);
+  font-weight: 800; margin-bottom: 10px; padding-right: 28px;
+}
+.overlay-mision-texto {
+  font-size: clamp(14px, 3.8vw, 16px);
+  line-height: 1.5; color: #cdd6e6; margin-bottom: 12px;
+  white-space: pre-wrap;
+}
+.overlay-mision-extra { display: flex; flex-direction: column; gap: 8px; margin-bottom: 14px; }
+.overlay-mision-estado {
+  padding: 10px 12px; border-radius: 12px;
+  background: rgba(255,255,255,.06); font-size: 13px; line-height: 1.4;
+}
+.overlay-mision-estado.lista {
+  background: rgba(255,214,10,.12); border: 1px solid rgba(255,214,10,.35); color: #ffe28a;
+}
+.overlay-mision-estado.lleno {
+  background: rgba(255,159,10,.12); border: 1px solid rgba(255,159,10,.35); color: #ffd08a;
+}
+.overlay-mision-premio {
+  font-size: 13px; color: #9aa5bd; padding: 8px 2px 0;
+}
+.overlay-mision-botones {
+  display: flex; flex-direction: column; gap: 8px;
+}
+.overlay-mision-btn {
+  width: 100%; padding: 14px; border-radius: 14px;
+  border: none; font-size: 15px; font-weight: 800; cursor: pointer;
+  background: #ffd60a; color: #3d3200;
+}
+.overlay-mision-btn.peligro { background: rgba(255,69,58,.2); color: #ffb4ae; border: 1px solid rgba(255,69,58,.4); }
+.overlay-mision-btn.secundario { background: rgba(255,255,255,.08); color: #cdd6e6; border: 1px solid rgba(255,255,255,.12); }
+
+/* ============ DINERO EN MOCHILA ============ */
+.mochila-dinero-bar {
+  display: flex; align-items: center; gap: 10px;
+  margin: 0 14px 12px; padding: 10px 12px;
+  border-radius: 14px;
+  background: linear-gradient(135deg, rgba(200,134,10,.18), rgba(255,178,32,.12));
+  border: 1px solid rgba(255,178,32,.35);
+}
+.mochila-dinero-etiqueta {
+  font-size: 13px; font-weight: 800; color: #ffe28a;
+  flex-shrink: 0; white-space: nowrap;
+}
+.mochila-dinero-contenedor {
+  position: relative; flex: 1; height: 28px;
+  border-radius: 14px; overflow: hidden;
+  border: 1px solid rgba(255,226,138,.35);
+  background: rgba(0,0,0,.25);
+}
+#mochila-dinero-relleno {
+  position: absolute; inset: 0; width: 0;
+  background: linear-gradient(90deg, #a86a08, #ffb020, #ffe28a);
+  transition: width .4s ease;
+}
+#mochila-dinero-cantidad {
+  position: absolute; inset: 0;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 15px; font-weight: 800; color: #fff;
+  text-shadow: 0 1px 3px rgba(0,0,0,.85);
+  font-variant-numeric: tabular-nums; z-index: 1;
+}
 #rejilla-cofre {
   display: grid; grid-template-columns: repeat(6, 1fr); gap: 6px; padding: 10px 14px;
 }

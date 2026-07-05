@@ -3,7 +3,7 @@
 // ============================================================
 const CONFIG = {
   // Cambiar al publicar: obliga al móvil a descartar caché vieja
-  version: '43',
+  version: '44',
   maxPila: 10,
 
   // Nombre reservado del administrador (solo este jugador ve el panel admin)
@@ -28,10 +28,10 @@ const CONFIG = {
   ],
 
   zoomInicial: 16,
-  zoomSeguimientoJugador: 18,
+  zoomSeguimientoJugador: 20,
   zoomRecuperarSegundos: 4,
   zoomMinimo: 14,
-  zoomMaximo: 19,
+  zoomMaximo: 20,
 
   // Distancias (en metros)
   distanciaInteraccion: 20,      // distancia para poder tocar tiendas, pesca, etc.
