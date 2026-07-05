@@ -40,8 +40,8 @@
       "telefono": "7709908375",
       "creado": 1783263656375,
       "pinHash": "4bdc96ffc0926b62d55708e3c1755ca3f04b8c28bec6fd85777117da67497f11",
-      "sesionToken": "mr8bi9qd0o1c9h9eaj",
-      "sesionT": 1783287790789
+      "sesionToken": "mr8bxp7ibyamlpko3t",
+      "sesionT": 1783288510686
     },
     {
       "id": "pmr8at78bi3vki",
@@ -157,7 +157,7 @@
         "muerto": false,
         "armaEquipada": null
       },
-      "t": 1783288497252
+      "t": 1783288525203
     },
     "pmr8at78bi3vki": {
       "datos": {
@@ -221,7 +221,7 @@
       "t": 1783287766985
     }
   },
-  "actualizadoEn": 1783288497437,
+  "actualizadoEn": 1783288525370,
   "enemigos": [],
   "enemigosEstado": {},
   "tiendasAdmin": []
