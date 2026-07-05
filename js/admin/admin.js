@@ -1060,7 +1060,7 @@ const Admin = {
         filaG.innerHTML =
           '<span class="icono">👤</span>' +
           '<div class="datos"><div class="nombre">' + j.nombre +
-          (j.nombre.toLowerCase() === CONFIG.adminNombre.toLowerCase() ? ' 🛠️ ADM' : '') +
+          (j.nombre.toLowerCase() === (CONFIG.adminNombre || 'randy').toLowerCase() ? ' 🛠️ ADM' : '') +
           '</div><div class="precio">📱 ' + (j.telefono || 'sin número') + '<br>ID: ' + j.id + '</div></div>';
         campos.appendChild(filaG);
       }
