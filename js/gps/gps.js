@@ -61,13 +61,16 @@ const GPS = {
       Math.max(so[0], Math.min(ne[0], nuevaPosicion[0])),
       Math.max(so[1], Math.min(ne[1], nuevaPosicion[1]))
     ];
+    const cambioGrande = !this.posicion ||
+      Math.abs(this.posicion[0] - nuevaPosicion[0]) > 0.00005 ||
+      Math.abs(this.posicion[1] - nuevaPosicion[1]) > 0.00005;
     this.posicion = nuevaPosicion;
     if (moverMarcador) this.marcador.setLatLng(nuevaPosicion);
     Guardado.datos.posicionJugador = nuevaPosicion;
     Guardado.guardar();
     Mapa.jugadorSeMovio(nuevaPosicion);
     if (typeof Multijugador !== 'undefined') {
-      Multijugador.enviarPosicion(nuevaPosicion[0], nuevaPosicion[1], false);
+      Multijugador.enviarPosicion(nuevaPosicion[0], nuevaPosicion[1], cambioGrande);
     }
   },
 

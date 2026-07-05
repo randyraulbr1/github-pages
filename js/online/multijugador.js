@@ -10,6 +10,8 @@ const Multijugador = {
   online: [],
   _ultimoEnvio: 0,
   _ultimoStats: 0,
+  mundoServidorTs: 0,
+  _animaciones: {},
 
   urlServidor() {
     return (CONFIG.servidorOnline || '').replace(/\/$/, '');
@@ -181,7 +183,11 @@ const Multijugador = {
         (m.enemigos?.length || 0) + (m.tesoros?.length || 0) +
         (m.tiendasAdmin?.length || 0) + Object.keys(m.posiciones || {}).length;
       if (!tieneMapa) return;
-      Admin._aplicarMundoRemoto(JSON.stringify(m));
+      this.mundoServidorTs = data.actualizadoEn || Date.now();
+      const json = JSON.stringify(m);
+      Admin._crudoPublicado = json;
+      Admin._ultimoFirmaPublicada = Admin._firmaMundo(json);
+      Admin._aplicarMundoRemoto(json);
       if (typeof Usuarios !== 'undefined' && !Usuarios.esAdministrador() &&
           typeof Notificaciones !== 'undefined') {
         Notificaciones.mostrar('🌍 El admin actualizó el mapa', 'info', 4000);
@@ -245,9 +251,9 @@ const Multijugador = {
   enviarPosicion(lat, lng, forzar) {
     if (!this.socket || !this.activo) return;
     const ahora = Date.now();
-    if (!forzar && ahora - this._ultimoEnvio < 1800) return;
+    if (!forzar && ahora - this._ultimoEnvio < 700) return;
     this._ultimoEnvio = ahora;
-    this.socket.emit('player:move', { x: lat, y: lng, gps: true }, () => {});
+    this.socket.emit('player:move', { x: lat, y: lng, gps: true, force: forzar }, () => {});
     this.enviarStats(false);
   },
 
@@ -286,8 +292,36 @@ const Multijugador = {
         '<div class="mjo-barra"><div class="mjo-barra-fill" style="width:' + pct + '%"></div></div>' +
         '<div class="mjo-punto"></div></div>',
       iconSize: [88, 56],
-      iconAnchor: [44, 48]
+      iconAnchor: [44, 54]
     });
+  },
+
+  _animarMarcador(id, lat, lng) {
+    const m = this.marcadores[id];
+    if (!m || !Number.isFinite(lat) || !Number.isFinite(lng)) return;
+    if (this._animaciones[id]) cancelAnimationFrame(this._animaciones[id]);
+    const desde = m.getLatLng();
+    const dist = Math.abs(desde.lat - lat) + Math.abs(desde.lng - lng);
+    if (dist < 0.000003) {
+      m.setLatLng([lat, lng]);
+      return;
+    }
+    const inicio = performance.now();
+    const duracion = Math.min(900, Math.max(280, dist * 800000));
+    const paso = (ahora) => {
+      const t = Math.min(1, (ahora - inicio) / duracion);
+      const suave = t * (2 - t);
+      m.setLatLng([
+        desde.lat + (lat - desde.lat) * suave,
+        desde.lng + (lng - desde.lng) * suave
+      ]);
+      if (t < 1) {
+        this._animaciones[id] = requestAnimationFrame(paso);
+      } else {
+        delete this._animaciones[id];
+      }
+    };
+    this._animaciones[id] = requestAnimationFrame(paso);
   },
 
   _actualizarMarcador(p) {
@@ -304,7 +338,7 @@ const Multijugador = {
       m.bindPopup(() => typeof Amigos !== 'undefined' ? Amigos.popupHtml(p) : p.name);
       this.marcadores[id] = m;
     } else {
-      m.setLatLng([p.x, p.y]);
+      this._animarMarcador(id, p.x, p.y);
       m.setIcon(icon);
     }
   },

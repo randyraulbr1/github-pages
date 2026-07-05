@@ -710,6 +710,11 @@ const Admin = {
         this._crudoPublicado = texto;
         return;
       }
+      let remotoTs = 0;
+      try { remotoTs = JSON.parse(texto).actualizadoEn || 0; } catch (e) { /* */ }
+      const localTs = this.publicado?.actualizadoEn || 0;
+      const servidorTs = (typeof Multijugador !== 'undefined' && Multijugador.mundoServidorTs) || 0;
+      if (remotoTs < localTs || remotoTs < servidorTs) return;
       this._aplicarMundoRemoto(texto);
     } catch (e) { /* sin conexión: se intenta en el próximo ciclo */ }
   },
@@ -3288,7 +3293,10 @@ const Admin = {
 
     if (okGitHub || okServidor) {
       this._sincronizarEstadoTrasPublicar(adminLocal, json);
-      if (okGitHub) this._aplicarMundoRemoto(json);
+      this._aplicarMundoRemoto(json);
+      if (okServidor && typeof Multijugador !== 'undefined') {
+        Multijugador.mundoServidorTs = adminLocal.actualizadoEn || Date.now();
+      }
       return true;
     }
 

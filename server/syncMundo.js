@@ -219,10 +219,11 @@ function syncMundoFromJson(mundo, io) {
 
   for (const row of getAllWorldObjects()) {
     const d = parseData(row);
-    if (d.origenId && !seenObjects.has(d.origenId) && !eliminados.has(d.origenId)) {
-      deleteWorldObject(row.id);
-      if (io) io.emit('world:removeObject', { id: row.id, origenId: d.origenId });
-    }
+    if (!d.origenId) continue;
+    if (seenObjects.has(d.origenId) || eliminados.has(d.origenId)) continue;
+    if (row.type === 'enemy' && (mundo.enemigos || []).length === 0) continue;
+    deleteWorldObject(row.id);
+    if (io) io.emit('world:removeObject', { id: row.id, origenId: d.origenId });
   }
 
   for (const row of getAllMissions()) {

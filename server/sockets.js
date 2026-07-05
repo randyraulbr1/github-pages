@@ -28,7 +28,7 @@ const onlinePlayers = new Map();
 const socketToPlayer = new Map();
 
 const MAX_MOVE_DELTA = 0.00035;
-const MAX_GPS_DELTA = 0.0012;
+const MAX_GPS_DELTA = 0.004;
 const INTERACT_DISTANCE = 0.0005;
 const SYNC_INTERVAL_MS = 8000;
 
@@ -145,13 +145,15 @@ function setupSockets(io) {
 
     socket.broadcast.emit('player:online', playerSnapshot(onlinePlayers.get(socket.playerId)));
 
-    function applyMove(targetX, targetY, maxDelta) {
+    function applyMove(targetX, targetY, maxDelta, forzar) {
       const current = findPlayerById(socket.playerId);
       if (!current) return { ok: false, error: 'Jugador no encontrado' };
 
-      const dist = distance(current.x, current.y, targetX, targetY);
-      if (dist > maxDelta) {
-        return { ok: false, error: 'Movimiento demasiado lejos', x: current.x, y: current.y };
+      if (!forzar) {
+        const dist = distance(current.x, current.y, targetX, targetY);
+        if (dist > maxDelta) {
+          return { ok: false, error: 'Movimiento demasiado lejos', x: current.x, y: current.y };
+        }
       }
 
       const updated = updatePlayer(socket.playerId, { x: targetX, y: targetY });
@@ -172,7 +174,7 @@ function setupSockets(io) {
       if (!Number.isFinite(targetX) || !Number.isFinite(targetY)) {
         return ack?.({ ok: false, error: 'Coordenadas inválidas' });
       }
-      const max = payload?.gps ? MAX_GPS_DELTA : MAX_MOVE_DELTA;
+      const max = (payload?.gps || payload?.force) ? MAX_GPS_DELTA : MAX_MOVE_DELTA;
       const res = applyMove(targetX, targetY, max);
       ack?.(res);
     });
