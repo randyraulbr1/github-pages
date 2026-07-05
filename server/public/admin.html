@@ -29,7 +29,7 @@
       <button id="btn-admin-login">Entrar</button>
       <p id="login-error" class="error oculto"></p>
       <p style="margin-top:.75rem;color:#94a3b8;font-size:.85rem">
-        Contraseña por defecto: <code>admin123</code> (cámbiala en <code>server/.env</code>)
+        Usuario: <code>admin</code> · Contraseña: la que pusiste en Render → <b>Environment</b> → <code>ADMIN_PASSWORD</code>
       </p>
     </section>
   </div>
@@ -73,26 +73,35 @@
 
     const $ = id => document.getElementById(id);
 
+    async function parseJson(r) {
+      const txt = await r.text();
+      try { return JSON.parse(txt); } catch (e) {
+        throw new Error('El servidor respondió mal. ¿Está Live en Render? Recarga en 1 min.');
+      }
+    }
+
     async function api(path, opts = {}) {
       const headers = Object.assign({ 'Content-Type': 'application/json' }, opts.headers || {});
       if (token) headers.Authorization = 'Bearer ' + token;
       const r = await fetch(API + '/api/admin' + path, Object.assign({}, opts, { headers }));
-      const data = await r.json().catch(() => ({}));
-      if (!r.ok) throw new Error(data.error || 'Error');
+      const data = await parseJson(r);
+      if (!r.ok) throw new Error(data.error || ('Error ' + r.status));
       return data;
     }
 
     $('btn-admin-login').onclick = async () => {
+      $('login-error').classList.add('oculto');
       try {
-        const data = await fetch(API + '/api/admin/login', {
+        const r = await fetch(API + '/api/admin/login', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             username: $('admin-user').value.trim(),
             password: $('admin-pass').value
           })
-        }).then(r => r.json());
-        if (!data.ok) throw new Error(data.error);
+        });
+        const data = await parseJson(r);
+        if (!data.ok) throw new Error(data.error || 'Contraseña incorrecta');
         token = data.token;
         localStorage.setItem(TOKEN_KEY, token);
         showPanel();
