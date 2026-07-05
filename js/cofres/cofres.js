@@ -597,6 +597,11 @@ const Cofres = {
 
   alternarVerOcultos() {
     this.verOcultos = !this.verOcultos;
+    if (typeof Admin !== 'undefined' && Admin.datos) {
+      Admin.datos.verCofresOcultos = this.verOcultos;
+      Admin.guardar();
+      Admin._actualizarEtiquetaVerCofresOcultos();
+    }
     this._pintarTodos();
     Notificaciones.mostrar(this.verOcultos ? '👁️ Cofres ocultos visibles' : 'Ocultos ocultos de nuevo', 'info', 4000);
   }

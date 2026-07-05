@@ -19,6 +19,13 @@ const Notificaciones = {
     return false;
   },
 
+  _puedeMostrarToast() {
+    if (document.body.classList.contains('en-auth')) return false;
+    const admin = document.getElementById('ventana-admin');
+    if (admin && !admin.classList.contains('oculto')) return false;
+    return true;
+  },
+
   _guardarHistorial(texto, tipo) {
     if (typeof Guardado === 'undefined' || !Guardado.datos) return;
     if (!Guardado.datos.notificaciones) Guardado.datos.notificaciones = [];
@@ -30,6 +37,7 @@ const Notificaciones = {
 
   mostrar(texto, tipo = 'info', duracionMs = 3200) {
     this._guardarHistorial(texto, tipo);
+    if (!this._puedeMostrarToast()) return;
     if (!this._esImportante(texto, tipo)) return;
 
     const zona = document.getElementById('zona-notificaciones');

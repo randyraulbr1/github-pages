@@ -38,6 +38,8 @@ const Admin = {
     if (!this.datos.posiciones) this.datos.posiciones = {};
     if (!this.datos.eliminados) this.datos.eliminados = [];
     if (!this.datos.partidasExtra) this.datos.partidasExtra = {};
+    if (!this.datos.jugadoresPinAdmin) this.datos.jugadoresPinAdmin = {};
+    if (this.datos.verCofresOcultos === undefined) this.datos.verCofresOcultos = false;
     if (!this.datos.enemigos) this.datos.enemigos = [];
     if (!this.datos.tiendasAdmin) this.datos.tiendasAdmin = [];
     if (this.datos.moverPinJugador === undefined) {
@@ -331,6 +333,49 @@ const Admin = {
     }
   },
 
+  _pinAdminGet(id) {
+    return (this.datos.jugadoresPinAdmin || {})[id] || '';
+  },
+
+  _pinAdminSet(id, clave) {
+    if (!this.datos.jugadoresPinAdmin) this.datos.jugadoresPinAdmin = {};
+    if (clave) this.datos.jugadoresPinAdmin[id] = clave;
+    else delete this.datos.jugadoresPinAdmin[id];
+  },
+
+  _adminAviso(texto, tipo) {
+    const el = document.getElementById('admin-aviso-inline');
+    if (!el) return;
+    el.textContent = texto;
+    el.className = 'admin-aviso-inline ' + (tipo || 'alerta');
+    el.classList.remove('oculto');
+    clearTimeout(this._adminAvisoTimer);
+    this._adminAvisoTimer = setTimeout(() => el.classList.add('oculto'), 5500);
+  },
+
+  _adminAvisoMensaje(texto, tipo) {
+    const el = document.getElementById('admin-msg-aviso');
+    if (!el) return;
+    el.textContent = texto;
+    el.className = 'auth-aviso-mensaje ' + (tipo || 'alerta');
+    el.classList.remove('oculto');
+  },
+
+  _ocultarAvisoMensaje() {
+    const el = document.getElementById('admin-msg-aviso');
+    if (el) el.classList.add('oculto');
+  },
+
+  _toggleCarpetaAdmin(contId, btnId) {
+    const cont = document.getElementById(contId);
+    const btn = document.getElementById(btnId);
+    if (!cont || !btn) return;
+    cont.classList.toggle('oculto');
+    const abierto = !cont.classList.contains('oculto');
+    const flecha = btn.querySelector('.admin-carpeta-flecha');
+    if (flecha) flecha.textContent = abierto ? '▼' : '▶';
+  },
+
   _jugadoresParaPublicar() {
     const porId = new Map();
     for (const j of (this.publicado.jugadores || [])) {
@@ -433,7 +478,8 @@ const Admin = {
         }
       });
     }
-    enlazar('admin-cofres-ocultos', () => this.abrirCofresOcultos());
+    enlazar('admin-carpeta-cofres', () => this._toggleCarpetaAdmin('admin-carpeta-cofres-cont', 'admin-carpeta-cofres'));
+    enlazar('admin-ver-cofres-ocultos', () => this.toggleVerCofresOcultos());
     enlazar('admin-publicar', () => this.publicarMundo(false));
     enlazar('admin-clave-publicar', () => this.abrirConfiguracionClave());
     enlazar('btn-admin-clave-guardar', () => this._guardarClaveTelefono());
@@ -448,6 +494,7 @@ const Admin = {
     enlazar('btn-admin-confirmar', () => this.confirmarColocacion());
     enlazar('btn-admin-salir-modo', () => this.salirModo());
     enlazar('btn-admin-editor-guardar', () => this._guardarEditorJugador());
+    enlazar('btn-admin-entrar-jugador', () => this._entrarComoJugador());
     enlazar('admin-ban-30m', () => this._aplicarBan(30 * 60000));
     enlazar('admin-ban-1h', () => this._aplicarBan(3600000));
     enlazar('admin-ban-1d', () => this._aplicarBan(86400000));
@@ -456,6 +503,11 @@ const Admin = {
     enlazar('admin-ban-perm', () => this._aplicarBan(0));
     enlazar('admin-ban-quitar', () => this._aplicarBan(null));
     this._actualizarEtiquetaMoverPin();
+    this._actualizarEtiquetaVerCofresOcultos();
+    if (typeof Cofres !== 'undefined') {
+      Cofres.verOcultos = !!this.datos.verCofresOcultos;
+      Cofres._pintarTodos();
+    }
     if (typeof GPS !== 'undefined') GPS._actualizarArrastre();
   },
 
@@ -483,6 +535,32 @@ const Admin = {
     const on = !!this.datos.moverPinJugador;
     el.textContent = 'Mover pin: ' + (on ? 'ON' : 'OFF');
     const btn = document.getElementById('admin-mover-pin');
+    if (btn) btn.classList.toggle('admin-toggle-on', on);
+  },
+
+  toggleVerCofresOcultos() {
+    if (!this.esAdminJugador()) return;
+    this.datos.verCofresOcultos = !this.datos.verCofresOcultos;
+    this.guardar();
+    if (typeof Cofres !== 'undefined') {
+      Cofres.verOcultos = !!this.datos.verCofresOcultos;
+      Cofres._pintarTodos();
+    }
+    this._actualizarEtiquetaVerCofresOcultos();
+    Notificaciones.mostrar(
+      this.datos.verCofresOcultos
+        ? '👻 Cofres ocultos visibles en el mapa'
+        : '👻 Cofres ocultos ocultos de nuevo',
+      'info', 4000
+    );
+  },
+
+  _actualizarEtiquetaVerCofresOcultos() {
+    const el = document.getElementById('admin-ver-cofres-ocultos-texto');
+    if (!el) return;
+    const on = !!this.datos.verCofresOcultos;
+    el.textContent = 'Ver ocultos: ' + (on ? 'ON' : 'OFF');
+    const btn = document.getElementById('admin-ver-cofres-ocultos');
     if (btn) btn.classList.toggle('admin-toggle-on', on);
   },
 
@@ -1836,30 +1914,57 @@ const Admin = {
   enviarMensaje() { this.abrirMensaje(); },
 
   abrirMensaje(paraId) {
-    const sel = document.getElementById('admin-msg-para');
-    sel.innerHTML = '<option value="todos">Todos los jugadores</option>';
-    for (const j of this.jugadoresGlobales()) {
-      const o = document.createElement('option');
-      o.value = j.id;
-      o.textContent = j.nombre + ' (' + j.id + ')';
-      if (paraId && j.id === paraId) o.selected = true;
-      sel.appendChild(o);
+    this._msgPara = paraId || 'todos';
+    const chips = document.getElementById('admin-msg-chips');
+    if (chips) {
+      chips.innerHTML = '';
+      const addChip = (id, label) => {
+        const b = document.createElement('button');
+        b.type = 'button';
+        b.className = 'admin-msg-chip' + (this._msgPara === id ? ' activo' : '');
+        b.textContent = label;
+        b.dataset.id = id;
+        b.addEventListener('click', () => {
+          this._msgPara = id;
+          chips.querySelectorAll('.admin-msg-chip').forEach(c => {
+            c.classList.toggle('activo', c.dataset.id === id);
+          });
+        });
+        chips.appendChild(b);
+      };
+      addChip('todos', '📢 Todos');
+      for (const j of this.jugadoresGlobales()) {
+        addChip(j.id, '👤 ' + j.nombre);
+      }
     }
-    document.getElementById('admin-msg-texto').value = '';
+    const texto = document.getElementById('admin-msg-texto');
+    const preview = document.getElementById('admin-msg-preview-texto');
+    const contador = document.getElementById('admin-msg-contador');
+    if (texto) {
+      texto.value = '';
+      texto.oninput = () => {
+        const val = (texto.value || '').trim();
+        if (preview) preview.textContent = val || 'Escribe tu mensaje abajo…';
+        if (contador) contador.textContent = String(texto.value.length);
+      };
+    }
+    if (preview) preview.textContent = 'Escribe tu mensaje abajo…';
+    if (contador) contador.textContent = '0';
+    this._ocultarAvisoMensaje();
     this._mostrarPanelDerecho('admin-vista-mensaje', '✉️ Enviar mensaje');
   },
 
   _enviarMensajeUi() {
-    const para = document.getElementById('admin-msg-para').value;
+    const para = this._msgPara || 'todos';
     const texto = (document.getElementById('admin-msg-texto').value || '').trim();
-    if (!texto) { alert('Escribe un mensaje'); return; }
+    if (!texto) { this._adminAvisoMensaje('Escribe un mensaje'); return; }
     this.datos.mensajes.push({
       id: 'msg_' + Date.now().toString(36),
       para, texto, t: Date.now()
     });
     this.guardar();
-    Notificaciones.mostrar('✉️ Mensaje enviado', 'exito', 4000);
-    this._volverAlPanel();
+    this._adminAvisoMensaje('✉️ Mensaje enviado', 'exito');
+    setTimeout(() => this._volverAlPanel(), 1200);
   },
 
   mostrarMensajes() {
@@ -1875,43 +1980,7 @@ const Admin = {
     Guardado.guardar();
   },
 
-  abrirCofresOcultos() {
-    const cont = document.getElementById('admin-cofres-contenido');
-    cont.innerHTML = '';
-    const toggle = document.createElement('div');
-    toggle.className = 'admin-cofres-toggle';
-    toggle.innerHTML = '<span>👁️ Ver cofres ocultos en el mapa</span>';
-    const btnToggle = document.createElement('button');
-    btnToggle.type = 'button';
-    btnToggle.textContent = Cofres.verOcultos ? 'Ocultar del mapa' : 'Mostrar en mapa';
-    btnToggle.addEventListener('click', () => {
-      Cofres.alternarVerOcultos();
-      btnToggle.textContent = Cofres.verOcultos ? 'Ocultar del mapa' : 'Mostrar en mapa';
-    });
-    toggle.appendChild(btnToggle);
-    cont.appendChild(toggle);
-
-    const cofres = Cofres.lista().filter(c => !c.visible);
-    if (!cofres.length) {
-      const vacio = document.createElement('div');
-      vacio.className = 'campo-caja';
-      vacio.textContent = 'No hay cofres ocultos en el mundo';
-      cont.appendChild(vacio);
-    }
-    for (const c of cofres) {
-      const fila = document.createElement('div');
-      fila.className = 'fila-cofre-pin';
-      const pin = c.pinRegistro || '(creado antes — PIN no guardado)';
-      fila.innerHTML =
-        '<div class="nombre">🔒 ' + (c.creadorNombre || '—') + '</div>' +
-        '<div class="meta">PIN: <span class="pin-valor">' + pin + '</span></div>' +
-        '<div class="meta" style="margin-top:4px;font-size:11px;">ID: ' + c.id + '</div>';
-      cont.appendChild(fila);
-    }
-    this._mostrarPanelDerecho('admin-vista-cofres', '👻 Cofres ocultos');
-  },
-
-  listarCofresPin() { this.abrirCofresOcultos(); },
+  listarCofresPin() { this.toggleVerCofresOcultos(); },
 
   // Lee la tarjeta de jugador que alguien le mandó al admin
   async inspeccionar() {
@@ -2128,6 +2197,7 @@ const Admin = {
     partida.dinero.control = await Utilidades.sha256(Guardado.SAL + '|saldo|' + partida.dinero.saldo);
 
     this.registrarJugador(perfil, true);
+    this._pinAdminSet(perfil.id, clave);
     if (!this.datos.partidasExtra) this.datos.partidasExtra = {};
     const snap = { datos: partida, t: Date.now() };
     this.datos.partidasExtra[perfil.id] = snap;
@@ -2250,9 +2320,14 @@ const Admin = {
   },
 
   async _abrirEditorJugador(perfil, soloGlobal) {
+    let p = perfil;
+    if (soloGlobal) {
+      const g = this.jugadoresGlobales().find(j => j.id === perfil.id);
+      if (g) p = Object.assign({}, g);
+    }
     this._editorJugador = {
-      perfil: soloGlobal ? { id: perfil.id, nombre: perfil.nombre, telefono: perfil.telefono || '' } : perfil,
-      partida: await this._obtenerPartidaJugador(perfil),
+      perfil: p,
+      partida: await this._obtenerPartidaJugador(p),
       _arrastre: null
     };
     if (!this._editorJugador.partida.mochila) {
@@ -2265,7 +2340,7 @@ const Admin = {
     const clv = document.getElementById('admin-editor-clave');
     if (nom) nom.value = this._editorJugador.perfil.nombre || '';
     if (tel) tel.value = this._editorJugador.perfil.telefono || '';
-    if (clv) clv.value = '';
+    if (clv) clv.value = this._pinAdminGet(this._editorJugador.perfil.id) || '';
     this._pintarEditorJugador();
     this._mostrarPanelDerecho('admin-vista-editor', '✏️ ' + this._editorJugador.perfil.nombre);
   },
@@ -2502,15 +2577,17 @@ const Admin = {
     const nombre = (document.getElementById('admin-editor-nombre')?.value || '').trim();
     const telefono = (document.getElementById('admin-editor-telefono')?.value || '').trim().replace(/[\s-]/g, '');
     const claveNueva = document.getElementById('admin-editor-clave')?.value || '';
-    if (isNaN(oro) || oro < 0) { alert('Oro inválido'); return; }
-    if (isNaN(vida) || vida < 0 || vida > CONFIG.vidaMaxima) { alert('Vida inválida (0–' + CONFIG.vidaMaxima + ')'); return; }
-    if (nombre.length < 2) { alert('Nombre mínimo 2 letras'); return; }
-    if (telefono && !Usuarios.telefonoValido(telefono)) { alert('Teléfono inválido'); return; }
+    if (isNaN(oro) || oro < 0) { this._adminAviso('Oro inválido'); return; }
+    if (isNaN(vida) || vida < 0 || vida > CONFIG.vidaMaxima) { this._adminAviso('Vida inválida (0–' + CONFIG.vidaMaxima + ')'); return; }
+    if (nombre.length < 2) { this._adminAviso('Nombre mínimo 2 letras'); return; }
+    if (telefono && !Usuarios.telefonoValido(telefono)) { this._adminAviso('Teléfono inválido'); return; }
     const errNom = this.validarRegistro(nombre, telefono, ed.perfil.id);
-    if (errNom) { alert(errNom); return; }
+    if (errNom) { this._adminAviso(errNom); return; }
     if (claveNueva) {
       const errClave = Utilidades.claveCuentaValida(claveNueva);
-      if (errClave) { alert(errClave); return; }
+      if (errClave) { this._adminAviso(errClave); return; }
+    } else if (!ed.perfil.pinHash) {
+      this._adminAviso('Pon una contraseña para que el jugador pueda entrar'); return;
     }
     ed.partida.dinero = ed.partida.dinero || { saldo: 0 };
     ed.partida.dinero.saldo = oro;
@@ -2520,6 +2597,7 @@ const Admin = {
     ed.perfil.telefono = telefono;
     if (claveNueva) {
       ed.perfil.pinHash = await Utilidades.sha256('pin-perfil|' + claveNueva);
+      this._pinAdminSet(ed.perfil.id, claveNueva);
     }
     const local = Usuarios.datos.lista.find(p => p.id === ed.perfil.id);
     if (local) {
@@ -2534,9 +2612,41 @@ const Admin = {
     }
     this.registrarJugador(ed.perfil, true);
     await this._guardarPartidaJugador(ed.perfil, ed.partida);
-    Notificaciones.mostrar('✅ Datos de ' + nombre + ' guardados', 'exito');
+    this._adminAviso('✅ Datos de ' + nombre + ' guardados', 'exito');
     this._editorJugador = null;
     this.listarCuentas();
+  },
+
+  async _entrarComoJugador() {
+    const ed = this._editorJugador;
+    if (!ed) return;
+    const clave = document.getElementById('admin-editor-clave')?.value || '';
+    let perfil = Object.assign({}, ed.perfil);
+    if (clave) {
+      perfil.pinHash = await Utilidades.sha256('pin-perfil|' + clave);
+      this._pinAdminSet(perfil.id, clave);
+      this.guardar();
+    }
+    if (!perfil.pinHash) {
+      this._adminAviso('Este jugador no tiene contraseña. Escríbela y guarda primero.');
+      return;
+    }
+    const local = Usuarios.datos.lista.find(p => p.id === perfil.id);
+    const entrada = {
+      id: perfil.id,
+      nombre: perfil.nombre,
+      telefono: perfil.telefono || '',
+      telefonoCambiadoEn: local?.telefonoCambiadoEn || 0,
+      pinHash: perfil.pinHash,
+      creado: perfil.creado || Date.now()
+    };
+    const idx = Usuarios.datos.lista.findIndex(p => p.id === entrada.id);
+    if (idx >= 0) Usuarios.datos.lista[idx] = Object.assign(Usuarios.datos.lista[idx], entrada);
+    else Usuarios.datos.lista.push(entrada);
+    Usuarios._guardarLista();
+    this.registrarJugador(entrada, true);
+    await Usuarios._activar(entrada);
+    location.reload();
   },
 
   _abrirBanJugador(j) {

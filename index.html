@@ -13,7 +13,7 @@
   <script>
     // Aviso temprano en móvil (antes de cargar 20+ archivos JS)
     (function () {
-      var V = '42';
+      var V = '43';
       var texto = document.getElementById('carga-texto');
       if (texto) texto.textContent = 'Conectando…';
       var prev = localStorage.getItem('mariel_app_version');
@@ -188,6 +188,7 @@
         <input id="login-clave" type="password" placeholder="Contraseña (mín. 8, 1 mayúscula, 1 especial)" autocomplete="current-password">
         <button type="button" class="btn-ojo-clave" data-campo="login-clave">👁️</button>
       </div>
+      <div id="login-aviso" class="auth-aviso-mensaje oculto" role="alert"></div>
       <button id="btn-iniciar-sesion" class="btn-auth-principal">Entrar al juego</button>
       <button type="button" id="btn-ir-registro" class="btn-auth-secundario">Crear cuenta nueva</button>
     </div>
@@ -208,6 +209,7 @@
         <input id="registro-clave2" type="password" placeholder="Repetir contraseña" autocomplete="new-password">
         <button type="button" class="btn-ojo-clave" data-campo="registro-clave2">👁️</button>
       </div>
+      <div id="registro-aviso" class="auth-aviso-mensaje oculto" role="alert"></div>
       <button id="btn-crear-perfil" class="btn-auth-principal">Registrarme</button>
       <button type="button" id="btn-ir-login" class="btn-auth-secundario">Ya tengo cuenta</button>
     </div>
@@ -364,6 +366,7 @@
   <div id="ventana-admin" class="ventana oculto">
     <div class="ventana-caja ventana-admin-caja">
       <div class="ventana-titulo">🛠️ Administrador <button class="btn-cerrar" data-cierra="ventana-admin">✕</button></div>
+      <div id="admin-aviso-inline" class="admin-aviso-inline oculto" role="alert"></div>
       <div class="admin-layout">
         <nav id="lista-admin">
           <div class="admin-seccion-titulo">🗺️ Mapa</div>
@@ -384,8 +387,15 @@
           <button class="fila-opcion admin-nav" id="admin-jugadores"><span class="icono-opcion">👥</span> Lista</button>
           <button class="fila-opcion admin-nav" id="admin-mensaje"><span class="icono-opcion">✉️</span> Mensaje</button>
 
-          <div class="admin-seccion-titulo">🧰 Cofres</div>
-          <button class="fila-opcion admin-nav" id="admin-cofres-ocultos"><span class="icono-opcion">👻</span> Ocultos</button>
+          <button type="button" class="fila-opcion admin-carpeta" id="admin-carpeta-cofres">
+            <span class="admin-carpeta-flecha">▶</span>
+            <span class="icono-opcion">🧰</span> Cofres
+          </button>
+          <div class="admin-carpeta-contenido oculto" id="admin-carpeta-cofres-cont">
+            <button type="button" class="fila-opcion admin-nav admin-sub" id="admin-ver-cofres-ocultos">
+              <span class="icono-opcion">👻</span> <span id="admin-ver-cofres-ocultos-texto">Ver ocultos: OFF</span>
+            </button>
+          </div>
 
           <div class="admin-seccion-titulo">⚔️ Combate</div>
           <button class="fila-opcion admin-nav" id="admin-combate-config"><span class="icono-opcion">⚔️</span> Reglas globales</button>
@@ -469,8 +479,8 @@
                 <input id="admin-editor-telefono" type="tel" inputmode="numeric" autocomplete="off">
               </div>
               <div class="campo-admin">
-                <label for="admin-editor-clave">Nueva contraseña (opcional)</label>
-                <input id="admin-editor-clave" type="password" placeholder="Dejar vacío = no cambiar" autocomplete="new-password">
+                <label for="admin-editor-clave">Contraseña</label>
+                <input id="admin-editor-clave" type="password" placeholder="La usa el jugador para entrar" autocomplete="new-password">
               </div>
             </div>
             <div class="admin-editor-stats">
@@ -493,7 +503,10 @@
                 <div id="admin-rejilla-infinito" class="admin-rejilla-infinito"></div>
               </div>
             </div>
-            <button id="btn-admin-editor-guardar" class="btn-auth-principal admin-editor-guardar">Guardar cambios</button>
+            <div class="admin-editor-botones">
+              <button type="button" id="btn-admin-entrar-jugador" class="fila-opcion admin-btn-secundario">🎮 Entrar como este jugador</button>
+              <button id="btn-admin-editor-guardar" class="btn-auth-principal admin-editor-guardar">Guardar cambios</button>
+            </div>
           </div>
 
           <div id="admin-vista-ban" class="admin-vista oculto">
@@ -510,10 +523,6 @@
               <button id="admin-ban-perm" class="admin-ban-btn peligro">Permanente</button>
               <button id="admin-ban-quitar" class="admin-ban-btn ok">Quitar ban</button>
             </div>
-          </div>
-
-          <div id="admin-vista-cofres" class="admin-vista oculto">
-            <div id="admin-cofres-contenido"></div>
           </div>
 
           <div id="admin-vista-clave" class="admin-vista oculto">
@@ -538,16 +547,29 @@
           </div>
 
           <div id="admin-vista-mensaje" class="admin-vista oculto">
-            <div class="admin-clave-cuerpo">
-              <div class="campo-admin">
-                <label for="admin-msg-para">Para</label>
-                <select id="admin-msg-para"><option value="todos">Todos los jugadores</option></select>
+            <div class="admin-mensaje-cuerpo">
+              <div class="admin-mensaje-bloque">
+                <div class="admin-editor-seccion">Destinatario</div>
+                <div id="admin-msg-chips" class="admin-msg-chips"></div>
               </div>
-              <div class="campo-admin">
-                <label for="admin-msg-texto">Mensaje (globo rojo)</label>
-                <textarea id="admin-msg-texto" maxlength="300" placeholder="Escribe tu mensaje…"></textarea>
+              <div class="admin-mensaje-bloque">
+                <div class="admin-editor-seccion">Vista previa en el juego</div>
+                <div class="admin-msg-preview">
+                  <div class="admin-msg-globo">
+                    <span class="admin-msg-globo-etiqueta">✉️ Administrador</span>
+                    <span id="admin-msg-preview-texto">Escribe tu mensaje abajo…</span>
+                  </div>
+                </div>
               </div>
-              <button type="button" id="btn-admin-msg-enviar" class="btn-auth-principal">Enviar mensaje</button>
+              <div class="admin-mensaje-bloque">
+                <div class="admin-editor-seccion">Tu mensaje</div>
+                <div class="admin-msg-campo">
+                  <textarea id="admin-msg-texto" maxlength="300" rows="4" placeholder="Escribe el aviso para el jugador…"></textarea>
+                  <div class="admin-msg-contador"><span id="admin-msg-contador">0</span>/300</div>
+                </div>
+              </div>
+              <div id="admin-msg-aviso" class="auth-aviso-mensaje oculto" role="alert"></div>
+              <button type="button" id="btn-admin-msg-enviar" class="btn-auth-principal admin-mensaje-enviar">Enviar mensaje</button>
             </div>
           </div>
 

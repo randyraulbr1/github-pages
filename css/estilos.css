@@ -1191,3 +1191,172 @@ body.jugador-muerto #admin-controles { pointer-events: none; opacity: .35; }
 }
 .combate-graf-val { color: #e8eef8; font-weight: 700; font-variant-numeric: tabular-nums; text-align: right; }
 .admin-nav.admin-toggle-on { background: rgba(48, 209, 88, .18); border-color: #30d158; }
+
+/* ============ AUTH: avisos dentro de la pantalla ============ */
+.auth-aviso-mensaje {
+  margin: 10px 0 4px;
+  padding: 11px 14px;
+  border-radius: 12px;
+  font-size: 13px;
+  line-height: 1.45;
+  text-align: center;
+  background: rgba(255, 69, 58, .14);
+  border: 1px solid rgba(255, 69, 58, .35);
+  color: #ffb4ae;
+}
+.auth-aviso-mensaje.exito {
+  background: rgba(48, 209, 88, .12);
+  border-color: rgba(48, 209, 88, .35);
+  color: #8ae6a0;
+}
+.auth-aviso-mensaje.alerta {
+  background: rgba(255, 159, 10, .12);
+  border-color: rgba(255, 159, 10, .35);
+  color: #ffd08a;
+}
+
+/* ============ ADMIN: carpeta desplegable ============ */
+.admin-carpeta {
+  text-align: left;
+  gap: 6px;
+}
+.admin-carpeta-flecha {
+  width: 14px;
+  font-size: 10px;
+  color: #9aa5bd;
+  flex-shrink: 0;
+}
+.admin-carpeta-contenido {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding-left: 10px;
+  margin-bottom: 2px;
+}
+#lista-admin .fila-opcion.admin-sub {
+  padding: 10px 12px 10px 28px;
+  font-size: 12px;
+}
+
+/* ============ ADMIN: aviso inline ============ */
+.admin-aviso-inline {
+  margin: 0 12px 8px;
+  padding: 10px 14px;
+  border-radius: 12px;
+  font-size: 13px;
+  text-align: center;
+  background: rgba(255, 159, 10, .12);
+  border: 1px solid rgba(255, 159, 10, .3);
+  color: #ffd08a;
+}
+.admin-aviso-inline.exito {
+  background: rgba(48, 209, 88, .12);
+  border-color: rgba(48, 209, 88, .35);
+  color: #8ae6a0;
+}
+.admin-aviso-inline.error, .admin-aviso-inline.alerta {
+  background: rgba(255, 69, 58, .12);
+  border-color: rgba(255, 69, 58, .35);
+  color: #ffb4ae;
+}
+
+/* ============ ADMIN: mensaje estilo juego ============ */
+.admin-mensaje-cuerpo {
+  padding: 12px 14px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.admin-mensaje-bloque { display: flex; flex-direction: column; gap: 8px; }
+.admin-msg-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.admin-msg-chip {
+  padding: 9px 14px;
+  border-radius: 999px;
+  border: 1px solid rgba(255,255,255,.14);
+  background: rgba(255,255,255,.06);
+  color: #e8eef8;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.admin-msg-chip.activo {
+  background: rgba(61, 139, 253, .22);
+  border-color: #3d8bfd;
+  color: #fff;
+}
+.admin-msg-preview {
+  padding: 8px 4px 4px;
+}
+.admin-msg-globo {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 14px 16px;
+  border-radius: 16px 16px 16px 6px;
+  background: linear-gradient(145deg, rgba(255, 69, 58, .22), rgba(180, 30, 30, .28));
+  border: 1px solid rgba(255, 99, 88, .45);
+  box-shadow: 0 8px 24px rgba(0,0,0,.25);
+}
+.admin-msg-globo-etiqueta {
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+  color: #ff9d96;
+}
+#admin-msg-preview-texto {
+  font-size: 15px;
+  line-height: 1.45;
+  color: #fff;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+.admin-msg-campo {
+  position: relative;
+  border-radius: 14px;
+  border: 1px solid rgba(255,255,255,.12);
+  background: rgba(16, 20, 31, .85);
+  overflow: hidden;
+}
+.admin-msg-campo textarea {
+  width: 100%;
+  min-height: 88px;
+  padding: 14px 14px 28px;
+  border: none;
+  background: transparent;
+  color: #fff;
+  font-size: 15px;
+  line-height: 1.45;
+  resize: vertical;
+  outline: none;
+  font-family: inherit;
+}
+.admin-msg-contador {
+  position: absolute;
+  right: 12px;
+  bottom: 8px;
+  font-size: 11px;
+  color: #7a869e;
+}
+.admin-mensaje-enviar { margin-top: 4px; }
+
+.admin-editor-botones {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 0 14px 14px;
+}
+.admin-btn-secundario {
+  width: 100%;
+  justify-content: center;
+  border-radius: 14px;
+  background: rgba(61, 139, 253, .15);
+  border: 1px solid rgba(61, 139, 253, .35);
+  color: #9ec5ff;
+}
+.admin-editor-guardar { margin: 0 14px 14px; width: calc(100% - 28px); }
+.admin-editor-botones .admin-editor-guardar { margin: 0; width: 100%; }

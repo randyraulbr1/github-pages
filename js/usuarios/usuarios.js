@@ -41,6 +41,24 @@ const Usuarios = {
     document.body.classList.remove('en-auth');
   },
 
+  _mostrarAvisoAuth(pantalla, texto, tipo) {
+    const id = pantalla === 'registro' ? 'registro-aviso' : 'login-aviso';
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.textContent = texto;
+    el.className = 'auth-aviso-mensaje ' + (tipo || 'error');
+    el.classList.remove('oculto');
+  },
+
+  _limpiarAvisoAuth(pantalla) {
+    const id = pantalla === 'registro' ? 'registro-aviso' : 'login-aviso';
+    const el = document.getElementById(id);
+    if (el) {
+      el.textContent = '';
+      el.classList.add('oculto');
+    }
+  },
+
   mostrarLogin() {
     const carga = document.getElementById('pantalla-carga');
     if (carga) carga.classList.add('oculto');
@@ -49,6 +67,7 @@ const Usuarios = {
     document.getElementById('pantalla-login').classList.remove('oculto');
     document.getElementById('login-usuario').value = '';
     document.getElementById('login-clave').value = '';
+    this._limpiarAvisoAuth('login');
     this._enlazarOjos();
     MundoPublico.descargar().then(t => { if (t) this._mundoCache = t; }).catch(() => {});
   },
@@ -60,6 +79,7 @@ const Usuarios = {
       const el = document.getElementById(id);
       if (el) el.value = '';
     });
+    this._limpiarAvisoAuth('registro');
     this._enlazarOjos();
   },
 
@@ -148,8 +168,9 @@ const Usuarios = {
     const btn = document.getElementById('btn-iniciar-sesion');
     const usuario = document.getElementById('login-usuario').value.trim();
     const clave = document.getElementById('login-clave').value;
-    if (!usuario) { alert('Escribe tu nombre o teléfono'); return; }
-    if (!clave) { alert('Escribe tu contraseña'); return; }
+    if (!usuario) { this._mostrarAvisoAuth('login', 'Escribe tu nombre o teléfono'); return; }
+    if (!clave) { this._mostrarAvisoAuth('login', 'Escribe tu contraseña'); return; }
+    this._limpiarAvisoAuth('login');
 
     if (btn) { btn.disabled = true; btn.textContent = 'Entrando…'; }
 
@@ -160,14 +181,16 @@ const Usuarios = {
       if (!perfil) {
         const global = await this._buscarEnMundo(usuario);
         if (!global) {
-          alert('No existe esa cuenta.\n\nSi acabas de registrarte en OTRO teléfono, el admin debe publicar el mundo.\nSi fue en ESTE teléfono, regístrate de nuevo.');
+          this._mostrarAvisoAuth('login',
+            'No existe esa cuenta. Si te registraste en otro teléfono, el admin debe publicar el mundo. Si fue aquí, regístrate de nuevo.');
           return;
         }
         if (!global.pinHash) {
-          alert('Tu cuenta está en el servidor pero sin contraseña guardada.\nRegístrate de nuevo o pide al admin que publique el mundo.');
+          this._mostrarAvisoAuth('login',
+            'Tu cuenta está en el servidor sin contraseña. Regístrate de nuevo o pide al admin que publique el mundo.');
           return;
         }
-        if (hash !== global.pinHash) { alert('Contraseña incorrecta'); return; }
+        if (hash !== global.pinHash) { this._mostrarAvisoAuth('login', 'Contraseña incorrecta'); return; }
         perfil = {
           id: global.id,
           nombre: global.nombre,
@@ -182,22 +205,22 @@ const Usuarios = {
         this._guardarLista();
       } else {
         if (!perfil.pinHash) {
-          alert('Esta cuenta es antigua. Crea una cuenta nueva.');
+          this._mostrarAvisoAuth('login', 'Esta cuenta es antigua. Crea una cuenta nueva.');
           return;
         }
-        if (hash !== perfil.pinHash) { alert('Contraseña incorrecta'); return; }
+        if (hash !== perfil.pinHash) { this._mostrarAvisoAuth('login', 'Contraseña incorrecta'); return; }
       }
 
       if (typeof Admin !== 'undefined') {
         try { await Admin.actualizarJugadoresGlobales(); } catch (e) {}
         const ban = Admin.estadoBloqueoPara(perfil);
-        if (ban) { alert('🚫 ' + ban.mensaje); return; }
+        if (ban) { this._mostrarAvisoAuth('login', '🚫 ' + ban.mensaje); return; }
       }
 
       await this._activar(perfil);
     } catch (e) {
       console.error('Error en login:', e);
-      alert('Error al entrar. Intenta de nuevo.');
+      this._mostrarAvisoAuth('login', 'Error al entrar. Intenta de nuevo.');
     } finally {
       if (btn) { btn.disabled = false; btn.textContent = 'Entrar al juego'; }
     }
@@ -209,19 +232,20 @@ const Usuarios = {
     const clave = document.getElementById('registro-clave').value;
     const clave2 = document.getElementById('registro-clave2').value;
 
-    if (nombre.length < 2) { alert('Escribe tu nombre (mínimo 2 letras)'); return; }
+    if (nombre.length < 2) { this._mostrarAvisoAuth('registro', 'Escribe tu nombre (mínimo 2 letras)'); return; }
     if (!this.telefonoValido(telefono)) {
-      alert('Número inválido: solo números, mínimo 6 dígitos.');
+      this._mostrarAvisoAuth('registro', 'Número inválido: solo números, mínimo 6 dígitos.');
       return;
     }
     const errClave = Utilidades.claveCuentaValida(clave);
-    if (errClave) { alert(errClave); return; }
-    if (clave !== clave2) { alert('Las contraseñas no coinciden'); return; }
+    if (errClave) { this._mostrarAvisoAuth('registro', errClave); return; }
+    if (clave !== clave2) { this._mostrarAvisoAuth('registro', 'Las contraseñas no coinciden'); return; }
+    this._limpiarAvisoAuth('registro');
 
     if (typeof Admin !== 'undefined') {
       try { await Admin.actualizarJugadoresGlobales(); } catch (e) {}
       const errorRegistro = Admin.validarRegistro(nombre, telefono, null);
-      if (errorRegistro) { alert(errorRegistro); return; }
+      if (errorRegistro) { this._mostrarAvisoAuth('registro', errorRegistro); return; }
     }
 
     const perfil = {
