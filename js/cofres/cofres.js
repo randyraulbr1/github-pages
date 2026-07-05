@@ -110,9 +110,18 @@ const Cofres = {
     if (!confirm('¿Usar llave maestra cerca de un cofre oculto?\n15% de probabilidad de abrirlo (se gasta la llave).')) return;
     Mochila.quitar('llave_maestra', 1, 'Llave maestra usada');
     if (Math.random() < this.PROB_LLAVE) {
-      Guardado.datos.cofresAbiertos.push(mejor.id);
+      if (!Guardado.datos.cofresAbiertos.includes(mejor.id)) {
+        Guardado.datos.cofresAbiertos.push(mejor.id);
+      }
       Guardado.guardar();
-      Notificaciones.mostrar('🔓 ¡La llave abrió el cofre oculto!', 'exito', 5000);
+      if (mejor.pinRegistro) {
+        Mochila.agregar('nota_escrita', 1, {
+          texto: 'PIN del cofre oculto: ' + mejor.pinRegistro,
+          silencioso: true
+        });
+      }
+      Notificaciones.mostrar('🔓 ¡La llave abrió el cofre oculto!' +
+        (mejor.pinRegistro ? ' Recibiste una nota con el PIN.' : ''), 'exito', 6000);
       this._mostrarVentana(mejor);
     } else {
       Notificaciones.mostrar('La llave no funcionó (15% de suerte). Se gastó la llave.', 'alerta', 5000);
@@ -243,11 +252,68 @@ const Cofres = {
     this._mostrarVentana(cofre);
   },
 
+  _maxPila(id) {
+    return Items.seguro(id).unico ? 1 : (CONFIG.maxPila || 10);
+  },
+
+  _apilarEnSlots(slots, id, cantidad) {
+    let restante = cantidad;
+    const max = this._maxPila(id);
+    if (Items.seguro(id).unico) {
+      const vacio = slots.findIndex(s => !s);
+      if (vacio < 0 || restante <= 0) return restante;
+      slots[vacio] = { id, cantidad: 1 };
+      return restante - 1;
+    }
+    for (const sl of slots) {
+      if (restante <= 0) break;
+      if (sl && sl.id === id && sl.cantidad < max) {
+        const cabe = Math.min(restante, max - sl.cantidad);
+        sl.cantidad += cabe;
+        restante -= cabe;
+      }
+    }
+    for (let i = 0; i < slots.length && restante > 0; i++) {
+      if (!slots[i]) {
+        const poner = Math.min(restante, max);
+        slots[i] = { id, cantidad: poner };
+        restante -= poner;
+      }
+    }
+    return restante;
+  },
+
+  _moverEntreSlots(slots, origen, destino) {
+    const o = slots[origen];
+    const d = slots[destino];
+    if (!o) return;
+    const max = this._maxPila(o.id);
+    if (d && d.id === o.id && !Items.seguro(o.id).unico) {
+      const espacio = max - d.cantidad;
+      if (espacio <= 0) {
+        slots[destino] = o;
+        slots[origen] = d;
+      } else {
+        const mover = Math.min(o.cantidad, espacio);
+        d.cantidad += mover;
+        o.cantidad -= mover;
+        if (o.cantidad <= 0) slots[origen] = null;
+      }
+    } else {
+      slots[destino] = o;
+      slots[origen] = d || null;
+    }
+  },
+
   _mostrarVentana(cofre) {
     this._cofreActivo = cofre;
+    this._arrastre = null;
     document.getElementById('cofre-info').textContent =
       (cofre.visible ? 'Cofre visible — abierto para todos' : 'Cofre oculto') +
-      ' · ' + (cofre.creadorNombre || '—');
+      ' · ' + (cofre.creadorNombre || '—') + ' · máx. ' + (CONFIG.maxPila || 10) + ' por pila';
+    const esAdm = typeof Admin !== 'undefined' && Admin.esAdminJugador();
+    document.getElementById('cofre-admin-titulo').classList.toggle('oculto', !esAdm);
+    document.getElementById('rejilla-cofre-admin').classList.toggle('oculto', !esAdm);
     this._pintarRejillas();
     document.getElementById('ventana-cofre').classList.remove('oculto');
   },
@@ -261,51 +327,194 @@ const Cofres = {
     rc.innerHTML = '';
     rm.innerHTML = '';
     c.slots.forEach((sl, i) => {
-      const cel = document.createElement('button');
+      const cel = document.createElement('div');
       cel.className = 'slot cofre-slot';
+      cel.dataset.zona = 'cofre';
+      cel.dataset.indice = i;
       if (sl) {
         cel.textContent = Items.seguro(sl.id).icono;
         const cant = document.createElement('span');
         cant.className = 'cantidad';
         cant.textContent = sl.cantidad;
         cel.appendChild(cant);
+        cel.addEventListener('pointerdown', ev => this._empezarArrastre(ev, 'cofre', i));
       }
-      cel.addEventListener('click', () => this._moverAMochila(i));
       rc.appendChild(cel);
     });
     Mochila.slots.forEach((sl, i) => {
-      if (!sl) return;
-      const cel = document.createElement('button');
+      const cel = document.createElement('div');
       cel.className = 'slot cofre-slot';
-      cel.textContent = Items.seguro(sl.id).icono;
-      const cant = document.createElement('span');
-      cant.className = 'cantidad';
-      cant.textContent = sl.cantidad;
-      cel.appendChild(cant);
-      cel.addEventListener('click', () => this._moverACofre(i));
+      cel.dataset.zona = 'mochila';
+      cel.dataset.indice = i;
+      if (sl) {
+        cel.textContent = Items.seguro(sl.id).icono;
+        const cant = document.createElement('span');
+        cant.className = 'cantidad';
+        cant.textContent = sl.cantidad;
+        cel.appendChild(cant);
+        cel.addEventListener('pointerdown', ev => this._empezarArrastre(ev, 'mochila', i));
+      }
       rm.appendChild(cel);
     });
+    const ra = document.getElementById('rejilla-cofre-admin');
+    if (ra && typeof Admin !== 'undefined' && Admin.esAdminJugador()) {
+      Admin._pintarInventarioInfinito(ra, id =>
+        cel => cel.addEventListener('pointerdown', ev => this._empezarArrastre(ev, 'admin', id)));
+    }
   },
 
-  _moverACofre(slotMochila) {
+  _empezarArrastre(ev, zona, ref) {
+    ev.preventDefault();
+    const c = this._cofreActivo;
+    if (!c) return;
+    let sl = null;
+    if (zona === 'cofre') sl = c.slots[ref];
+    else if (zona === 'mochila') sl = Mochila.slots[ref];
+    else if (zona === 'admin') sl = { id: ref, cantidad: 1 };
+    if (!sl) return;
+    this._arrastre = { zona, ref, movio: false, x0: ev.clientX, y0: ev.clientY, fantasma: null, id: sl.id };
+    const mover = e => this._moverArrastre(e);
+    const soltar = e => {
+      window.removeEventListener('pointermove', mover);
+      window.removeEventListener('pointerup', soltar);
+      this._soltarArrastre(e);
+    };
+    window.addEventListener('pointermove', mover);
+    window.addEventListener('pointerup', soltar);
+  },
+
+  _moverArrastre(ev) {
+    const a = this._arrastre;
+    if (!a) return;
+    if (!a.movio && Math.hypot(ev.clientX - a.x0, ev.clientY - a.y0) < 8) return;
+    if (!a.movio) {
+      a.movio = true;
+      a.fantasma = document.createElement('div');
+      a.fantasma.id = 'item-fantasma';
+      a.fantasma.textContent = Items.seguro(a.id).icono;
+      document.body.appendChild(a.fantasma);
+    }
+    a.fantasma.style.left = ev.clientX + 'px';
+    a.fantasma.style.top = ev.clientY + 'px';
+    document.querySelectorAll('.cofre-slot.destino').forEach(el => el.classList.remove('destino'));
+    const bajo = document.elementFromPoint(ev.clientX, ev.clientY);
+    const slot = bajo?.closest?.('.cofre-slot');
+    if (slot) slot.classList.add('destino');
+  },
+
+  _soltarArrastre(ev) {
+    const a = this._arrastre;
+    this._arrastre = null;
+    if (a?.fantasma) a.fantasma.remove();
+    if (!a || !this._cofreActivo) return;
+
+    const bajo = document.elementFromPoint(ev.clientX, ev.clientY);
+    const destEl = bajo?.closest?.('.cofre-slot');
+    if (!destEl) {
+      if (a.movio && a.zona === 'cofre') this._cofreActivo.slots[a.ref] = null;
+      this._guardarCofre();
+      this._pintarRejillas();
+      return;
+    }
+    const destZona = destEl.dataset.zona;
+    const dest = parseInt(destEl.dataset.indice, 10);
+    if (isNaN(dest)) return;
+
+    if (!a.movio) {
+      if (a.zona === 'cofre' && destZona === 'mochila') this._pasarCofreAMochila(a.ref, 1);
+      else if (a.zona === 'mochila' && destZona === 'cofre') this._pasarMochilaACofre(a.ref, 1);
+      this._pintarRejillas();
+      return;
+    }
+
+    if (a.zona === 'admin' && destZona === 'cofre') {
+      const slots = this._cofreActivo.slots;
+      const sl = slots[dest];
+      const max = this._maxPila(a.id);
+      if (!sl) {
+        slots[dest] = { id: a.id, cantidad: 1 };
+        this._guardarCofre();
+      } else if (sl.id === a.id && sl.cantidad < max) {
+        sl.cantidad++;
+        this._guardarCofre();
+      } else {
+        Notificaciones.mostrar('Casilla ocupada o pila llena', 'alerta');
+      }
+    } else if (a.zona === 'admin' && destZona === 'mochila') {
+      const sl = Mochila.slots[dest];
+      const max = this._maxPila(a.id);
+      if (!sl) {
+        Mochila.slots[dest] = { id: a.id, cantidad: 1 };
+        Mochila.guardar();
+      } else if (sl.id === a.id && sl.cantidad < max) {
+        sl.cantidad++;
+        Mochila.guardar();
+      } else {
+        Notificaciones.mostrar('Casilla ocupada o pila llena', 'alerta');
+      }
+    } else if (a.zona === 'cofre' && destZona === 'cofre') {
+      if (a.ref !== dest) {
+        this._moverEntreSlots(this._cofreActivo.slots, a.ref, dest);
+        this._guardarCofre();
+      }
+    } else if (a.zona === 'mochila' && destZona === 'mochila') {
+      if (a.ref !== dest) Mochila.moverSlot(a.ref, dest);
+    } else if (a.zona === 'cofre' && destZona === 'mochila') {
+      this._pasarCofreAMochila(a.ref, this._cofreActivo.slots[a.ref]?.cantidad || 1, dest);
+    } else if (a.zona === 'mochila' && destZona === 'cofre') {
+      this._pasarMochilaACofre(a.ref, Mochila.slots[a.ref]?.cantidad || 1, dest);
+    }
+    this._pintarRejillas();
+  },
+
+  _pasarMochilaACofre(slotMochila, cantidad, slotCofreDestino) {
     const sl = Mochila.slots[slotMochila];
     if (!sl || !this._cofreActivo) return;
-    const vacio = this._cofreActivo.slots.findIndex(s => !s);
-    if (vacio < 0) { Notificaciones.mostrar('Cofre lleno (6 casillas)', 'alerta'); return; }
-    this._cofreActivo.slots[vacio] = { id: sl.id, cantidad: 1 };
-    Mochila.quitar(sl.id, 1, 'Guardado en cofre');
+    const mover = Math.min(cantidad, sl.cantidad);
+    const copia = JSON.parse(JSON.stringify(this._cofreActivo.slots));
+    if (slotCofreDestino != null && !isNaN(slotCofreDestino)) {
+      if (!copia[slotCofreDestino]) copia[slotCofreDestino] = { id: sl.id, cantidad: 0 };
+      if (copia[slotCofreDestino].id && copia[slotCofreDestino].id !== sl.id) {
+        Notificaciones.mostrar('Casilla ocupada por otro objeto', 'alerta');
+        return;
+      }
+      const max = this._maxPila(sl.id);
+      const cabe = Math.min(mover, max - (copia[slotCofreDestino].cantidad || 0));
+      if (cabe <= 0) { Notificaciones.mostrar('Pila al máximo (' + max + ')', 'alerta'); return; }
+      copia[slotCofreDestino] = { id: sl.id, cantidad: (copia[slotCofreDestino].cantidad || 0) + cabe };
+      if (!Mochila.quitar(sl.id, cabe, 'Guardado en cofre')) return;
+      this._cofreActivo.slots = copia;
+    } else {
+      const rest = this._apilarEnSlots(copia, sl.id, mover);
+      const puesto = mover - rest;
+      if (puesto <= 0) { Notificaciones.mostrar('Cofre lleno', 'alerta'); return; }
+      if (!Mochila.quitar(sl.id, puesto, 'Guardado en cofre')) return;
+      this._cofreActivo.slots = copia;
+    }
     this._guardarCofre();
-    this._pintarRejillas();
   },
 
-  _moverAMochila(slotCofre) {
+  _pasarCofreAMochila(slotCofre, cantidad, slotMochilaDestino) {
     const sl = this._cofreActivo.slots[slotCofre];
     if (!sl) return;
-    if (!Mochila.agregar(sl.id, 1, { silencioso: true })) return;
-    sl.cantidad--;
-    if (sl.cantidad <= 0) this._cofreActivo.slots[slotCofre] = null;
+    const mover = Math.min(cantidad, sl.cantidad);
+    if (slotMochilaDestino != null && !isNaN(slotMochilaDestino)) {
+      const dest = Mochila.slots[slotMochilaDestino];
+      const max = this._maxPila(sl.id);
+      if (dest && dest.id !== sl.id) {
+        Notificaciones.mostrar('Casilla ocupada por otro objeto', 'alerta');
+        return;
+      }
+      const cabe = dest ? Math.min(mover, max - dest.cantidad) : Math.min(mover, max);
+      if (cabe <= 0 || !Mochila.agregar(sl.id, cabe, { silencioso: true })) return;
+      sl.cantidad -= cabe;
+      if (sl.cantidad <= 0) this._cofreActivo.slots[slotCofre] = null;
+    } else {
+      if (!Mochila.agregar(sl.id, mover, { silencioso: true })) return;
+      sl.cantidad -= mover;
+      if (sl.cantidad <= 0) this._cofreActivo.slots[slotCofre] = null;
+    }
     this._guardarCofre();
-    this._pintarRejillas();
   },
 
   _guardarCofre() {

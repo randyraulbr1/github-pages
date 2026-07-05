@@ -56,10 +56,10 @@ const Mochila = {
   agregar(id, cantidad = 1, opciones = {}) {
     const item = Items.obtener(id);
     if (!item) return false;
+    const maxPila = item.unico ? 1 : (CONFIG.maxPila || 10);
 
     let restante = cantidad;
     if (item.unico) {
-      // Items únicos (como las notas escritas): 1 por casilla, no se apilan
       for (let i = 0; i < this.slots.length && restante > 0; i++) {
         if (!this.slots[i]) {
           this.slots[i] = { id, cantidad: 1 };
@@ -68,14 +68,20 @@ const Mochila = {
         }
       }
     } else {
-      // Primero apilar sobre casillas que ya tengan el mismo item
       for (const sl of this.slots) {
         if (restante <= 0) break;
-        if (sl && sl.id === id) { sl.cantidad += restante; restante = 0; }
+        if (sl && sl.id === id && sl.cantidad < maxPila) {
+          const cabe = Math.min(restante, maxPila - sl.cantidad);
+          sl.cantidad += cabe;
+          restante -= cabe;
+        }
       }
-      // Luego usar casillas vacías
       for (let i = 0; i < this.slots.length && restante > 0; i++) {
-        if (!this.slots[i]) { this.slots[i] = { id, cantidad: restante }; restante = 0; }
+        if (!this.slots[i]) {
+          const poner = Math.min(restante, maxPila);
+          this.slots[i] = { id, cantidad: poner };
+          restante -= poner;
+        }
       }
     }
     if (restante > 0) {
@@ -213,11 +219,20 @@ const Mochila = {
     const o = this.slots[origen];
     const d = this.slots[destino];
     if (!o) return;
+    const maxPila = CONFIG.maxPila || 10;
     if (d && d.id === o.id && !Items.seguro(o.id).unico) {
-      d.cantidad += o.cantidad;            // apilar iguales
-      this.slots[origen] = null;
+      const espacio = maxPila - d.cantidad;
+      if (espacio <= 0) {
+        this.slots[destino] = o;
+        this.slots[origen] = d;
+      } else {
+        const mover = Math.min(o.cantidad, espacio);
+        d.cantidad += mover;
+        o.cantidad -= mover;
+        if (o.cantidad <= 0) this.slots[origen] = null;
+      }
     } else {
-      this.slots[destino] = o;             // mover o intercambiar
+      this.slots[destino] = o;
       this.slots[origen] = d || null;
     }
     this.guardar();
