@@ -130,13 +130,6 @@
 
     if (typeof Admin !== 'undefined' && Admin.mostrarMensajes) Admin.mostrarMensajes();
     if (typeof Notificaciones !== 'undefined') Notificaciones._actualizarBadge();
-
-    document.querySelectorAll('img[data-respaldo]').forEach(function (img) {
-      img.addEventListener('error', function () {
-        const alt = img.getAttribute('data-respaldo');
-        if (alt && img.getAttribute('src') !== alt) img.setAttribute('src', alt);
-      });
-    });
   } catch (e) {
     console.error('Error arrancando Mariel Explorer:', e);
     if (textoCarga) {

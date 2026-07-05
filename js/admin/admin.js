@@ -1055,31 +1055,23 @@ const Admin = {
   },
 
   _arrastreAdmARejilla(ev, itemId, arr, rejId, claseSlot) {
-    ev.preventDefault();
-    const act = { itemId, x0: ev.clientX, y0: ev.clientY, movio: false };
-    const mover = e => {
-      if (Math.hypot(e.clientX - act.x0, e.clientY - act.y0) >= 8) act.movio = true;
-    };
-    const soltar = e => {
-      window.removeEventListener('pointermove', mover);
-      window.removeEventListener('pointerup', soltar);
-      if (!act.movio) {
-        this._tapAdmARejilla(act.itemId, arr, rejId, claseSlot);
-        return;
+    const icono = Items.seguro(itemId).icono;
+    this._iniciarArrastreFantasma(ev, {
+      icono,
+      selectorDestino: '.' + claseSlot,
+      onTap: () => this._tapAdmARejilla(itemId, arr, rejId, claseSlot),
+      onSoltar: (bajo) => {
+        const slot = bajo?.closest?.('.' + claseSlot);
+        if (slot) {
+          const idx = parseInt(slot.dataset.indice, 10);
+          arr[idx] = { id: itemId, cantidad: 1 };
+        } else {
+          const vacio = arr.findIndex(s => !s);
+          if (vacio >= 0) arr[vacio] = { id: itemId, cantidad: 1 };
+        }
+        this._pintarRejillaGenerica(rejId, arr, claseSlot);
       }
-      const bajo = document.elementFromPoint(e.clientX, e.clientY);
-      const slot = bajo?.closest?.('.' + claseSlot);
-      if (slot) {
-        const idx = parseInt(slot.dataset.indice, 10);
-        arr[idx] = { id: act.itemId, cantidad: 1 };
-      } else {
-        const vacio = arr.findIndex(s => !s);
-        if (vacio >= 0) arr[vacio] = { id: act.itemId, cantidad: 1 };
-      }
-      this._pintarRejillaGenerica(rejId, arr, claseSlot);
-    };
-    window.addEventListener('pointermove', mover);
-    window.addEventListener('pointerup', soltar);
+    });
   },
 
   _enlazarAdmRejilla(infinitoId, arr, rejId, claseSlot) {
@@ -1141,17 +1133,69 @@ const Admin = {
     cont.innerHTML = html;
   },
 
+  _iniciarArrastreFantasma(ev, cfg) {
+    ev.preventDefault();
+    const act = { x0: ev.clientX, y0: ev.clientY, movio: false, fantasma: null };
+    const quitarDestino = () => {
+      if (cfg.selectorDestino) {
+        document.querySelectorAll(cfg.selectorDestino + '.destino').forEach(el => el.classList.remove('destino'));
+      }
+    };
+    const mover = e => {
+      if (!act.movio && Math.hypot(e.clientX - act.x0, e.clientY - act.y0) < 8) return;
+      if (!act.movio) {
+        act.movio = true;
+        act.fantasma = document.createElement('div');
+        act.fantasma.id = 'item-fantasma';
+        act.fantasma.textContent = cfg.icono || '📦';
+        document.body.appendChild(act.fantasma);
+      }
+      act.fantasma.style.left = e.clientX + 'px';
+      act.fantasma.style.top = e.clientY + 'px';
+      quitarDestino();
+      const bajo = document.elementFromPoint(e.clientX, e.clientY);
+      if (cfg.selectorDestino && bajo?.closest?.(cfg.selectorDestino)) {
+        bajo.closest(cfg.selectorDestino).classList.add('destino');
+      }
+    };
+    const soltar = e => {
+      window.removeEventListener('pointermove', mover);
+      window.removeEventListener('pointerup', soltar);
+      if (act.fantasma) act.fantasma.remove();
+      quitarDestino();
+      const bajo = document.elementFromPoint(e.clientX, e.clientY);
+      if (!act.movio) {
+        if (cfg.onTap) cfg.onTap();
+        return;
+      }
+      if (cfg.onSoltar) cfg.onSoltar(bajo, act);
+    };
+    window.addEventListener('pointermove', mover);
+    window.addEventListener('pointerup', soltar);
+  },
+
   _slotRejillaArrastre(ev, arr, rejId, i, claseSlot) {
     const sl = arr[i];
     if (!sl) return;
-    ev.preventDefault();
-    const soltar = e => {
-      window.removeEventListener('pointerup', soltar);
-      const bajo = document.elementFromPoint(e.clientX, e.clientY);
-      if (!bajo?.closest?.('.' + claseSlot)) arr[i] = null;
-      this._pintarRejillaGenerica(rejId, arr, claseSlot);
-    };
-    window.addEventListener('pointerup', soltar);
+    const icono = Items.seguro(sl.id).icono;
+    this._iniciarArrastreFantasma(ev, {
+      icono,
+      selectorDestino: '.' + claseSlot,
+      onSoltar: (bajo) => {
+        const slot = bajo?.closest?.('.' + claseSlot);
+        if (slot) {
+          const dest = parseInt(slot.dataset.indice, 10);
+          if (dest !== i) {
+            const tmp = arr[i];
+            arr[i] = arr[dest] || null;
+            arr[dest] = tmp;
+          }
+        } else {
+          arr[i] = null;
+        }
+        this._pintarRejillaGenerica(rejId, arr, claseSlot);
+      }
+    });
   },
 
   _valor(id) { const el = document.getElementById(id); return el ? el.value : ''; },
@@ -3137,23 +3181,15 @@ const Admin = {
 
   // ---------- TIENDA ADMIN ----------
   _arrastreAdmATienda(ev, itemId) {
-    ev.preventDefault();
-    const act = { itemId, x0: ev.clientX, y0: ev.clientY, movio: false };
-    const mover = e => {
-      if (Math.hypot(e.clientX - act.x0, e.clientY - act.y0) >= 8) act.movio = true;
-    };
-    const soltar = e => {
-      window.removeEventListener('pointermove', mover);
-      window.removeEventListener('pointerup', soltar);
-      if (!act.movio) {
-        this._agregarATiendaRejilla(act.itemId);
-        return;
+    const icono = Items.seguro(itemId).icono;
+    this._iniciarArrastreFantasma(ev, {
+      icono,
+      selectorDestino: '.tienda-slot',
+      onTap: () => this._agregarATiendaRejilla(itemId),
+      onSoltar: (bajo) => {
+        if (bajo?.closest?.('.tienda-slot')) this._agregarATiendaRejilla(itemId);
       }
-      const bajo = document.elementFromPoint(e.clientX, e.clientY);
-      if (bajo?.closest?.('.tienda-slot')) this._agregarATiendaRejilla(act.itemId);
-    };
-    window.addEventListener('pointermove', mover);
-    window.addEventListener('pointerup', soltar);
+    });
   },
 
   _agregarATiendaRejilla(itemId) {

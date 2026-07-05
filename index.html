@@ -13,7 +13,7 @@
   <script>
     // Aviso temprano en móvil (antes de cargar 20+ archivos JS)
     (function () {
-      var V = '46';
+      var V = '47';
       var texto = document.getElementById('carga-texto');
       if (texto) texto.textContent = 'Conectando…';
       var prev = localStorage.getItem('mariel_app_version');
@@ -112,12 +112,9 @@
       </div>
     </div>
     <div id="hud-acciones-mini">
-      <button id="btn-opciones" class="btn-hud-accion btn-icono-juego" type="button" title="Opciones">
-        <img src="iconos/opciones.png" alt="" class="btn-hud-img" data-respaldo="iconos/botones/btn-opciones.png">
-      </button>
-      <button id="btn-notific" class="btn-hud-accion btn-icono-juego" type="button" title="Avisos">
-        <img src="iconos/notific.png" alt="" class="btn-hud-img" data-respaldo="iconos/botones/btn-notific.png">
-        <span id="badge-avisos" class="badge-avisos oculto">●</span>
+      <button id="btn-opciones" class="btn-hud-accion" type="button" title="Opciones">⚙️</button>
+      <button id="btn-notific" class="btn-hud-accion" type="button" title="Avisos">
+        🔔<span id="badge-avisos" class="badge-avisos oculto">●</span>
       </button>
     </div>
     <div id="letrero-misiones" class="oculto"></div>
@@ -157,13 +154,15 @@
 
   <!-- BOTONES INFERIORES (burbujas) -->
   <div id="botones-inferiores">
-    <button id="btn-mochila" class="btn-burbuja btn-icono-juego" type="button" title="Mochila">
-      <img src="iconos/mochila.png" alt="" class="btn-juego-img" data-respaldo="iconos/botones/btn-mochila.png">
-      <span class="burbuja-texto">Mochila</span>
+    <div id="hud-dinero-mini" title="Tu dinero">
+      <span class="hud-dinero-icono">💰</span>
+      <span id="hud-dinero-cantidad">$0</span>
+    </div>
+    <button id="btn-mochila" class="btn-burbuja" type="button" title="Mochila">
+      <span class="burbuja-icono">🎒</span><span class="burbuja-texto">Mochila</span>
     </button>
-    <button id="btn-gps" class="btn-burbuja btn-icono-juego" type="button" title="GPS">
-      <img src="iconos/gps.png" alt="" class="btn-juego-img" data-respaldo="iconos/botones/btn-gps.png">
-      <span class="burbuja-texto">GPS</span>
+    <button id="btn-gps" class="btn-burbuja" type="button" title="GPS">
+      <span class="burbuja-icono">📍</span><span class="burbuja-texto">GPS</span>
     </button>
     <button id="btn-admin" class="btn-burbuja oculto"><span class="burbuja-icono">🛠️</span><span class="burbuja-texto">Admin</span></button>
   </div>
@@ -223,13 +222,6 @@
   <div id="ventana-mochila" class="ventana oculto">
     <div class="ventana-caja">
       <div class="ventana-titulo">🎒 Mochila <button class="btn-cerrar" data-cierra="ventana-mochila">✕</button></div>
-      <div id="mochila-dinero-bar" class="mochila-dinero-bar" title="Tu dinero">
-        <span class="mochila-dinero-etiqueta">💰 Dinero</span>
-        <div id="mochila-dinero-contenedor" class="mochila-dinero-contenedor">
-          <div id="mochila-dinero-relleno"></div>
-          <span id="mochila-dinero-cantidad">$0</span>
-        </div>
-      </div>
       <div id="rejilla-mochila"></div>
       <div id="detalle-item" class="oculto">
         <div id="detalle-icono"></div>
@@ -710,40 +702,40 @@
   </div>
 
   <!-- LIBRERÍAS -->
-  <script src="lib/leaflet/leaflet.js?v=46"></script>
+  <script src="lib/leaflet/leaflet.js?v=47"></script>
 
   <!-- MÓDULOS DEL JUEGO (orden importante) -->
-  <script src="js/config/config.js?v=46"></script>
-  <script src="js/nucleo/utilidades.js?v=46"></script>
-  <script src="js/mundo/mundo_publico.js?v=46"></script>
-  <script src="js/notificaciones/notificaciones.js?v=46"></script>
-  <script src="js/usuarios/usuarios.js?v=46"></script>
-  <script src="js/guardado/guardado.js?v=46"></script>
-  <script src="js/historial/historial.js?v=46"></script>
-  <script src="js/dinero/dinero.js?v=46"></script>
-  <script src="js/vida/vida.js?v=46"></script>
-  <script src="js/items/items.js?v=46"></script>
-  <script src="js/mochila/mochila.js?v=46"></script>
-  <script src="js/mapa/mapa.js?v=46"></script>
-  <script src="js/gps/gps.js?v=46"></script>
-  <script src="js/tiendas/datos_tiendas.js?v=46"></script>
-  <script src="js/tiendas/tiendas.js?v=46"></script>
-  <script src="js/pesca/pesca.js?v=46"></script>
-  <script src="js/tesoros/datos_tesoros.js?v=46"></script>
-  <script src="js/tesoros/tesoros.js?v=46"></script>
-  <script src="js/misiones/datos_misiones.js?v=46"></script>
-  <script src="js/misiones/misiones.js?v=46"></script>
-  <script src="js/cofres/cofres.js?v=46"></script>
-  <script src="js/correo/correo.js?v=46"></script>
-  <script src="js/enemigos/enemigos.js?v=46"></script>
-  <script src="js/admin/admin.js?v=46"></script>
-  <script src="js/opciones/opciones.js?v=46"></script>
-  <script src="js/principal.js?v=46"></script>
+  <script src="js/config/config.js?v=47"></script>
+  <script src="js/nucleo/utilidades.js?v=47"></script>
+  <script src="js/mundo/mundo_publico.js?v=47"></script>
+  <script src="js/notificaciones/notificaciones.js?v=47"></script>
+  <script src="js/usuarios/usuarios.js?v=47"></script>
+  <script src="js/guardado/guardado.js?v=47"></script>
+  <script src="js/historial/historial.js?v=47"></script>
+  <script src="js/dinero/dinero.js?v=47"></script>
+  <script src="js/vida/vida.js?v=47"></script>
+  <script src="js/items/items.js?v=47"></script>
+  <script src="js/mochila/mochila.js?v=47"></script>
+  <script src="js/mapa/mapa.js?v=47"></script>
+  <script src="js/gps/gps.js?v=47"></script>
+  <script src="js/tiendas/datos_tiendas.js?v=47"></script>
+  <script src="js/tiendas/tiendas.js?v=47"></script>
+  <script src="js/pesca/pesca.js?v=47"></script>
+  <script src="js/tesoros/datos_tesoros.js?v=47"></script>
+  <script src="js/tesoros/tesoros.js?v=47"></script>
+  <script src="js/misiones/datos_misiones.js?v=47"></script>
+  <script src="js/misiones/misiones.js?v=47"></script>
+  <script src="js/cofres/cofres.js?v=47"></script>
+  <script src="js/correo/correo.js?v=47"></script>
+  <script src="js/enemigos/enemigos.js?v=47"></script>
+  <script src="js/admin/admin.js?v=47"></script>
+  <script src="js/opciones/opciones.js?v=47"></script>
+  <script src="js/principal.js?v=47"></script>
   <script>
     // Registrar la app instalable (PWA)
     if ('serviceWorker' in navigator) {
       const yaTeniaVersion = !!navigator.serviceWorker.controller;
-      navigator.serviceWorker.register('sw.js?v=46', { updateViaCache: 'none' })
+      navigator.serviceWorker.register('sw.js?v=47', { updateViaCache: 'none' })
         .then(function (reg) { reg.update(); })
         .catch(function () {});
       // Cuando llega una versión nueva del juego: avisar y recargar solo

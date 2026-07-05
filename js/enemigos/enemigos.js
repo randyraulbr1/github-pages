@@ -237,8 +237,8 @@ const Enemigos = {
       else if (!enExterior && Mapa.mapa.hasLayer(zR)) Mapa.mapa.removeLayer(zR);
     }
     if (zA) {
-      if (enZona && !Mapa.mapa.hasLayer(zA)) zA.addTo(Mapa.mapa);
-      else if (!enZona && Mapa.mapa.hasLayer(zA)) Mapa.mapa.removeLayer(zA);
+      if (enExterior && enZona && !Mapa.mapa.hasLayer(zA)) zA.addTo(Mapa.mapa);
+      else if ((!enExterior || !enZona) && Mapa.mapa.hasLayer(zA)) Mapa.mapa.removeLayer(zA);
     }
   },
 

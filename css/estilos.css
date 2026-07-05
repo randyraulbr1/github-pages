@@ -167,38 +167,35 @@ button { font-family: inherit; }
   filter: drop-shadow(0 0 8px rgba(255,69,58,.75));
 }
 
-.btn-hud-img, .btn-juego-img {
-  display: block;
-  object-fit: contain;
-  object-position: center;
-  pointer-events: none;
-  user-select: none;
-  -webkit-user-drag: none;
-  background: transparent;
-  max-width: 100%;
-  image-rendering: auto;
-}
-.btn-hud-img {
-  width: clamp(32px, 9vw, 42px);
-  height: clamp(32px, 9vw, 42px);
-}
-.btn-juego-img {
-  width: clamp(46px, 13vw, 60px);
-  height: clamp(46px, 13vw, 60px);
-}
-.btn-icono-juego {
-  background: transparent !important;
-  border: none;
-  box-shadow: none;
-}
-.btn-burbuja.btn-icono-juego .burbuja-icono { display: none; }
-#btn-gps.activo .btn-juego-img {
-  filter: drop-shadow(0 0 10px rgba(56,198,255,.85)) brightness(1.08);
-}
 .btn-hud-accion:active { transform: scale(.92); }
 .btn-hud-accion .badge-avisos {
   position: absolute; top: -3px; right: -3px;
   font-size: 8px; color: #ff453a;
+}
+
+#hud-dinero-mini {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 2px;
+  min-width: 44px;
+  padding-bottom: 6px;
+  pointer-events: none;
+  user-select: none;
+}
+.hud-dinero-icono {
+  font-size: 14px;
+  line-height: 1;
+  filter: drop-shadow(0 1px 2px rgba(0,0,0,.75));
+}
+#hud-dinero-cantidad {
+  font-size: 11px;
+  font-weight: 800;
+  color: #ffe28a;
+  text-shadow: -1px -1px 0 #1a1a1a, 1px -1px 0 #1a1a1a, -1px 1px 0 #1a1a1a, 1px 1px 0 #1a1a1a;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
 }
 
 #contenedor-dinero {
@@ -227,10 +224,9 @@ button { font-family: inherit; }
   max-width: min(100vw, 480px); padding: 0 clamp(6px, 2vw, 16px);
 }
 @media (min-width: 768px) {
-  #botones-inferiores { max-width: 520px; gap: 16px; }
+  #botones-inferiores { max-width: 560px; gap: 16px; }
   #panel-hud-izq { max-width: min(280px, 28vw); }
-  .btn-juego-img { width: clamp(52px, 8vw, 64px); height: clamp(52px, 8vw, 64px); }
-  .btn-hud-img, .btn-hud-accion { width: clamp(36px, 5vw, 44px); height: clamp(36px, 5vw, 44px); }
+  #hud-dinero-cantidad { font-size: 12px; }
 }
 @media (min-width: 1024px) {
   #botones-inferiores { bottom: calc(16px + env(safe-area-inset-bottom)); }
@@ -259,6 +255,11 @@ button { font-family: inherit; }
 #btn-misiones .burbuja-icono { background: radial-gradient(circle at 32% 26%, #8ef2a5, #35d461 55%, #16a34a 100%); }
 #btn-historial .burbuja-icono { background: radial-gradient(circle at 32% 26%, #d3a7ff, #b06cf5 55%, #7e3ff2 100%); }
 #btn-admin    .burbuja-icono { background: radial-gradient(circle at 32% 26%, #9ec5ff, #3d8bfd 55%, #1d4ed8 100%); }
+#btn-gps.activo .burbuja-icono {
+  box-shadow: 0 0 14px rgba(56,198,255,.85), 0 4px 8px rgba(0,0,0,.4),
+              inset 0 4px 6px rgba(255,255,255,.45),
+              inset 0 -6px 8px rgba(0,0,0,.28);
+}
 
 /* Aviso de actualización automática */
 #aviso-actualizacion {
@@ -865,36 +866,7 @@ body.en-auth #zona-notificaciones { display: none !important; }
 .overlay-mision-btn.peligro { background: rgba(255,69,58,.2); color: #ffb4ae; border: 1px solid rgba(255,69,58,.4); }
 .overlay-mision-btn.secundario { background: rgba(255,255,255,.08); color: #cdd6e6; border: 1px solid rgba(255,255,255,.12); }
 
-/* ============ DINERO EN MOCHILA ============ */
-.mochila-dinero-bar {
-  display: flex; align-items: center; gap: 10px;
-  margin: 0 14px 12px; padding: 10px 12px;
-  border-radius: 14px;
-  background: linear-gradient(135deg, rgba(200,134,10,.18), rgba(255,178,32,.12));
-  border: 1px solid rgba(255,178,32,.35);
-}
-.mochila-dinero-etiqueta {
-  font-size: 13px; font-weight: 800; color: #ffe28a;
-  flex-shrink: 0; white-space: nowrap;
-}
-.mochila-dinero-contenedor {
-  position: relative; flex: 1; height: 28px;
-  border-radius: 14px; overflow: hidden;
-  border: 1px solid rgba(255,226,138,.35);
-  background: rgba(0,0,0,.25);
-}
-#mochila-dinero-relleno {
-  position: absolute; inset: 0; width: 0;
-  background: linear-gradient(90deg, #a86a08, #ffb020, #ffe28a);
-  transition: width .4s ease;
-}
-#mochila-dinero-cantidad {
-  position: absolute; inset: 0;
-  display: flex; align-items: center; justify-content: center;
-  font-size: 15px; font-weight: 800; color: #fff;
-  text-shadow: 0 1px 3px rgba(0,0,0,.85);
-  font-variant-numeric: tabular-nums; z-index: 1;
-}
+/* ============ DINERO HUD (junto a mochila) ============ */
 #rejilla-cofre {
   display: grid; grid-template-columns: repeat(6, 1fr); gap: 6px; padding: 10px 14px;
 }
@@ -955,7 +927,12 @@ body.sesion-cerrada .ventana { display: none !important; }
   cursor: grab;
   touch-action: none;
 }
-.admin-slot-jugador.destino { border-color: #3d8bfd; background: rgba(61,139,253,.22); }
+.admin-slot-jugador.destino,
+.tienda-slot.destino,
+.tesoro-slot.destino,
+.objeto-slot.destino,
+.cofre-slot.destino,
+.mision-recompensa-slot.destino { border-color: #3d8bfd; background: rgba(61,139,253,.22); }
 .admin-ban-botones { display: flex; flex-wrap: wrap; gap: 8px; padding: 14px; }
 .admin-ban-btn {
   flex: 1 1 calc(50% - 8px); min-width: 100px; padding: 12px 8px;
