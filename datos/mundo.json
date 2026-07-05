@@ -42,6 +42,13 @@
       "pinHash": "4bdc96ffc0926b62d55708e3c1755ca3f04b8c28bec6fd85777117da67497f11",
       "sesionToken": "mr89zka633oy2hud5i",
       "sesionT": 1783285238382
+    },
+    {
+      "id": "pmr8at78bi3vki",
+      "nombre": "22",
+      "telefono": "2352647622",
+      "creado": 1783286621148,
+      "pinHash": "0a22b58a09f93652ac592f9424e5dedbeb450965c0e7ddc5b46f8ab21aa96bb1"
     }
   ],
   "cofres": [],
@@ -149,7 +156,55 @@
         "armaEquipada": null
       },
       "t": 1783286620349
+    },
+    "pmr8at78bi3vki": {
+      "datos": {
+        "mochila": [
+          {
+            "id": "agua",
+            "cantidad": 2
+          },
+          {
+            "id": "pan",
+            "cantidad": 1
+          },
+          {
+            "id": "botiquin",
+            "cantidad": 1
+          },
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null
+        ],
+        "dinero": {
+          "saldo": 100,
+          "control": "68e382a3687042dcd0420432d9bf210eada6d12606b6ecd367d18c724c2f4b38"
+        },
+        "vida": 100,
+        "hambre": 50,
+        "muerto": false
+      },
+      "t": 1783286621148
     }
   },
-  "actualizadoEn": 1783286620532
+  "actualizadoEn": 1783286622233
 }
