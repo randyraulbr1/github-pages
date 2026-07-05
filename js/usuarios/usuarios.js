@@ -259,6 +259,9 @@ const Usuarios = {
       }
 
       await this._activar(perfil);
+      if (typeof Multijugador !== 'undefined') {
+        Multijugador.sincronizarCuenta(usuario, clave).then(() => Multijugador.iniciar()).catch(() => {});
+      }
     } catch (e) {
       console.error('Error en login:', e);
       this._mostrarAvisoAuth('login', 'Error al entrar. Intenta de nuevo.');
@@ -309,6 +312,9 @@ const Usuarios = {
       );
     }
     await this._activar(perfil);
+    if (typeof Multijugador !== 'undefined') {
+      Multijugador.sincronizarCuenta(nombre, clave).then(() => Multijugador.iniciar()).catch(() => {});
+    }
   },
 
   async _activar(perfil) {

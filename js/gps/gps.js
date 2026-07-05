@@ -66,6 +66,9 @@ const GPS = {
     Guardado.datos.posicionJugador = nuevaPosicion;
     Guardado.guardar();
     Mapa.jugadorSeMovio(nuevaPosicion);
+    if (typeof Multijugador !== 'undefined') {
+      Multijugador.enviarPosicion(nuevaPosicion[0], nuevaPosicion[1], false);
+    }
   },
 
   alternarGpsReal() {

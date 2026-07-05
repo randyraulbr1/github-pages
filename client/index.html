@@ -2,90 +2,12 @@
 <html lang="es">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>Mariel Online — Multijugador en vivo</title>
-  <script src="config.js"></script>
-  <script>document.write('<link rel="stylesheet" href="'+(window.MARIEL_ONLINE.LIB_BASE||'/lib')+'/leaflet/leaflet.css">');</script>
-  <link rel="stylesheet" href="style.css">
+  <meta http-equiv="refresh" content="0;url=../index.html">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Mariel Explorer</title>
+  <script>location.replace('../index.html');</script>
 </head>
 <body>
-  <div id="pantalla-auth" class="pantalla">
-    <div class="tarjeta-auth">
-      <h1>🌍 Mariel Online</h1>
-      <p class="subtitulo">Multijugador en vivo · Ves a otros en el mapa</p>
-
-      <div id="form-login">
-        <input id="login-user" type="text" placeholder="Usuario" autocomplete="username">
-        <input id="login-pass" type="password" placeholder="Contraseña" autocomplete="current-password">
-        <button id="btn-login" class="btn-principal">Entrar al mundo</button>
-        <p class="enlace" id="ir-registro">¿No tienes cuenta? Regístrate</p>
-      </div>
-
-      <div id="form-registro" class="oculto">
-        <input id="reg-user" type="text" placeholder="Usuario nuevo" autocomplete="username">
-        <input id="reg-pass" type="password" placeholder="Contraseña (mín. 4)" autocomplete="new-password">
-        <input id="reg-pass2" type="password" placeholder="Repetir contraseña">
-        <button id="btn-registro" class="btn-principal">Crear cuenta</button>
-        <p class="enlace" id="ir-login">Ya tengo cuenta</p>
-      </div>
-
-      <p id="auth-error" class="error oculto"></p>
-      <p id="auth-estado" class="ayuda-auth">Conectando al servidor…</p>
-    </div>
-  </div>
-
-  <div id="pantalla-juego" class="pantalla oculto">
-    <header class="barra">
-      <div class="stats">
-        <span id="stat-conexion" class="punto-live" title="En vivo">🟢</span>
-        <span id="stat-nombre">—</span>
-        <span>❤️ <b id="stat-hp">100</b></span>
-        <span>🍖 <b id="stat-hunger">50</b></span>
-        <span>⭐ <b id="stat-level">1</b></span>
-      </div>
-      <div class="barra-botones">
-        <button id="btn-gps" class="btn-mini" title="GPS real">📍 GPS</button>
-        <button id="btn-centrar" class="btn-mini" title="Centrar en mí">🎯</button>
-        <button id="btn-ayuda" class="btn-mini">❓</button>
-        <button id="btn-logout" class="btn-mini">Salir</button>
-      </div>
-    </header>
-
-    <div id="map"></div>
-
-    <div id="panel-flotante" class="panel-flotante">
-      <div class="panel-seccion">
-        <h3>👥 En el mapa (<span id="online-count">0</span>)</h3>
-        <ul id="online-list"></ul>
-      </div>
-      <div class="panel-seccion">
-        <h3>📋 Misiones</h3>
-        <ul id="missions-list"></ul>
-      </div>
-      <div class="panel-seccion">
-        <h3>🎒 Mochila</h3>
-        <ul id="inventory-list"></ul>
-      </div>
-    </div>
-
-    <div id="toast" class="toast oculto"></div>
-
-    <div id="modal-ayuda" class="modal oculto">
-      <div class="modal-cuerpo">
-        <h2>Multijugador en vivo</h2>
-        <ul>
-          <li><b>Puntos azules</b> = otros jugadores conectados</li>
-          <li><b>Punto rojo</b> = tú</li>
-          <li><b>Toca el mapa</b> para caminar</li>
-          <li><b>📍 GPS</b> = caminar con ubicación real en Mariel</li>
-          <li>Cuando alguien se mueve, <b>todos lo ven al instante</b></li>
-        </ul>
-        <button id="btn-cerrar-ayuda" class="btn-principal">Entendido</button>
-      </div>
-    </div>
-  </div>
-
-  <script>document.write('<script src="'+(window.MARIEL_ONLINE.LIB_BASE||'/lib')+'/leaflet/leaflet.js"><\/script>');</script>
-  <script src="bootstrap.js"></script>
+  <p>Redirigiendo a <a href="../index.html">Mariel Explorer</a>…</p>
 </body>
 </html>

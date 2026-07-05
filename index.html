@@ -184,7 +184,7 @@
       <div id="login-aviso" class="auth-aviso-mensaje oculto" role="alert"></div>
       <button id="btn-iniciar-sesion" class="btn-auth-principal">Entrar al juego</button>
       <button type="button" id="btn-ir-registro" class="btn-auth-secundario">Crear cuenta nueva</button>
-      <a href="client/index.html" class="btn-auth-secundario" style="display:block;text-align:center;margin-top:.75rem;text-decoration:none">🌍 Modo multijugador en vivo</a>
+      <p class="auth-sub" style="margin-top:.75rem;font-size:.85rem;opacity:.85">👥 Al entrar verás a otros jugadores en vivo en el mapa (activa 📍 GPS)</p>
     </div>
   </div>
 
@@ -700,40 +700,41 @@
   </div>
 
   <!-- LIBRERÍAS -->
-  <script src="lib/leaflet/leaflet.js?v=60"></script>
+  <script src="lib/leaflet/leaflet.js?v=61"></script>
 
   <!-- MÓDULOS DEL JUEGO (orden importante) -->
-  <script src="js/config/config.js?v=60"></script>
-  <script src="js/nucleo/utilidades.js?v=60"></script>
-  <script src="js/mundo/mundo_publico.js?v=60"></script>
-  <script src="js/notificaciones/notificaciones.js?v=60"></script>
-  <script src="js/usuarios/usuarios.js?v=60"></script>
-  <script src="js/guardado/guardado.js?v=60"></script>
-  <script src="js/historial/historial.js?v=60"></script>
-  <script src="js/dinero/dinero.js?v=60"></script>
-  <script src="js/vida/vida.js?v=60"></script>
-  <script src="js/items/items.js?v=60"></script>
-  <script src="js/mochila/mochila.js?v=60"></script>
-  <script src="js/mapa/mapa.js?v=60"></script>
-  <script src="js/gps/gps.js?v=60"></script>
-  <script src="js/tiendas/datos_tiendas.js?v=60"></script>
-  <script src="js/tiendas/tiendas.js?v=60"></script>
-  <script src="js/pesca/pesca.js?v=60"></script>
-  <script src="js/tesoros/datos_tesoros.js?v=60"></script>
-  <script src="js/tesoros/tesoros.js?v=60"></script>
-  <script src="js/misiones/datos_misiones.js?v=60"></script>
-  <script src="js/misiones/misiones.js?v=60"></script>
-  <script src="js/cofres/cofres.js?v=60"></script>
-  <script src="js/correo/correo.js?v=60"></script>
-  <script src="js/enemigos/enemigos.js?v=60"></script>
-  <script src="js/admin/admin.js?v=60"></script>
-  <script src="js/opciones/opciones.js?v=60"></script>
-  <script src="js/principal.js?v=60"></script>
+  <script src="js/config/config.js?v=61"></script>
+  <script src="js/nucleo/utilidades.js?v=61"></script>
+  <script src="js/mundo/mundo_publico.js?v=61"></script>
+  <script src="js/notificaciones/notificaciones.js?v=61"></script>
+  <script src="js/usuarios/usuarios.js?v=61"></script>
+  <script src="js/guardado/guardado.js?v=61"></script>
+  <script src="js/historial/historial.js?v=61"></script>
+  <script src="js/dinero/dinero.js?v=61"></script>
+  <script src="js/vida/vida.js?v=61"></script>
+  <script src="js/items/items.js?v=61"></script>
+  <script src="js/mochila/mochila.js?v=61"></script>
+  <script src="js/mapa/mapa.js?v=61"></script>
+  <script src="js/gps/gps.js?v=61"></script>
+  <script src="js/tiendas/datos_tiendas.js?v=61"></script>
+  <script src="js/tiendas/tiendas.js?v=61"></script>
+  <script src="js/pesca/pesca.js?v=61"></script>
+  <script src="js/tesoros/datos_tesoros.js?v=61"></script>
+  <script src="js/tesoros/tesoros.js?v=61"></script>
+  <script src="js/misiones/datos_misiones.js?v=61"></script>
+  <script src="js/misiones/misiones.js?v=61"></script>
+  <script src="js/cofres/cofres.js?v=61"></script>
+  <script src="js/correo/correo.js?v=61"></script>
+  <script src="js/enemigos/enemigos.js?v=61"></script>
+  <script src="js/admin/admin.js?v=61"></script>
+  <script src="js/opciones/opciones.js?v=61"></script>
+  <script src="js/online/multijugador.js?v=61"></script>
+  <script src="js/principal.js?v=61"></script>
   <script>
     // Registrar la app instalable (PWA)
     if ('serviceWorker' in navigator) {
       const yaTeniaVersion = !!navigator.serviceWorker.controller;
-      navigator.serviceWorker.register('sw.js?v=60', { updateViaCache: 'none' })
+      navigator.serviceWorker.register('sw.js?v=61', { updateViaCache: 'none' })
         .then(function (reg) { reg.update(); })
         .catch(function () {});
       // Cuando llega una versión nueva del juego: avisar y recargar solo
