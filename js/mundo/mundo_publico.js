@@ -154,12 +154,17 @@ const MundoPublico = {
     return await this._putMundoGitHub(json);
   },
 
-  async leerJugadorGlobal(id) {
+  async buscarJugadorPorLogin(usuario) {
     try {
       const texto = await this.descargar();
       if (!texto) return null;
       const m = JSON.parse(texto);
-      return (m.jugadores || []).find(j => j.id === id) || null;
+      const u = usuario.trim().toLowerCase();
+      const limpio = usuario.trim().replace(/[\s-]/g, '');
+      return (m.jugadores || []).find(j =>
+        (j.nombre && j.nombre.toLowerCase() === u) ||
+        (j.telefono && j.telefono === limpio)
+      ) || null;
     } catch (e) { return null; }
   },
 

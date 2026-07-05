@@ -1,5 +1,5 @@
 // ============================================================
-// USUARIOS — login, registro, sesión única
+// USUARIOS — login, registro y sesión única
 // ============================================================
 const Usuarios = {
   CLAVE: 'mariel_perfiles_v2',
@@ -7,6 +7,7 @@ const Usuarios = {
   perfilActivo: null,
   _resolver: null,
   _sesionCerrada: false,
+  _mundoCache: null,
 
   iniciar() {
     return new Promise(resolver => {
@@ -26,6 +27,7 @@ const Usuarios = {
       }
       document.body.classList.add('en-auth');
       this.mostrarLogin();
+      MundoPublico.descargar().then(t => { if (t) this._mundoCache = t; }).catch(() => {});
     });
   },
 
@@ -48,6 +50,7 @@ const Usuarios = {
     document.getElementById('login-usuario').value = '';
     document.getElementById('login-clave').value = '';
     this._enlazarOjos();
+    MundoPublico.descargar().then(t => { if (t) this._mundoCache = t; }).catch(() => {});
   },
 
   mostrarRegistro() {
@@ -88,83 +91,118 @@ const Usuarios = {
       p.nombre.toLowerCase() === u || (p.telefono && p.telefono === limpio));
   },
 
-  _buscarGlobal(usuario) {
-    if (typeof Admin === 'undefined') return null;
+  async _buscarEnMundo(usuario) {
     const u = usuario.trim().toLowerCase();
     const limpio = usuario.trim().replace(/[\s-]/g, '');
-    return Admin.jugadoresGlobales().find(j =>
+    const buscar = lista => (lista || []).find(j =>
       (j.nombre && j.nombre.toLowerCase() === u) ||
       (j.telefono && j.telefono === limpio));
+
+    if (typeof Admin !== 'undefined') {
+      this._asegurarAdminMinimo();
+      const g = buscar(Admin.jugadoresGlobales());
+      if (g) return g;
+    }
+
+    if (this._mundoCache) {
+      try {
+        const g = buscar(JSON.parse(this._mundoCache).jugadores);
+        if (g) return g;
+      } catch (e) {}
+    }
+
+    return await MundoPublico.buscarJugadorPorLogin(usuario);
+  },
+
+  _asegurarAdminMinimo() {
+    if (typeof Admin === 'undefined') return;
+    if (!Admin.publicado) Admin.publicado = { jugadores: [] };
+    if (!Admin.datos) {
+      try { Admin.datos = JSON.parse(localStorage.getItem(Admin.CLAVE) || 'null'); } catch (e) {}
+    }
+    if (!Admin.datos) Admin.datos = { jugadoresExtra: [] };
+    if (!Admin.datos.jugadoresExtra) Admin.datos.jugadoresExtra = [];
   },
 
   _generarTokenSesion() {
     return Date.now().toString(36) + Math.random().toString(36).slice(2, 12);
   },
 
-  async _publicarSesion(perfil, token) {
-    perfil.sesionToken = token;
-    perfil.sesionT = Date.now();
-    this._guardarLista();
+  _registrarEnAdminLocal(perfil) {
+    if (typeof Admin === 'undefined') return;
+    this._asegurarAdminMinimo();
+    Admin.registrarJugador(perfil, true);
+  },
+
+  _publicarSesionEnFondo(perfil, token) {
     MundoPublico.registrarJugadorEnMundo(perfil, {
       pinHash: perfil.pinHash,
       sesionToken: token,
       sesionT: perfil.sesionT
     }).catch(() => {});
-    if (typeof Admin !== 'undefined') {
-      Admin.registrarJugador(perfil, true);
-      if (Admin.esAdminJugador()) Admin._publicarParaTodos();
+    this._registrarEnAdminLocal(perfil);
+    if (typeof Admin !== 'undefined' && Admin.esAdminJugador()) {
+      Admin._publicarParaTodos().catch(() => {});
     }
   },
 
   async iniciarSesion() {
+    const btn = document.getElementById('btn-iniciar-sesion');
     const usuario = document.getElementById('login-usuario').value.trim();
     const clave = document.getElementById('login-clave').value;
     if (!usuario) { alert('Escribe tu nombre o teléfono'); return; }
     if (!clave) { alert('Escribe tu contraseña'); return; }
 
-    if (typeof Admin !== 'undefined') await Admin.actualizarJugadoresGlobales();
+    if (btn) { btn.disabled = true; btn.textContent = 'Entrando…'; }
 
-    let perfil = this._buscarPorLogin(usuario);
-    const hash = await Utilidades.sha256('pin-perfil|' + clave);
+    try {
+      const hash = await Utilidades.sha256('pin-perfil|' + clave);
+      let perfil = this._buscarPorLogin(usuario);
 
-    if (!perfil) {
-      const global = this._buscarGlobal(usuario);
-      if (!global) {
-        alert('No existe esa cuenta.\nComprueba nombre/teléfono o regístrate.');
-        return;
+      if (!perfil) {
+        const global = await this._buscarEnMundo(usuario);
+        if (!global) {
+          alert('No existe esa cuenta.\n\nSi acabas de registrarte en OTRO teléfono, el admin debe publicar el mundo.\nSi fue en ESTE teléfono, regístrate de nuevo.');
+          return;
+        }
+        if (!global.pinHash) {
+          alert('Tu cuenta está en el servidor pero sin contraseña guardada.\nRegístrate de nuevo o pide al admin que publique el mundo.');
+          return;
+        }
+        if (hash !== global.pinHash) { alert('Contraseña incorrecta'); return; }
+        perfil = {
+          id: global.id,
+          nombre: global.nombre,
+          telefono: global.telefono || '',
+          telefonoCambiadoEn: 0,
+          pinHash: global.pinHash,
+          creado: global.creado || Date.now()
+        };
+        const idx = this.datos.lista.findIndex(p => p.id === perfil.id);
+        if (idx >= 0) this.datos.lista[idx] = Object.assign(this.datos.lista[idx], perfil);
+        else this.datos.lista.push(perfil);
+        this._guardarLista();
+      } else {
+        if (!perfil.pinHash) {
+          alert('Esta cuenta es antigua. Crea una cuenta nueva.');
+          return;
+        }
+        if (hash !== perfil.pinHash) { alert('Contraseña incorrecta'); return; }
       }
-      if (!global.pinHash) {
-        alert('Esta cuenta aún no tiene contraseña en el servidor.\nCrea una cuenta nueva o pide al admin que publique el mundo.');
-        return;
+
+      if (typeof Admin !== 'undefined') {
+        try { await Admin.actualizarJugadoresGlobales(); } catch (e) {}
+        const ban = Admin.estadoBloqueoPara(perfil);
+        if (ban) { alert('🚫 ' + ban.mensaje); return; }
       }
-      if (hash !== global.pinHash) { alert('Contraseña incorrecta'); return; }
-      perfil = {
-        id: global.id,
-        nombre: global.nombre,
-        telefono: global.telefono || '',
-        telefonoCambiadoEn: 0,
-        pinHash: global.pinHash,
-        creado: global.creado || Date.now()
-      };
-      const idx = this.datos.lista.findIndex(p => p.id === perfil.id);
-      if (idx >= 0) this.datos.lista[idx] = Object.assign(this.datos.lista[idx], perfil);
-      else this.datos.lista.push(perfil);
-      this._guardarLista();
-    } else {
-      if (!perfil.pinHash) {
-        alert('Esta cuenta es antigua. Crea una cuenta nueva.');
-        return;
-      }
-      if (hash !== perfil.pinHash) { alert('Contraseña incorrecta'); return; }
+
+      await this._activar(perfil);
+    } catch (e) {
+      console.error('Error en login:', e);
+      alert('Error al entrar. Intenta de nuevo.');
+    } finally {
+      if (btn) { btn.disabled = false; btn.textContent = 'Entrar al juego'; }
     }
-
-    if (typeof Admin !== 'undefined') {
-      const err = Admin.validarRegistro(perfil.nombre, perfil.telefono, perfil.id);
-      if (err) { alert(err); return; }
-      const ban = Admin.estadoBloqueoPara(perfil);
-      if (ban) { alert('🚫 ' + ban.mensaje); return; }
-    }
-    await this._activar(perfil);
   },
 
   async crear() {
@@ -182,10 +220,11 @@ const Usuarios = {
     if (errClave) { alert(errClave); return; }
     if (clave !== clave2) { alert('Las contraseñas no coinciden'); return; }
 
-    if (typeof Admin !== 'undefined') await Admin.actualizarJugadoresGlobales();
-    const errorRegistro = typeof Admin !== 'undefined'
-      ? Admin.validarRegistro(nombre, telefono, null) : null;
-    if (errorRegistro) { alert(errorRegistro); return; }
+    if (typeof Admin !== 'undefined') {
+      try { await Admin.actualizarJugadoresGlobales(); } catch (e) {}
+      const errorRegistro = Admin.validarRegistro(nombre, telefono, null);
+      if (errorRegistro) { alert(errorRegistro); return; }
+    }
 
     const perfil = {
       id: 'p' + Date.now().toString(36) + Math.random().toString(36).slice(2, 7),
@@ -196,6 +235,8 @@ const Usuarios = {
       creado: Date.now()
     };
     this.datos.lista.push(perfil);
+    this._guardarLista();
+    this._registrarEnAdminLocal(perfil);
     MundoPublico.registrarJugadorEnMundo(perfil, { pinHash: perfil.pinHash }).catch(() => {});
     await this._activar(perfil);
   },
@@ -205,10 +246,14 @@ const Usuarios = {
     this.datos.sesionId = perfil.id;
     this.perfilActivo = perfil;
     this._sesionCerrada = false;
+    document.body.classList.remove('sesion-cerrada');
     const token = this._generarTokenSesion();
-    await this._publicarSesion(perfil, token);
+    perfil.sesionToken = token;
+    perfil.sesionT = Date.now();
+    this._guardarLista();
     this._ocultarAuth();
     if (this._resolver) { this._resolver(); this._resolver = null; }
+    this._publicarSesionEnFondo(perfil, token);
   },
 
   iniciarVigilanciaSesion() {
@@ -221,14 +266,18 @@ const Usuarios = {
 
   async verificarSesionRemota() {
     if (!this.perfilActivo || this._sesionCerrada) return;
-    if (typeof Admin === 'undefined') return;
+    if (!this.perfilActivo.sesionToken) return;
+    if (Date.now() - (this.perfilActivo.sesionT || 0) < 20000) return;
+
     try {
-      await Admin.actualizarJugadoresGlobales();
-      const global = Admin.jugadoresGlobales().find(j => j.id === this.perfilActivo.id);
+      if (typeof Admin !== 'undefined') await Admin.actualizarJugadoresGlobales();
+      const global = typeof Admin !== 'undefined'
+        ? Admin.jugadoresGlobales().find(j => j.id === this.perfilActivo.id)
+        : await MundoPublico.buscarJugadorPorLogin(this.perfilActivo.nombre);
       if (!global || !global.sesionToken) return;
-      if (global.sesionToken !== this.perfilActivo.sesionToken) {
-        this._mostrarSesionCerrada();
-      }
+      if (global.sesionToken === this.perfilActivo.sesionToken) return;
+      if ((global.sesionT || 0) <= (this.perfilActivo.sesionT || 0)) return;
+      this._mostrarSesionCerrada();
     } catch (e) {}
   },
 
@@ -282,6 +331,7 @@ const Usuarios = {
     if (!this.esAdministrador()) perfil.telefonoCambiadoEn = Date.now();
     this._guardarLista();
     if (typeof Admin !== 'undefined') Admin.registrarJugador(perfil);
+    MundoPublico.registrarJugadorEnMundo(perfil, { pinHash: perfil.pinHash }).catch(() => {});
     Notificaciones.mostrar('📱 Número actualizado: ' + limpio, 'exito', 5000);
   },
 
