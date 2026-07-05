@@ -122,26 +122,46 @@ const Admin = {
   _autoPublicar() {
     if (!MundoPublico.puedePublicar()) return;
     clearTimeout(this._tempPublicar);
-    this._tempPublicar = setTimeout(() => {
-      const json = this._jsonMundo();
-      if (json === this._ultimoPublicado) return;
-      this.publicarMundo();
-    }, 2000);
+    this._tempPublicar = setTimeout(() => this.publicarMundo(true), 2000);
   },
 
   // Sube el mapa a GitHub para que TODOS los jugadores lo vean
-  async _publicarParaTodos() {
+  async _publicarParaTodos(silencioso) {
     if (!MundoPublico.puedePublicar()) {
-      Notificaciones.mostrar(
-        '⚠️ Configura la 🔑 clave de GitHub en Admin\n' +
-        '(🛠️ → Configurar clave de publicación)',
-        'alerta', 12000
-      );
+      if (!silencioso) {
+        Notificaciones.mostrar(
+          '⚠️ Configura la 🔑 clave de GitHub en Admin (solo una vez en tu teléfono)',
+          'alerta', 12000
+        );
+      }
       return false;
     }
     clearTimeout(this._tempPublicar);
-    await this.publicarMundo();
+    await this.publicarMundo(silencioso !== false);
     return true;
+  },
+
+  _tokenPublicacion() {
+    if (this.datos && this.datos.tokenPublicar) return this.datos.tokenPublicar;
+    return MundoPublico._tokenGitHub() || null;
+  },
+
+  CLAVE_DESBLOQUEO: 'mariel_admin_desbloqueado_v1',
+
+  _panelDesbloqueado() {
+    if (!Usuarios.perfilActivo || !Usuarios.perfilActivo.pinHash) return false;
+    try {
+      const d = JSON.parse(localStorage.getItem(this.CLAVE_DESBLOQUEO) || 'null');
+      return d && d.id === Usuarios.perfilActivo.id && d.pinHash === Usuarios.perfilActivo.pinHash;
+    } catch (e) { return false; }
+  },
+
+  _marcarPanelDesbloqueado() {
+    if (!Usuarios.perfilActivo) return;
+    localStorage.setItem(this.CLAVE_DESBLOQUEO, JSON.stringify({
+      id: Usuarios.perfilActivo.id,
+      pinHash: Usuarios.perfilActivo.pinHash
+    }));
   },
 
   // ---------- ADMINISTRADOR (solo el jugador "randy") ----------
@@ -222,7 +242,7 @@ const Admin = {
       (clave, valor) => clave.startsWith('_') ? undefined : valor));
     if (!silencioso && this.esAdminJugador() && MundoPublico.puedePublicar()) {
       clearTimeout(this._tempPublicar);
-      this._tempPublicar = setTimeout(() => this.publicarMundo(), 1500);
+      this._tempPublicar = setTimeout(() => this.publicarMundo(true), 1500);
     }
   },
 
@@ -311,7 +331,7 @@ const Admin = {
       document.getElementById('ventana-admin').classList.add('oculto');
       Historial.abrir();
     });
-    enlazar('admin-publicar', () => this.publicarMundo());
+    enlazar('admin-publicar', () => this.publicarMundo(false));
     enlazar('admin-clave-publicar', () => this.abrirConfiguracionClave());
     enlazar('btn-admin-clave-guardar', () => this._guardarClaveTelefono());
     enlazar('btn-admin-clave-borrar', () => this._borrarClaveTelefono());
@@ -430,15 +450,19 @@ const Admin = {
     }
   },
 
-  // ---------- ACCESO CON PIN ----------
-  // El PIN solo se pide la PRIMERA vez en cada teléfono; después queda
-  // desbloqueado (guardado en el dispositivo del admin).
+  // El PIN solo se pide la primera vez en cada teléfono; después queda desbloqueado.
   async solicitarAcceso() {
     if (!this.esAdminJugador()) return;
-    const clave = prompt('Tu contraseña de cuenta:');
+    if (this._panelDesbloqueado()) {
+      this._actualizarEtiquetaClave();
+      document.getElementById('ventana-admin').classList.remove('oculto');
+      return;
+    }
+    const clave = prompt('Tu contraseña de cuenta (solo esta vez en este teléfono):');
     if (clave === null) return;
     const hash = await Utilidades.sha256('pin-perfil|' + clave);
     if (hash !== Usuarios.perfilActivo.pinHash) { alert('Contraseña incorrecta'); return; }
+    this._marcarPanelDesbloqueado();
     this._actualizarEtiquetaClave();
     document.getElementById('ventana-admin').classList.remove('oculto');
   },
@@ -583,6 +607,7 @@ const Admin = {
       document.getElementById('ventana-admin-form').classList.add('oculto');
       Notificaciones.mostrar('➕ Objeto creado: ' + icono + ' ' + nombre + ' ($' + nuevo.precio +
         '). Ya puedes dejarlo en el mapa o darlo de recompensa', 'exito', 6000);
+      this._publicarParaTodos(true);
       return;
     }
 
@@ -661,7 +686,7 @@ const Admin = {
     }
     localStorage.setItem(this.CLAVE, JSON.stringify(this.datos,
       (clave, valor) => clave.startsWith('_') ? undefined : valor));
-    await this._publicarParaTodos();
+    await this._publicarParaTodos(true);
     this._colocacion = null;
     this.salirModo();
   },
@@ -1499,9 +1524,10 @@ const Admin = {
     this.abrirConfiguracionClave();
   },
 
-  async publicarMundo() {
+  async publicarMundo(silencioso) {
     const json = this._jsonMundo();
-    Notificaciones.mostrar('🌍 Publicando el mundo…', 'info');
+    if (json === this._ultimoPublicado) return;
+    if (!silencioso) Notificaciones.mostrar('🌍 Publicando el mundo…', 'info');
 
     // Opción A: Firebase (automático, sin token en el teléfono)
     if (CONFIG.firebaseMundoUrl) {
@@ -1511,25 +1537,29 @@ const Admin = {
           this._ultimoPublicado = json;
           this._crudoPublicado = json;
           this._aplicarMundoRemoto(json);
-          Notificaciones.mostrar('🌍 ¡Listo! Los jugadores lo ven en ~5 segundos', 'exito', 8000);
-        } else {
+          if (!silencioso) {
+            Notificaciones.mostrar('🌍 ¡Listo! Los jugadores lo ven en ~5 segundos', 'exito', 8000);
+          }
+        } else if (!silencioso) {
           Notificaciones.mostrar('❌ No se pudo subir a Firebase. Revisa la URL en config.js', 'error', 7000);
         }
       } catch (e) {
-        Notificaciones.mostrar('❌ Sin conexión. Intenta con WiFi', 'error', 6000);
+        if (!silencioso) Notificaciones.mostrar('❌ Sin conexión. Intenta con WiFi', 'error', 6000);
       }
       return;
     }
 
-    // Opción B: GitHub API (token en Admin)
-    if (!this.datos.tokenPublicar) {
-      Notificaciones.mostrar('🔑 Primero configura tu clave en Admin → Clave GitHub (en tu teléfono)', 'alerta', 8000);
-      this.abrirConfiguracionClave();
+    const token = this._tokenPublicacion();
+    if (!token) {
+      if (!silencioso) {
+        Notificaciones.mostrar('🔑 Configura tu clave en Admin → Clave GitHub (en tu teléfono)', 'alerta', 8000);
+        this.abrirConfiguracionClave();
+      }
       return;
     }
     const url = 'https://api.github.com/repos/' + CONFIG.repoPublicacion + '/contents/datos/mundo.json';
     const cabeceras = {
-      'Authorization': 'Bearer ' + this.datos.tokenPublicar,
+      'Authorization': 'Bearer ' + token,
       'Accept': 'application/vnd.github+json'
     };
     let sha = null;
@@ -1538,7 +1568,7 @@ const Admin = {
       if (r.ok) sha = (await r.json()).sha;
     } catch (e) {}
     const cuerpo = {
-      message: 'Publicar mundo desde el juego (admin)',
+      message: silencioso ? 'Actualización automática desde el juego' : 'Publicar mundo desde el juego (admin)',
       content: btoa(unescape(encodeURIComponent(json))),
       branch: CONFIG.ramaPublicacion
     };
@@ -1549,14 +1579,20 @@ const Admin = {
         this._ultimoPublicado = json;
         this._crudoPublicado = json;
         this._aplicarMundoRemoto(json);
-        Notificaciones.mostrar('🌍 ¡MUNDO PUBLICADO! Todos lo ven en ~1 min (recarga si no aparece)', 'exito', 10000);
+        if (silencioso) {
+          Notificaciones.mostrar('☁️ Mundo actualizado para todos', 'exito', 2500);
+        } else {
+          Notificaciones.mostrar('🌍 ¡MUNDO PUBLICADO! Todos lo ven en ~1 min', 'exito', 8000);
+        }
       } else if (r.status === 401 || r.status === 403) {
-        Notificaciones.mostrar('❌ La clave no tiene permiso: revisa el token en GitHub', 'error', 7000);
-      } else {
+        if (!silencioso) {
+          Notificaciones.mostrar('❌ La clave no tiene permiso: revisa el token en GitHub', 'error', 7000);
+        }
+      } else if (!silencioso) {
         Notificaciones.mostrar('❌ GitHub respondió error ' + r.status + ': intenta de nuevo', 'error', 7000);
       }
     } catch (e) {
-      Notificaciones.mostrar('❌ Sin conexión con GitHub: intenta más tarde', 'error', 6000);
+      if (!silencioso) Notificaciones.mostrar('❌ Sin conexión con GitHub: intenta más tarde', 'error', 6000);
     }
   },
 
@@ -1612,9 +1648,7 @@ const Admin = {
         }
         return porId;
       })(),
-      claveSyncNube: this.datos.tokenPublicar !== undefined
-        ? (this.datos.tokenPublicar || '')
-        : (this.publicado.claveSyncNube || '')
+      claveSyncNube: this._tokenPublicacion() || ''
     }, quitarTemporales, 2);
   },
 

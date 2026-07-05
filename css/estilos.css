@@ -410,9 +410,17 @@ button { font-family: inherit; }
 .campo-caja { display: flex; align-items: center; gap: 10px; font-size: 14px; color: #cdd6e6; padding: 4px 2px; }
 .campo-caja input { width: 20px; height: 20px; }
 #btn-admin-guardar {
-  margin: 10px 14px 16px; padding: 14px; border-radius: 14px; border: none;
+  margin: 0; padding: 14px; border-radius: 14px; border: none;
   background: #30d158; color: #05310f; font-size: 16px; font-weight: 800; cursor: pointer;
+  width: 100%;
 }
+.admin-form-pie {
+  flex-shrink: 0; padding: 10px 14px 16px;
+  border-top: 1px solid rgba(255,255,255,.07);
+  background: rgba(24,30,47,.96);
+  position: sticky; bottom: 0;
+}
+#admin-form-campos { padding: 4px 14px 8px; flex: 1; overflow-y: auto; }
 
 /* Controles flotantes del modo admin (colocar / organizar / eliminar) */
 #admin-controles {
@@ -582,3 +590,5 @@ body.sesion-cerrada .ventana { display: none !important; }
 .admin-clave-enlace { margin: 0; font-size: 12px; color: #8ab4ff; }
 .admin-clave-enlace code { font-size: 11px; color: #c5d0e8; }
 .admin-clave-borrar { margin-top: 4px; text-align: center; border-radius: 12px; }
+.cofre-colocar-cuerpo { padding: 0 14px 16px; display: flex; flex-direction: column; gap: 12px; }
+.cofre-tipo-pestanas { margin: 8px 0 0; }

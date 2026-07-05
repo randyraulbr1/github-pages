@@ -7,11 +7,47 @@ const Cofres = {
   _marcadores: {},
   _circuloColocar: null,
   _modoColocar: null,
+  _cofrePinPendiente: null,
+  _tipoVisible: true,
   verOcultos: false,
 
   iniciar() {
     if (!Guardado.datos.cofresAbiertos) Guardado.datos.cofresAbiertos = [];
     this._pintarTodos();
+    this._enlazarUi();
+  },
+
+  _enlazarUi() {
+    const enlazar = (id, fn) => {
+      const el = document.getElementById(id);
+      if (el) el.addEventListener('click', fn);
+    };
+    enlazar('cofre-tipo-visible', () => this._elegirTipoCofre(true));
+    enlazar('cofre-tipo-oculto', () => this._elegirTipoCofre(false));
+    enlazar('btn-cofre-colocar-continuar', () => this._continuarColocacion());
+    enlazar('btn-cofre-abrir-pin', () => this._confirmarAbrirPin());
+    const pinAbrir = document.getElementById('cofre-abrir-pin');
+    if (pinAbrir) {
+      pinAbrir.addEventListener('keydown', ev => {
+        if (ev.key === 'Enter') this._confirmarAbrirPin();
+      });
+    }
+  },
+
+  _elegirTipoCofre(visible) {
+    this._tipoVisible = visible;
+    const btnV = document.getElementById('cofre-tipo-visible');
+    const btnO = document.getElementById('cofre-tipo-oculto');
+    const campoPin = document.getElementById('cofre-campo-pin');
+    const desc = document.getElementById('cofre-colocar-desc');
+    if (btnV) btnV.classList.toggle('activa', visible);
+    if (btnO) btnO.classList.toggle('activa', !visible);
+    if (campoPin) campoPin.classList.toggle('oculto', visible);
+    if (desc) {
+      desc.textContent = visible
+        ? 'Cualquiera puede abrirlo y usar sus 6 casillas.'
+        : 'Solo quien sepa el PIN de 4 números podrá abrirlo.';
+    }
   },
 
   lista() {
@@ -26,18 +62,26 @@ const Cofres = {
       Notificaciones.mostrar('No tienes un cofre en la mochila', 'alerta');
       return;
     }
-    const visible = confirm(
-      '¿Cofre VISIBLE?\n\n' +
-      'Aceptar = visible (cualquiera puede abrirlo y usar sus casillas)\n' +
-      'Cancelar = oculto (solo con tu PIN de 4 números)'
-    );
+    this._tipoVisible = true;
+    this._elegirTipoCofre(true);
+    const pinInput = document.getElementById('cofre-pin-input');
+    if (pinInput) pinInput.value = '';
+    document.getElementById('ventana-cofre-colocar').classList.remove('oculto');
+  },
+
+  _continuarColocacion() {
+    const visible = this._tipoVisible;
     let pin = null;
     if (!visible) {
-      pin = prompt('PIN del cofre oculto (4 números):');
-      if (pin === null) return;
-      if (!Utilidades.pinCofreValido(pin.trim())) { alert('El PIN debe ser de 4 números'); return; }
-      pin = pin.trim();
+      const pinInput = document.getElementById('cofre-pin-input');
+      pin = (pinInput && pinInput.value || '').trim();
+      if (!Utilidades.pinCofreValido(pin)) {
+        alert('El PIN debe ser de 4 números');
+        if (pinInput) pinInput.focus();
+        return;
+      }
     }
+    document.getElementById('ventana-cofre-colocar').classList.add('oculto');
     this._modoColocar = { visible, pin };
     this._mostrarCirculoColocar();
     Notificaciones.mostrar('📍 Toca el mapa dentro del círculo (máx. ' + CONFIG.radioColocarCofre + ' m)', 'info', 6000);
@@ -109,7 +153,8 @@ const Cofres = {
     if (typeof Admin !== 'undefined' && Admin.esAdminJugador()) {
       Admin.datos.cofresExtra = Admin.datos.cofresExtra || [];
       Admin.datos.cofresExtra.push(cofre);
-      Admin._publicarParaTodos();
+      Admin.guardar();
+      Admin._publicarParaTodos(true);
     }
     this._modoColocar = null;
     this._crearMarcador(cofre);
@@ -166,11 +211,23 @@ const Cofres = {
       this._mostrarVentana(cofre);
       return;
     }
-    const pin = prompt('PIN del cofre oculto (4 números):');
-    if (pin === null) return;
-    if (!Utilidades.pinCofreValido(pin.trim())) { alert('PIN de 4 números'); return; }
-    const hash = await Utilidades.sha256('cofre-pin|' + pin.trim());
+    this._cofrePinPendiente = cofre;
+    const pinInput = document.getElementById('cofre-abrir-pin');
+    if (pinInput) pinInput.value = '';
+    document.getElementById('ventana-cofre-pin').classList.remove('oculto');
+    setTimeout(() => { if (pinInput) pinInput.focus(); }, 200);
+  },
+
+  async _confirmarAbrirPin() {
+    const cofre = this._cofrePinPendiente;
+    if (!cofre) return;
+    const pinInput = document.getElementById('cofre-abrir-pin');
+    const pin = (pinInput && pinInput.value || '').trim();
+    if (!Utilidades.pinCofreValido(pin)) { alert('PIN de 4 números'); return; }
+    const hash = await Utilidades.sha256('cofre-pin|' + pin);
     if (hash !== cofre.pinHash) { alert('PIN incorrecto'); return; }
+    document.getElementById('ventana-cofre-pin').classList.add('oculto');
+    this._cofrePinPendiente = null;
     Guardado.datos.cofresAbiertos.push(cofre.id);
     Guardado.guardar();
     this._mostrarVentana(cofre);
@@ -243,7 +300,7 @@ const Cofres = {
 
   _guardarCofre() {
     Guardado.guardar();
-    if (typeof Admin !== 'undefined' && Admin.esAdminJugador()) Admin._publicarParaTodos();
+    if (typeof Admin !== 'undefined' && Admin.esAdminJugador()) Admin._publicarParaTodos(true);
   },
 
   alternarVerOcultos() {

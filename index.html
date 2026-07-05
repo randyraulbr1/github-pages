@@ -298,7 +298,7 @@
         <button class="fila-opcion" id="admin-mensaje"><span class="icono-opcion">✉️</span> Enviar mensaje a jugadores</button>
         <button class="fila-opcion" id="admin-inspeccionar"><span class="icono-opcion">🔎</span> Inspeccionar tarjeta de jugador</button>
         <button class="fila-opcion peligro" id="admin-banear"><span class="icono-opcion">🚫</span> Banear / desbanear jugador</button>
-        <button class="fila-opcion" id="admin-publicar"><span class="icono-opcion">🌍</span> PUBLICAR MUNDO (actualiza a todos)</button>
+        <button class="fila-opcion" id="admin-publicar"><span class="icono-opcion">🔄</span> Forzar sincronización (manual)</button>
         <button class="fila-opcion" id="admin-clave-publicar"><span class="icono-opcion">🔑</span> <span id="admin-clave-etiqueta">Clave GitHub (configurar)</span></button>
         <button class="fila-opcion" id="admin-exportar"><span class="icono-opcion">📋</span> Exportar mis creaciones (manual)</button>
       </div>
@@ -310,7 +310,9 @@
     <div class="ventana-caja">
       <div class="ventana-titulo"><span id="admin-form-titulo">Crear</span> <button class="btn-cerrar" data-cierra="ventana-admin-form">✕</button></div>
       <div id="admin-form-campos"></div>
-      <button id="btn-admin-guardar">Continuar → colocar en el mapa</button>
+      <div class="admin-form-pie">
+        <button type="button" id="btn-admin-guardar">Continuar → colocar en el mapa</button>
+      </div>
     </div>
   </div>
 
@@ -361,6 +363,40 @@
     </div>
   </div>
 
+  <!-- ============ VENTANA: COLOCAR COFRE ============ -->
+  <div id="ventana-cofre-colocar" class="ventana oculto">
+    <div class="ventana-caja">
+      <div class="ventana-titulo">🧰 Colocar cofre <button class="btn-cerrar" data-cierra="ventana-cofre-colocar">✕</button></div>
+      <div class="cofre-colocar-cuerpo">
+        <div class="pestanas cofre-tipo-pestanas">
+          <button type="button" class="pestana activa" id="cofre-tipo-visible">Visible</button>
+          <button type="button" class="pestana" id="cofre-tipo-oculto">Oculto (PIN)</button>
+        </div>
+        <p class="admin-clave-ayuda" id="cofre-colocar-desc">Cualquiera puede abrirlo y usar sus 6 casillas.</p>
+        <div class="campo-admin oculto" id="cofre-campo-pin">
+          <label for="cofre-pin-input">PIN de 4 números</label>
+          <input id="cofre-pin-input" type="password" inputmode="numeric" maxlength="4" placeholder="1234" autocomplete="off">
+        </div>
+        <button type="button" id="btn-cofre-colocar-continuar" class="btn-auth-principal">Continuar → tocar mapa</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ VENTANA: ABRIR COFRE OCULTO ============ -->
+  <div id="ventana-cofre-pin" class="ventana oculto">
+    <div class="ventana-caja">
+      <div class="ventana-titulo">🔒 Cofre oculto <button class="btn-cerrar" data-cierra="ventana-cofre-pin">✕</button></div>
+      <div class="cofre-colocar-cuerpo">
+        <p class="admin-clave-ayuda">Escribe el PIN de 4 números para abrir este cofre.</p>
+        <div class="campo-admin">
+          <label for="cofre-abrir-pin">PIN</label>
+          <input id="cofre-abrir-pin" type="password" inputmode="numeric" maxlength="4" placeholder="••••" autocomplete="off">
+        </div>
+        <button type="button" id="btn-cofre-abrir-pin" class="btn-auth-principal">Abrir cofre</button>
+      </div>
+    </div>
+  </div>
+
   <!-- ============ VENTANA: CLAVE GITHUB (ADMIN) ============ -->
   <div id="ventana-admin-clave" class="ventana oculto">
     <div class="ventana-caja">
@@ -389,39 +425,39 @@
   </div>
 
   <!-- LIBRERÍAS -->
-  <script src="lib/leaflet/leaflet.js?v=26"></script>
+  <script src="lib/leaflet/leaflet.js?v=27"></script>
 
   <!-- MÓDULOS DEL JUEGO (orden importante) -->
-  <script src="js/config/config.js?v=26"></script>
-  <script src="js/nucleo/utilidades.js?v=26"></script>
-  <script src="js/mundo/mundo_publico.js?v=26"></script>
-  <script src="js/notificaciones/notificaciones.js?v=26"></script>
-  <script src="js/usuarios/usuarios.js?v=26"></script>
-  <script src="js/guardado/guardado.js?v=26"></script>
-  <script src="js/historial/historial.js?v=26"></script>
-  <script src="js/dinero/dinero.js?v=26"></script>
-  <script src="js/vida/vida.js?v=26"></script>
-  <script src="js/items/items.js?v=26"></script>
-  <script src="js/mochila/mochila.js?v=26"></script>
-  <script src="js/mapa/mapa.js?v=26"></script>
-  <script src="js/gps/gps.js?v=26"></script>
-  <script src="js/tiendas/datos_tiendas.js?v=26"></script>
-  <script src="js/tiendas/tiendas.js?v=26"></script>
-  <script src="js/pesca/pesca.js?v=26"></script>
-  <script src="js/tesoros/datos_tesoros.js?v=26"></script>
-  <script src="js/tesoros/tesoros.js?v=26"></script>
-  <script src="js/misiones/datos_misiones.js?v=26"></script>
-  <script src="js/misiones/misiones.js?v=26"></script>
-  <script src="js/cofres/cofres.js?v=26"></script>
-  <script src="js/correo/correo.js?v=26"></script>
-  <script src="js/admin/admin.js?v=26"></script>
-  <script src="js/opciones/opciones.js?v=26"></script>
-  <script src="js/principal.js?v=26"></script>
+  <script src="js/config/config.js?v=27"></script>
+  <script src="js/nucleo/utilidades.js?v=27"></script>
+  <script src="js/mundo/mundo_publico.js?v=27"></script>
+  <script src="js/notificaciones/notificaciones.js?v=27"></script>
+  <script src="js/usuarios/usuarios.js?v=27"></script>
+  <script src="js/guardado/guardado.js?v=27"></script>
+  <script src="js/historial/historial.js?v=27"></script>
+  <script src="js/dinero/dinero.js?v=27"></script>
+  <script src="js/vida/vida.js?v=27"></script>
+  <script src="js/items/items.js?v=27"></script>
+  <script src="js/mochila/mochila.js?v=27"></script>
+  <script src="js/mapa/mapa.js?v=27"></script>
+  <script src="js/gps/gps.js?v=27"></script>
+  <script src="js/tiendas/datos_tiendas.js?v=27"></script>
+  <script src="js/tiendas/tiendas.js?v=27"></script>
+  <script src="js/pesca/pesca.js?v=27"></script>
+  <script src="js/tesoros/datos_tesoros.js?v=27"></script>
+  <script src="js/tesoros/tesoros.js?v=27"></script>
+  <script src="js/misiones/datos_misiones.js?v=27"></script>
+  <script src="js/misiones/misiones.js?v=27"></script>
+  <script src="js/cofres/cofres.js?v=27"></script>
+  <script src="js/correo/correo.js?v=27"></script>
+  <script src="js/admin/admin.js?v=27"></script>
+  <script src="js/opciones/opciones.js?v=27"></script>
+  <script src="js/principal.js?v=27"></script>
   <script>
     // Registrar la app instalable (PWA)
     if ('serviceWorker' in navigator) {
       const yaTeniaVersion = !!navigator.serviceWorker.controller;
-      navigator.serviceWorker.register('sw.js?v=26', { updateViaCache: 'none' })
+      navigator.serviceWorker.register('sw.js?v=27', { updateViaCache: 'none' })
         .then(function (reg) { reg.update(); })
         .catch(function () {});
       // Cuando llega una versión nueva del juego: avisar y recargar solo
