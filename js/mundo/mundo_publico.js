@@ -7,7 +7,13 @@ const MundoPublico = {
 
   // ¿Hay nube configurada para publicar al pulsar Confirmar?
   puedePublicar() {
-    return !!(CONFIG.firebaseMundoUrl || (typeof Admin !== 'undefined' && Admin.datos && Admin.datos.tokenPublicar));
+    if (CONFIG.firebaseMundoUrl) return true;
+    if (this._tokenGitHub()) return true;
+    try {
+      const d = JSON.parse(localStorage.getItem('mariel_admin_v1') || 'null');
+      if (d && d.tokenPublicar) return true;
+    } catch (e) {}
+    return false;
   },
 
   usaFirebase() {
@@ -81,9 +87,30 @@ const MundoPublico = {
   },
 
   _tokenDesdeMundo: null,
+  _tokenDesdeArchivo: null,
+
+  async cargarClaveSync() {
+    if (this._tokenDesdeArchivo) return this._tokenDesdeArchivo;
+    if (CONFIG.tokenRegistroJugadores) {
+      this._tokenDesdeArchivo = CONFIG.tokenRegistroJugadores;
+      return this._tokenDesdeArchivo;
+    }
+    try {
+      const r = await Utilidades.fetchConTimeout('datos/clave_sync.json?v=' + Date.now(), { cache: 'no-store' }, 5000);
+      if (!r.ok) return null;
+      const j = await r.json();
+      const t = (j.token || '').trim();
+      if (t.length > 10) {
+        this._tokenDesdeArchivo = t;
+        return t;
+      }
+    } catch (e) {}
+    return null;
+  },
 
   _tokenGitHub() {
     if (CONFIG.tokenRegistroJugadores) return CONFIG.tokenRegistroJugadores;
+    if (this._tokenDesdeArchivo) return this._tokenDesdeArchivo;
     if (this._tokenDesdeMundo) return this._tokenDesdeMundo;
     try {
       const d = JSON.parse(localStorage.getItem('mariel_admin_v1') || 'null');

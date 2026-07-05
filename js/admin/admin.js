@@ -62,6 +62,14 @@ const Admin = {
     if (!this.publicado.correoTienda) this.publicado.correoTienda = [];
     if (!this.publicado.partidas) this.publicado.partidas = {};
     if (this.publicado.claveSyncNube) MundoPublico._tokenDesdeMundo = this.publicado.claveSyncNube;
+
+    const claveServidor = await MundoPublico.cargarClaveSync();
+    if (claveServidor && !this.datos.tokenPublicar) {
+      this.datos.tokenPublicar = claveServidor;
+      localStorage.setItem(this.CLAVE, JSON.stringify(this.datos,
+        (clave, valor) => clave.startsWith('_') ? undefined : valor));
+    }
+
     if (!Array.isArray(this.publicado.misiones)) this.publicado.misiones = [];
     if (!Array.isArray(this.publicado.tesoros)) this.publicado.tesoros = [];
     if (!Array.isArray(this.publicado.objetos)) this.publicado.objetos = [];
@@ -1402,21 +1410,33 @@ const Admin = {
 
   // ---------- PUBLICACIÓN AUTOMÁTICA (GitHub desde el teléfono) ----------
   configurarPublicacion() {
-    const token = prompt(
-      '🔑 Clave de GitHub (para Cuba, sin Firebase):\n\n' +
-      '1. En PC entra a github.com → tu foto → Settings\n' +
-      '2. Developer settings → Fine-grained tokens → Generate\n' +
-      '3. Repo: randyraulbr1/github-pages\n' +
-      '4. Permiso: Contents → Read and write\n' +
-      '5. Copia el token y pégalo aquí\n\n' +
-      '(Solo se guarda en TU teléfono. Luego al pulsar Confirmar sube solo.)'
+    const yaHay = MundoPublico._tokenGitHub();
+    const opcion = prompt(
+      '🔑 Clave de GitHub\n\n' +
+      (yaHay ? '✅ Ya hay una clave configurada (permanente).\n\n' : '') +
+      'Crear token nuevo:\n' +
+      'https://github.com/settings/personal-access-tokens/new\n\n' +
+      'Repo: randyraulbr1/github-pages\n' +
+      'Permiso: Contents → Read and write\n\n' +
+      'Para dejarla SIEMPRE (recomendado):\n' +
+      'Edita en GitHub el archivo datos/clave_sync.json\n' +
+      'y pega el token en "token": "..."\n\n' +
+      'O pégala aquí una vez (se guarda en este teléfono):\n' +
+      '(vacío = no cambiar, solo "x" = borrar)',
+      yaHay ? '' : ''
     );
-    if (token === null) return;
-    this.datos.tokenPublicar = token.trim() || null;
+    if (opcion === null) return;
+    if (opcion.trim().toLowerCase() === 'x') {
+      this.datos.tokenPublicar = null;
+    } else if (opcion.trim()) {
+      this.datos.tokenPublicar = opcion.trim();
+    }
     this.guardar();
-    Notificaciones.mostrar(this.datos.tokenPublicar
-      ? '🔑 ¡Listo! Al publicar el mundo, los jugadores podrán guardar su progreso en la nube automáticamente'
-      : '🔑 Clave borrada', 'exito', 8000);
+    Notificaciones.mostrar(
+      MundoPublico._tokenGitHub()
+        ? '🔑 Clave lista. Publica el mundo una vez y todos podrán guardar en la nube.'
+        : '🔑 Pon el token en datos/clave_sync.json en GitHub para que quede permanente.',
+      'exito', 9000);
   },
 
   async publicarMundo() {

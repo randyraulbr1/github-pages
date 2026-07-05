@@ -49,6 +49,8 @@
   };
 
   try {
+    avanzarCarga('Conectando con la nube…');
+    await pasoSeguro('clave', () => MundoPublico.cargarClaveSync());
     await Usuarios.iniciar();
     avanzarCarga('Cargando tu partida…');
     await pasoSeguro('partida', () => Guardado.iniciar());
