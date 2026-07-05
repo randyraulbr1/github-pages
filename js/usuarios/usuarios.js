@@ -213,8 +213,10 @@ const Usuarios = {
 
       if (typeof Admin !== 'undefined') {
         try { await Admin.actualizarJugadoresGlobales(); } catch (e) {}
-        const ban = Admin.estadoBloqueoPara(perfil);
-        if (ban) { this._mostrarAvisoAuth('login', '🚫 ' + ban.mensaje); return; }
+        try {
+          const ban = Admin.estadoBloqueoPara(perfil);
+          if (ban) { this._mostrarAvisoAuth('login', '🚫 ' + ban.mensaje); return; }
+        } catch (e) { console.warn('Ban check:', e); }
       }
 
       await this._activar(perfil);

@@ -14,9 +14,11 @@ const Enemigos = {
   lista: [],
   _marcadores: {},
   _zonas: {},
+  _zonasAtaque: {},
   _barraVida: {},
   _enCombate: null,
   _tickId: null,
+  _ultimoGolpeAuto: {},
 
   iniciar() {
     this._recargar();
@@ -100,13 +102,26 @@ const Enemigos = {
     }
   },
 
+  _radioZona(e) {
+    return e.radioZona || this._config().radioZona || 40;
+  },
+
+  _radioAtaque(e) {
+    const cfg = this._config();
+    return e.radioAtaque || e.radioPersecucion || cfg.radioPersecucion || 18;
+  },
+
   _crearEnMapa(e) {
     const icono = e.icono || '👹';
     const marcador = Mapa.crearMarcadorEmoji(e.pos, icono, 32);
     this._marcadores[e.id] = marcador;
-    const radio = e.radioZona || this._config().radioZona;
+    const radioZona = this._radioZona(e);
+    const radioAtaque = this._radioAtaque(e);
     this._zonas[e.id] = L.circle(e.pos, {
-      radius: radio, color: '#ff453a', weight: 2, fillColor: '#ff453a', fillOpacity: 0.07, dashArray: '4 6'
+      radius: radioZona, color: '#ff453a', weight: 2, fillColor: '#ff453a', fillOpacity: 0.07, dashArray: '4 6'
+    }).addTo(Mapa.mapa);
+    this._zonasAtaque[e.id] = L.circle(e.pos, {
+      radius: radioAtaque, color: '#ffd60a', weight: 2, fillColor: '#ffd60a', fillOpacity: 0.12, dashArray: '2 4'
     }).addTo(Mapa.mapa);
 
     Mapa.registrarPunto({
@@ -123,13 +138,16 @@ const Enemigos = {
   _quitarMarcador(id) {
     if (this._marcadores[id]) { this._marcadores[id].remove(); delete this._marcadores[id]; }
     if (this._zonas[id]) { this._zonas[id].remove(); delete this._zonas[id]; }
+    if (this._zonasAtaque[id]) { this._zonasAtaque[id].remove(); delete this._zonasAtaque[id]; }
     if (this._barraVida[id]) { this._barraVida[id].remove(); delete this._barraVida[id]; }
+    delete this._ultimoGolpeAuto[id];
   },
 
   _actualizarMarcador(e) {
     const m = this._marcadores[e.id];
     if (m) m.setLatLng(e.pos);
     if (this._zonas[e.id]) this._zonas[e.id].setLatLng(e.pos);
+    if (this._zonasAtaque[e.id]) this._zonasAtaque[e.id].setLatLng(e.pos);
     this._actualizarBarra(e);
   },
 
@@ -161,8 +179,8 @@ const Enemigos = {
   },
 
   _alCambiarDistancia(e, d) {
-    const cfg = this._config();
-    const enZona = d <= (e.radioZona || cfg.radioZona);
+    const radioZona = this._radioZona(e);
+    const enZona = d <= radioZona;
     if (enZona && !e._avisoZona) {
       e._avisoZona = true;
       Notificaciones.mostrar('⚠️ Zona de ' + (e.nombre || 'enemigo') + ' — ¡cuidado!', 'alerta', 3500);
@@ -171,24 +189,46 @@ const Enemigos = {
     }
   },
 
+  _moverEnemigo(e, nlat, nlng) {
+    const m = this._marcadores[e.id];
+    if (!m) return;
+    m.setLatLng([nlat, nlng]);
+    e.pos[0] = nlat; e.pos[1] = nlng;
+    if (this._zonas[e.id]) this._zonas[e.id].setLatLng([nlat, nlng]);
+    if (this._zonasAtaque[e.id]) this._zonasAtaque[e.id].setLatLng([nlat, nlng]);
+    if (this._barraVida[e.id]) this._barraVida[e.id].setLatLng([nlat, nlng]);
+  },
+
+  _golpeAutomatico(e) {
+    if (Vida.estaMuerto()) return;
+    if (this._enCombate) return;
+    const ahora = Date.now();
+    const ultimo = this._ultimoGolpeAuto[e.id] || 0;
+    if (ahora - ultimo < 2200) return;
+    this._ultimoGolpeAuto[e.id] = ahora;
+    const dano = e.dano || 10;
+    Vida.cambiar(-dano, null);
+    Notificaciones.mostrar('💥 ' + e.nombre + ' te alcanza (-' + dano + ')', 'alerta', 2200);
+  },
+
   _tick() {
     if (!GPS.posicion || Vida.estaMuerto()) return;
-    const cfg = this._config();
     for (const e of this.lista) {
       this._aplicarEstadoRemoto(e);
       const d = Utilidades.distanciaMetros(GPS.posicion, e.pos);
-      const persigue = d <= cfg.radioPersecucion && d > 3;
-      if (persigue && this._marcadores[e.id]) {
+      const radioZona = this._radioZona(e);
+      const radioAtaque = this._radioAtaque(e);
+      const enZona = d <= radioZona;
+      const enAtaque = d <= radioAtaque;
+
+      if (enZona && d > 3 && this._marcadores[e.id]) {
         const m = this._marcadores[e.id];
         const ll = m.getLatLng();
-        const t = 0.12;
+        const t = enAtaque ? 0.18 : 0.12;
         const nlat = ll.lat + (GPS.posicion[0] - ll.lat) * t;
         const nlng = ll.lng + (GPS.posicion[1] - ll.lng) * t;
-        m.setLatLng([nlat, nlng]);
-        e.pos[0] = nlat; e.pos[1] = nlng;
-        if (this._zonas[e.id]) this._zonas[e.id].setLatLng([nlat, nlng]);
-        if (this._barraVida[e.id]) this._barraVida[e.id].setLatLng([nlat, nlng]);
-      } else if (e.posOrigen && d > (e.radioZona || cfg.radioZona) * 1.2) {
+        this._moverEnemigo(e, nlat, nlng);
+      } else if (e.posOrigen && d > radioZona * 1.15) {
         const o = e.posOrigen;
         const distOrigen = Utilidades.distanciaMetros(e.pos, o);
         if (distOrigen > 2 && this._marcadores[e.id]) {
@@ -197,11 +237,12 @@ const Enemigos = {
           const t = 0.08;
           const nlat = ll.lat + (o[0] - ll.lat) * t;
           const nlng = ll.lng + (o[1] - ll.lng) * t;
-          m.setLatLng([nlat, nlng]);
-          e.pos[0] = nlat; e.pos[1] = nlng;
-          if (this._zonas[e.id]) this._zonas[e.id].setLatLng([nlat, nlng]);
+          this._moverEnemigo(e, nlat, nlng);
         }
       }
+
+      if (enAtaque && !this._enCombate) this._golpeAutomatico(e);
+
       this._actualizarBarra(e);
     }
   },
@@ -251,7 +292,21 @@ const Enemigos = {
   },
 
   _huir() {
-    Notificaciones.mostrar('🏃 Huiste del combate', 'info');
+    const e = this._enCombate;
+    if (!e) return;
+    const coste = 60 + Math.floor(Math.random() * 21);
+    const antes = Vida.actual;
+    Vida.actual = Math.max(0, Vida.actual - coste);
+    Guardado.datos.vida = Vida.actual;
+    Vida.hambre = 0;
+    Guardado.datos.hambre = 0;
+    Guardado.guardar();
+    Vida.pintar();
+    if (Vida.actual <= 0) Vida._activarMuerte();
+    Notificaciones.mostrar(
+      '🏃 Huiste del combate (-' + coste + ' vida, hambre a 0)',
+      'alerta', 5000
+    );
     this._cerrarCombate();
   },
 

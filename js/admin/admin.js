@@ -270,7 +270,10 @@ const Admin = {
   },
 
   async actualizarJugadoresGlobales() {
-    if (!this.publicado) this.publicado = { jugadores: [] };
+    if (!this.publicado) this.publicado = { jugadores: [], baneados: [] };
+    if (!this.datos) {
+      try { this.datos = JSON.parse(localStorage.getItem(this.CLAVE) || 'null'); } catch (e) {}
+    }
     try {
       const texto = await MundoPublico.descargar();
       if (!texto) return;
@@ -1846,9 +1849,12 @@ const Admin = {
 
   // ---------- BLOQUEO DEL JUEGO (mantenimiento y baneos) ----------
   estadoBloqueoPara(perfil) {
+    if (!this.publicado) this.publicado = { baneados: [], jugadores: [] };
+    if (!this.publicado.baneados) this.publicado.baneados = [];
     const id = perfil ? perfil.id : '';
     const telefono = perfil ? (perfil.telefono || '') : '';
-    const ban = [...(this.publicado.baneados || []), ...(this.datos.baneados || [])]
+    const baneadosDat = (this.datos && this.datos.baneados) ? this.datos.baneados : [];
+    const ban = [...(this.publicado.baneados || []), ...baneadosDat]
       .find(b => b.id === id || (telefono && b.id === telefono));
     if (ban && this._banActivo(ban)) {
       const hastaTxt = ban.hasta ? ' Hasta: ' + Utilidades.fechaLegible(ban.hasta) : ' (permanente)';
@@ -2217,53 +2223,34 @@ const Admin = {
   },
 
   async _obtenerPartidaJugador(perfil) {
+    const base = (d) => ({
+      mochila: d.mochila || new Array(25).fill(null),
+      dinero: d.dinero || { saldo: CONFIG.dineroInicial },
+      vida: d.vida ?? CONFIG.vidaMaxima,
+      hambre: d.hambre ?? CONFIG.hambreInicial,
+      muerto: d.vida === 0 || !!d.muerto,
+      armaEquipada: d.armaEquipada || null,
+      posicionJugador: d.posicionJugador || null,
+      xp: d.xp ?? 0,
+      nivel: d.nivel ?? 1
+    });
     if (perfil.id === Usuarios.perfilActivo?.id) {
-      return JSON.parse(JSON.stringify({
-        mochila: Guardado.datos.mochila,
-        dinero: Guardado.datos.dinero,
-        vida: Guardado.datos.vida,
-        muerto: Guardado.datos.muerto,
-        armaEquipada: Guardado.datos.armaEquipada || null
-      }));
+      return JSON.parse(JSON.stringify(base(Guardado.datos)));
     }
     const clave = CONFIG.claveGuardado + '::' + perfil.id;
     try {
       const p = JSON.parse(localStorage.getItem(clave));
-      if (p?.datos) {
-        return JSON.parse(JSON.stringify({
-          mochila: p.datos.mochila || new Array(25).fill(null),
-          dinero: p.datos.dinero || { saldo: CONFIG.dineroInicial },
-          vida: p.datos.vida ?? CONFIG.vidaMaxima,
-          muerto: !!p.datos.muerto,
-          armaEquipada: p.datos.armaEquipada || null
-        }));
-      }
+      if (p?.datos) return JSON.parse(JSON.stringify(base(p.datos)));
     } catch (e) {}
     const nube = (this.publicado.partidas || {})[perfil.id];
     if (nube) {
       const d = nube.datos || nube;
-      if (d.mochila) {
-        return JSON.parse(JSON.stringify({
-          mochila: d.mochila,
-          dinero: d.dinero || { saldo: CONFIG.dineroInicial },
-          vida: d.vida ?? CONFIG.vidaMaxima,
-          muerto: d.vida === 0 || !!d.muerto,
-          armaEquipada: d.armaEquipada || null
-        }));
-      }
+      if (d.mochila) return JSON.parse(JSON.stringify(base(d)));
     }
     const extra = (this.datos.partidasExtra || {})[perfil.id];
     if (extra) {
       const d = extra.datos || extra;
-      if (d.mochila) {
-        return JSON.parse(JSON.stringify({
-          mochila: d.mochila,
-          dinero: d.dinero || { saldo: 0 },
-          vida: d.vida ?? CONFIG.vidaMaxima,
-          muerto: d.vida === 0 || !!d.muerto,
-          armaEquipada: d.armaEquipada || null
-        }));
-      }
+      if (d.mochila) return JSON.parse(JSON.stringify(base(d)));
     }
     return Object.assign(this._partidaDefault(), { vida: CONFIG.vidaMaxima, muerto: false });
   },
@@ -2301,6 +2288,12 @@ const Admin = {
     paquete.datos.vida = partida.vida;
     paquete.datos.muerto = partida.muerto;
     if (partida.armaEquipada !== undefined) paquete.datos.armaEquipada = partida.armaEquipada;
+    if (partida.hambre != null) paquete.datos.hambre = partida.hambre;
+    if (partida.posicionJugador && partida.posicionJugador.length >= 2) {
+      paquete.datos.posicionJugador = partida.posicionJugador.slice();
+    }
+    if (partida.xp != null) paquete.datos.xp = partida.xp;
+    if (partida.nivel != null) paquete.datos.nivel = partida.nivel;
     paquete.firma = await Utilidades.sha256(JSON.stringify(paquete.datos) + Guardado.SAL);
     localStorage.setItem(clave, JSON.stringify(paquete));
 
@@ -2631,6 +2624,29 @@ const Admin = {
       this._adminAviso('Este jugador no tiene contraseña. Escríbela y guarda primero.');
       return;
     }
+
+    const oro = parseInt(document.getElementById('admin-editor-oro')?.value, 10);
+    const vidaEd = parseInt(document.getElementById('admin-editor-vida')?.value, 10);
+    if (!isNaN(oro)) {
+      ed.partida.dinero = ed.partida.dinero || { saldo: 0 };
+      ed.partida.dinero.saldo = oro;
+    }
+    if (!isNaN(vidaEd)) {
+      ed.partida.vida = vidaEd;
+      ed.partida.muerto = vidaEd <= 0;
+    }
+    const claveSave = CONFIG.claveGuardado + '::' + perfil.id;
+    try {
+      const prev = JSON.parse(localStorage.getItem(claveSave));
+      if (prev?.datos?.posicionJugador?.length >= 2 && !ed.partida.posicionJugador) {
+        ed.partida.posicionJugador = prev.datos.posicionJugador.slice();
+      }
+      if (prev?.datos?.hambre != null && ed.partida.hambre == null) {
+        ed.partida.hambre = prev.datos.hambre;
+      }
+    } catch (e) {}
+    await this._guardarPartidaJugador(perfil, ed.partida);
+
     const local = Usuarios.datos.lista.find(p => p.id === perfil.id);
     const entrada = {
       id: perfil.id,
@@ -2645,6 +2661,8 @@ const Admin = {
     else Usuarios.datos.lista.push(entrada);
     Usuarios._guardarLista();
     this.registrarJugador(entrada, true);
+    this._editorJugador = null;
+    document.getElementById('ventana-admin')?.classList.add('oculto');
     await Usuarios._activar(entrada);
     location.reload();
   },

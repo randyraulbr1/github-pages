@@ -104,10 +104,13 @@
 
     document.querySelectorAll('.btn-cerrar').forEach(b => {
       b.addEventListener('click', () => {
-        document.getElementById(b.dataset.cierra).classList.add('oculto');
+        const id = b.dataset.cierra;
+        if (id === 'ventana-combate') return;
+        document.getElementById(id).classList.add('oculto');
       });
     });
     document.querySelectorAll('.ventana').forEach(v => {
+      if (v.id === 'ventana-combate') return;
       v.addEventListener('click', ev => {
         if (ev.target === v) v.classList.add('oculto');
       });
