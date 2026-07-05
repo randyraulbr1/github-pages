@@ -3,7 +3,7 @@
 // ============================================================
 const CONFIG = {
   // Cambiar al publicar: obliga al móvil a descartar caché vieja
-  version: '22',
+  version: '23',
 
   // Nombre reservado del administrador (solo este jugador ve el panel admin)
   adminNombre: 'randy',
@@ -47,6 +47,6 @@ const CONFIG = {
   repoPublicacion: 'randyraulbr1/github-pages',
   ramaPublicacion: 'claude/web-rpg-gps-game-n3ybow',
 
-  // Opcional: si lo rellenas, al crear cuenta se guarda el jugador en mundo.json
-  tokenRegistroJugadores: ''
+  // Si el admin la pone aquí, TODOS los jugadores pueden subir cuenta y progreso a mundo.json
+  tokenRegistroJugadores: '',
 };

@@ -61,6 +61,7 @@ const Admin = {
     if (!this.publicado.correoReclamados) this.publicado.correoReclamados = [];
     if (!this.publicado.correoTienda) this.publicado.correoTienda = [];
     if (!this.publicado.partidas) this.publicado.partidas = {};
+    if (this.publicado.claveSyncNube) MundoPublico._tokenDesdeMundo = this.publicado.claveSyncNube;
     if (!Array.isArray(this.publicado.misiones)) this.publicado.misiones = [];
     if (!Array.isArray(this.publicado.tesoros)) this.publicado.tesoros = [];
     if (!Array.isArray(this.publicado.objetos)) this.publicado.objetos = [];
@@ -1414,7 +1415,7 @@ const Admin = {
     this.datos.tokenPublicar = token.trim() || null;
     this.guardar();
     Notificaciones.mostrar(this.datos.tokenPublicar
-      ? '🔑 ¡Listo! Al crear en el mapa y pulsar Confirmar, todos lo verán'
+      ? '🔑 ¡Listo! Al publicar el mundo, los jugadores podrán guardar su progreso en la nube automáticamente'
       : '🔑 Clave borrada', 'exito', 8000);
   },
 
@@ -1529,7 +1530,8 @@ const Admin = {
           if (!porId[id] || (p.t && p.t > (porId[id].t || 0))) porId[id] = p;
         }
         return porId;
-      })()
+      })(),
+      claveSyncNube: this.datos.tokenPublicar || (this.publicado.claveSyncNube || '')
     }, quitarTemporales, 2);
   },
 
