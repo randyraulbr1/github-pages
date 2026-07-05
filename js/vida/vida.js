@@ -26,13 +26,37 @@ const Vida = {
     this.hambre = Guardado.datos.hambre ?? CONFIG.hambreInicial;
     this._muerto = !!(Guardado.datos.muerto || this.actual <= 0);
     if (this._muerto) this.actual = 0;
+    this._asegurarVidaAdmin();
     this.pintar();
     if (this._muerto) this._mostrarPantallaMuerte();
     setInterval(() => this._tickHambre(), CONFIG.segundosDesgasteHambre * 1000);
   },
 
   estaMuerto() {
+    if (this._esAdmin()) return false;
     return this._muerto || this.actual <= 0;
+  },
+
+  _esAdmin() {
+    return typeof Usuarios !== 'undefined' && Usuarios.esAdministrador();
+  },
+
+  _vidaMinimaAdmin() {
+    return Math.ceil(this.vidaMaxima() * 0.5);
+  },
+
+  _asegurarVidaAdmin() {
+    if (!this._esAdmin()) return;
+    const min = this._vidaMinimaAdmin();
+    if (this._muerto || this.actual < min) {
+      this._muerto = false;
+      Guardado.datos.muerto = false;
+      this.actual = Math.max(min, this.actual || min);
+      Guardado.datos.vida = this.actual;
+      const pantalla = document.getElementById('pantalla-muerte');
+      if (pantalla) pantalla.classList.add('oculto');
+      document.body.classList.remove('jugador-muerto');
+    }
   },
 
   xpParaNivel(n) {
@@ -110,12 +134,13 @@ const Vida = {
     }
   },
 
-  /** Daño de enemigos — siempre aplica (también al admin en combate) */
+  /** Daño de enemigos — el admin no baja del 50% ni muere */
   recibirDano(cantidad, motivo) {
     if (this.estaMuerto() || cantidad <= 0) return;
-    const max = this.vidaMaxima();
     const antes = this.actual;
-    this.actual = Math.max(0, this.actual - cantidad);
+    let nuevo = Math.max(0, this.actual - cantidad);
+    if (this._esAdmin()) nuevo = Math.max(this._vidaMinimaAdmin(), nuevo);
+    this.actual = nuevo;
     if (this.actual !== antes) {
       Guardado.datos.vida = this.actual;
       Guardado.guardar();
@@ -141,6 +166,10 @@ const Vida = {
   },
 
   _activarMuerte() {
+    if (this._esAdmin()) {
+      this._asegurarVidaAdmin();
+      return;
+    }
     if (this._muerto) return;
     this._muerto = true;
     Guardado.datos.muerto = true;
