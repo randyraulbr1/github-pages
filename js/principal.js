@@ -73,8 +73,12 @@
         const boton = document.getElementById('btn-bloqueo-admin');
         boton.classList.remove('oculto');
         boton.addEventListener('click', async () => {
-          const pin = prompt('Contraseña de administrador (4 números):');
+          const pin = prompt('Contraseña de tu cuenta:');
           if (pin === null) return;
+          if (!Utilidades.claveCuentaValida(pin)) {
+            alert('Contraseña inválida (mín. 8, 1 mayúscula, 1 carácter especial)');
+            return;
+          }
           const hash = await Utilidades.sha256('pin-perfil|' + pin.trim());
           if (hash === Usuarios.perfilActivo.pinHash) pantalla.classList.add('oculto');
           else alert('Contraseña incorrecta');

@@ -2,7 +2,7 @@
 // USUARIOS — login, registro y sesión
 // ============================================================
 const Usuarios = {
-  CLAVE: 'mariel_perfiles_v1',
+  CLAVE: 'mariel_perfiles_v2',
   datos: null,
   perfilActivo: null,
   _resolver: null,
@@ -71,12 +71,6 @@ const Usuarios = {
     });
   },
 
-  _escapar(texto) {
-    const d = document.createElement('div');
-    d.textContent = texto;
-    return d.innerHTML;
-  },
-
   telefonoValido(t) {
     return /^\+?\d{6,15}$/.test(t);
   },
@@ -95,14 +89,14 @@ const Usuarios = {
 
   async iniciarSesion() {
     const usuario = document.getElementById('login-usuario').value.trim();
-    const clave = document.getElementById('login-clave').value.trim();
+    const clave = document.getElementById('login-clave').value;
     if (!usuario) { alert('Escribe tu nombre o teléfono'); return; }
-    if (!/^\d{4}$/.test(clave)) { alert('La contraseña debe ser de 4 números'); return; }
+    if (!clave) { alert('Escribe tu contraseña'); return; }
 
     const perfil = this._buscarPorLogin(usuario);
     if (!perfil) { alert('No existe esa cuenta en este teléfono.\nRegístrate primero.'); return; }
     if (!perfil.pinHash) {
-      alert('Esta cuenta es antigua. Regístrate de nuevo o contacta al administrador.');
+      alert('Esta cuenta es antigua. Crea una cuenta nueva.');
       return;
     }
     const hash = await Utilidades.sha256('pin-perfil|' + clave);
@@ -121,15 +115,16 @@ const Usuarios = {
   async crear() {
     const nombre = document.getElementById('registro-nombre').value.trim();
     const telefono = document.getElementById('registro-telefono').value.trim().replace(/[\s-]/g, '');
-    const clave = document.getElementById('registro-clave').value.trim();
-    const clave2 = document.getElementById('registro-clave2').value.trim();
+    const clave = document.getElementById('registro-clave').value;
+    const clave2 = document.getElementById('registro-clave2').value;
 
     if (nombre.length < 2) { alert('Escribe tu nombre (mínimo 2 letras)'); return; }
     if (!this.telefonoValido(telefono)) {
       alert('Número inválido: solo números, mínimo 6 dígitos.');
       return;
     }
-    if (!/^\d{4}$/.test(clave)) { alert('La contraseña debe ser de 4 números'); return; }
+    const errClave = Utilidades.claveCuentaValida(clave);
+    if (errClave) { alert(errClave); return; }
     if (clave !== clave2) { alert('Las contraseñas no coinciden'); return; }
 
     if (typeof Admin !== 'undefined') await Admin.actualizarJugadoresGlobales();
@@ -176,21 +171,11 @@ const Usuarios = {
     const yaTiene = !!perfil.telefono;
     const gastadoEn = perfil.telefonoCambiadoEn || 0;
     const faltanMs = this.UN_MES_MS - (Date.now() - gastadoEn);
-    let cambioDeAdmin = false;
 
-    if (yaTiene && gastadoEn > 0 && faltanMs > 0) {
+    if (yaTiene && gastadoEn > 0 && faltanMs > 0 && !this.esAdministrador()) {
       const cuando = Utilidades.fechaLegible(gastadoEn + this.UN_MES_MS);
-      const esAdmin = this.esAdministrador() && typeof Admin !== 'undefined' && Admin.datos && Admin.datos.pinHash &&
-        confirm('📱 Solo 1 cambio al mes.\nPróximo: ' + cuando + '\n\n¿Eres el ADMIN?');
-      if (!esAdmin) {
-        Notificaciones.mostrar('📱 Podrás cambiar tu número el ' + cuando, 'alerta', 6000);
-        return;
-      }
-      const pin = prompt('Contraseña de administrador (4 números):');
-      if (pin === null) return;
-      const hash = await Utilidades.sha256('pin-perfil|' + pin.trim());
-      if (hash !== perfil.pinHash) { alert('Contraseña incorrecta'); return; }
-      cambioDeAdmin = true;
+      Notificaciones.mostrar('📱 Podrás cambiar tu número el ' + cuando, 'alerta', 6000);
+      return;
     }
 
     const nuevo = prompt('Nuevo número de teléfono:', perfil.telefono || '');
@@ -203,7 +188,7 @@ const Usuarios = {
       if (err) { alert(err); return; }
     }
     perfil.telefono = limpio;
-    if (!cambioDeAdmin) perfil.telefonoCambiadoEn = Date.now();
+    if (!this.esAdministrador()) perfil.telefonoCambiadoEn = Date.now();
     this._guardarLista();
     if (typeof Admin !== 'undefined') Admin.registrarJugador(perfil);
     Notificaciones.mostrar('📱 Número actualizado: ' + limpio, 'exito', 5000);
@@ -212,7 +197,6 @@ const Usuarios = {
   UN_MES_MS: 30 * 24 * 60 * 60 * 1000
 };
 
-// Enlaces de pantallas (HTML estático)
 document.addEventListener('DOMContentLoaded', () => {
   const irReg = document.getElementById('btn-ir-registro');
   const irLog = document.getElementById('btn-ir-login');

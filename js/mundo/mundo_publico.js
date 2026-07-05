@@ -149,14 +149,7 @@ const MundoPublico = {
     } catch (e) { return null; }
   },
 
-  async reclamarCodigoCorreo(codigo, perfil) {
-    const ya = await this.correoYaReclamado(codigo);
-    if (ya) return ya.jugadorId === perfil.id;
-
-    if (typeof Admin === 'undefined' || !MundoPublico._tokenGitHub()) {
-      return true;
-    }
-
+  async _leerMundoCorreo() {
     let mundo = { correoReclamados: [], correoCola: {} };
     try {
       const texto = await this.descargar();
@@ -164,39 +157,92 @@ const MundoPublico = {
     } catch (e) {}
     if (!mundo.correoReclamados) mundo.correoReclamados = [];
     if (!mundo.correoCola) mundo.correoCola = {};
+    return mundo;
+  },
 
-    if (mundo.correoReclamados.some(r => r.codigo === codigo)) return false;
-
-    const cola = mundo.correoCola[codigo];
-    const ahora = Date.now();
-    if (cola && cola.jugadorId !== perfil.id && (ahora - cola.t) < 15000) return false;
-
-    mundo.correoCola[codigo] = { jugadorId: perfil.id, nombre: perfil.nombre, t: ahora };
-    const json1 = JSON.stringify(mundo, null, 2);
-    await this._putMundoGitHub(json1);
-
-    await new Promise(r => setTimeout(r, 800));
-    const ver = await this.correoYaReclamado(codigo);
-    if (ver) return ver.jugadorId === perfil.id;
-
-    try {
-      const texto2 = await this.descargar();
-      if (texto2) mundo = JSON.parse(texto2);
-    } catch (e) {}
-    const miCola = (mundo.correoCola || {})[codigo];
-    if (miCola && miCola.jugadorId !== perfil.id) return false;
-
-    mundo.correoReclamados = mundo.correoReclamados || [];
-    mundo.correoReclamados.push({
-      codigo, jugadorId: perfil.id, nombre: perfil.nombre, t: ahora
-    });
-    delete mundo.correoCola[codigo];
-    const json2 = JSON.stringify(mundo, null, 2);
-    const ok = await this._putMundoGitHub(json2);
+  async _guardarMundoCorreo(mundo) {
+    const json = JSON.stringify(mundo, null, 2);
+    const ok = await this._putMundoGitHub(json);
     if (typeof Admin !== 'undefined') {
       Admin.publicado.correoReclamados = mundo.correoReclamados;
       Admin.datos.correoReclamadosExtra = mundo.correoReclamados;
     }
-    return ok || true;
+    return ok;
+  },
+
+  async registrarReclamoParcial(codigo, perfil, cantidadTomada, cantidadTotal) {
+    if (!this._tokenGitHub()) return { ok: true, completo: cantidadTomada >= cantidadTotal };
+
+    const mundo = await this._leerMundoCorreo();
+    let entrada = mundo.correoReclamados.find(r => r.codigo === codigo);
+    if (!entrada) {
+      entrada = {
+        codigo,
+        jugadorId: perfil.id,
+        nombre: perfil.nombre,
+        reclamado: 0,
+        total: cantidadTotal,
+        completo: false,
+        t: Date.now()
+      };
+      mundo.correoReclamados.push(entrada);
+    }
+    entrada.reclamado = (entrada.reclamado || 0) + cantidadTomada;
+    entrada.jugadorId = perfil.id;
+    entrada.nombre = perfil.nombre;
+    if (entrada.reclamado >= cantidadTotal) {
+      entrada.reclamado = cantidadTotal;
+      entrada.completo = true;
+    }
+    await this._guardarMundoCorreo(mundo);
+    return { ok: true, completo: !!entrada.completo, reclamado: entrada.reclamado };
+  },
+
+  async reclamarCodigoCorreo(codigo, perfil, completo) {
+    const ya = await this.correoYaReclamado(codigo);
+    if (ya && ya.completo && ya.jugadorId !== perfil.id) return false;
+
+    if (typeof Admin === 'undefined' || !this._tokenGitHub()) return true;
+
+    let mundo = await this._leerMundoCorreo();
+    const existente = mundo.correoReclamados.find(r => r.codigo === codigo);
+    if (existente && existente.completo) return existente.jugadorId === perfil.id;
+
+    if (!completo) {
+      const cola = mundo.correoCola[codigo];
+      const ahora = Date.now();
+      if (cola && cola.jugadorId !== perfil.id && (ahora - cola.t) < 15000) return false;
+
+      mundo.correoCola[codigo] = { jugadorId: perfil.id, nombre: perfil.nombre, t: ahora };
+      await this._putMundoGitHub(JSON.stringify(mundo, null, 2));
+
+      await new Promise(r => setTimeout(r, 800));
+      const ver = await this.correoYaReclamado(codigo);
+      if (ver && ver.completo && ver.jugadorId !== perfil.id) return false;
+
+      try {
+        const texto2 = await this.descargar();
+        if (texto2) mundo = JSON.parse(texto2);
+      } catch (e) {}
+      const miCola = (mundo.correoCola || {})[codigo];
+      if (miCola && miCola.jugadorId !== perfil.id) return false;
+      return !!(miCola && miCola.jugadorId === perfil.id);
+    }
+
+    let entrada = mundo.correoReclamados.find(r => r.codigo === codigo);
+    if (!entrada) {
+      entrada = {
+        codigo, jugadorId: perfil.id, nombre: perfil.nombre,
+        reclamado: 0, total: 0, completo: true, t: Date.now()
+      };
+      mundo.correoReclamados.push(entrada);
+    } else {
+      entrada.completo = true;
+      entrada.jugadorId = perfil.id;
+      entrada.nombre = perfil.nombre;
+    }
+    delete mundo.correoCola[codigo];
+    await this._guardarMundoCorreo(mundo);
+    return true;
   }
 };

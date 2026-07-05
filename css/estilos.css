@@ -535,5 +535,10 @@ body.en-auth #zona-notificaciones { display: none !important; }
   display: grid; grid-template-columns: repeat(6, 1fr); gap: 6px; padding: 10px 14px;
 }
 .cofre-slot { min-height: 44px; }
+
+#rejilla-correo-reclamo {
+  display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px; padding: 14px;
+}
+#correo-reclamo-info { padding: 10px 14px 0; font-size: 13px; color: #9aa5bd; line-height: 1.45; }
 #cofre-mochila-titulo { padding: 8px 14px 0; font-size: 13px; color: #9aa5bd; }
 #cofre-info { padding: 8px 14px; font-size: 13px; color: #c5d0e8; }

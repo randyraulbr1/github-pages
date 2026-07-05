@@ -251,7 +251,7 @@ const Mochila = {
       ? '«' + sl.texto + '»' : (item.desc || '');
     document.getElementById('detalle-cantidad').textContent = 'Cantidad: ' + sl.cantidad;
     document.getElementById('btn-usar-item').style.display =
-      (item.cura || sl.id === 'cofre') ? '' : 'none';
+      (item.cura || sl.id === 'cofre' || sl.id === 'llave_maestra') ? '' : 'none';
     // Escribir: solo con papel en la mano y un lápiz en la mochila
     document.getElementById('btn-escribir-item').style.display =
       (sl.id === 'papel' && this.tieneItem('lapiz')) ? '' : 'none';
@@ -286,6 +286,12 @@ const Mochila = {
       this.ocultarDetalle();
       document.getElementById('ventana-mochila').classList.add('oculto');
       Cofres.usarCofreInventario();
+      return;
+    }
+    if (sl.id === 'llave_maestra') {
+      this.ocultarDetalle();
+      document.getElementById('ventana-mochila').classList.add('oculto');
+      Cofres.usarLlaveMaestra();
       return;
     }
     if (item.tipo === 'comida' && item.cura) {

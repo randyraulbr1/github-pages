@@ -121,7 +121,7 @@
       <div class="auth-sub">Iniciar sesión</div>
       <input id="login-usuario" maxlength="20" placeholder="Nombre o teléfono" autocomplete="username">
       <div class="campo-clave">
-        <input id="login-clave" type="password" inputmode="numeric" maxlength="4" placeholder="Contraseña (4 números)" autocomplete="current-password">
+        <input id="login-clave" type="password" placeholder="Contraseña (mín. 8, 1 mayúscula, 1 especial)" autocomplete="current-password">
         <button type="button" class="btn-ojo-clave" data-campo="login-clave">👁️</button>
       </div>
       <button id="btn-iniciar-sesion" class="btn-auth-principal">Entrar al juego</button>
@@ -137,11 +137,11 @@
       <input id="registro-nombre" maxlength="20" placeholder="Tu nombre" autocomplete="off">
       <input id="registro-telefono" inputmode="tel" maxlength="16" placeholder="📱 Teléfono (solo números)" autocomplete="off">
       <div class="campo-clave">
-        <input id="registro-clave" type="password" inputmode="numeric" maxlength="4" placeholder="Contraseña (4 números)" autocomplete="new-password">
+        <input id="registro-clave" type="password" placeholder="Contraseña (mín. 8, 1 mayúscula, 1 especial)" autocomplete="new-password">
         <button type="button" class="btn-ojo-clave" data-campo="registro-clave">👁️</button>
       </div>
       <div class="campo-clave">
-        <input id="registro-clave2" type="password" inputmode="numeric" maxlength="4" placeholder="Repetir contraseña" autocomplete="new-password">
+        <input id="registro-clave2" type="password" placeholder="Repetir contraseña" autocomplete="new-password">
         <button type="button" class="btn-ojo-clave" data-campo="registro-clave2">👁️</button>
       </div>
       <button id="btn-crear-perfil" class="btn-auth-principal">Registrarme</button>
@@ -237,8 +237,20 @@
       <div class="pestanas">
         <button id="pestana-correo-enviar" class="pestana activa">Enviar</button>
         <button id="pestana-correo-recibir" class="pestana">Recibir</button>
+        <button id="pestana-correo-pendientes" class="pestana">Pendientes</button>
+        <button id="pestana-correo-tienda" class="pestana">Tienda</button>
       </div>
       <div id="correo-contenido"></div>
+    </div>
+  </div>
+
+  <!-- ============ VENTANA: RECLAMO CORREO (20 casillas) ============ -->
+  <div id="ventana-correo-reclamo" class="ventana oculto">
+    <div class="ventana-caja">
+      <div class="ventana-titulo">📬 Reclamar paquete <button class="btn-cerrar" data-cierra="ventana-correo-reclamo">✕</button></div>
+      <div id="correo-reclamo-info"></div>
+      <div id="rejilla-correo-reclamo"></div>
+      <div class="correo-nota" style="padding:10px 14px 14px;">Toca cada casilla para llevarlo a tu mochila. Lo que no quepa queda en el paquete.</div>
     </div>
   </div>
 
@@ -305,39 +317,39 @@
   </div>
 
   <!-- LIBRERÍAS -->
-  <script src="lib/leaflet/leaflet.js?v=19"></script>
+  <script src="lib/leaflet/leaflet.js?v=20"></script>
 
   <!-- MÓDULOS DEL JUEGO (orden importante) -->
-  <script src="js/config/config.js?v=19"></script>
-  <script src="js/nucleo/utilidades.js?v=19"></script>
-  <script src="js/mundo/mundo_publico.js?v=19"></script>
-  <script src="js/notificaciones/notificaciones.js?v=19"></script>
-  <script src="js/usuarios/usuarios.js?v=19"></script>
-  <script src="js/guardado/guardado.js?v=19"></script>
-  <script src="js/historial/historial.js?v=19"></script>
-  <script src="js/dinero/dinero.js?v=19"></script>
-  <script src="js/vida/vida.js?v=19"></script>
-  <script src="js/items/items.js?v=19"></script>
-  <script src="js/mochila/mochila.js?v=19"></script>
-  <script src="js/mapa/mapa.js?v=19"></script>
-  <script src="js/gps/gps.js?v=19"></script>
-  <script src="js/tiendas/datos_tiendas.js?v=19"></script>
-  <script src="js/tiendas/tiendas.js?v=19"></script>
-  <script src="js/pesca/pesca.js?v=19"></script>
-  <script src="js/tesoros/datos_tesoros.js?v=19"></script>
-  <script src="js/tesoros/tesoros.js?v=19"></script>
-  <script src="js/misiones/datos_misiones.js?v=19"></script>
-  <script src="js/misiones/misiones.js?v=19"></script>
-  <script src="js/cofres/cofres.js?v=19"></script>
-  <script src="js/correo/correo.js?v=19"></script>
-  <script src="js/admin/admin.js?v=19"></script>
-  <script src="js/opciones/opciones.js?v=19"></script>
-  <script src="js/principal.js?v=19"></script>
+  <script src="js/config/config.js?v=20"></script>
+  <script src="js/nucleo/utilidades.js?v=20"></script>
+  <script src="js/mundo/mundo_publico.js?v=20"></script>
+  <script src="js/notificaciones/notificaciones.js?v=20"></script>
+  <script src="js/usuarios/usuarios.js?v=20"></script>
+  <script src="js/guardado/guardado.js?v=20"></script>
+  <script src="js/historial/historial.js?v=20"></script>
+  <script src="js/dinero/dinero.js?v=20"></script>
+  <script src="js/vida/vida.js?v=20"></script>
+  <script src="js/items/items.js?v=20"></script>
+  <script src="js/mochila/mochila.js?v=20"></script>
+  <script src="js/mapa/mapa.js?v=20"></script>
+  <script src="js/gps/gps.js?v=20"></script>
+  <script src="js/tiendas/datos_tiendas.js?v=20"></script>
+  <script src="js/tiendas/tiendas.js?v=20"></script>
+  <script src="js/pesca/pesca.js?v=20"></script>
+  <script src="js/tesoros/datos_tesoros.js?v=20"></script>
+  <script src="js/tesoros/tesoros.js?v=20"></script>
+  <script src="js/misiones/datos_misiones.js?v=20"></script>
+  <script src="js/misiones/misiones.js?v=20"></script>
+  <script src="js/cofres/cofres.js?v=20"></script>
+  <script src="js/correo/correo.js?v=20"></script>
+  <script src="js/admin/admin.js?v=20"></script>
+  <script src="js/opciones/opciones.js?v=20"></script>
+  <script src="js/principal.js?v=20"></script>
   <script>
     // Registrar la app instalable (PWA)
     if ('serviceWorker' in navigator) {
       const yaTeniaVersion = !!navigator.serviceWorker.controller;
-      navigator.serviceWorker.register('sw.js?v=19', { updateViaCache: 'none' })
+      navigator.serviceWorker.register('sw.js?v=20', { updateViaCache: 'none' })
         .then(function (reg) { reg.update(); })
         .catch(function () {});
       // Cuando llega una versión nueva del juego: avisar y recargar solo

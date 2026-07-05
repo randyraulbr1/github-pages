@@ -68,7 +68,8 @@ const CATALOGO_ITEMS = {
   piedra:         { nombre: 'Piedra',            icono: '⛰️', tipo: 'material', precio: 4,  desc: 'Piedra de la costa.' },
   concha:         { nombre: 'Concha',            icono: '🐚', tipo: 'material', precio: 7,  desc: 'Suena el mar si la acercas al oído.' },
   chatarra:       { nombre: 'Chatarra',          icono: '⚙️', tipo: 'material', precio: 9,  desc: 'Hierros viejos del puerto.' },
-  cofre:          { nombre: 'Cofre',           icono: '🧰', tipo: 'herramienta', precio: 250, desc: 'Déjalo en el mapa con contraseña (6 casillas).' }
+  cofre:          { nombre: 'Cofre',           icono: '🧰', tipo: 'herramienta', precio: 250, desc: 'Déjalo en el mapa (visible u oculto con PIN).' },
+  llave_maestra:  { nombre: 'Llave maestra',   icono: '🗝️', tipo: 'herramienta', precio: 180, desc: '15% de abrir un cofre oculto cercano (se gasta).' }
 };
 
 const Items = {

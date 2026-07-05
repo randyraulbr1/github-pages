@@ -38,7 +38,6 @@ const Utilidades = {
            f.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
   },
 
-  // Petición con límite de tiempo: evita que el juego se quede colgado en mala conexión
   async fetchConTimeout(url, opciones = {}, ms = 8000) {
     const ctrl = new AbortController();
     const id = setTimeout(() => ctrl.abort(), ms);
@@ -65,5 +64,16 @@ const Utilidades = {
       el.style.opacity = '0.2';
     }));
     setTimeout(() => el.remove(), 950);
+  },
+
+  claveCuentaValida(clave) {
+    if (!clave || clave.length < 8) return 'Mínimo 8 caracteres';
+    if (!/[A-ZÁÉÍÓÚÑ]/.test(clave)) return 'Debe tener al menos 1 letra mayúscula';
+    if (!/[^A-Za-z0-9]/.test(clave)) return 'Debe tener al menos 1 carácter especial (!@#$…)';
+    return null;
+  },
+
+  pinCofreValido(pin) {
+    return /^\d{4}$/.test(pin);
   }
 };

@@ -49,7 +49,7 @@ const Opciones = {
     if (!btn) return;
     if (Usuarios.esAdministrador()) {
       btn.classList.remove('oculto');
-      btn.innerHTML = '<span class="icono-opcion">🛠️</span> Administrador (ADM)';
+      btn.innerHTML = '<span class="icono-opcion">🛠️</span> Modo administrador';
     } else {
       btn.classList.add('oculto');
     }

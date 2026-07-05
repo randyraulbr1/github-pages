@@ -58,6 +58,7 @@ const Guardado = {
       posicionJugador: null,
       correoEnviados: [],
       correoRecibidos: [],
+      correoTiendaLocal: [],
       mensajesVistos: [],
       admin: { misiones: [], tesoros: [], objetos: [] }
     };

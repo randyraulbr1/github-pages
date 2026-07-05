@@ -58,6 +58,7 @@ const Admin = {
     if (!this.publicado.jugadores) this.publicado.jugadores = [];
     if (!this.publicado.cofres) this.publicado.cofres = [];
     if (!this.publicado.correoReclamados) this.publicado.correoReclamados = [];
+    if (!this.publicado.correoTienda) this.publicado.correoTienda = [];
     if (!Array.isArray(this.publicado.misiones)) this.publicado.misiones = [];
     if (!Array.isArray(this.publicado.tesoros)) this.publicado.tesoros = [];
     if (!Array.isArray(this.publicado.objetos)) this.publicado.objetos = [];
@@ -172,9 +173,9 @@ const Admin = {
     const n = nombre.trim().toLowerCase();
     const adminNom = (CONFIG.adminNombre || 'randy').toLowerCase();
     if (n === adminNom) {
-      const randy = this.jugadoresGlobales().find(j => j.nombre && j.nombre.toLowerCase() === adminNom);
-      if (randy && perfilIdExcluir !== randy.id) {
-        return 'El nombre "' + CONFIG.adminNombre + '" está reservado para el administrador';
+      const existe = this.jugadoresGlobales().find(j => j.nombre && j.nombre.toLowerCase() === adminNom);
+      if (existe && perfilIdExcluir !== existe.id) {
+        return 'Ese nombre de usuario no está disponible';
       }
     }
     for (const j of this.jugadoresGlobales()) {
@@ -340,6 +341,7 @@ const Admin = {
         misiones: [], tesoros: [], objetos: [], posiciones: {}, eliminados: [],
         precios: {}, itemsNuevos: [], baneados: [], mensajes: [], jugadores: [], cofres: [],
         correoReclamados: [],
+        correoTienda: [],
         mantenimiento: { activo: false, mensaje: '' }
       }, JSON.parse(texto));
     } catch (e) { return; }
@@ -406,13 +408,10 @@ const Admin = {
   // El PIN solo se pide la PRIMERA vez en cada teléfono; después queda
   // desbloqueado (guardado en el dispositivo del admin).
   async solicitarAcceso() {
-    if (!this.esAdminJugador()) {
-      alert('Solo el administrador (' + CONFIG.adminNombre + ') puede usar este panel.');
-      return;
-    }
-    const clave = prompt('Contraseña de administrador (4 números):');
+    if (!this.esAdminJugador()) return;
+    const clave = prompt('Tu contraseña de cuenta:');
     if (clave === null) return;
-    const hash = await Utilidades.sha256('pin-perfil|' + clave.trim());
+    const hash = await Utilidades.sha256('pin-perfil|' + clave);
     if (hash !== Usuarios.perfilActivo.pinHash) { alert('Contraseña incorrecta'); return; }
     document.getElementById('ventana-admin').classList.remove('oculto');
   },
@@ -1067,7 +1066,6 @@ const Admin = {
       fila.innerHTML =
         '<span class="icono">👤</span>' +
         '<div class="datos"><div class="nombre">' + j.nombre +
-        (j.nombre.toLowerCase() === (CONFIG.adminNombre || 'randy').toLowerCase() ? ' 🛠️' : '') +
         (ban && this._banActivo(ban) ? ' 🚫' : '') + '</div>' +
         '<div class="precio">📱 ' + (j.telefono || '—') + '<br>ID: ' + j.id + '</div></div>';
       const acciones = document.createElement('div');
@@ -1109,10 +1107,11 @@ const Admin = {
     perfil.nombre = nombre.trim();
     perfil.telefono = limpio;
     Usuarios._guardarLista();
-    const clave = prompt('Nueva contraseña (4 números) o vacío para no cambiar:');
+    const clave = prompt('Nueva contraseña o vacío para no cambiar:');
     if (clave !== null && clave.trim()) {
-      if (!/^\d{4}$/.test(clave.trim())) { alert('Debe ser 4 números'); return; }
-      perfil.pinHash = await Utilidades.sha256('pin-perfil|' + clave.trim());
+      const err = Utilidades.claveCuentaValida(clave);
+      if (err) { alert(err); return; }
+      perfil.pinHash = await Utilidades.sha256('pin-perfil|' + clave);
       Usuarios._guardarLista();
     }
     this.registrarJugador(perfil);
@@ -1360,6 +1359,14 @@ const Admin = {
         for (const r of (this.publicado.correoReclamados || [])) porCod.set(r.codigo, r);
         for (const r of (this.datos.correoReclamadosExtra || [])) porCod.set(r.codigo, r);
         return [...porCod.values()];
+      })(),
+      correoTienda: (() => {
+        const porId = new Map();
+        for (const t of (this.publicado.correoTienda || [])) porId.set(t.id, t);
+        for (const t of ((typeof Guardado !== 'undefined' && Guardado.datos && Guardado.datos.correoTiendaLocal) || [])) {
+          porId.set(t.id, t);
+        }
+        return [...porId.values()].filter(t => t.cantidad > 0);
       })()
     }, quitarTemporales, 2);
   },

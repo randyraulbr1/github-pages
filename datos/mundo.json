@@ -33,14 +33,8 @@
   },
   "baneados": [],
   "mensajes": [],
-  "jugadores": [
-    {
-      "id": "pmr76zfqn0g20f",
-      "nombre": "randy",
-      "telefono": "7709908375",
-      "creado": 1783219727471
-    }
-  ],
+  "jugadores": [],
   "cofres": [],
-  "correoReclamados": []
+  "correoReclamados": [],
+  "correoTienda": []
 }
