@@ -32,6 +32,11 @@ const Admin = {
     if (!this.datos.baneados) this.datos.baneados = [];
     if (!this.datos.mensajes) this.datos.mensajes = [];
     if (!this.datos.jugadoresExtra) this.datos.jugadoresExtra = [];
+    if (!this.datos.misiones) this.datos.misiones = [];
+    if (!this.datos.tesoros) this.datos.tesoros = [];
+    if (!this.datos.objetos) this.datos.objetos = [];
+    if (!this.datos.posiciones) this.datos.posiciones = {};
+    if (!this.datos.eliminados) this.datos.eliminados = [];
     if (this.datos.mantenimiento === undefined) this.datos.mantenimiento = null;
 
     // El mundo oficial vive en GitHub: al actualizar datos/mundo.json,
@@ -51,6 +56,11 @@ const Admin = {
     if (!this.publicado.mensajes) this.publicado.mensajes = [];
     if (!this.publicado.mantenimiento) this.publicado.mantenimiento = { activo: false, mensaje: '' };
     if (!this.publicado.jugadores) this.publicado.jugadores = [];
+    if (!Array.isArray(this.publicado.misiones)) this.publicado.misiones = [];
+    if (!Array.isArray(this.publicado.tesoros)) this.publicado.tesoros = [];
+    if (!Array.isArray(this.publicado.objetos)) this.publicado.objetos = [];
+    if (!this.publicado.posiciones) this.publicado.posiciones = {};
+    if (!Array.isArray(this.publicado.eliminados)) this.publicado.eliminados = [];
 
     // Aplicar al catálogo los objetos nuevos y precios globales
     const nuevosPorId = new Map();
@@ -66,20 +76,26 @@ const Admin = {
   // ---------- VISTA COMBINADA: publicado en GitHub + borradores locales ----------
   _combinar(publicados, locales) {
     const porId = new Map();
-    for (const e of publicados) porId.set(e.id, e);
-    for (const e of locales) porId.set(e.id, e);
-    return [...porId.values()].filter(e => !this.eliminado(e.id));
+    for (const e of (publicados || [])) porId.set(e.id, e);
+    for (const e of (locales || [])) porId.set(e.id, e);
+    return [...porId.values()].filter(e => e && e.id && !this.eliminado(e.id));
   },
   misionesTodas() {
-    if (this.esAdminJugador()) return this._combinar(this.publicado.misiones, this.datos.misiones);
+    if (this.esAdminJugador()) {
+      return this._combinar(this.publicado.misiones || [], this.datos.misiones || []);
+    }
     return (this.publicado.misiones || []).filter(e => !this.eliminado(e.id));
   },
   tesorosTodos() {
-    if (this.esAdminJugador()) return this._combinar(this.publicado.tesoros, this.datos.tesoros);
+    if (this.esAdminJugador()) {
+      return this._combinar(this.publicado.tesoros || [], this.datos.tesoros || []);
+    }
     return (this.publicado.tesoros || []).filter(e => !this.eliminado(e.id));
   },
   objetosTodos() {
-    if (this.esAdminJugador()) return this._combinar(this.publicado.objetos, this.datos.objetos);
+    if (this.esAdminJugador()) {
+      return this._combinar(this.publicado.objetos || [], this.datos.objetos || []);
+    }
     return (this.publicado.objetos || []).filter(e => !this.eliminado(e.id));
   },
 
@@ -152,7 +168,7 @@ const Admin = {
     if (!this.publicado) this.publicado = { jugadores: [] };
     if (!this.datos) this.datos = { jugadoresExtra: [] };
     const n = nombre.trim().toLowerCase();
-    const adminNom = CONFIG.adminNombre.toLowerCase();
+    const adminNom = (CONFIG.adminNombre || 'randy').toLowerCase();
     if (n === adminNom) {
       const randy = this.jugadoresGlobales().find(j => j.nombre && j.nombre.toLowerCase() === adminNom);
       if (randy && perfilIdExcluir !== randy.id) {
@@ -223,7 +239,8 @@ const Admin = {
   // Posición corregida de un pin (si el admin lo movió). Muta la base en sitio
   // para que todas las referencias del módulo queden sincronizadas.
   pos(id, base) {
-    const o = this.datos.posiciones[id] || this.publicado.posiciones[id];
+    if (!base || !Array.isArray(base)) return base;
+    const o = (this.datos.posiciones || {})[id] || (this.publicado.posiciones || {})[id];
     if (o) { base[0] = o[0]; base[1] = o[1]; }
     return base;
   },
@@ -246,32 +263,44 @@ const Admin = {
       for (const p of Usuarios.datos.lista) this.registrarJugador(p, true);
     }
     // (las misiones del admin las gestiona el módulo Misiones)
-    for (const t of this.tesorosTodos()) { this.pos(t.id, t.pos); this._prepararTesoro(t); }
-    for (const o of this.objetosTodos()) { this.pos(o.id, o.pos); this._crearMarcadorObjeto(o); }
+    for (const t of this.tesorosTodos()) {
+      if (!t || !t.pos) continue;
+      this.pos(t.id, t.pos);
+      this._prepararTesoro(t);
+    }
+    for (const o of this.objetosTodos()) {
+      if (!o || !o.pos) continue;
+      this.pos(o.id, o.pos);
+      this._crearMarcadorObjeto(o);
+    }
 
-    // Botones del panel
-    document.getElementById('admin-crear-mision').addEventListener('click', () => this.abrirFormulario('mision'));
-    document.getElementById('admin-crear-tesoro').addEventListener('click', () => this.abrirFormulario('tesoro'));
-    document.getElementById('admin-dejar-objeto').addEventListener('click', () => this.abrirFormulario('objeto'));
-    document.getElementById('admin-precios').addEventListener('click', () => this.abrirFormulario('precio'));
-    document.getElementById('admin-item-nuevo').addEventListener('click', () => this.abrirFormulario('item_nuevo'));
-    document.getElementById('admin-mantenimiento').addEventListener('click', () => this.alternarMantenimiento());
-    document.getElementById('admin-banear').addEventListener('click', () => this.banear());
-    document.getElementById('admin-mensaje').addEventListener('click', () => this.enviarMensaje());
-    document.getElementById('admin-inspeccionar').addEventListener('click', () => this.inspeccionar());
-    document.getElementById('admin-organizar').addEventListener('click', () => this.entrarModo('organizar'));
-    document.getElementById('admin-eliminar').addEventListener('click', () => this.entrarModo('eliminar'));
-    document.getElementById('admin-exportar').addEventListener('click', () => this.exportar());
-    document.getElementById('admin-jugadores').addEventListener('click', () => this.listarJugadores());
-    document.getElementById('admin-ver-historial').addEventListener('click', () => {
+    // Botones del panel (solo si existen en la página)
+    const enlazar = (id, fn) => {
+      const el = document.getElementById(id);
+      if (el) el.addEventListener('click', fn);
+    };
+    enlazar('admin-crear-mision', () => this.abrirFormulario('mision'));
+    enlazar('admin-crear-tesoro', () => this.abrirFormulario('tesoro'));
+    enlazar('admin-dejar-objeto', () => this.abrirFormulario('objeto'));
+    enlazar('admin-precios', () => this.abrirFormulario('precio'));
+    enlazar('admin-item-nuevo', () => this.abrirFormulario('item_nuevo'));
+    enlazar('admin-mantenimiento', () => this.alternarMantenimiento());
+    enlazar('admin-banear', () => this.banear());
+    enlazar('admin-mensaje', () => this.enviarMensaje());
+    enlazar('admin-inspeccionar', () => this.inspeccionar());
+    enlazar('admin-organizar', () => this.entrarModo('organizar'));
+    enlazar('admin-eliminar', () => this.entrarModo('eliminar'));
+    enlazar('admin-exportar', () => this.exportar());
+    enlazar('admin-jugadores', () => this.listarJugadores());
+    enlazar('admin-ver-historial', () => {
       document.getElementById('ventana-admin').classList.add('oculto');
       Historial.abrir();
     });
-    document.getElementById('admin-publicar').addEventListener('click', () => this.publicarMundo());
-    document.getElementById('admin-clave-publicar').addEventListener('click', () => this.configurarPublicacion());
-    document.getElementById('btn-admin-guardar').addEventListener('click', () => this.guardarFormulario());
-    document.getElementById('btn-admin-confirmar').addEventListener('click', () => this.confirmarColocacion());
-    document.getElementById('btn-admin-salir-modo').addEventListener('click', () => this.salirModo());
+    enlazar('admin-publicar', () => this.publicarMundo());
+    enlazar('admin-clave-publicar', () => this.configurarPublicacion());
+    enlazar('btn-admin-guardar', () => this.guardarFormulario());
+    enlazar('btn-admin-confirmar', () => this.confirmarColocacion());
+    enlazar('btn-admin-salir-modo', () => this.salirModo());
   },
 
   // ---------- VIGILANCIA DEL MUNDO ----------

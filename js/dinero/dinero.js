@@ -20,7 +20,7 @@ const Dinero = {
     } else {
       this.saldo = Guardado.datos.dinero.saldo;
       const controlEsperado = await this._hashControl(this.saldo);
-      const sumaHistorial = Guardado.datos.historialDinero.reduce((s, e) => s + e.monto, 0);
+      const sumaHistorial = (Guardado.datos.historialDinero || []).reduce((s, e) => s + e.monto, 0);
       if (Guardado.datos.dinero.control !== controlEsperado || sumaHistorial !== this.saldo) {
         Guardado.integridadRota = true;
         Notificaciones.mostrar('⚠️ Se detectó una modificación del dinero guardado', 'error', 6000);

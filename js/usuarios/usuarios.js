@@ -63,7 +63,7 @@ const Usuarios = {
   },
 
   esAdministrador() {
-    if (!this.perfilActivo || !this.perfilActivo.nombre) return false;
+    if (!this.perfilActivo || !this.perfilActivo.nombre || !CONFIG.adminNombre) return false;
     return this.perfilActivo.nombre.trim().toLowerCase() === CONFIG.adminNombre.toLowerCase();
   },
 

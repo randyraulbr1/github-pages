@@ -30,8 +30,8 @@ const MundoPublico = {
   _pesoMundo(texto) {
     try {
       const m = JSON.parse(texto);
-      return (m.objetos?.length || 0) + (m.tesoros?.length || 0) +
-        (m.misiones?.length || 0) + (m.jugadores?.length || 0);
+      return (m.objetos && m.objetos.length || 0) + (m.tesoros && m.tesoros.length || 0) +
+        (m.misiones && m.misiones.length || 0) + (m.jugadores && m.jugadores.length || 0);
     } catch (e) { return -1; }
   },
 
@@ -42,7 +42,7 @@ const MundoPublico = {
     for (const base of this.urlsLectura()) {
       try {
         const url = base + (this.usaFirebase() ? '' : bust);
-        const r = await Utilidades.fetchConTimeout(url, { cache: 'no-store' }, 10000);
+        const r = await Utilidades.fetchConTimeout(url, { cache: 'no-store' }, 4000);
         if (!r.ok) continue;
         const texto = await r.text();
         const peso = this._pesoMundo(texto);
@@ -119,7 +119,7 @@ const MundoPublico = {
     } catch (e) {}
     if (!mundo.jugadores) mundo.jugadores = [];
     const n = perfil.nombre.trim().toLowerCase();
-    const adminNom = CONFIG.adminNombre.toLowerCase();
+    const adminNom = (CONFIG.adminNombre || 'randy').toLowerCase();
     if (n === adminNom) {
       const randy = mundo.jugadores.find(j => j.nombre && j.nombre.toLowerCase() === adminNom);
       if (randy && randy.id !== perfil.id) return false;
