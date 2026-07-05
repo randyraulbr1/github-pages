@@ -59,18 +59,18 @@
             "id": "pan",
             "cantidad": 1
           },
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
           {
             "id": "arroz_congri",
             "cantidad": 1
           },
-          null,
-          null,
-          null,
-          null,
-          null,
-          null,
-          null,
-          null,
           null,
           null,
           null,
@@ -135,8 +135,8 @@
         "muerto": false,
         "armaEquipada": null
       },
-      "t": 1783286556347
+      "t": 1783286564352
     }
   },
-  "actualizadoEn": 1783286556540
+  "actualizadoEn": 1783286564573
 }
