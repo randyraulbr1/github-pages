@@ -666,6 +666,10 @@ const Admin = {
         }
         return;
       }
+      if (this._crudoPublicado && this._firmaMundo(texto) === this._firmaMundo(this._crudoPublicado)) {
+        this._crudoPublicado = texto;
+        return;
+      }
       this._aplicarMundoRemoto(texto);
     } catch (e) { /* sin conexión: se intenta en el próximo ciclo */ }
   },
@@ -718,8 +722,6 @@ const Admin = {
     this.refrescarVisibles();
     this.mostrarMensajes();
     if (typeof Notificaciones !== 'undefined') Notificaciones._actualizarBadge();
-
-    Notificaciones.mostrar('🌍 ¡Mundo actualizado!', 'exito', 5000);
   },
 
   _sincronizarMapaRemoto(idsObjetosAntes, idsTesorosAntes, idsMisionesAntes, eliminadosAntes) {
@@ -2944,9 +2946,7 @@ const Admin = {
     }
     this._volverAlPanel();
     this._publicarParaTodos(false).then(ok => {
-      if (ok) {
-        Notificaciones.mostrar('🔑 Clave activa · mundo subido a GitHub para todos', 'exito', 8000);
-      }
+      if (ok) this._avisoSyncManual('🔑 Token activo · mundo en GitHub');
     });
   },
 
@@ -3026,6 +3026,13 @@ const Admin = {
     }
   },
 
+  _avisoSyncManual(texto) {
+    const ahora = Date.now();
+    if (this._ultimoAvisoSyncManual && ahora - this._ultimoAvisoSyncManual < 90000) return;
+    this._ultimoAvisoSyncManual = ahora;
+    Notificaciones.mostrar(texto, 'exito', 4000);
+  },
+
   async publicarMundo(silencioso) {
     if (!this._mundoCargado) return false;
     if (!this.esAdminJugador()) return false;
@@ -3042,8 +3049,6 @@ const Admin = {
     const json = JSON.stringify(adminLocal, (clave, valor) =>
       clave.startsWith('_') ? undefined : valor, 2);
 
-    if (!silencioso) Notificaciones.mostrar('🌍 Subiendo a GitHub…', 'info', 3500);
-
     // Opción A: Firebase (automático, sin token en el teléfono)
     if (CONFIG.firebaseMundoUrl) {
       try {
@@ -3052,7 +3057,7 @@ const Admin = {
           this._sincronizarEstadoTrasPublicar(adminLocal, json);
           this._aplicarMundoRemoto(json);
           if (!silencioso) {
-            Notificaciones.mostrar('🌍 ¡Listo! Los jugadores lo ven en ~5 segundos', 'exito', 8000);
+            this._avisoSyncManual('🌍 Mundo publicado');
           }
         } else if (!silencioso) {
           Notificaciones.mostrar('❌ No se pudo subir a Firebase. Revisa la URL en config.js', 'error', 7000);
@@ -3085,7 +3090,7 @@ const Admin = {
     if (ok) {
       this._sincronizarEstadoTrasPublicar(adminLocal, json);
       if (!silencioso) {
-        Notificaciones.mostrar('🌍 ¡MUNDO PUBLICADO en GitHub!', 'exito', 6000);
+        this._avisoSyncManual('🌍 Mundo publicado en GitHub');
       }
     } else if (!silencioso) {
       Notificaciones.mostrar(
@@ -3097,11 +3102,6 @@ const Admin = {
       this._tempReintento409 = setTimeout(() => this._encolarPublicacion(true), 8000);
     }
     return !!ok;
-  },
-
-  _mostrarPublicando(on) {
-    const el = document.getElementById('pantalla-publicando');
-    if (el) el.classList.add('oculto');
   },
 
   // ---------- EXPORTAR ----------

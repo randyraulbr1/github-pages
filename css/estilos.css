@@ -1286,13 +1286,6 @@ body.jugador-muerto #admin-controles { pointer-events: none; opacity: .35; }
   transform: scale(1.08);
 }
 @keyframes pulso-cesto { 50% { transform: scale(1.05); border-color: #ff6961; } }
-#pantalla-publicando {
-  position: fixed; inset: 0; z-index: 4800;
-  background: rgba(8, 10, 18, .72);
-  display: flex; align-items: center; justify-content: center;
-}
-.publicando-caja { text-align: center; }
-.publicando-texto { font-size: 15px; color: #c8d0e0; margin-top: 8px; font-weight: 700; }
 .admin-cofre-horizontal { margin: 8px 0; }
 .tienda-admin-fila {
   display: grid; grid-template-columns: 28px 1fr auto auto 28px; gap: 6px; align-items: center;

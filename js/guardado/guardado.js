@@ -182,9 +182,6 @@ const Guardado = {
         this.datos.nubeT = snapshot.t;
         const firma = await Utilidades.sha256(JSON.stringify(this.datos) + this.SAL);
         localStorage.setItem(this._clave(), JSON.stringify({ datos: this.datos, firma }));
-        if (!silencioso && typeof Notificaciones !== 'undefined') {
-          Notificaciones.mostrar('☁️ Progreso guardado en GitHub', 'info', 2500);
-        }
       } else {
         this._syncFallos++;
         if (this._syncFallos >= 3 && !silencioso && typeof Notificaciones !== 'undefined') {

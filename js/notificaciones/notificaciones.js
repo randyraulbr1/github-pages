@@ -8,7 +8,7 @@ const Notificaciones = {
   _esImportante(texto, tipo) {
     if (tipo === 'admin' || tipo === 'error') return true;
     const t = (texto || '').toLowerCase();
-    if (/misión|mision|mundo actualizado|administrador|baneado|muert|revivid|sin token|integridad|gps desactiv|sin conexión|mantenimiento|subiste al nivel|nivel \d/i.test(t)) {
+    if (/misión|mision|administrador|baneado|muert|revivid|sin token|integridad|gps desactiv|sin conexión|mantenimiento|subiste al nivel|nivel \d/i.test(t)) {
       return true;
     }
     if (tipo === 'alerta') {
