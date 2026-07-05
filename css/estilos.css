@@ -1067,5 +1067,4 @@ body.jugador-muerto #admin-controles { pointer-events: none; opacity: .35; }
 .tienda-admin-fila .ti-quitar {
   border: none; background: rgba(255,69,58,.25); color: #ff9d96; border-radius: 8px; cursor: pointer;
 }
-.tienda-admin-fila .ti-inf { font-size: 11px; white-space: nowrap; }
-
+.admin-nav.admin-toggle-on { background: rgba(48, 209, 88, .18); border-color: #30d158; }

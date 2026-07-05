@@ -40,6 +40,9 @@ const Admin = {
     if (!this.datos.partidasExtra) this.datos.partidasExtra = {};
     if (!this.datos.enemigos) this.datos.enemigos = [];
     if (!this.datos.tiendasAdmin) this.datos.tiendasAdmin = [];
+    if (this.datos.moverPinJugador === undefined) {
+      this.datos.moverPinJugador = !!(this.publicado && this.publicado.moverPinJugador);
+    }
     if (this.datos.mantenimiento === undefined) this.datos.mantenimiento = null;
 
     // El mundo oficial vive en GitHub: al actualizar datos/mundo.json,
@@ -407,6 +410,7 @@ const Admin = {
     enlazar('admin-mantenimiento', () => this.abrirMantenimiento());
     enlazar('admin-mensaje', () => this.abrirMensaje());
     enlazar('admin-organizar', () => this.entrarModo('organizar'));
+    enlazar('admin-mover-pin', () => this.toggleMoverPinJugador());
     enlazar('admin-jugadores', () => this._listarCuentasAsync());
     enlazar('admin-crear-jugador', () => this._abrirCrearJugador());
     enlazar('btn-admin-crear-jugador-guardar', () => this._guardarCrearJugador());
@@ -442,6 +446,35 @@ const Admin = {
     enlazar('admin-ban-1mes', () => this._aplicarBan(2592000000));
     enlazar('admin-ban-perm', () => this._aplicarBan(0));
     enlazar('admin-ban-quitar', () => this._aplicarBan(null));
+    this._actualizarEtiquetaMoverPin();
+    if (typeof GPS !== 'undefined') GPS._actualizarArrastre();
+  },
+
+  puedeMoverPinJugador() {
+    return this.esAdminJugador() && !!this.datos.moverPinJugador;
+  },
+
+  toggleMoverPinJugador() {
+    if (!this.esAdminJugador()) return;
+    this.datos.moverPinJugador = !this.datos.moverPinJugador;
+    this.guardar();
+    this._actualizarEtiquetaMoverPin();
+    if (typeof GPS !== 'undefined') GPS._actualizarArrastre();
+    Notificaciones.mostrar(
+      this.datos.moverPinJugador
+        ? '🎯 Puedes arrastrar el pin azul del jugador'
+        : '🎯 Pin del jugador bloqueado (solo GPS 📍)',
+      'info', 4000
+    );
+  },
+
+  _actualizarEtiquetaMoverPin() {
+    const el = document.getElementById('admin-mover-pin-texto');
+    if (!el) return;
+    const on = !!this.datos.moverPinJugador;
+    el.textContent = 'Mover pin: ' + (on ? 'ON' : 'OFF');
+    const btn = document.getElementById('admin-mover-pin');
+    if (btn) btn.classList.toggle('admin-toggle-on', on);
   },
 
   // ---------- VIGILANCIA DEL MUNDO ----------
@@ -508,6 +541,11 @@ const Admin = {
     if (typeof Enemigos !== 'undefined') Enemigos._recargar();
     if (typeof Tiendas !== 'undefined' && Tiendas.refrescarAdmin) Tiendas.refrescarAdmin();
     if (typeof Usuarios !== 'undefined') Usuarios.verificarSesionRemota();
+    if (this.publicado.moverPinJugador !== undefined) {
+      this.datos.moverPinJugador = !!this.publicado.moverPinJugador;
+      this._actualizarEtiquetaMoverPin();
+      if (typeof GPS !== 'undefined') GPS._actualizarArrastre();
+    }
 
     this.mostrarMensajes();
     if (typeof Notificaciones !== 'undefined') Notificaciones._actualizarBadge();
@@ -1353,6 +1391,12 @@ const Admin = {
     }
 
     if (modo === 'organizar') {
+      if (typeof GPS !== 'undefined' && GPS.marcador && this.puedeMoverPinJugador()) {
+        this._habilitarArrastreMarcador(GPS.marcador, () => {
+          const p = GPS.marcador.getLatLng();
+          GPS._actualizar([+p.lat.toFixed(6), +p.lng.toFixed(6)], false);
+        });
+      }
       for (const p of Mapa.puntosInteractivos) {
         if (!p.marcador || p.marcador === GPS.marcador) continue;
         p.marcador.off('dragend', p._alSoltar);
@@ -2375,6 +2419,7 @@ const Admin = {
     remoto.tiendasAdmin = admin.tiendasAdmin || [];
     remoto.tiendasStock = admin.tiendasStock || remoto.tiendasStock || {};
     remoto.combate = admin.combate || remoto.combate;
+    if (admin.moverPinJugador !== undefined) remoto.moverPinJugador = !!admin.moverPinJugador;
     if (admin.enemigosEstado) remoto.enemigosEstado = admin.enemigosEstado;
     else if (!remoto.enemigosEstado) remoto.enemigosEstado = {};
     if (admin.claveSyncNube) remoto.claveSyncNube = admin.claveSyncNube;
@@ -2551,7 +2596,8 @@ const Admin = {
       enemigosEstado: Object.assign({}, this.publicado.enemigosEstado || {}),
       tiendasAdmin: this._itemsConPosicion(this.tiendasAdminTodas()),
       tiendasStock: Object.assign({}, this.publicado.tiendasStock || {}),
-      combate: this.combateConfig()
+      combate: this.combateConfig(),
+      moverPinJugador: !!this.datos.moverPinJugador
     }, quitarTemporales, 2);
   },
 

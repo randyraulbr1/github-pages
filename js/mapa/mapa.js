@@ -74,13 +74,18 @@ const Mapa = {
 
   restaurarVista() {
     if (!this.mapa) return;
-    const v = this._leerVistaGuardada();
-    if (v) {
-      this.mapa.setView([v.lat, v.lng], v.zoom, { animate: false });
+    if (typeof GPS !== 'undefined' && GPS.posicion) {
+      this.centrarEnJugador(false);
       return;
     }
-    const pos = (typeof GPS !== 'undefined' && GPS.posicion) ? GPS.posicion : CONFIG.centro;
-    this.mapa.setView(pos, CONFIG.zoomInicial, { animate: false });
+    this.mapa.setView(CONFIG.centro, CONFIG.zoomInicial, { animate: false });
+  },
+
+  centrarEnJugador(animar) {
+    if (!this.mapa || !GPS.posicion) return;
+    if (typeof Admin !== 'undefined' && Admin.modo) return;
+    const zoom = CONFIG.zoomSeguimientoJugador || CONFIG.zoomInicial;
+    this.mapa.setView(GPS.posicion, zoom, { animate: animar !== false });
   },
 
   // Crea un marcador con un emoji
@@ -127,7 +132,7 @@ const Mapa = {
       }
       if (p.alCambiarDistancia) p.alCambiarDistancia(d);
     }
-    // Las líneas guía de misiones siguen al jugador
     if (typeof Misiones !== 'undefined' && Misiones.actualizarLineas) Misiones.actualizarLineas();
+    this.centrarEnJugador(true);
   }
 };

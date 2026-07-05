@@ -1,12 +1,12 @@
 // ============================================================
 // GPS DEL JUGADOR
 //  - El punto azul es el jugador
-//  - Se puede ARRASTRAR con el dedo para moverse (modo manual)
-//  - El botón 📍 activa el GPS real del teléfono (modo seguir)
-//  - Cada movimiento avisa al mapa para revisar cercanías
+//  - Solo el admin (con opción activada) puede arrastrar el pin
+//  - El botón 📍 activa el GPS real del teléfono
+//  - Cada movimiento centra el mapa en el jugador
 // ============================================================
 const GPS = {
-  posicion: null,       // [lat, lon] actual del jugador
+  posicion: null,
   marcador: null,
   siguiendoGpsReal: false,
   _idVigilancia: null,
@@ -15,7 +15,7 @@ const GPS = {
     this.posicion = Guardado.datos.posicionJugador || CONFIG.centro.slice();
 
     this.marcador = L.marker(this.posicion, {
-      draggable: true,
+      draggable: false,
       zIndexOffset: 1000,
       icon: L.divIcon({
         className: '',
@@ -25,21 +25,37 @@ const GPS = {
       })
     }).addTo(Mapa.mapa);
 
-    // Arrastrar el punto = moverse manualmente
     this.marcador.on('drag', () => {
       const p = this.marcador.getLatLng();
       this._actualizar([p.lat, p.lng], false);
     });
     this.marcador.on('dragstart', () => this.dejarDeSeguir());
 
+    this._actualizarArrastre();
+
     document.getElementById('btn-gps').addEventListener('click', () => this.alternarGpsReal());
 
-    // Primera revisión de cercanías al arrancar
-    setTimeout(() => Mapa.jugadorSeMovio(this.posicion), 300);
+    setTimeout(() => {
+      Mapa.jugadorSeMovio(this.posicion);
+      if (typeof Mapa !== 'undefined' && Mapa.centrarEnJugador) Mapa.centrarEnJugador(false);
+    }, 300);
+  },
+
+  puedeArrastrar() {
+    return typeof Admin !== 'undefined' && Admin.puedeMoverPinJugador && Admin.puedeMoverPinJugador();
+  },
+
+  _actualizarArrastre() {
+    if (!this.marcador) return;
+    const puede = this.puedeArrastrar();
+    this.marcador.options.draggable = puede;
+    if (this.marcador.dragging) {
+      if (puede) this.marcador.dragging.enable();
+      else this.marcador.dragging.disable();
+    }
   },
 
   _actualizar(nuevaPosicion, moverMarcador = true) {
-    // Mantener al jugador dentro del cuadrado jugable
     const [so, ne] = CONFIG.limites;
     nuevaPosicion = [
       Math.max(so[0], Math.min(ne[0], nuevaPosicion[0])),
@@ -52,7 +68,6 @@ const GPS = {
     Mapa.jugadorSeMovio(nuevaPosicion);
   },
 
-  // ---------- GPS REAL DEL DISPOSITIVO ----------
   alternarGpsReal() {
     if (this.siguiendoGpsReal) { this.dejarDeSeguir(); return; }
     if (!navigator.geolocation) {
@@ -67,7 +82,6 @@ const GPS = {
       pos => {
         if (!this.siguiendoGpsReal) return;
         this._actualizar([pos.coords.latitude, pos.coords.longitude]);
-        Mapa.mapa.panTo(this.posicion);
       },
       err => {
         Notificaciones.mostrar('No se pudo leer el GPS: ' + err.message, 'error');
@@ -84,7 +98,7 @@ const GPS = {
     }
     if (this.siguiendoGpsReal) {
       this.siguiendoGpsReal = false;
-      Notificaciones.mostrar('✋ Modo manual: arrastra el punto azul', 'info');
+      Notificaciones.mostrar('✋ GPS desactivado. Usa 📍 para volver a seguirte', 'info');
     }
     document.getElementById('btn-gps').classList.remove('activo');
   }

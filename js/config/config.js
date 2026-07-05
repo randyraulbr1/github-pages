@@ -3,7 +3,7 @@
 // ============================================================
 const CONFIG = {
   // Cambiar al publicar: obliga al móvil a descartar caché vieja
-  version: '37',
+  version: '38',
   maxPila: 10,
 
   // Nombre reservado del administrador (solo este jugador ve el panel admin)
@@ -28,6 +28,7 @@ const CONFIG = {
   ],
 
   zoomInicial: 16,
+  zoomSeguimientoJugador: 17,
   zoomMinimo: 14,
   zoomMaximo: 19,
 

@@ -10,7 +10,7 @@ const Opciones = {
     this._refrescarAdmin();
 
     document.getElementById('opcion-centrar').addEventListener('click', () => {
-      Mapa.mapa.setView(GPS.posicion, 17);
+      Mapa.centrarEnJugador(true);
       this.cerrar();
     });
 
