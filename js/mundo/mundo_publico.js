@@ -20,10 +20,151 @@ const MundoPublico = {
     return !!CONFIG.firebaseMundoUrl;
   },
 
-  // Orden: GitHub raw (servidor) — no mezclar con datos/mundo.json local viejo
+  _baseFirebase() {
+    return (CONFIG.firebaseMundoUrl || '').replace(/\/$/, '');
+  },
+
+  _urlFirebase(ruta) {
+    const path = (ruta || '').replace(/^\//, '').replace(/\.json$/, '');
+    return this._baseFirebase() + '/' + path + '.json';
+  },
+
+  async _firebaseGet(ruta) {
+    if (!this.usaFirebase()) return null;
+    try {
+      const url = this._urlFirebase(ruta) + '?t=' + Date.now();
+      const r = await Utilidades.fetchConTimeout(url, { cache: 'no-store' }, 8000);
+      if (!r.ok) return null;
+      const texto = await r.text();
+      if (!texto || texto === 'null') return null;
+      return JSON.parse(texto);
+    } catch (e) { return null; }
+  },
+
+  async _firebasePut(ruta, data) {
+    if (!this.usaFirebase()) return false;
+    try {
+      const r = await Utilidades.fetchConTimeout(this._urlFirebase(ruta), {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data)
+      }, 15000);
+      return r.ok;
+    } catch (e) { return false; }
+  },
+
+  _mundoVacio() {
+    return {
+      misiones: [], tesoros: [], objetos: [], posiciones: {}, eliminados: [],
+      precios: {}, itemsNuevos: [], mantenimiento: { activo: false, mensaje: '' },
+      baneados: [], mensajes: [], jugadores: [], partidas: {}, cofres: [],
+      correoReclamados: [], correoTienda: [],
+      enemigos: [], enemigosEstado: {}, tiendasAdmin: [], combate: {}
+    };
+  },
+
+  async _leerMundoFirebase() {
+    const mundo = await this._firebaseGet('mundo');
+    if (!mundo) return this._mundoVacio();
+    if (!mundo.jugadores) mundo.jugadores = [];
+    if (!mundo.partidas) mundo.partidas = {};
+    return mundo;
+  },
+
+  _indiceDesdeMundo(mundo) {
+    return (mundo?.jugadores || [])
+      .filter(j => j && j.id && j.nombre)
+      .map(j => this._perfilIndice(j))
+      .sort((a, b) => (a.nombre || '').localeCompare(b.nombre || ''));
+  },
+
+  async _syncIndiceFirebase(mundo) {
+    return this._firebasePut('indice', this._indiceDesdeMundo(mundo));
+  },
+
+  async _guardarMundoFirebase(mundo) {
+    mundo.actualizadoEn = Date.now();
+    const ok = await this._firebasePut('mundo', mundo);
+    if (ok) await this._syncIndiceFirebase(mundo);
+    return ok;
+  },
+
+  async _actualizarMundoFirebase(editar) {
+    const mundo = await this._leerMundoFirebase();
+    editar(mundo);
+    const ok = await this._guardarMundoFirebase(mundo);
+    if (ok) {
+      const json = JSON.stringify(mundo);
+      if (typeof Admin !== 'undefined') {
+        Admin._crudoPublicado = json;
+        Admin._ultimoPublicado = json;
+        try { Admin.publicado = Object.assign(Admin.publicado || {}, JSON.parse(json)); } catch (e) {}
+      }
+    }
+    return ok;
+  },
+
+  async _guardarCuentaFirebase(perfil, partidaSnap) {
+    let cuenta = await this._firebaseGet('cuentas/' + perfil.id) || {};
+    cuenta = Object.assign({}, cuenta, {
+      id: perfil.id,
+      nombre: perfil.nombre,
+      telefono: perfil.telefono || '',
+      pinHash: perfil.pinHash || cuenta.pinHash || '',
+      creado: perfil.creado || cuenta.creado || Date.now()
+    });
+    if ('sesionToken' in perfil) cuenta.sesionToken = perfil.sesionToken;
+    if (perfil.sesionT) cuenta.sesionT = perfil.sesionT;
+    if (partidaSnap) {
+      const prev = cuenta.partida;
+      if (!prev || !prev.t || (partidaSnap.t || 0) >= (prev.t || 0)) {
+        cuenta.partida = partidaSnap;
+      }
+    }
+    await this._firebasePut('cuentas/' + perfil.id, cuenta);
+    return this.registrarJugadorEnMundo(perfil, {
+      pinHash: cuenta.pinHash,
+      sesionToken: cuenta.sesionToken,
+      sesionT: cuenta.sesionT,
+      partida: cuenta.partida
+    });
+  },
+
+  async migrarDesdeGitHubSiVacio() {
+    if (!this.usaFirebase()) return false;
+    const actual = await this._firebaseGet('mundo');
+    if (actual && ((actual.jugadores && actual.jugadores.length) ||
+      (actual.objetos && actual.objetos.length))) return false;
+    let texto = null;
+    if (CONFIG.repoPublicacion && CONFIG.ramaPublicacion) {
+      try {
+        const url = 'https://raw.githubusercontent.com/' + CONFIG.repoPublicacion + '/' +
+          CONFIG.ramaPublicacion + '/datos/mundo.json?t=' + Date.now();
+        const r = await Utilidades.fetchConTimeout(url, { cache: 'no-store' }, 8000);
+        if (r.ok) texto = await r.text();
+      } catch (e) {}
+    }
+    if (!texto) {
+      try {
+        const r = await Utilidades.fetchConTimeout('datos/mundo.json?t=' + Date.now(), { cache: 'no-store' }, 5000);
+        if (r.ok) texto = await r.text();
+      } catch (e) {}
+    }
+    if (!texto) return false;
+    try {
+      const mundo = JSON.parse(texto);
+      const ok = await this._guardarMundoFirebase(mundo);
+      if (ok && typeof Notificaciones !== 'undefined') {
+        Notificaciones.mostrar('☁️ Mundo copiado a Firebase (sin tokens)', 'exito', 6000);
+      }
+      return ok;
+    } catch (e) { return false; }
+  },
+
+  // Orden: Firebase (sin tokens) — GitHub raw — local
   urlsLectura() {
     if (CONFIG.firebaseMundoUrl) {
-      return [CONFIG.firebaseMundoUrl.replace(/\/$/, '') + '/mundo.json'];
+      return [this._urlFirebase('mundo')];
     }
     if (CONFIG.repoPublicacion && CONFIG.ramaPublicacion) {
       return ['https://raw.githubusercontent.com/' + CONFIG.repoPublicacion + '/' +
@@ -37,6 +178,7 @@ const MundoPublico = {
   },
 
   syncDisponible() {
+    if (this.usaFirebase()) return true;
     return !!this._tokenGitHub();
   },
 
@@ -46,6 +188,15 @@ const MundoPublico = {
   },
 
   async refrescarCuentasServidor() {
+    if (this.usaFirebase()) {
+      const [mundo, indice] = await Promise.all([
+        this._firebaseGet('mundo'),
+        this._firebaseGet('indice')
+      ]);
+      const ind = Array.isArray(indice) ? indice : this._indiceDesdeMundo(mundo);
+      if (mundo) this._mundoCache = JSON.stringify(mundo);
+      return { indice: ind, mundo };
+    }
     const bust = '?v=' + Date.now();
     const [indice, textoMundo] = await Promise.all([
       this._descargarJsonRepo(this._rutaIndiceCuentas()),
@@ -116,15 +267,12 @@ const MundoPublico = {
   // Sube el mundo a la nube (Firebase primero; si no, GitHub API)
   async publicar(json) {
     if (CONFIG.firebaseMundoUrl) {
-      const url = CONFIG.firebaseMundoUrl.replace(/\/$/, '') + '/mundo.json';
-      const r = await Utilidades.fetchConTimeout(url, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: json
-      }, 12000);
-      return r.ok;
+      try {
+        const mundo = typeof json === 'string' ? JSON.parse(json) : json;
+        return this._guardarMundoFirebase(mundo);
+      } catch (e) { return false; }
     }
-    return null; // GitHub lo maneja Admin.publicarMundo()
+    return null;
   },
 
   _tokenDesdeMundo: null,
@@ -152,6 +300,14 @@ const MundoPublico = {
   },
 
   async _descargarJsonRepo(ruta) {
+    if (this.usaFirebase()) {
+      if (ruta.includes('indice')) return this._firebaseGet('indice');
+      if (ruta.includes('jugadores/')) {
+        const id = ruta.split('/').pop().replace('.json', '');
+        return this._firebaseGet('cuentas/' + id);
+      }
+      return null;
+    }
     const bust = '?v=' + Date.now();
     const urls = CONFIG.repoPublicacion
       ? [this._urlRawRepo(ruta), ruta]
@@ -245,6 +401,15 @@ const MundoPublico = {
 
   async cargarCuenta(id) {
     if (!id) return null;
+    if (this.usaFirebase()) {
+      const archivo = await this._firebaseGet('cuentas/' + id);
+      if (archivo && archivo.id) return archivo;
+      const mundo = await this._leerMundoFirebase();
+      const j = (mundo.jugadores || []).find(x => x.id === id);
+      if (!j) return null;
+      const partida = (mundo.partidas || {})[id] || null;
+      return Object.assign({}, j, partida ? { partida } : {});
+    }
     const archivo = await this._descargarJsonRepo(this._rutaCuenta(id));
     if (archivo && archivo.id) return archivo;
 
@@ -260,7 +425,9 @@ const MundoPublico = {
   },
 
   async guardarCuenta(perfil, partidaSnap) {
-    if (!perfil?.id || !this._tokenGitHub() || !CONFIG.repoPublicacion) return false;
+    if (!perfil?.id) return false;
+    if (this.usaFirebase()) return this._guardarCuentaFirebase(perfil, partidaSnap);
+    if (!this._tokenGitHub() || !CONFIG.repoPublicacion) return false;
 
     let cuenta = await this.cargarCuenta(perfil.id) || {};
     cuenta = Object.assign({}, cuenta, {
@@ -312,6 +479,7 @@ const MundoPublico = {
 
   async subirPartidaCuenta(perfil, snapshot) {
     if (!perfil?.id || !snapshot) return false;
+    if (this.usaFirebase()) return this._guardarCuentaFirebase(perfil, snapshot);
     if (!this._tokenGitHub()) return this.subirPartida(perfil, snapshot);
     return this.guardarCuenta(perfil, snapshot);
   },
@@ -333,6 +501,7 @@ const MundoPublico = {
   },
 
   async actualizarMundo(editar, mensaje) {
+    if (this.usaFirebase()) return this._actualizarMundoFirebase(editar);
     if (!CONFIG.repoPublicacion) return false;
     const token = this._tokenGitHub();
     if (!token) return false;
@@ -403,6 +572,12 @@ const MundoPublico = {
   },
 
   async _putMundoGitHub(json) {
+    if (this.usaFirebase()) {
+      try {
+        const mundo = JSON.parse(json);
+        return this._guardarMundoFirebase(mundo);
+      } catch (e) { return false; }
+    }
     const token = this._tokenGitHub();
     if (!token || !CONFIG.repoPublicacion) return false;
     try {
@@ -412,7 +587,46 @@ const MundoPublico = {
   },
 
   async registrarJugadorEnMundo(perfil, extras) {
-    if (!perfil || !CONFIG.repoPublicacion) return false;
+    if (!perfil) return false;
+    if (this.usaFirebase()) {
+      const n = perfil.nombre.trim().toLowerCase();
+      const adminNom = (CONFIG.adminNombre || 'randy').toLowerCase();
+      return this._actualizarMundoFirebase(mundo => {
+        let j = mundo.jugadores.find(x => x.id === perfil.id);
+        if (!j) {
+          if (n === adminNom) {
+            const randy = mundo.jugadores.find(x => x.nombre && x.nombre.toLowerCase() === adminNom);
+            if (randy && randy.id !== perfil.id) return;
+          }
+          for (const otro of mundo.jugadores) {
+            if (otro.nombre && otro.nombre.toLowerCase() === n && otro.id !== perfil.id) return;
+            if (otro.telefono && perfil.telefono && otro.telefono === perfil.telefono && otro.id !== perfil.id) return;
+          }
+          j = {
+            id: perfil.id,
+            nombre: perfil.nombre,
+            telefono: perfil.telefono || '',
+            creado: perfil.creado || Date.now()
+          };
+          mundo.jugadores.push(j);
+        }
+        if (perfil.pinHash) j.pinHash = perfil.pinHash;
+        if (perfil.nombre) j.nombre = perfil.nombre;
+        if (perfil.telefono) j.telefono = perfil.telefono;
+        if (extras) {
+          if (extras.pinHash) j.pinHash = extras.pinHash;
+          if ('sesionToken' in extras) j.sesionToken = extras.sesionToken;
+          if (extras.sesionT) j.sesionT = extras.sesionT;
+          if (extras.partida) {
+            const actual = mundo.partidas[perfil.id];
+            if (!actual || !actual.t || extras.partida.t >= actual.t) {
+              mundo.partidas[perfil.id] = extras.partida;
+            }
+          }
+        }
+      });
+    }
+    if (!CONFIG.repoPublicacion) return false;
     if (!this._tokenGitHub()) return false;
 
     const n = perfil.nombre.trim().toLowerCase();
@@ -455,7 +669,31 @@ const MundoPublico = {
   },
 
   async subirPartida(perfil, snapshot) {
-    if (!perfil?.id || !snapshot || !this._tokenGitHub()) return false;
+    if (!perfil?.id || !snapshot) return false;
+    if (this.usaFirebase()) {
+      return this._actualizarMundoFirebase(mundo => {
+        const actual = (mundo.partidas || {})[perfil.id];
+        if (actual && actual.t > snapshot.t) return;
+        if (actual?.datos && !actual.datos.muerto && snapshot.datos?.muerto) return;
+        if (!mundo.partidas) mundo.partidas = {};
+        mundo.partidas[perfil.id] = snapshot;
+        let j = mundo.jugadores.find(x => x.id === perfil.id);
+        if (!j) {
+          j = {
+            id: perfil.id,
+            nombre: perfil.nombre,
+            telefono: perfil.telefono || '',
+            creado: perfil.creado || Date.now(),
+            pinHash: perfil.pinHash
+          };
+          mundo.jugadores.push(j);
+        }
+        if (perfil.pinHash) j.pinHash = perfil.pinHash;
+        if (perfil.sesionToken) j.sesionToken = perfil.sesionToken;
+        if (perfil.sesionT) j.sesionT = perfil.sesionT;
+      });
+    }
+    if (!this._tokenGitHub()) return false;
     return this.actualizarMundo(mundo => {
       const actual = (mundo.partidas || {})[perfil.id];
       if (actual && actual.t > snapshot.t) return;
@@ -529,6 +767,14 @@ const MundoPublico = {
   },
 
   async _guardarMundoCorreo(mundo) {
+    if (this.usaFirebase()) {
+      const ok = await this._guardarMundoFirebase(mundo);
+      if (typeof Admin !== 'undefined') {
+        Admin.publicado.correoReclamados = mundo.correoReclamados;
+        Admin.datos.correoReclamadosExtra = mundo.correoReclamados;
+      }
+      return ok;
+    }
     const json = JSON.stringify(mundo, null, 2);
     const ok = await this._putMundoGitHub(json);
     if (typeof Admin !== 'undefined') {
@@ -539,7 +785,7 @@ const MundoPublico = {
   },
 
   async registrarReclamoParcial(codigo, perfil, cantidadTomada, cantidadTotal) {
-    if (!this._tokenGitHub()) return { ok: true, completo: cantidadTomada >= cantidadTotal };
+    if (!this.puedeEscribir()) return { ok: true, completo: cantidadTomada >= cantidadTotal };
 
     const mundo = await this._leerMundoCorreo();
     let entrada = mundo.correoReclamados.find(r => r.codigo === codigo);
@@ -570,7 +816,7 @@ const MundoPublico = {
     const ya = await this.correoYaReclamado(codigo);
     if (ya && ya.completo && ya.jugadorId !== perfil.id) return false;
 
-    if (typeof Admin === 'undefined' || !this._tokenGitHub()) return true;
+    if (typeof Admin === 'undefined' || !this.puedeEscribir()) return true;
 
     let mundo = await this._leerMundoCorreo();
     const existente = mundo.correoReclamados.find(r => r.codigo === codigo);

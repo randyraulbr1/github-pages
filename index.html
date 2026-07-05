@@ -13,7 +13,7 @@
   <script>
     // Aviso temprano en móvil (antes de cargar 20+ archivos JS)
     (function () {
-      var V = '58';
+      var V = '59';
       var texto = document.getElementById('carga-texto');
       if (texto) texto.textContent = 'Conectando…';
       var prev = localStorage.getItem('mariel_app_version');
@@ -520,6 +520,14 @@
 
           <div id="admin-vista-clave" class="admin-vista oculto">
             <div class="admin-clave-cuerpo">
+              <div id="admin-firebase-activo" class="oculto">
+                <p class="admin-clave-estado ok">☁️ Firebase activo — sin tokens en ningún teléfono</p>
+                <p class="admin-clave-ayuda">Admin y jugadores leen y escriben directo en la nube. Pulsa <b>Sincronizar</b> para publicar cambios del mapa.</p>
+              </div>
+              <div id="admin-github-token">
+              <p id="admin-firebase-setup" class="admin-clave-ayuda">
+                ☁️ <b>Recomendado:</b> usa Firebase (gratis, sin tokens). Edita <code>firebaseMundoUrl</code> en <code>js/config/config.js</code> — ver comentarios ahí.
+              </p>
               <p id="admin-clave-estado" class="admin-clave-estado">Sin token en este teléfono.</p>
               <p id="admin-clave-previo" class="admin-clave-ayuda oculto"></p>
               <p class="admin-clave-ayuda">
@@ -537,6 +545,7 @@
               <p class="admin-clave-enlace">Contents → Read and write en <code>randyraulbr1/github-pages</code></p>
               <button id="btn-admin-clave-guardar" class="btn-auth-principal">Guardar token</button>
               <button id="btn-admin-clave-borrar" class="fila-opcion peligro admin-clave-borrar">🗑️ Borrar token</button>
+              </div>
             </div>
           </div>
 
@@ -693,40 +702,40 @@
   </div>
 
   <!-- LIBRERÍAS -->
-  <script src="lib/leaflet/leaflet.js?v=58"></script>
+  <script src="lib/leaflet/leaflet.js?v=59"></script>
 
   <!-- MÓDULOS DEL JUEGO (orden importante) -->
-  <script src="js/config/config.js?v=58"></script>
-  <script src="js/nucleo/utilidades.js?v=58"></script>
-  <script src="js/mundo/mundo_publico.js?v=58"></script>
-  <script src="js/notificaciones/notificaciones.js?v=58"></script>
-  <script src="js/usuarios/usuarios.js?v=58"></script>
-  <script src="js/guardado/guardado.js?v=58"></script>
-  <script src="js/historial/historial.js?v=58"></script>
-  <script src="js/dinero/dinero.js?v=58"></script>
-  <script src="js/vida/vida.js?v=58"></script>
-  <script src="js/items/items.js?v=58"></script>
-  <script src="js/mochila/mochila.js?v=58"></script>
-  <script src="js/mapa/mapa.js?v=58"></script>
-  <script src="js/gps/gps.js?v=58"></script>
-  <script src="js/tiendas/datos_tiendas.js?v=58"></script>
-  <script src="js/tiendas/tiendas.js?v=58"></script>
-  <script src="js/pesca/pesca.js?v=58"></script>
-  <script src="js/tesoros/datos_tesoros.js?v=58"></script>
-  <script src="js/tesoros/tesoros.js?v=58"></script>
-  <script src="js/misiones/datos_misiones.js?v=58"></script>
-  <script src="js/misiones/misiones.js?v=58"></script>
-  <script src="js/cofres/cofres.js?v=58"></script>
-  <script src="js/correo/correo.js?v=58"></script>
-  <script src="js/enemigos/enemigos.js?v=58"></script>
-  <script src="js/admin/admin.js?v=58"></script>
-  <script src="js/opciones/opciones.js?v=58"></script>
-  <script src="js/principal.js?v=58"></script>
+  <script src="js/config/config.js?v=59"></script>
+  <script src="js/nucleo/utilidades.js?v=59"></script>
+  <script src="js/mundo/mundo_publico.js?v=59"></script>
+  <script src="js/notificaciones/notificaciones.js?v=59"></script>
+  <script src="js/usuarios/usuarios.js?v=59"></script>
+  <script src="js/guardado/guardado.js?v=59"></script>
+  <script src="js/historial/historial.js?v=59"></script>
+  <script src="js/dinero/dinero.js?v=59"></script>
+  <script src="js/vida/vida.js?v=59"></script>
+  <script src="js/items/items.js?v=59"></script>
+  <script src="js/mochila/mochila.js?v=59"></script>
+  <script src="js/mapa/mapa.js?v=59"></script>
+  <script src="js/gps/gps.js?v=59"></script>
+  <script src="js/tiendas/datos_tiendas.js?v=59"></script>
+  <script src="js/tiendas/tiendas.js?v=59"></script>
+  <script src="js/pesca/pesca.js?v=59"></script>
+  <script src="js/tesoros/datos_tesoros.js?v=59"></script>
+  <script src="js/tesoros/tesoros.js?v=59"></script>
+  <script src="js/misiones/datos_misiones.js?v=59"></script>
+  <script src="js/misiones/misiones.js?v=59"></script>
+  <script src="js/cofres/cofres.js?v=59"></script>
+  <script src="js/correo/correo.js?v=59"></script>
+  <script src="js/enemigos/enemigos.js?v=59"></script>
+  <script src="js/admin/admin.js?v=59"></script>
+  <script src="js/opciones/opciones.js?v=59"></script>
+  <script src="js/principal.js?v=59"></script>
   <script>
     // Registrar la app instalable (PWA)
     if ('serviceWorker' in navigator) {
       const yaTeniaVersion = !!navigator.serviceWorker.controller;
-      navigator.serviceWorker.register('sw.js?v=58', { updateViaCache: 'none' })
+      navigator.serviceWorker.register('sw.js?v=59', { updateViaCache: 'none' })
         .then(function (reg) { reg.update(); })
         .catch(function () {});
       // Cuando llega una versión nueva del juego: avisar y recargar solo

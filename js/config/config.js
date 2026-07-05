@@ -3,7 +3,7 @@
 // ============================================================
 const CONFIG = {
   // Cambiar al publicar: obliga al móvil a descartar caché vieja
-  version: '58',
+  version: '59',
   maxPila: 10,
 
   // Nombre reservado del administrador (solo este jugador ve el panel admin)
@@ -17,7 +17,11 @@ const CONFIG = {
   segundosDesgasteHambre: 120,
   radioColocarCofre: 60,
 
-  // Cuba: dejar vacío. Usar clave de GitHub en Admin (🔑 Configurar clave de publicación).
+  // ☁️ NUBE SIN TOKENS (recomendado):
+  // 1) console.firebase.google.com → Crear proyecto → Realtime Database
+  // 2) Reglas: { "rules": { ".read": true, ".write": true } }
+  // 3) Copia la URL base (ej: https://mariel-xxxxx-default-rtdb.firebaseio.com)
+  // 4) Pégala aquí. Admin y jugadores sincronizan sin token GitHub.
   firebaseMundoUrl: '',
   // Centro del pueblo de Mariel, Artemisa, Cuba
   centro: [22.9936, -82.7539],

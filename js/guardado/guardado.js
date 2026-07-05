@@ -154,6 +154,7 @@ const Guardado = {
 
   _avisarSinSyncNube() {
     if (this._avisoSinNube) return;
+    if (MundoPublico.usaFirebase()) return;
     if (typeof Usuarios === 'undefined' || !Usuarios.esAdministrador()) return;
     if (MundoPublico.puedeEscribir()) return;
     this._avisoSinNube = true;

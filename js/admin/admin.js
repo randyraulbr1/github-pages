@@ -92,6 +92,10 @@ const Admin = {
     this._asegurarObjetoIconoTesoro(this.tesoroIconoMapa());
     this._aplicarTokenTelefono();
 
+    if (MundoPublico.usaFirebase()) {
+      MundoPublico.migrarDesdeGitHubSiVacio().catch(() => {});
+    }
+
     if (!Array.isArray(this.publicado.misiones)) this.publicado.misiones = [];
     if (!Array.isArray(this.publicado.tesoros)) this.publicado.tesoros = [];
     if (!Array.isArray(this.publicado.objetos)) this.publicado.objetos = [];
@@ -247,7 +251,9 @@ const Admin = {
       if (!this._avisoSinToken) {
         this._avisoSinToken = true;
         Notificaciones.mostrar(
-          '⚠️ Sin token GitHub: los cambios solo quedan en tu teléfono. Configura 🔑 Token y pulsa Sincronizar.',
+          MundoPublico.usaFirebase()
+            ? '⚠️ Firebase configurado pero no responde. Revisa firebaseMundoUrl en config.js'
+            : '⚠️ Sin nube activa. Configura Firebase en config.js (sin tokens) o 🔑 Token GitHub.',
           'alerta', 12000
         );
       }
@@ -278,7 +284,12 @@ const Admin = {
           clearTimeout(this._tempPublicar);
           this._tempPublicar = setTimeout(() => this._procesarColaPublicacion(), espera);
         } else if (this.esAdminJugador()) {
-          Notificaciones.mostrar('❌ No se pudo subir a GitHub. Revisa 🔑 Token o pulsa Sincronizar.', 'error', 8000);
+          Notificaciones.mostrar(
+            MundoPublico.usaFirebase()
+              ? '❌ No se pudo subir a Firebase. Revisa firebaseMundoUrl en config.js'
+              : '❌ No se pudo subir a GitHub. Revisa 🔑 Token o pulsa Sincronizar.',
+            'error', 8000
+          );
         }
       } else {
         this._intentosPub = 0;
@@ -3033,12 +3044,26 @@ const Admin = {
   _actualizarEtiquetaClave() {
     const etiq = document.getElementById('admin-clave-etiqueta');
     if (!etiq) return;
+    if (MundoPublico.usaFirebase()) {
+      etiq.textContent = 'Nube Firebase ✅';
+      return;
+    }
     etiq.textContent = this._tokenEnTelefono()
       ? 'Token GitHub ✅'
       : 'Token GitHub (configurar)';
   },
 
   abrirConfiguracionClave() {
+    const panelFirebase = document.getElementById('admin-firebase-activo');
+    const panelGitHub = document.getElementById('admin-github-token');
+    if (MundoPublico.usaFirebase()) {
+      if (panelFirebase) panelFirebase.classList.remove('oculto');
+      if (panelGitHub) panelGitHub.classList.add('oculto');
+      this._mostrarPanelDerecho('admin-vista-clave', '☁️ Nube Firebase');
+      return;
+    }
+    if (panelFirebase) panelFirebase.classList.add('oculto');
+    if (panelGitHub) panelGitHub.classList.remove('oculto');
     const input = document.getElementById('admin-clave-token');
     const estado = document.getElementById('admin-clave-estado');
     const previo = document.getElementById('admin-clave-previo');
@@ -3245,10 +3270,10 @@ const Admin = {
           this._sincronizarEstadoTrasPublicar(adminLocal, json);
           this._aplicarMundoRemoto(json);
           if (!silencioso) {
-            this._avisoSyncManual('🌍 Mundo publicado');
+            this._avisoSyncManual('☁️ Mundo publicado en Firebase');
           }
         } else if (!silencioso) {
-          Notificaciones.mostrar('❌ No se pudo subir a Firebase. Revisa la URL en config.js', 'error', 7000);
+          Notificaciones.mostrar('❌ No se pudo subir a Firebase. Revisa firebaseMundoUrl', 'error', 7000);
         }
         return !!ok;
       } catch (e) {
