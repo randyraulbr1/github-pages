@@ -1130,6 +1130,11 @@ body.jugador-muerto #admin-controles { pointer-events: none; opacity: .35; }
   pointer-events: none;
 }
 #admin-cesto-borrar.activo { pointer-events: auto; animation: pulso-cesto 1.2s ease infinite; }
+#admin-cesto-borrar.cesto-hover {
+  background: rgba(255,69,58,.45);
+  border-color: #ff6961;
+  transform: scale(1.08);
+}
 @keyframes pulso-cesto { 50% { transform: scale(1.05); border-color: #ff6961; } }
 #pantalla-publicando {
   position: fixed; inset: 0; z-index: 4800;

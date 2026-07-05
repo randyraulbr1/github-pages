@@ -1477,6 +1477,51 @@ const Admin = {
   },
 
   // Habilita arrastre de un marcador Leaflet (organizar pines)
+  _punteroDeEvento(ev) {
+    const e = ev?.originalEvent || ev;
+    if (!e) return null;
+    if (e.changedTouches?.length) return { x: e.changedTouches[0].clientX, y: e.changedTouches[0].clientY };
+    if (e.touches?.length) return { x: e.touches[0].clientX, y: e.touches[0].clientY };
+    if (typeof e.clientX === 'number') return { x: e.clientX, y: e.clientY };
+    return null;
+  },
+
+  _sobreCesto(ev, marcador) {
+    const cesto = document.getElementById('admin-cesto-borrar');
+    if (!cesto || cesto.classList.contains('oculto')) return false;
+    const pt = this._punteroDeEvento(ev);
+    if (pt) {
+      const bajo = document.elementFromPoint(pt.x, pt.y);
+      if (bajo?.closest?.('#admin-cesto-borrar')) return true;
+    }
+    return this._marcadorSobreCesto(marcador);
+  },
+
+  _actualizarHoverCesto(ev, marcador) {
+    const cesto = document.getElementById('admin-cesto-borrar');
+    if (!cesto) return;
+    cesto.classList.toggle('cesto-hover', this._sobreCesto(ev, marcador));
+  },
+
+  _arrastreOrganizarMarcador(marcador, punto, alMoverPos) {
+    if (!marcador) return;
+    const fin = (ev) => {
+      const cesto = document.getElementById('admin-cesto-borrar');
+      if (cesto) cesto.classList.remove('cesto-hover');
+      if (this._sobreCesto(ev, marcador)) {
+        this._eliminarPin(punto, true);
+        return;
+      }
+      if (alMoverPos) alMoverPos(marcador);
+    };
+    if (punto._movOrg) marcador.off('drag', punto._movOrg);
+    if (punto._finOrg) marcador.off('dragend', punto._finOrg);
+    punto._movOrg = (ev) => this._actualizarHoverCesto(ev, marcador);
+    punto._finOrg = fin;
+    marcador.on('drag', punto._movOrg);
+    this._habilitarArrastreMarcador(marcador, fin);
+  },
+
   _habilitarArrastreMarcador(marcador, alSoltar) {
     if (!marcador || marcador === GPS.marcador) return;
     marcador.options.draggable = true;
@@ -1490,9 +1535,12 @@ const Admin = {
     document.getElementById('ventana-admin').classList.add('oculto');
     this.modo = modo;
     const cesto = document.getElementById('admin-cesto-borrar');
-    if (cesto) cesto.classList.remove('oculto');
+    if (cesto) {
+      cesto.classList.remove('oculto');
+      cesto.classList.add('activo');
+    }
     this._mostrarControles(
-      '✋ Arrastra un pin · Suelta en 🗑️ para borrarlo',
+      '✋ Arrastra un pin y suéltalo en 🗑️ para borrarlo',
       false
     );
 
@@ -1504,16 +1552,18 @@ const Admin = {
         opacity: 0.75,
         icon: L.divIcon({ className: '', html: '<div class="icono-tesoro">✨</div>', iconSize: [30, 30], iconAnchor: [15, 15] })
       }).addTo(Mapa.mapa);
-      fantasma.on('dragend', () => {
+      fantasma.on('dragend', (ev) => {
+        if (this._sobreCesto(ev, fantasma)) {
+          this._eliminarPin({ id: t.id, marcador: fantasma, nombre: 'Tesoro oculto' }, true);
+          return;
+        }
         const p = fantasma.getLatLng();
         t.posicion[0] = +p.lat.toFixed(6);
         t.posicion[1] = +p.lng.toFixed(6);
         this.datos.posiciones[t.id] = [t.posicion[0], t.posicion[1]];
         this.guardar();
       });
-      fantasma.on('click', () => {
-        if (this.modo === 'organizar') this._eliminarPin({ id: t.id, marcador: fantasma, nombre: 'Tesoro oculto' });
-      });
+      fantasma.on('drag', (ev) => this._actualizarHoverCesto(ev, fantasma));
       this._fantasmas.push(fantasma);
     }
 
@@ -1525,15 +1575,17 @@ const Admin = {
         opacity: 0.75,
         icon: L.divIcon({ className: '', html: '<div class="icono-tesoro">🎁</div>', iconSize: [30, 30], iconAnchor: [15, 15] })
       }).addTo(Mapa.mapa);
-      fantasma.on('dragend', () => {
+      fantasma.on('dragend', (ev) => {
+        if (this._sobreCesto(ev, fantasma)) {
+          this._eliminarPin({ id: t.id, marcador: fantasma, nombre: 'Tesoro del admin' }, true);
+          return;
+        }
         const p = fantasma.getLatLng();
         t.pos[0] = +p.lat.toFixed(6); t.pos[1] = +p.lng.toFixed(6);
         this.datos.posiciones[t.id] = [t.pos[0], t.pos[1]];
         this.guardar();
       });
-      fantasma.on('click', () => {
-        if (this.modo === 'organizar') this._eliminarPin({ id: t.id, marcador: fantasma, nombre: 'Tesoro del admin' });
-      });
+      fantasma.on('drag', (ev) => this._actualizarHoverCesto(ev, fantasma));
       this._fantasmas.push(fantasma);
     }
 
@@ -1546,30 +1598,18 @@ const Admin = {
       }
       for (const p of Mapa.puntosInteractivos) {
         if (!p.marcador || p.marcador === GPS.marcador) continue;
-        p.marcador.off('dragend', p._alSoltar);
-        p.marcador.on('dragstart', () => { p._adminMovio = false; });
-        p.marcador.on('drag', () => { p._adminMovio = true; });
-        p._alSoltar = () => {
-          if (this._marcadorSobreCesto(p.marcador)) {
-            this._eliminarPin(p, true);
-            return;
-          }
-          const nueva = p.marcador.getLatLng();
+        this._arrastreOrganizarMarcador(p.marcador, p, (m) => {
+          const nueva = m.getLatLng();
           p.posicion[0] = +nueva.lat.toFixed(6);
           p.posicion[1] = +nueva.lng.toFixed(6);
           this.datos.posiciones[p.id] = [p.posicion[0], p.posicion[1]];
           this.guardar();
-        };
-        this._habilitarArrastreMarcador(p.marcador, p._alSoltar);
+        });
       }
       for (const o of this.objetosTodos()) {
         if (!o._marcador) continue;
-        this._habilitarArrastreMarcador(o._marcador, () => {
-          if (this._marcadorSobreCesto(o._marcador)) {
-            this._eliminarPin({ id: o.id, marcador: o._marcador, nombre: Items.seguro(o.itemId || o.items?.[0]?.id)?.nombre }, true);
-            return;
-          }
-          const p = o._marcador.getLatLng();
+        this._arrastreOrganizarMarcador(o._marcador, { id: o.id, marcador: o._marcador, nombre: Items.seguro(o.itemId || o.items?.[0]?.id)?.nombre }, (m) => {
+          const p = m.getLatLng();
           o.pos[0] = +p.lat.toFixed(6);
           o.pos[1] = +p.lng.toFixed(6);
           this.datos.posiciones[o.id] = [o.pos[0], o.pos[1]];
@@ -1578,13 +1618,48 @@ const Admin = {
       }
       if (typeof Cofres !== 'undefined' && Cofres._marcadores) {
         for (const [id, m] of Object.entries(Cofres._marcadores)) {
-          this._habilitarArrastreMarcador(m, () => {
-            if (this._marcadorSobreCesto(m)) {
-              this._eliminarPin({ id, marcador: m, nombre: 'Cofre' }, true);
-              return;
-            }
-            const p = m.getLatLng();
+          this._arrastreOrganizarMarcador(m, { id, marcador: m, nombre: 'Cofre' }, (marc) => {
+            const p = marc.getLatLng();
             this.datos.posiciones[id] = [+p.lat.toFixed(6), +p.lng.toFixed(6)];
+            this.guardar();
+          });
+        }
+      }
+      if (typeof Misiones !== 'undefined') {
+        for (const [id, m] of Object.entries(Misiones._marcadores)) {
+          const mis = Misiones.lista.find(x => x.id === id);
+          this._arrastreOrganizarMarcador(m, { id, marcador: m, nombre: mis?.titulo || 'Misión' }, (marc) => {
+            const p = marc.getLatLng();
+            const pos = [+p.lat.toFixed(6), +p.lng.toFixed(6)];
+            this.datos.posiciones[id] = pos;
+            const exist = Misiones.lista.find(x => x.id === id);
+            if (exist) exist.pos = pos;
+            this.guardar();
+          });
+        }
+      }
+      if (typeof Enemigos !== 'undefined') {
+        for (const e of Enemigos.lista) {
+          const m = Enemigos._marcadores[e.id];
+          if (!m) continue;
+          this._arrastreOrganizarMarcador(m, { id: e.id, marcador: m, nombre: e.nombre || 'Enemigo' }, (marc) => {
+            const p = marc.getLatLng();
+            const pos = [+p.lat.toFixed(6), +p.lng.toFixed(6)];
+            e.pos = pos;
+            e.posOrigen = pos.slice();
+            this.datos.posiciones[e.id] = pos;
+            this.guardar();
+          });
+        }
+      }
+      if (typeof Tiendas !== 'undefined' && Tiendas._marcadoresAdmin) {
+        for (const [id, m] of Object.entries(Tiendas._marcadoresAdmin)) {
+          const t = Tiendas._listaAdmin.find(x => x.id === id);
+          this._arrastreOrganizarMarcador(m, { id, marcador: m, nombre: t?.nombre || 'Tienda' }, (marc) => {
+            const p = marc.getLatLng();
+            const pos = [+p.lat.toFixed(6), +p.lng.toFixed(6)];
+            if (t) { t.pos = pos; t.posicion = pos; }
+            this.datos.posiciones[id] = pos;
             this.guardar();
           });
         }
@@ -1640,6 +1715,19 @@ const Admin = {
     this._publicarParaTodos(true);
 
     if (punto.marcador) punto.marcador.remove();
+    if (typeof Enemigos !== 'undefined' && Enemigos._marcadores[punto.id]) {
+      Enemigos._quitarMarcador(punto.id);
+    }
+    if (typeof Tiendas !== 'undefined' && Tiendas._marcadoresAdmin[punto.id]) {
+      Tiendas._marcadoresAdmin[punto.id].remove();
+      delete Tiendas._marcadoresAdmin[punto.id];
+      Tiendas._listaAdmin = Tiendas._listaAdmin.filter(t => t.id !== punto.id);
+    }
+    if (typeof Misiones !== 'undefined' && Misiones._marcadores[punto.id]) {
+      Misiones._marcadores[punto.id].remove();
+      delete Misiones._marcadores[punto.id];
+      if (Misiones._lineas[punto.id]) { Misiones._lineas[punto.id].remove(); delete Misiones._lineas[punto.id]; }
+    }
     if (punto.esTesoroAdmin && punto.esTesoroAdmin._marcador) punto.esTesoroAdmin._marcador.remove();
     const i = Mapa.puntosInteractivos.findIndex(p => p.id === punto.id);
     if (i >= 0) Mapa.puntosInteractivos.splice(i, 1);
@@ -1655,11 +1743,16 @@ const Admin = {
     for (const f of this._fantasmas) f.remove();
     this._fantasmas = [];
     const cesto = document.getElementById('admin-cesto-borrar');
-    if (cesto) cesto.classList.add('oculto');
+    if (cesto) {
+      cesto.classList.add('oculto');
+      cesto.classList.remove('activo', 'cesto-hover');
+    }
     if (typeof Cofres !== 'undefined') Cofres.cancelarPin(true);
     for (const p of Mapa.puntosInteractivos) {
       if (p.marcador && p.marcador.dragging) {
         p.marcador.dragging.disable();
+        if (p._movOrg) { p.marcador.off('drag', p._movOrg); p._movOrg = null; }
+        if (p._finOrg) { p.marcador.off('dragend', p._finOrg); p._finOrg = null; }
         if (p._alSoltar) { p.marcador.off('dragend', p._alSoltar); p._alSoltar = null; }
       }
     }
@@ -2071,7 +2164,8 @@ const Admin = {
           mochila: p.datos.mochila || new Array(25).fill(null),
           dinero: p.datos.dinero || { saldo: CONFIG.dineroInicial },
           vida: p.datos.vida ?? CONFIG.vidaMaxima,
-          muerto: !!p.datos.muerto
+          muerto: !!p.datos.muerto,
+          armaEquipada: p.datos.armaEquipada || null
         }));
       }
     } catch (e) {}
@@ -2083,7 +2177,8 @@ const Admin = {
           mochila: d.mochila,
           dinero: d.dinero || { saldo: CONFIG.dineroInicial },
           vida: d.vida ?? CONFIG.vidaMaxima,
-          muerto: d.vida === 0 || !!d.muerto
+          muerto: d.vida === 0 || !!d.muerto,
+          armaEquipada: d.armaEquipada || null
         }));
       }
     }
@@ -2095,7 +2190,8 @@ const Admin = {
           mochila: d.mochila,
           dinero: d.dinero || { saldo: 0 },
           vida: d.vida ?? CONFIG.vidaMaxima,
-          muerto: d.vida === 0 || !!d.muerto
+          muerto: d.vida === 0 || !!d.muerto,
+          armaEquipada: d.armaEquipada || null
         }));
       }
     }

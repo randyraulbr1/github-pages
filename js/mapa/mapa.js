@@ -6,8 +6,11 @@
 // ============================================================
 const Mapa = {
   mapa: null,
-  puntosInteractivos: [], // { id, posicion, radio, marcador, alTocar, alCambiarDistancia }
+  puntosInteractivos: [],
   CLAVE_VISTA: 'mariel_vista_mapa_v1',
+  _mapaMovidoPorUsuario: false,
+  _tempRecuperarZoom: null,
+  _toqueActivo: false,
 
   _claveVista() {
     const id = (typeof Usuarios !== 'undefined' && Usuarios.perfilActivo?.id) || 'global';
@@ -43,6 +46,59 @@ const Mapa = {
 
     this.mapa.on('moveend zoomend', () => this._guardarVista());
     window.addEventListener('pagehide', () => this._guardarVista());
+    this._enlazarRecuperacionZoom();
+  },
+
+  _enlazarRecuperacionZoom() {
+    const m = this.mapa;
+    const cont = m.getContainer();
+    const esAdminMapa = () => typeof Admin !== 'undefined' && Admin.modo;
+
+    const usuarioInteractua = () => {
+      if (esAdminMapa()) return;
+      this._mapaMovidoPorUsuario = true;
+      this._cancelarRecuperacionZoom();
+    };
+
+    const alSoltarMapa = () => {
+      if (esAdminMapa() || this._toqueActivo) return;
+      this._programarRecuperacionZoom();
+    };
+
+    m.on('dragstart', usuarioInteractua);
+    m.on('zoomstart', usuarioInteractua);
+    m.on('dragend', alSoltarMapa);
+    m.on('zoomend', alSoltarMapa);
+
+    cont.addEventListener('touchstart', () => {
+      this._toqueActivo = true;
+      usuarioInteractua();
+    }, { passive: true });
+    cont.addEventListener('touchend', () => {
+      this._toqueActivo = false;
+      alSoltarMapa();
+    }, { passive: true });
+    cont.addEventListener('touchcancel', () => {
+      this._toqueActivo = false;
+      alSoltarMapa();
+    }, { passive: true });
+  },
+
+  _programarRecuperacionZoom() {
+    this._cancelarRecuperacionZoom();
+    const ms = Math.max(2, (CONFIG.zoomRecuperarSegundos || 4)) * 1000;
+    this._tempRecuperarZoom = setTimeout(() => {
+      this._tempRecuperarZoom = null;
+      if (typeof Admin !== 'undefined' && Admin.modo) return;
+      if (this._toqueActivo) return;
+      this._mapaMovidoPorUsuario = false;
+      this.centrarEnJugador(true);
+    }, ms);
+  },
+
+  _cancelarRecuperacionZoom() {
+    if (this._tempRecuperarZoom) clearTimeout(this._tempRecuperarZoom);
+    this._tempRecuperarZoom = null;
   },
 
   _guardarVista() {
@@ -84,6 +140,8 @@ const Mapa = {
   centrarEnJugador(animar) {
     if (!this.mapa || !GPS.posicion) return;
     if (typeof Admin !== 'undefined' && Admin.modo) return;
+    this._mapaMovidoPorUsuario = false;
+    this._cancelarRecuperacionZoom();
     const zoom = CONFIG.zoomSeguimientoJugador || CONFIG.zoomInicial;
     this.mapa.setView(GPS.posicion, zoom, { animate: animar !== false });
   },
@@ -133,6 +191,6 @@ const Mapa = {
       if (p.alCambiarDistancia) p.alCambiarDistancia(d);
     }
     if (typeof Misiones !== 'undefined' && Misiones.actualizarLineas) Misiones.actualizarLineas();
-    this.centrarEnJugador(true);
+    if (!this._mapaMovidoPorUsuario) this.centrarEnJugador(true);
   }
 };
