@@ -72,6 +72,26 @@ function initDb() {
       FOREIGN KEY (player_id) REFERENCES players(id) ON DELETE CASCADE,
       FOREIGN KEY (mission_id) REFERENCES missions(id) ON DELETE CASCADE
     );
+
+    CREATE TABLE IF NOT EXISTS friend_requests (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      from_player_id INTEGER NOT NULL,
+      to_player_id INTEGER NOT NULL,
+      status TEXT NOT NULL DEFAULT 'pending',
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      UNIQUE(from_player_id, to_player_id),
+      FOREIGN KEY (from_player_id) REFERENCES players(id) ON DELETE CASCADE,
+      FOREIGN KEY (to_player_id) REFERENCES players(id) ON DELETE CASCADE
+    );
+
+    CREATE TABLE IF NOT EXISTS player_blocks (
+      blocker_id INTEGER NOT NULL,
+      blocked_id INTEGER NOT NULL,
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      PRIMARY KEY (blocker_id, blocked_id),
+      FOREIGN KEY (blocker_id) REFERENCES players(id) ON DELETE CASCADE,
+      FOREIGN KEY (blocked_id) REFERENCES players(id) ON DELETE CASCADE
+    );
   `);
 
   // Solo si la BD está vacía: semilla mínima; importMundo trae datos reales de mundo.json
@@ -297,6 +317,177 @@ function upsertPlayerMission(playerId, missionId, status, progress) {
   return db.prepare('SELECT * FROM player_missions WHERE id = ?').get(info.lastInsertRowid);
 }
 
+function findPlayerByName(name) {
+  return db.prepare('SELECT * FROM players WHERE name = ? COLLATE NOCASE').get(name);
+}
+
+// --- Friends & blocks ---
+function isBlocked(a, b) {
+  const row = db.prepare(`
+    SELECT 1 FROM player_blocks
+    WHERE (blocker_id = ? AND blocked_id = ?) OR (blocker_id = ? AND blocked_id = ?)
+  `).get(a, b, b, a);
+  return !!row;
+}
+
+function getBlockedIds(playerId) {
+  return db.prepare(`
+    SELECT blocked_id AS id FROM player_blocks WHERE blocker_id = ?
+  `).all(playerId).map(r => r.id);
+}
+
+function blockPlayer(blockerId, blockedId) {
+  db.prepare(`
+    INSERT OR IGNORE INTO player_blocks (blocker_id, blocked_id) VALUES (?, ?)
+  `).run(blockerId, blockedId);
+}
+
+function unblockPlayer(blockerId, blockedId) {
+  db.prepare('DELETE FROM player_blocks WHERE blocker_id = ? AND blocked_id = ?')
+    .run(blockerId, blockedId);
+}
+
+function findFriendRequestBetween(a, b) {
+  return db.prepare(`
+    SELECT * FROM friend_requests
+    WHERE (from_player_id = ? AND to_player_id = ?)
+       OR (from_player_id = ? AND to_player_id = ?)
+  `).get(a, b, b, a);
+}
+
+function sendFriendRequest(fromId, toId) {
+  if (isBlocked(fromId, toId)) {
+    return { ok: false, error: 'No puedes enviar solicitud a este jugador' };
+  }
+  if (!findPlayerById(toId)) return { ok: false, error: 'Jugador no encontrado' };
+
+  const existing = findFriendRequestBetween(fromId, toId);
+  if (existing) {
+    if (existing.status === 'accepted') return { ok: false, error: 'Ya son amigos' };
+    if (existing.status === 'pending') {
+      if (existing.from_player_id === toId) {
+        return acceptFriendRequest(existing.id, fromId);
+      }
+      return { ok: false, error: 'Solicitud pendiente' };
+    }
+  }
+
+  const info = db.prepare(`
+    INSERT INTO friend_requests (from_player_id, to_player_id, status)
+    VALUES (?, ?, 'pending')
+  `).run(fromId, toId);
+
+  const row = db.prepare('SELECT * FROM friend_requests WHERE id = ?').get(info.lastInsertRowid);
+  const fromP = findPlayerById(fromId);
+  const toP = findPlayerById(toId);
+  return {
+    ok: true,
+    request: formatFriendRequest(row, fromP, toP)
+  };
+}
+
+function formatFriendRequest(row, fromP, toP) {
+  if (!row) return null;
+  return {
+    id: row.id,
+    fromPlayerId: row.from_player_id,
+    toPlayerId: row.to_player_id,
+    fromName: fromP?.name || '?',
+    toName: toP?.name || '?',
+    status: row.status,
+    createdAt: row.created_at
+  };
+}
+
+function acceptFriendRequest(requestId, playerId) {
+  const row = db.prepare('SELECT * FROM friend_requests WHERE id = ?').get(requestId);
+  if (!row || row.status !== 'pending') {
+    return { ok: false, error: 'Solicitud no encontrada' };
+  }
+  if (row.to_player_id !== playerId) {
+    return { ok: false, error: 'No puedes aceptar esta solicitud' };
+  }
+  db.prepare(`UPDATE friend_requests SET status = 'accepted' WHERE id = ?`).run(requestId);
+  const updated = db.prepare('SELECT * FROM friend_requests WHERE id = ?').get(requestId);
+  return {
+    ok: true,
+    request: formatFriendRequest(updated, findPlayerById(updated.from_player_id), findPlayerById(updated.to_player_id))
+  };
+}
+
+function rejectFriendRequest(requestId, playerId) {
+  const row = db.prepare('SELECT * FROM friend_requests WHERE id = ?').get(requestId);
+  if (!row || row.status !== 'pending') {
+    return { ok: false, error: 'Solicitud no encontrada' };
+  }
+  if (row.to_player_id !== playerId && row.from_player_id !== playerId) {
+    return { ok: false, error: 'No autorizado' };
+  }
+  db.prepare('DELETE FROM friend_requests WHERE id = ?').run(requestId);
+  return { ok: true };
+}
+
+function removeFriendship(playerId, friendId) {
+  const row = findFriendRequestBetween(playerId, friendId);
+  if (!row || row.status !== 'accepted') {
+    return { ok: false, error: 'No son amigos' };
+  }
+  db.prepare('DELETE FROM friend_requests WHERE id = ?').run(row.id);
+  return { ok: true };
+}
+
+function getFriendIds(playerId) {
+  return db.prepare(`
+    SELECT
+      CASE WHEN from_player_id = ? THEN to_player_id ELSE from_player_id END AS friend_id
+    FROM friend_requests
+    WHERE status = 'accepted' AND (from_player_id = ? OR to_player_id = ?)
+  `).all(playerId, playerId, playerId).map(r => r.friend_id);
+}
+
+function getSocialData(playerId, onlineIds) {
+  const online = new Set(onlineIds || []);
+  const blocked = getBlockedIds(playerId);
+
+  const friends = db.prepare(`
+    SELECT fr.*,
+      CASE WHEN fr.from_player_id = ? THEN fr.to_player_id ELSE fr.from_player_id END AS friend_id
+    FROM friend_requests fr
+    WHERE fr.status = 'accepted' AND (fr.from_player_id = ? OR fr.to_player_id = ?)
+  `).all(playerId, playerId, playerId).map(r => {
+    const fp = findPlayerById(r.friend_id);
+    return {
+      playerId: r.friend_id,
+      name: fp?.name || '?',
+      online: online.has(r.friend_id)
+    };
+  });
+
+  const pendingIn = db.prepare(`
+    SELECT fr.* FROM friend_requests fr
+    WHERE fr.status = 'pending' AND fr.to_player_id = ?
+  `).all(playerId).map(r => formatFriendRequest(r, findPlayerById(r.from_player_id), findPlayerById(r.to_player_id)));
+
+  const pendingOut = db.prepare(`
+    SELECT fr.* FROM friend_requests fr
+    WHERE fr.status = 'pending' AND fr.from_player_id = ?
+  `).all(playerId).map(r => formatFriendRequest(r, findPlayerById(r.from_player_id), findPlayerById(r.to_player_id)));
+
+  const blockedList = blocked.map(id => {
+    const p = findPlayerById(id);
+    return { playerId: id, name: p?.name || '?' };
+  });
+
+  return {
+    friends,
+    pendingIn,
+    pendingOut,
+    blocked: blockedList,
+    friendIds: friends.map(f => f.playerId),
+    blockedIds: blocked
+  };
+}
+
 function formatPlayer(row) {
   if (!row) return null;
   return {
@@ -348,6 +539,7 @@ module.exports = {
   updateLastLogin,
   findPlayerByUserId,
   findPlayerById,
+  findPlayerByName,
   createPlayer,
   updatePlayer,
   getAllPlayers,
@@ -364,6 +556,16 @@ module.exports = {
   deleteMission,
   getPlayerMissions,
   upsertPlayerMission,
+  sendFriendRequest,
+  acceptFriendRequest,
+  rejectFriendRequest,
+  removeFriendship,
+  blockPlayer,
+  unblockPlayer,
+  getBlockedIds,
+  getFriendIds,
+  getSocialData,
+  isBlocked,
   formatPlayer,
   formatWorldObject,
   formatMission

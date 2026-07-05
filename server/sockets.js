@@ -12,13 +12,16 @@ const {
   findMission,
   upsertPlayerMission,
   getPlayerMissions,
+  getSocialData,
+  getBlockedIds,
   formatPlayer,
   formatWorldObject,
   formatMission
 } = require('./db');
 const { verifyToken } = require('./auth');
+const { startEnemyAI } = require('./enemyAI');
 
-/** playerId -> { socketId, playerId, name, x, y, hp, level } */
+/** playerId -> { socketId, playerId, name, x, y, hp, hpMax, level } */
 const onlinePlayers = new Map();
 /** socketId -> playerId */
 const socketToPlayer = new Map();
@@ -28,30 +31,52 @@ const MAX_GPS_DELTA = 0.0012;
 const INTERACT_DISTANCE = 0.0005;
 const SYNC_INTERVAL_MS = 8000;
 
+let enemyAIStarted = false;
+
 function distance(aX, aY, bX, bY) {
   const dx = aX - bX;
   const dy = aY - bY;
   return Math.sqrt(dx * dx + dy * dy);
 }
 
-function snapshotOnline(excludeId) {
-  return [...onlinePlayers.values()]
-    .filter(p => p.playerId !== excludeId)
-    .map(p => ({
-      playerId: p.playerId,
-      name: p.name,
-      x: p.x,
-      y: p.y,
-      hp: p.hp,
-      level: p.level
-    }));
+function playerSnapshot(p) {
+  return {
+    playerId: p.playerId,
+    name: p.name,
+    x: p.x,
+    y: p.y,
+    hp: p.hp,
+    hpMax: p.hpMax || 100,
+    level: p.level
+  };
 }
 
-function broadcastMove(io, playerId, x, y, name) {
-  io.emit('player:move', { playerId, x, y, name, t: Date.now() });
+function snapshotOnline(excludeId, viewerId) {
+  const blocked = viewerId ? new Set(getBlockedIds(viewerId)) : new Set();
+  return [...onlinePlayers.values()]
+    .filter(p => p.playerId !== excludeId && !blocked.has(p.playerId))
+    .map(playerSnapshot);
+}
+
+function broadcastMove(io, playerId, online) {
+  io.emit('player:move', {
+    playerId,
+    x: online.x,
+    y: online.y,
+    name: online.name,
+    hp: online.hp,
+    hpMax: online.hpMax || 100,
+    level: online.level,
+    t: Date.now()
+  });
 }
 
 function setupSockets(io) {
+  if (!enemyAIStarted) {
+    startEnemyAI(io, onlinePlayers);
+    enemyAIStarted = true;
+  }
+
   io.use((socket, next) => {
     const token = socket.handshake.auth?.token || socket.handshake.query?.token;
     if (!token) return next(new Error('Token requerido'));
@@ -65,17 +90,12 @@ function setupSockets(io) {
 
   setInterval(() => {
     if (!onlinePlayers.size) return;
-    io.emit('players:sync', {
-      players: [...onlinePlayers.values()].map(p => ({
-        playerId: p.playerId,
-        name: p.name,
-        x: p.x,
-        y: p.y,
-        hp: p.hp,
-        level: p.level
-      })),
-      t: Date.now()
-    });
+    for (const [, viewer] of onlinePlayers) {
+      io.to(viewer.socketId).emit('players:sync', {
+        players: snapshotOnline(viewer.playerId, viewer.playerId),
+        t: Date.now()
+      });
+    }
   }, SYNC_INTERVAL_MS);
 
   io.on('connection', (socket) => {
@@ -85,7 +105,8 @@ function setupSockets(io) {
       return;
     }
 
-    // Si el mismo jugador reconecta, cerrar socket viejo
+    socket.join('player:' + socket.playerId);
+
     const prev = onlinePlayers.get(socket.playerId);
     if (prev && prev.socketId && prev.socketId !== socket.id) {
       const old = io.sockets.sockets.get(prev.socketId);
@@ -93,6 +114,7 @@ function setupSockets(io) {
     }
 
     const formatted = formatPlayer(player);
+    const hpMax = 100;
     onlinePlayers.set(socket.playerId, {
       socketId: socket.id,
       playerId: socket.playerId,
@@ -100,26 +122,24 @@ function setupSockets(io) {
       x: formatted.x,
       y: formatted.y,
       hp: formatted.hp,
+      hpMax,
       level: formatted.level
     });
     socketToPlayer.set(socket.id, socket.playerId);
 
+    const onlineIds = [...onlinePlayers.keys()];
+    const social = getSocialData(socket.playerId, onlineIds);
+
     socket.emit('game:init', {
       player: formatted,
-      onlinePlayers: snapshotOnline(socket.playerId),
+      onlinePlayers: snapshotOnline(socket.playerId, socket.playerId),
       worldObjects: getAllWorldObjects().map(formatWorldObject),
       missions: getActiveMissions().map(formatMission),
-      playerMissions: getPlayerMissions(socket.playerId)
+      playerMissions: getPlayerMissions(socket.playerId),
+      social
     });
 
-    socket.broadcast.emit('player:online', {
-      playerId: socket.playerId,
-      name: formatted.name,
-      x: formatted.x,
-      y: formatted.y,
-      hp: formatted.hp,
-      level: formatted.level
-    });
+    socket.broadcast.emit('player:online', playerSnapshot(onlinePlayers.get(socket.playerId)));
 
     function applyMove(targetX, targetY, maxDelta) {
       const current = findPlayerById(socket.playerId);
@@ -136,11 +156,9 @@ function setupSockets(io) {
       if (online) {
         online.x = data.x;
         online.y = data.y;
-        online.hp = data.hp;
-        online.level = data.level;
       }
 
-      broadcastMove(io, socket.playerId, data.x, data.y, data.name);
+      broadcastMove(io, socket.playerId, online);
       return { ok: true, x: data.x, y: data.y };
     }
 
@@ -157,7 +175,7 @@ function setupSockets(io) {
 
     socket.on('player:updateStats', (payload, ack) => {
       const fields = {};
-      if (payload?.hp !== undefined) fields.hp = Math.max(0, Math.min(100, Math.round(payload.hp)));
+      if (payload?.hp !== undefined) fields.hp = Math.max(0, Math.round(payload.hp));
       if (payload?.hunger !== undefined) fields.hunger = Math.max(0, Math.min(100, Math.round(payload.hunger)));
       if (payload?.xp !== undefined) fields.xp = Math.max(0, Math.round(payload.xp));
       if (payload?.level !== undefined) fields.level = Math.max(1, Math.min(100, Math.round(payload.level)));
@@ -168,11 +186,15 @@ function setupSockets(io) {
       if (online) {
         online.hp = data.hp;
         online.level = data.level;
+        if (payload?.hpMax !== undefined) {
+          online.hpMax = Math.max(1, Math.round(payload.hpMax));
+        }
       }
 
       io.emit('player:updateStats', {
         playerId: socket.playerId,
         hp: data.hp,
+        hpMax: online?.hpMax || 100,
         hunger: data.hunger,
         xp: data.xp,
         level: data.level
@@ -261,6 +283,13 @@ function setupSockets(io) {
 
       io.emit('mission:complete', { playerId: socket.playerId, missionId, playerMission: pm });
       ack?.({ ok: true, reward });
+    });
+
+    socket.on('friends:refresh', (ack) => {
+      const onlineIds = [...onlinePlayers.keys()];
+      const social = getSocialData(socket.playerId, onlineIds);
+      socket.emit('friends:data', social);
+      ack?.({ ok: true });
     });
 
     socket.on('disconnect', () => {

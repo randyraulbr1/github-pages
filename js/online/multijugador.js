@@ -1,6 +1,6 @@
 /**
  * Multijugador en vivo — integrado en Mariel Explorer (tcodm.com).
- * Muestra otros jugadores en el mapa real del juego vía Socket.IO + Render.
+ * Jugadores con vida/nivel, amigos, objetos compartidos del servidor.
  */
 const Multijugador = {
   TOKEN_KEY: 'mariel_online_token',
@@ -9,6 +9,7 @@ const Multijugador = {
   marcadores: {},
   online: [],
   _ultimoEnvio: 0,
+  _ultimoStats: 0,
 
   urlServidor() {
     return (CONFIG.servidorOnline || '').replace(/\/$/, '');
@@ -59,55 +60,124 @@ const Multijugador = {
       return;
     }
 
+    if (this.socket) {
+      this.socket.disconnect();
+      this.socket = null;
+    }
+
     this.socket = io(base, {
       auth: { token },
       transports: ['websocket', 'polling'],
       reconnection: true
     });
 
+    this._enlazarEventos();
+
+    if (typeof Amigos !== 'undefined') Amigos.iniciarUI();
+  },
+
+  _enlazarEventos() {
     this.socket.on('connect', () => {
       this.activo = true;
       if (typeof GPS !== 'undefined' && GPS.posicion) {
         this.enviarPosicion(GPS.posicion[0], GPS.posicion[1], true);
       }
+      this.enviarStats(true);
     });
 
-    this.socket.on('disconnect', () => { this.activo = false; });
+    this.socket.on('disconnect', () => {
+      this.activo = false;
+      if (typeof MundoOnline !== 'undefined') MundoOnline.detener();
+    });
 
     this.socket.on('game:init', (data) => {
-      this.online = (data.onlinePlayers || []).filter(p =>
-        Number(p.playerId) !== Number(data.player?.id));
-      this._redibujar();
+      if (typeof Amigos !== 'undefined') Amigos.aplicarSocial(data.social);
+      if (typeof MundoOnline !== 'undefined') {
+        MundoOnline.iniciar(data.worldObjects || []);
+      }
+      if (typeof Enemigos !== 'undefined') Enemigos._recargar();
+      this.online = (data.onlinePlayers || []).filter(p => this._visible(p.playerId));
+      this._redibujar(false);
+      this.enviarStats(true);
     });
 
     this.socket.on('players:sync', (data) => {
-      const miId = this._miPlayerId();
-      this.online = (data.players || []).filter(p => Number(p.playerId) !== miId);
-      this._redibujar();
+      this.online = (data.players || []).filter(p => this._visible(p.playerId));
+      this._redibujar(false);
     });
 
     this.socket.on('player:online', (p) => {
-      if (Number(p.playerId) === this._miPlayerId()) return;
+      if (!this._visible(p.playerId)) return;
       const i = this.online.findIndex(x => Number(x.playerId) === Number(p.playerId));
       if (i >= 0) this.online[i] = p; else this.online.push(p);
-      this._redibujar();
+      this._redibujar(false);
     });
 
     this.socket.on('player:offline', (p) => {
       this.online = this.online.filter(x => Number(x.playerId) !== Number(p.playerId));
       this._quitarMarcador(p.playerId);
+      if (typeof Amigos !== 'undefined') Amigos.refrescar();
     });
 
     this.socket.on('player:move', (p) => {
-      if (Number(p.playerId) === this._miPlayerId()) return;
+      if (!this._visible(p.playerId)) return;
+      const i = this.online.findIndex(x => Number(x.playerId) === Number(p.playerId));
+      if (i >= 0) Object.assign(this.online[i], p);
+      else this.online.push(p);
+      this._actualizarMarcador(p);
+    });
+
+    this.socket.on('player:updateStats', (p) => {
+      if (!this._visible(p.playerId)) return;
       const i = this.online.findIndex(x => Number(x.playerId) === Number(p.playerId));
       if (i >= 0) {
-        this.online[i].x = p.x;
-        this.online[i].y = p.y;
-      } else {
-        this.online.push(p);
+        this.online[i].hp = p.hp;
+        this.online[i].hpMax = p.hpMax || this.online[i].hpMax || 100;
+        this.online[i].level = p.level;
+        this._actualizarMarcador(this.online[i]);
       }
-      this._actualizarMarcador(p.playerId, p.x, p.y, p.name);
+    });
+
+    this.socket.on('world:updateObject', (obj) => {
+      if (typeof MundoOnline !== 'undefined') MundoOnline.actualizar(obj);
+    });
+
+    this.socket.on('world:removeObject', (data) => {
+      if (typeof MundoOnline !== 'undefined') MundoOnline.quitar(data.id);
+    });
+
+    this.socket.on('enemy:attack', (data) => {
+      if (typeof Vida !== 'undefined' && data.damage) {
+        Vida.recibirDano(data.damage, '👹 ' + (data.enemyName || 'Enemigo') + ' te atacó (-' + data.damage + ')');
+        this.enviarStats(true);
+      }
+    });
+
+    this.socket.on('friends:request', () => {
+      if (typeof Amigos !== 'undefined') {
+        Amigos.refrescar();
+        Notificaciones.mostrar('📨 Nueva solicitud de amistad', 'info', 4000);
+      }
+    });
+
+    this.socket.on('friends:accepted', () => {
+      if (typeof Amigos !== 'undefined') {
+        Amigos.refrescar();
+        Notificaciones.mostrar('✅ Tienes un nuevo amigo', 'exito', 3500);
+      }
+      this._redibujar(false);
+    });
+
+    this.socket.on('friends:update', () => {
+      if (typeof Amigos !== 'undefined') Amigos.refrescar();
+    });
+
+    this.socket.on('friends:data', (data) => {
+      if (typeof Amigos !== 'undefined') Amigos.aplicarSocial(data);
+    });
+
+    document.addEventListener('click', (ev) => {
+      if (typeof Amigos !== 'undefined') Amigos.manejarPopupClick(ev);
     });
   },
 
@@ -120,36 +190,77 @@ const Multijugador = {
     } catch (e) { return -1; }
   },
 
+  _visible(playerId) {
+    const id = Number(playerId);
+    if (id === this._miPlayerId()) return false;
+    if (typeof Amigos !== 'undefined' && Amigos.estaBloqueado(id)) return false;
+    return true;
+  },
+
   enviarPosicion(lat, lng, forzar) {
     if (!this.socket || !this.activo) return;
     const ahora = Date.now();
     if (!forzar && ahora - this._ultimoEnvio < 1800) return;
     this._ultimoEnvio = ahora;
     this.socket.emit('player:move', { x: lat, y: lng, gps: true }, () => {});
+    this.enviarStats(false);
   },
 
-  _iconoOtro(nombre) {
+  enviarStats(forzar) {
+    if (!this.socket || !this.activo || typeof Vida === 'undefined') return;
+    const ahora = Date.now();
+    if (!forzar && ahora - this._ultimoStats < 3500) return;
+    this._ultimoStats = ahora;
+    const hpMax = Vida.vidaMaxima();
+    this.socket.emit('player:updateStats', {
+      hp: Math.round(Vida.actual),
+      hpMax,
+      level: Vida.nivel,
+      hunger: Math.round(Vida.hambre),
+      xp: Vida.xp
+    }, () => {});
+  },
+
+  _pctVida(p) {
+    const max = Math.max(1, p.hpMax || 100);
+    return Math.max(0, Math.min(100, Math.round((p.hp != null ? p.hp : max) / max * 100)));
+  },
+
+  _iconoJugador(p) {
+    const amigo = typeof Amigos !== 'undefined' && Amigos.esAmigo(p.playerId);
+    const pct = this._pctVida(p);
+    const nombre = (p.name || '?').replace(/</g, '');
+    const nv = p.level || 1;
     return L.divIcon({
       className: '',
-      html: '<div class="punto-otro-jugador"><span>' + (nombre || '?') + '</span></div>',
-      iconSize: [60, 28],
-      iconAnchor: [30, 14]
+      html: '<div class="marcador-jugador-online' + (amigo ? ' es-amigo' : '') + '">' +
+        '<div class="mjo-etiqueta">' +
+        '<span class="mjo-nombre">' + nombre + '</span>' +
+        '<span class="mjo-nivel">Nv ' + nv + '</span>' +
+        '</div>' +
+        '<div class="mjo-barra"><div class="mjo-barra-fill" style="width:' + pct + '%"></div></div>' +
+        '<div class="mjo-punto"></div></div>',
+      iconSize: [88, 56],
+      iconAnchor: [44, 48]
     });
   },
 
-  _actualizarMarcador(id, lat, lng, nombre) {
-    if (!Mapa.mapa) return;
+  _actualizarMarcador(p) {
+    if (!Mapa.mapa || !p) return;
+    const id = p.playerId;
     let m = this.marcadores[id];
+    const icon = this._iconoJugador(p);
     if (!m) {
-      const p = this.online.find(x => Number(x.playerId) === Number(id));
-      m = L.marker([lat, lng], {
-        icon: this._iconoOtro(nombre || p?.name),
-        interactive: false,
+      m = L.marker([p.x, p.y], {
+        icon,
+        interactive: true,
         zIndexOffset: 900
       }).addTo(Mapa.mapa);
+      m.bindPopup(() => typeof Amigos !== 'undefined' ? Amigos.popupHtml(p) : p.name);
       this.marcadores[id] = m;
     } else {
-      m.setLatLng([lat, lng]);
+      m.setLatLng([p.x, p.y]);
+      m.setIcon(icon);
     }
   },
 
@@ -159,16 +270,17 @@ const Multijugador = {
     delete this.marcadores[id];
   },
 
-  _redibujar() {
+  _redibujar(mostrarAviso) {
+    this.online = this.online.filter(p => this._visible(p.playerId));
     const ids = new Set(this.online.map(p => String(p.playerId)));
     for (const id of Object.keys(this.marcadores)) {
       if (!ids.has(id)) this._quitarMarcador(id);
     }
     for (const p of this.online) {
-      this._actualizarMarcador(p.playerId, p.x, p.y, p.name);
+      this._actualizarMarcador(p);
     }
-    if (this.online.length && typeof Notificaciones !== 'undefined') {
-      Notificaciones.mostrar('👥 ' + this.online.length + ' jugador(es) en vivo en el mapa', 'info', 3500);
+    if (mostrarAviso !== false && this.online.length && typeof Notificaciones !== 'undefined') {
+      Notificaciones.mostrar('👥 ' + this.online.length + ' jugador(es) en vivo', 'info', 3000);
     }
   }
 };

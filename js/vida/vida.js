@@ -233,5 +233,6 @@ const Vida = {
         ? 'MAX' : Math.floor(enNivel) + '/' + necesita;
     }
     if (typeof Opciones !== 'undefined' && Opciones.pintarPerfilOpciones) Opciones.pintarPerfilOpciones();
+    if (typeof Multijugador !== 'undefined') Multijugador.enviarStats(false);
   }
 };

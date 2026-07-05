@@ -104,6 +104,12 @@ const Enemigos = {
   },
 
   _recargar() {
+    if (typeof Multijugador !== 'undefined' && Multijugador.activo &&
+        typeof MundoOnline !== 'undefined' && MundoOnline.enemigosServidorActivos()) {
+      for (const id of Object.keys(this._marcadores)) this._quitarMarcador(id);
+      this.lista = [];
+      return;
+    }
     this.lista = (typeof Admin !== 'undefined' && Admin.enemigosTodos)
       ? Admin.enemigosTodos() : [];
     const ids = new Set(this.lista.map(e => e.id));
@@ -303,6 +309,8 @@ const Enemigos = {
   },
 
   _tick() {
+    if (typeof Multijugador !== 'undefined' && Multijugador.activo &&
+        typeof MundoOnline !== 'undefined' && MundoOnline.enemigosServidorActivos()) return;
     if (!GPS.posicion || Vida.estaMuerto()) return;
     for (const e of this.lista) {
       if (!this._marcadores[e.id]) continue;

@@ -16,6 +16,7 @@ const authRoutes = require('./routes/authRoutes');
 const adminRoutes = require('./routes/adminRoutes');
 const playerRoutes = require('./routes/playerRoutes');
 const worldRoutes = require('./routes/worldRoutes');
+const friendRoutes = require('./routes/friendRoutes');
 
 const PORT = process.env.PORT || 3000;
 const CORS_ORIGINS = (() => {
@@ -64,6 +65,7 @@ app.use('/api', authRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/player', playerRoutes);
 app.use('/api/world', worldRoutes);
+app.use('/api/friends', friendRoutes);
 
 // Panel admin
 app.use('/admin', express.static(path.join(__dirname, 'public')));
