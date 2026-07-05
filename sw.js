@@ -3,7 +3,7 @@
 // guarda todos los archivos en el teléfono (funciona con mala
 // conexión) y va guardando los pedazos de mapa ya visitados.
 // ============================================================
-const CACHE = 'mariel-explorer-v45';
+const CACHE = 'mariel-explorer-v46';
 
 const ARCHIVOS = [
   './',
@@ -15,6 +15,10 @@ const ARCHIVOS = [
   './lib/leaflet/leaflet.js',
   './iconos/icono-192.png',
   './iconos/icono-512.png',
+  './iconos/mochila.png',
+  './iconos/gps.png',
+  './iconos/opciones.png',
+  './iconos/notific.png',
   './iconos/botones/btn-gps.png',
   './iconos/botones/btn-mochila.png',
   './iconos/botones/btn-notific.png',

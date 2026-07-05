@@ -136,14 +136,47 @@ button { font-family: inherit; }
   cursor: pointer;
   text-shadow: 0 1px 3px rgba(0,0,0,.85);
 }
+.enemigo-pin {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+}
+.enemigo-emoji { font-size: 28px; line-height: 1; text-shadow: 0 2px 6px rgba(0,0,0,.55); }
+.enemigo-nivel-tag {
+  margin-top: 2px;
+  padding: 1px 6px;
+  border-radius: 8px;
+  font-size: 9px;
+  font-weight: 800;
+  color: #fff;
+  background: rgba(20,26,42,.88);
+  border: 1px solid rgba(255,255,255,.25);
+  white-space: nowrap;
+}
+.enemigo-calavera {
+  position: absolute;
+  top: -10px;
+  right: -8px;
+  font-size: 16px;
+  filter: drop-shadow(0 0 6px rgba(255,69,58,.9));
+  animation: misionIconoBrillo 1.2s ease-in-out infinite;
+}
+.enemigo-letal .enemigo-emoji {
+  filter: drop-shadow(0 0 8px rgba(255,69,58,.75));
+}
+
 .btn-hud-img, .btn-juego-img {
   display: block;
   object-fit: contain;
+  object-position: center;
   pointer-events: none;
   user-select: none;
   -webkit-user-drag: none;
   background: transparent;
   max-width: 100%;
+  image-rendering: auto;
 }
 .btn-hud-img {
   width: clamp(32px, 9vw, 42px);

@@ -1,6 +1,7 @@
 // ============================================================
 // VIDA, HAMBRE Y NIVEL (XP)
 // La vida solo baja si el hambre llega a 0.
+// Vida máxima escala del 100 (nv 1) hasta ~496 (nv 100).
 // ============================================================
 const Vida = {
   actual: CONFIG.vidaMaxima,
@@ -9,14 +10,22 @@ const Vida = {
   nivel: 1,
   _muerto: false,
 
+  vidaMaxima(nivel) {
+    const n = Math.max(1, Math.min(CONFIG.nivelMaximo, nivel != null ? nivel : this.nivel));
+    const extra = CONFIG.vidaExtraPorNivel || 4;
+    return CONFIG.vidaMaxima + Math.floor((n - 1) * extra);
+  },
+
   iniciar() {
-    this.actual = Guardado.datos.vida ?? CONFIG.vidaMaxima;
-    this.hambre = Guardado.datos.hambre ?? CONFIG.hambreInicial;
     this.xp = Guardado.datos.xp ?? 0;
     this.nivel = Guardado.datos.nivel ?? 1;
+    this._recalcularNivel();
+    const max = this.vidaMaxima();
+    this.actual = Guardado.datos.vida ?? max;
+    if (this.actual > max) this.actual = max;
+    this.hambre = Guardado.datos.hambre ?? CONFIG.hambreInicial;
     this._muerto = !!(Guardado.datos.muerto || this.actual <= 0);
     if (this._muerto) this.actual = 0;
-    this._recalcularNivel();
     this.pintar();
     if (this._muerto) this._mostrarPantallaMuerte();
     setInterval(() => this._tickHambre(), CONFIG.segundosDesgasteHambre * 1000);
@@ -44,7 +53,7 @@ const Vida = {
     this.nivel = n;
     Guardado.datos.nivel = this.nivel;
     if (subio) {
-      this.actual = CONFIG.vidaMaxima;
+      this.actual = this.vidaMaxima();
       Guardado.datos.vida = this.actual;
       if (typeof Mochila !== 'undefined' && Mochila.armaEquipadaId() &&
           !Items.armaAptaParaNivel(Mochila.armaEquipadaId(), this.nivel)) {
@@ -57,7 +66,10 @@ const Vida = {
         if (pantalla) pantalla.classList.add('oculto');
         document.body.classList.remove('jugador-muerto');
       }
-      Notificaciones.mostrar('⭐ ¡Subiste al nivel ' + this.nivel + '! Vida restaurada a ' + CONFIG.vidaMaxima, 'exito', 5000);
+      Notificaciones.mostrar(
+        '⭐ ¡Subiste al nivel ' + this.nivel + '! Vida restaurada a ' + this.vidaMaxima(),
+        'exito', 5000
+      );
     }
   },
 
@@ -98,11 +110,27 @@ const Vida = {
     }
   },
 
+  /** Daño de enemigos — siempre aplica (también al admin en combate) */
+  recibirDano(cantidad, motivo) {
+    if (this.estaMuerto() || cantidad <= 0) return;
+    const max = this.vidaMaxima();
+    const antes = this.actual;
+    this.actual = Math.max(0, this.actual - cantidad);
+    if (this.actual !== antes) {
+      Guardado.datos.vida = this.actual;
+      Guardado.guardar();
+      this.pintar();
+      if (motivo) Notificaciones.mostrar(motivo, 'alerta', 2200);
+      if (this.actual === 0) this._activarMuerte();
+    }
+  },
+
   cambiar(cantidad, motivo) {
     if (this.estaMuerto() && cantidad < 0) return;
     if (cantidad < 0 && typeof Usuarios !== 'undefined' && Usuarios.esAdministrador()) return;
+    const max = this.vidaMaxima();
     const antes = this.actual;
-    this.actual = Math.max(0, Math.min(CONFIG.vidaMaxima, this.actual + cantidad));
+    this.actual = Math.max(0, Math.min(max, this.actual + cantidad));
     if (this.actual !== antes) {
       Guardado.datos.vida = this.actual;
       Guardado.guardar();
@@ -130,7 +158,8 @@ const Vida = {
   revivir(vida) {
     this._muerto = false;
     Guardado.datos.muerto = false;
-    this.actual = Math.max(1, Math.min(CONFIG.vidaMaxima, vida || CONFIG.vidaMaxima));
+    const max = this.vidaMaxima();
+    this.actual = Math.max(1, Math.min(max, vida || max));
     Guardado.datos.vida = this.actual;
     Guardado.guardar();
     this.pintar();
@@ -141,7 +170,8 @@ const Vida = {
   },
 
   pintar() {
-    const pctVida = (this.actual / CONFIG.vidaMaxima) * 100;
+    const max = this.vidaMaxima();
+    const pctVida = max > 0 ? (this.actual / max) * 100 : 0;
     document.getElementById('vida-relleno').style.width = pctVida + '%';
     const contVida = document.getElementById('contenedor-vida');
     if (contVida) {
@@ -151,7 +181,7 @@ const Vida = {
       else contVida.classList.add('vida-baja');
     }
     const vt = document.getElementById('vida-texto');
-    if (vt) vt.textContent = this.actual + '/' + CONFIG.vidaMaxima;
+    if (vt) vt.textContent = this.actual + '/' + max;
 
     const pctHam = (this.hambre / CONFIG.hambreMaxima) * 100;
     const hr = document.getElementById('hambre-relleno');

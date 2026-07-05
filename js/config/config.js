@@ -3,13 +3,14 @@
 // ============================================================
 const CONFIG = {
   // Cambiar al publicar: obliga al móvil a descartar caché vieja
-  version: '45',
+  version: '46',
   maxPila: 10,
 
   // Nombre reservado del administrador (solo este jugador ve el panel admin)
   adminNombre: 'randy',
 
   vidaMaxima: 100,
+  vidaExtraPorNivel: 4,
   hambreMaxima: 100,
   hambreInicial: 50,
   nivelMaximo: 100,
@@ -36,7 +37,11 @@ const CONFIG = {
   // Distancias (en metros)
   distanciaInteraccion: 20,      // distancia para poder tocar tiendas, pesca, etc.
   distanciaDetectorTesoro: 150,  // el buscador de tesoros empieza a avisar
-  distanciaVerTesoro: 10,        // el icono del tesoro aparece en el mapa
+  distanciaVerTesoro: 10,
+
+  radioZonaExterior: 75,
+  radioZonaEnemigo: 40,
+  radioZonaAtaque: 18,        // el icono del tesoro aparece en el mapa
 
   // Valores iniciales del jugador
   dineroInicial: 100,

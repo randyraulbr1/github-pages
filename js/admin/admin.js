@@ -846,7 +846,11 @@ const Admin = {
         this._rejillaEmojisHtml().replace('admin-emoji-rejilla', 'admin-emoji-rejilla admin-emoji-enemigo') + '</div>' +
         '<div class="campo-doble">' +
           this._campoNumero('af-vida', 'Vida', 60) +
-          this._campoNumero('af-dano', 'Daño al jugador', 12) +
+          this._campoNumero('af-nivel-enemigo', 'Nivel (1–100)', 1) +
+        '</div>' +
+        '<div class="campo-doble">' +
+          this._campoNumero('af-dano-min', 'Daño mínimo', 8) +
+          this._campoNumero('af-dano-max', 'Daño máximo', 14) +
         '</div>' +
         '<div class="campo-doble">' +
           this._campoNumero('af-xp', 'XP al derrotarlo', 30) +
@@ -1221,9 +1225,14 @@ const Admin = {
       const nombre = this._valor('af-nombre').trim() || Enemigos.NOMBRES[0];
       const icono = (document.getElementById('af-icono-enemigo')?.value || '👹').trim();
       const vida = Math.max(10, this._numero('af-vida') || 60);
+      const dMin = Math.max(1, this._numero('af-dano-min') || 8);
+      const dMax = Math.max(dMin, this._numero('af-dano-max') || 14);
       valores = {
         nombre, icono, vida, vidaMax: vida,
-        dano: Math.max(1, this._numero('af-dano') || 10),
+        nivel: Math.max(1, Math.min(100, this._numero('af-nivel-enemigo') || 1)),
+        danoMin: dMin,
+        danoMax: dMax,
+        dano: dMax,
         xp: this._numero('af-xp') || 30,
         dinero: this._numero('af-dinero') || 0,
         recItems: (this._enemigoRecompensas || []).filter(Boolean),
@@ -2571,7 +2580,10 @@ const Admin = {
     const telefono = (document.getElementById('admin-editor-telefono')?.value || '').trim().replace(/[\s-]/g, '');
     const claveNueva = document.getElementById('admin-editor-clave')?.value || '';
     if (isNaN(oro) || oro < 0) { this._adminAviso('Oro inválido'); return; }
-    if (isNaN(vida) || vida < 0 || vida > CONFIG.vidaMaxima) { this._adminAviso('Vida inválida (0–' + CONFIG.vidaMaxima + ')'); return; }
+    if (isNaN(vida) || vida < 0) { this._adminAviso('Vida inválida'); return; }
+    const maxVida = (typeof Vida !== 'undefined' && Vida.vidaMaxima)
+      ? Vida.vidaMaxima(ed.partida.nivel || 1) : CONFIG.vidaMaxima;
+    if (vida > maxVida) { this._adminAviso('Vida máxima para ese nivel: ' + maxVida); return; }
     if (nombre.length < 2) { this._adminAviso('Nombre mínimo 2 letras'); return; }
     if (telefono && !Usuarios.telefonoValido(telefono)) { this._adminAviso('Teléfono inválido'); return; }
     const errNom = this.validarRegistro(nombre, telefono, ed.perfil.id);
