@@ -48,7 +48,9 @@
       "nombre": "22",
       "telefono": "2352647622",
       "creado": 1783286621148,
-      "pinHash": "0a22b58a09f93652ac592f9424e5dedbeb450965c0e7ddc5b46f8ab21aa96bb1"
+      "pinHash": "0a22b58a09f93652ac592f9424e5dedbeb450965c0e7ddc5b46f8ab21aa96bb1",
+      "sesionToken": "mr8ava034n7bugarrf",
+      "sesionT": 1783286718051
     }
   ],
   "cofres": [],
@@ -201,10 +203,23 @@
         },
         "vida": 100,
         "hambre": 50,
-        "muerto": false
+        "xp": 0,
+        "nivel": 1,
+        "posicionJugador": null,
+        "tesorosRecogidos": [],
+        "misiones": {},
+        "misionesEstado": {},
+        "correoEnviados": [],
+        "correoRecibidos": [],
+        "correoTiendaLocal": [],
+        "historialDinero": [],
+        "historialObjetos": [],
+        "mensajesVistos": [],
+        "muerto": false,
+        "armaEquipada": null
       },
-      "t": 1783286621148
+      "t": 1783286718141
     }
   },
-  "actualizadoEn": 1783286717639
+  "actualizadoEn": 1783286719383
 }
