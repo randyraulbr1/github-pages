@@ -38,7 +38,8 @@ const Admin = {
     this.publicado = { misiones: [], tesoros: [], objetos: [], posiciones: {}, eliminados: [], precios: {}, itemsNuevos: [] };
     this._crudoPublicado = null;
     try {
-      const respuesta = await fetch('datos/mundo.json?v=' + Date.now(), { cache: 'no-store' });
+      const respuesta = await Utilidades.fetchConTimeout(
+        'datos/mundo.json?v=' + Date.now(), { cache: 'no-store' }, 8000);
       if (respuesta.ok) {
         const texto = await respuesta.text();
         this._crudoPublicado = texto;
@@ -157,7 +158,8 @@ const Admin = {
 
   async _revisarActualizacion() {
     try {
-      const r = await fetch('datos/mundo.json?v=' + Date.now(), { cache: 'no-store' });
+      const r = await Utilidades.fetchConTimeout(
+        'datos/mundo.json?v=' + Date.now(), { cache: 'no-store' }, 5000);
       if (!r.ok) return;
       const texto = await r.text();
       if (this._crudoPublicado === null) { this._crudoPublicado = texto; return; }

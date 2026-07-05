@@ -3,7 +3,7 @@
 // guarda todos los archivos en el teléfono (funciona con mala
 // conexión) y va guardando los pedazos de mapa ya visitados.
 // ============================================================
-const CACHE = 'mariel-explorer-v11';
+const CACHE = 'mariel-explorer-v12';
 
 const ARCHIVOS = [
   './',
@@ -87,15 +87,24 @@ self.addEventListener('activate', evento => {
 self.addEventListener('fetch', evento => {
   const url = evento.request.url;
 
-  // El mundo del admin siempre se busca en la red primero
+  // Mundo del admin: caché primero (arranque rápido), red en segundo plano
   if (url.includes('datos/mundo.json')) {
     evento.respondWith(
-      caches.open(CACHE).then(cache =>
-        fetch(evento.request).then(respuesta => {
+      caches.open(CACHE).then(async cache => {
+        const guardado = await cache.match('./datos/mundo.json');
+        const actualizar = fetch(evento.request).then(respuesta => {
           if (respuesta.ok) cache.put('./datos/mundo.json', respuesta.clone());
           return respuesta;
-        }).catch(() => cache.match('./datos/mundo.json'))
-      )
+        }).catch(() => null);
+        if (guardado) {
+          evento.waitUntil(actualizar);
+          return guardado;
+        }
+        const red = await actualizar;
+        return red || new Response('{}', {
+          headers: { 'Content-Type': 'application/json' }
+        });
+      })
     );
     return;
   }

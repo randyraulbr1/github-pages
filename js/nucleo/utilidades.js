@@ -38,6 +38,17 @@ const Utilidades = {
            f.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
   },
 
+  // Petición con límite de tiempo: evita que el juego se quede colgado en mala conexión
+  async fetchConTimeout(url, opciones = {}, ms = 8000) {
+    const ctrl = new AbortController();
+    const id = setTimeout(() => ctrl.abort(), ms);
+    try {
+      return await fetch(url, Object.assign({}, opciones, { signal: ctrl.signal }));
+    } finally {
+      clearTimeout(id);
+    }
+  },
+
   // Animación de un emoji volando desde una posición de pantalla hasta la mochila
   volarHaciaMochila(icono, xInicio, yInicio) {
     const destino = document.getElementById('btn-mochila').getBoundingClientRect();
