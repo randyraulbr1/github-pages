@@ -51,6 +51,13 @@
       "pinHash": "0a22b58a09f93652ac592f9424e5dedbeb450965c0e7ddc5b46f8ab21aa96bb1",
       "sesionToken": "mr8b8mfgdf02mpi5aq",
       "sesionT": 1783287340684
+    },
+    {
+      "id": "pmr8c0fd9e6s2t",
+      "nombre": "33",
+      "telefono": "",
+      "creado": 1783288637901,
+      "pinHash": "a08379ca34143cdedb5a433c5a64c9e3995c63d9718c6fe1f9a846d668063a44"
     }
   ],
   "cofres": [],
@@ -219,9 +226,57 @@
         "armaEquipada": null
       },
       "t": 1783287766985
+    },
+    "pmr8c0fd9e6s2t": {
+      "datos": {
+        "mochila": [
+          {
+            "id": "agua",
+            "cantidad": 2
+          },
+          {
+            "id": "pan",
+            "cantidad": 1
+          },
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          {
+            "id": "coco",
+            "cantidad": 1
+          },
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null
+        ],
+        "dinero": {
+          "saldo": 100,
+          "control": "68e382a3687042dcd0420432d9bf210eada6d12606b6ecd367d18c724c2f4b38"
+        },
+        "vida": 100,
+        "hambre": 50,
+        "muerto": false
+      },
+      "t": 1783288637901
     }
   },
-  "actualizadoEn": 1783288632294,
+  "actualizadoEn": 1783288638182,
   "enemigos": [],
   "enemigosEstado": {},
   "tiendasAdmin": []
