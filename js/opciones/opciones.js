@@ -12,8 +12,11 @@ const Opciones = {
       this.cerrar();
     });
 
-    document.getElementById('opcion-cambiar').addEventListener('click', () => {
-      Usuarios.cambiarJugador();
+    document.getElementById('opcion-salir').addEventListener('click', () => {
+      if (confirm('¿Cerrar sesión y volver a la pantalla de inicio?')) {
+        this.cerrar();
+        Usuarios.cerrarSesion();
+      }
     });
 
     document.getElementById('opcion-admin').addEventListener('click', () => {
@@ -22,8 +25,6 @@ const Opciones = {
     });
 
     document.getElementById('opcion-tarjeta').addEventListener('click', () => this.copiarTarjeta());
-    document.getElementById('opcion-reportar').addEventListener('click', () => this.reportar());
-    document.getElementById('opcion-telefono').addEventListener('click', () => Usuarios.cambiarTelefono());
 
     document.getElementById('opcion-borrar').addEventListener('click', () => {
       if (confirm('¿Seguro? Se borra TODA tu partida (dinero, mochila e historial) y empiezas de cero.')) {
@@ -70,6 +71,8 @@ const Opciones = {
       telefono: Usuarios.perfilActivo.telefono || '',
       dinero: Dinero.saldo,
       vida: Vida.actual,
+      hambre: Vida.hambre,
+      nivel: Vida.nivel,
       objetos: Mochila.slots.reduce((s, sl) => s + (sl ? sl.cantidad : 0), 0),
       integro: malas === 0 && !Guardado.integridadRota,
       t: Date.now()

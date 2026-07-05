@@ -56,6 +56,8 @@ const Admin = {
     if (!this.publicado.mensajes) this.publicado.mensajes = [];
     if (!this.publicado.mantenimiento) this.publicado.mantenimiento = { activo: false, mensaje: '' };
     if (!this.publicado.jugadores) this.publicado.jugadores = [];
+    if (!this.publicado.cofres) this.publicado.cofres = [];
+    if (!this.publicado.correoReclamados) this.publicado.correoReclamados = [];
     if (!Array.isArray(this.publicado.misiones)) this.publicado.misiones = [];
     if (!Array.isArray(this.publicado.tesoros)) this.publicado.tesoros = [];
     if (!Array.isArray(this.publicado.objetos)) this.publicado.objetos = [];
@@ -291,7 +293,8 @@ const Admin = {
     enlazar('admin-organizar', () => this.entrarModo('organizar'));
     enlazar('admin-eliminar', () => this.entrarModo('eliminar'));
     enlazar('admin-exportar', () => this.exportar());
-    enlazar('admin-jugadores', () => this.listarJugadores());
+    enlazar('admin-jugadores', () => this.listarCuentas());
+    enlazar('admin-ver-cofres', () => Cofres.alternarVerOcultos());
     enlazar('admin-ver-historial', () => {
       document.getElementById('ventana-admin').classList.add('oculto');
       Historial.abrir();
@@ -335,7 +338,8 @@ const Admin = {
     try {
       this.publicado = Object.assign({
         misiones: [], tesoros: [], objetos: [], posiciones: {}, eliminados: [],
-        precios: {}, itemsNuevos: [], baneados: [], mensajes: [], jugadores: [],
+        precios: {}, itemsNuevos: [], baneados: [], mensajes: [], jugadores: [], cofres: [],
+        correoReclamados: [],
         mantenimiento: { activo: false, mensaje: '' }
       }, JSON.parse(texto));
     } catch (e) { return; }
@@ -376,6 +380,8 @@ const Admin = {
       this._crearMarcadorObjeto(o);
     }
 
+    if (typeof Cofres !== 'undefined') Cofres._pintarTodos();
+
     Notificaciones.mostrar('🌍 ¡Mapa actualizado! Ya ves lo que creó el admin', 'exito', 5000);
   },
 
@@ -404,26 +410,10 @@ const Admin = {
       alert('Solo el administrador (' + CONFIG.adminNombre + ') puede usar este panel.');
       return;
     }
-    if (this.datos.pinHash && this.datos.desbloqueado) {
-      document.getElementById('ventana-admin').classList.remove('oculto');
-      return;
-    }
-    if (!this.datos.pinHash) {
-      const pin1 = prompt('Crea tu PIN de administrador (4 números):');
-      if (!pin1 || !/^\d{4}$/.test(pin1.trim())) { alert('Debe ser de 4 números'); return; }
-      const pin2 = prompt('Repite el PIN:');
-      if (pin2 === null || pin1.trim() !== pin2.trim()) { alert('No coinciden'); return; }
-      this.datos.pinHash = await Utilidades.sha256('pin-admin|' + pin1.trim());
-      this.guardar();
-      Notificaciones.mostrar('🛠️ PIN de administrador creado', 'exito');
-    } else {
-      const pin = prompt('PIN de administrador:');
-      if (pin === null) return;
-      const hash = await Utilidades.sha256('pin-admin|' + pin.trim());
-      if (hash !== this.datos.pinHash) { alert('PIN incorrecto'); return; }
-    }
-    this.datos.desbloqueado = true;
-    this.guardar();
+    const clave = prompt('Contraseña de administrador (4 números):');
+    if (clave === null) return;
+    const hash = await Utilidades.sha256('pin-perfil|' + clave.trim());
+    if (hash !== Usuarios.perfilActivo.pinHash) { alert('Contraseña incorrecta'); return; }
     document.getElementById('ventana-admin').classList.remove('oculto');
   },
 
@@ -941,14 +931,32 @@ const Admin = {
   },
 
   // ---------- BLOQUEO DEL JUEGO (mantenimiento y baneos) ----------
-  // Devuelve null si el jugador puede jugar, o {tipo, mensaje} si está bloqueado
+  estadoBloqueoPara(perfil) {
+    const id = perfil ? perfil.id : '';
+    const telefono = perfil ? (perfil.telefono || '') : '';
+    const ban = [...(this.publicado.baneados || []), ...(this.datos.baneados || [])]
+      .find(b => b.id === id || (telefono && b.id === telefono));
+    if (ban && this._banActivo(ban)) {
+      const hastaTxt = ban.hasta ? ' Hasta: ' + Utilidades.fechaLegible(ban.hasta) : ' (permanente)';
+      return { tipo: 'ban', mensaje: (ban.motivo || 'Cuenta suspendida.') + hastaTxt };
+    }
+    return null;
+  },
+
+  _banActivo(ban) {
+    if (!ban.hasta) return true;
+    return Date.now() < ban.hasta;
+  },
+
   estadoBloqueo() {
     const id = Usuarios.perfilActivo ? Usuarios.perfilActivo.id : '';
     const telefono = Usuarios.perfilActivo ? (Usuarios.perfilActivo.telefono || '') : '';
-    // El baneo funciona por ID de jugador O por número de teléfono
-    const ban = [...this.publicado.baneados, ...this.datos.baneados]
+    const ban = [...(this.publicado.baneados || []), ...(this.datos.baneados || [])]
       .find(b => b.id === id || (telefono && b.id === telefono));
-    if (ban) return { tipo: 'ban', mensaje: ban.motivo || 'Contacta al administrador.' };
+    if (ban && this._banActivo(ban)) {
+      const hastaTxt = ban.hasta ? ' Hasta: ' + Utilidades.fechaLegible(ban.hasta) : ' (permanente)';
+      return { tipo: 'ban', mensaje: (ban.motivo || 'Contacta al administrador.') + hastaTxt };
+    }
     const mant = this.datos.mantenimiento || this.publicado.mantenimiento;
     if (mant && mant.activo) return { tipo: 'mantenimiento', mensaje: mant.mensaje || 'Volvemos pronto.' };
     return null;
@@ -1041,69 +1049,119 @@ const Admin = {
     }
   },
 
-  // ---------- JUGADORES DE ESTE TELÉFONO ----------
-  listarJugadores() {
+  // ---------- CUENTAS REGISTRADAS (panel admin) ----------
+  listarCuentas() {
     document.getElementById('ventana-admin').classList.add('oculto');
-    document.getElementById('admin-form-titulo').textContent = '👥 Jugadores registrados';
+    document.getElementById('admin-form-titulo').textContent = '👥 Cuentas registradas';
     const campos = document.getElementById('admin-form-campos');
     campos.innerHTML = '';
+    document.getElementById('btn-admin-guardar').style.display = 'none';
 
     const globales = this.jugadoresGlobales();
-    if (globales.length) {
-      const tituloGlobal = document.createElement('div');
-      tituloGlobal.className = 'campo-caja';
-      tituloGlobal.textContent = '🌍 Todos los jugadores del juego (' + globales.length + ')';
-      campos.appendChild(tituloGlobal);
-      for (const j of globales) {
-        const filaG = document.createElement('div');
-        filaG.className = 'fila-tienda';
-        filaG.innerHTML =
-          '<span class="icono">👤</span>' +
-          '<div class="datos"><div class="nombre">' + j.nombre +
-          (j.nombre.toLowerCase() === (CONFIG.adminNombre || 'randy').toLowerCase() ? ' 🛠️ ADM' : '') +
-          '</div><div class="precio">📱 ' + (j.telefono || 'sin número') + '<br>ID: ' + j.id + '</div></div>';
-        campos.appendChild(filaG);
-      }
-    }
-
-    const tituloLocal = document.createElement('div');
-    tituloLocal.className = 'campo-caja';
-    tituloLocal.style.marginTop = '12px';
-    tituloLocal.textContent = '📱 En este teléfono';
-    campos.appendChild(tituloLocal);
-    document.getElementById('btn-admin-guardar').textContent = '➕ Crear jugador nuevo';
-
-    for (const perfil of Usuarios.datos.lista) {
-      const guardadoCrudo = localStorage.getItem(CONFIG.claveGuardado + '::' + perfil.id);
-      let dinero = '—';
-      try { dinero = '$' + JSON.parse(guardadoCrudo).datos.dinero.saldo; } catch (e) {}
+    for (const j of globales) {
+      const local = Usuarios.datos.lista.find(p => p.id === j.id);
       const fila = document.createElement('div');
       fila.className = 'fila-tienda';
+      const ban = [...(this.publicado.baneados || []), ...(this.datos.baneados || [])]
+        .find(b => b.id === j.id || b.id === j.telefono);
       fila.innerHTML =
         '<span class="icono">👤</span>' +
-        '<div class="datos"><div class="nombre">' + perfil.nombre +
-        (perfil.id === Usuarios.perfilActivo.id ? ' (activo)' : '') + '</div>' +
-        '<div class="precio">' + dinero + ' · 📱 ' + (perfil.telefono || 'sin número') +
-        '<br>ID: ' + perfil.id + '</div></div>';
+        '<div class="datos"><div class="nombre">' + j.nombre +
+        (j.nombre.toLowerCase() === (CONFIG.adminNombre || 'randy').toLowerCase() ? ' 🛠️' : '') +
+        (ban && this._banActivo(ban) ? ' 🚫' : '') + '</div>' +
+        '<div class="precio">📱 ' + (j.telefono || '—') + '<br>ID: ' + j.id + '</div></div>';
       const acciones = document.createElement('div');
-      acciones.style.cssText = 'display:flex; flex-direction:column; gap:4px;';
-      for (const [texto, accion] of [
-        ['💰', () => this._ajustarDinero(perfil)],
-        ['🎁', () => this._darObjeto(perfil)],
-        ['🗑️', () => this._eliminarJugador(perfil)]
-      ]) {
+      acciones.style.cssText = 'display:flex;flex-wrap:wrap;gap:4px;max-width:140px;';
+      const mk = (t, fn) => {
         const b = document.createElement('button');
-        b.textContent = texto;
-        b.style.cssText = 'border:none;border-radius:8px;padding:6px 10px;cursor:pointer;background:rgba(255,255,255,.12);color:#fff;';
-        b.addEventListener('click', accion);
+        b.textContent = t;
+        b.style.cssText = 'border:none;border-radius:8px;padding:6px 8px;cursor:pointer;background:rgba(255,255,255,.12);color:#fff;font-size:12px;';
+        b.addEventListener('click', fn);
         acciones.appendChild(b);
+      };
+      if (local) {
+        mk('💰', () => this._ajustarDinero(local));
+        mk('🎁', () => this._darObjeto(local));
+        mk('✏️', () => this._editarCuenta(local));
+      } else {
+        mk('✏️', () => this._editarCuentaGlobal(j));
       }
+      mk('🚫', () => this._banearConTiempo(j));
       fila.appendChild(acciones);
       campos.appendChild(fila);
     }
-    // El botón grande de abajo crea un jugador nuevo
-    this._colocacion = { tipo: 'crear_jugador' };
+    if (!globales.length) campos.innerHTML = '<div class="campo-caja">Aún no hay jugadores en el mundo publicado</div>';
+    this._colocacion = null;
     document.getElementById('ventana-admin-form').classList.remove('oculto');
+  },
+
+  listarJugadores() { this.listarCuentas(); },
+
+  async _editarCuenta(perfil) {
+    const nombre = prompt('Nuevo nombre:', perfil.nombre);
+    if (nombre === null) return;
+    const tel = prompt('Nuevo teléfono:', perfil.telefono || '');
+    if (tel === null) return;
+    const limpio = tel.trim().replace(/[\s-]/g, '');
+    if (!Usuarios.telefonoValido(limpio)) { alert('Teléfono inválido'); return; }
+    const err = this.validarRegistro(nombre.trim(), limpio, perfil.id);
+    if (err) { alert(err); return; }
+    perfil.nombre = nombre.trim();
+    perfil.telefono = limpio;
+    Usuarios._guardarLista();
+    const clave = prompt('Nueva contraseña (4 números) o vacío para no cambiar:');
+    if (clave !== null && clave.trim()) {
+      if (!/^\d{4}$/.test(clave.trim())) { alert('Debe ser 4 números'); return; }
+      perfil.pinHash = await Utilidades.sha256('pin-perfil|' + clave.trim());
+      Usuarios._guardarLista();
+    }
+    this.registrarJugador(perfil);
+    Notificaciones.mostrar('✏️ Cuenta actualizada', 'exito');
+    this.listarCuentas();
+  },
+
+  _editarCuentaGlobal(j) {
+    const nombre = prompt('Nuevo nombre global:', j.nombre);
+    if (nombre === null) return;
+    const tel = prompt('Nuevo teléfono:', j.telefono || '');
+    if (tel === null) return;
+    j.nombre = nombre.trim();
+    j.telefono = tel.trim().replace(/[\s-]/g, '');
+    this.registrarJugador(j, true);
+    this._publicarParaTodos();
+    Notificaciones.mostrar('✏️ Datos globales actualizados (publicando…)', 'exito');
+    this.listarCuentas();
+  },
+
+  _banearConTiempo(j) {
+    const opciones = ['1 hora', '1 día', '1 semana', '1 mes', 'Permanente', 'Quitar ban'];
+    const elegido = prompt(
+      'Banear a ' + j.nombre + ' (' + j.id + ')\n\n' +
+      '1 = 1 hora\n2 = 1 día\n3 = 1 semana\n4 = 1 mes\n5 = Permanente\n6 = Quitar ban',
+      '5'
+    );
+    if (elegido === null) return;
+    const n = parseInt(elegido, 10);
+    const ids = [j.id, j.telefono].filter(Boolean);
+    if (n === 6) {
+      this.datos.baneados = this.datos.baneados.filter(b => !ids.includes(b.id));
+      this.publicado.baneados = (this.publicado.baneados || []).filter(b => !ids.includes(b.id));
+      this.guardar();
+      Notificaciones.mostrar('🟢 Ban quitado', 'exito');
+      this.listarCuentas();
+      return;
+    }
+    const ms = { 1: 3600000, 2: 86400000, 3: 604800000, 4: 2592000000 }[n];
+    const motivo = prompt('Motivo del ban:', 'Incumplimiento de reglas');
+    if (motivo === null) return;
+    const entrada = { id: j.id, motivo, t: Date.now(), hasta: ms ? Date.now() + ms : null };
+    this.datos.baneados = this.datos.baneados.filter(b => b.id !== j.id && b.id !== j.telefono);
+    this.datos.baneados.push(entrada);
+    if (j.telefono) this.datos.baneados.push({ id: j.telefono, motivo, t: Date.now(), hasta: entrada.hasta });
+    this.guardar();
+    this._publicarParaTodos();
+    Notificaciones.mostrar('🚫 ' + j.nombre + ' baneado', 'alerta', 6000);
+    this.listarCuentas();
   },
 
   // ----- Motor para editar la partida guardada de cualquier jugador -----
@@ -1295,8 +1353,25 @@ const Admin = {
         for (const m of this.datos.mensajes) porId.set(m.id, m);
         return [...porId.values()].slice(-20);
       })(),
-      jugadores: this._jugadoresParaPublicar()
+      jugadores: this._jugadoresParaPublicar(),
+      cofres: this._cofresParaPublicar(),
+      correoReclamados: (() => {
+        const porCod = new Map();
+        for (const r of (this.publicado.correoReclamados || [])) porCod.set(r.codigo, r);
+        for (const r of (this.datos.correoReclamadosExtra || [])) porCod.set(r.codigo, r);
+        return [...porCod.values()];
+      })()
     }, quitarTemporales, 2);
+  },
+
+  _cofresParaPublicar() {
+    const porId = new Map();
+    for (const c of (this.publicado.cofres || [])) porId.set(c.id, c);
+    for (const c of (this.datos.cofresExtra || [])) porId.set(c.id, c);
+    if (typeof Guardado !== 'undefined' && Guardado.datos && Guardado.datos.cofresLocales) {
+      for (const c of Guardado.datos.cofresLocales) porId.set(c.id, c);
+    }
+    return [...porId.values()];
   },
 
   exportar() {

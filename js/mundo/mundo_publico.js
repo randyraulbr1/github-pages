@@ -137,5 +137,66 @@ const MundoPublico = {
     });
     const json = JSON.stringify(mundo, null, 2);
     return await this._putMundoGitHub(json);
+  },
+
+  async correoYaReclamado(codigo) {
+    try {
+      const texto = await this.descargar();
+      if (!texto) return null;
+      const m = JSON.parse(texto);
+      const lista = m.correoReclamados || [];
+      return lista.find(r => r.codigo === codigo) || null;
+    } catch (e) { return null; }
+  },
+
+  async reclamarCodigoCorreo(codigo, perfil) {
+    const ya = await this.correoYaReclamado(codigo);
+    if (ya) return ya.jugadorId === perfil.id;
+
+    if (typeof Admin === 'undefined' || !MundoPublico._tokenGitHub()) {
+      return true;
+    }
+
+    let mundo = { correoReclamados: [], correoCola: {} };
+    try {
+      const texto = await this.descargar();
+      if (texto) mundo = Object.assign(mundo, JSON.parse(texto));
+    } catch (e) {}
+    if (!mundo.correoReclamados) mundo.correoReclamados = [];
+    if (!mundo.correoCola) mundo.correoCola = {};
+
+    if (mundo.correoReclamados.some(r => r.codigo === codigo)) return false;
+
+    const cola = mundo.correoCola[codigo];
+    const ahora = Date.now();
+    if (cola && cola.jugadorId !== perfil.id && (ahora - cola.t) < 15000) return false;
+
+    mundo.correoCola[codigo] = { jugadorId: perfil.id, nombre: perfil.nombre, t: ahora };
+    const json1 = JSON.stringify(mundo, null, 2);
+    await this._putMundoGitHub(json1);
+
+    await new Promise(r => setTimeout(r, 800));
+    const ver = await this.correoYaReclamado(codigo);
+    if (ver) return ver.jugadorId === perfil.id;
+
+    try {
+      const texto2 = await this.descargar();
+      if (texto2) mundo = JSON.parse(texto2);
+    } catch (e) {}
+    const miCola = (mundo.correoCola || {})[codigo];
+    if (miCola && miCola.jugadorId !== perfil.id) return false;
+
+    mundo.correoReclamados = mundo.correoReclamados || [];
+    mundo.correoReclamados.push({
+      codigo, jugadorId: perfil.id, nombre: perfil.nombre, t: ahora
+    });
+    delete mundo.correoCola[codigo];
+    const json2 = JSON.stringify(mundo, null, 2);
+    const ok = await this._putMundoGitHub(json2);
+    if (typeof Admin !== 'undefined') {
+      Admin.publicado.correoReclamados = mundo.correoReclamados;
+      Admin.datos.correoReclamadosExtra = mundo.correoReclamados;
+    }
+    return ok || true;
   }
 };

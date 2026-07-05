@@ -1,26 +1,30 @@
 // ============================================================
-// USUARIOS — registro y selección de jugador
-// Cada jugador tiene su propia partida e historial separados
-// (guardados bajo una clave distinta). Opcionalmente puede
-// proteger su perfil con un PIN de 4 dígitos.
+// USUARIOS — login, registro y sesión
 // ============================================================
 const Usuarios = {
   CLAVE: 'mariel_perfiles_v1',
-  datos: null,        // { lista: [{id, nombre, pinHash, creado}], activo: id|null }
+  datos: null,
   perfilActivo: null,
   _resolver: null,
 
-  // Devuelve una promesa que se cumple cuando hay un jugador activo elegido
   iniciar() {
     return new Promise(resolver => {
       this._resolver = resolver;
       try {
         this.datos = JSON.parse(localStorage.getItem(this.CLAVE) || 'null');
       } catch (e) { this.datos = null; }
-      if (!this.datos) this.datos = { lista: [], activo: null };
+      if (!this.datos) this.datos = { lista: [], activo: null, sesionId: null };
 
-      // Seguridad: siempre elegir o crear jugador (nunca entrar solo)
-      this.mostrarPantalla();
+      const sesion = this.datos.sesionId && this.datos.lista.find(p => p.id === this.datos.sesionId);
+      if (sesion) {
+        this.perfilActivo = sesion;
+        this.datos.activo = sesion.id;
+        document.body.classList.remove('en-auth');
+        if (this._resolver) { this._resolver(); this._resolver = null; }
+        return;
+      }
+      document.body.classList.add('en-auth');
+      this.mostrarLogin();
     });
   },
 
@@ -28,28 +32,43 @@ const Usuarios = {
     localStorage.setItem(this.CLAVE, JSON.stringify(this.datos));
   },
 
-  mostrarPantalla() {
-    // La pantalla de carga cede el paso a la de registro
+  _ocultarAuth() {
+    document.getElementById('pantalla-login').classList.add('oculto');
+    document.getElementById('pantalla-registro').classList.add('oculto');
+    document.body.classList.remove('en-auth');
+  },
+
+  mostrarLogin() {
     const carga = document.getElementById('pantalla-carga');
     if (carga) carga.classList.add('oculto');
-    const pantalla = document.getElementById('pantalla-usuarios');
-    pantalla.classList.remove('oculto');
+    document.body.classList.add('en-auth');
+    document.getElementById('pantalla-registro').classList.add('oculto');
+    document.getElementById('pantalla-login').classList.remove('oculto');
+    document.getElementById('login-usuario').value = '';
+    document.getElementById('login-clave').value = '';
+    this._enlazarOjos();
+  },
 
-    // Lista de jugadores ya registrados en este teléfono
-    const lista = document.getElementById('lista-perfiles');
-    lista.innerHTML = '';
-    for (const perfil of this.datos.lista) {
-      const ficha = document.createElement('button');
-      ficha.className = 'ficha-perfil' + (perfil.id === this.datos.activo ? ' activa' : '');
-      ficha.innerHTML = '👤 <span>' + this._escapar(perfil.nombre) + '</span>' +
-        (perfil.pinHash ? '<span class="candado">🔒</span>' : '');
-      ficha.addEventListener('click', () => this.elegir(perfil));
-      lista.appendChild(ficha);
-    }
-    document.getElementById('separador-registro').style.display =
-      this.datos.lista.length ? '' : 'none';
+  mostrarRegistro() {
+    document.getElementById('pantalla-login').classList.add('oculto');
+    document.getElementById('pantalla-registro').classList.remove('oculto');
+    ['registro-nombre', 'registro-telefono', 'registro-clave', 'registro-clave2'].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.value = '';
+    });
+    this._enlazarOjos();
+  },
 
-    document.getElementById('btn-crear-perfil').onclick = () => this.crear();
+  _enlazarOjos() {
+    document.querySelectorAll('.btn-ojo-clave').forEach(btn => {
+      btn.onclick = () => {
+        const input = document.getElementById(btn.dataset.campo);
+        if (!input) return;
+        const oculto = input.type === 'password';
+        input.type = oculto ? 'text' : 'password';
+        btn.textContent = oculto ? '🙈' : '👁️';
+      };
+    });
   },
 
   _escapar(texto) {
@@ -67,35 +86,63 @@ const Usuarios = {
     return this.perfilActivo.nombre.trim().toLowerCase() === CONFIG.adminNombre.toLowerCase();
   },
 
+  _buscarPorLogin(usuario) {
+    const u = usuario.trim().toLowerCase();
+    const limpio = usuario.trim().replace(/[\s-]/g, '');
+    return this.datos.lista.find(p =>
+      p.nombre.toLowerCase() === u || (p.telefono && p.telefono === limpio));
+  },
+
+  async iniciarSesion() {
+    const usuario = document.getElementById('login-usuario').value.trim();
+    const clave = document.getElementById('login-clave').value.trim();
+    if (!usuario) { alert('Escribe tu nombre o teléfono'); return; }
+    if (!/^\d{4}$/.test(clave)) { alert('La contraseña debe ser de 4 números'); return; }
+
+    const perfil = this._buscarPorLogin(usuario);
+    if (!perfil) { alert('No existe esa cuenta en este teléfono.\nRegístrate primero.'); return; }
+    if (!perfil.pinHash) {
+      alert('Esta cuenta es antigua. Regístrate de nuevo o contacta al administrador.');
+      return;
+    }
+    const hash = await Utilidades.sha256('pin-perfil|' + clave);
+    if (hash !== perfil.pinHash) { alert('Contraseña incorrecta'); return; }
+
+    if (typeof Admin !== 'undefined') {
+      await Admin.actualizarJugadoresGlobales();
+      const err = Admin.validarRegistro(perfil.nombre, perfil.telefono, perfil.id);
+      if (err) { alert(err); return; }
+      const ban = Admin.estadoBloqueoPara(perfil);
+      if (ban) { alert('🚫 ' + ban.mensaje); return; }
+    }
+    this._activar(perfil);
+  },
+
   async crear() {
     const nombre = document.getElementById('registro-nombre').value.trim();
     const telefono = document.getElementById('registro-telefono').value.trim().replace(/[\s-]/g, '');
-    const pin = document.getElementById('registro-pin').value.trim();
-    if (nombre.length < 2) {
-      alert('Escribe tu nombre (mínimo 2 letras)');
-      return;
-    }
+    const clave = document.getElementById('registro-clave').value.trim();
+    const clave2 = document.getElementById('registro-clave2').value.trim();
+
+    if (nombre.length < 2) { alert('Escribe tu nombre (mínimo 2 letras)'); return; }
     if (!this.telefonoValido(telefono)) {
-      alert('Escribe tu número de teléfono (solo números, mínimo 6 dígitos).\nA ese número llegarán tus recompensas.');
+      alert('Número inválido: solo números, mínimo 6 dígitos.');
       return;
     }
+    if (!/^\d{4}$/.test(clave)) { alert('La contraseña debe ser de 4 números'); return; }
+    if (clave !== clave2) { alert('Las contraseñas no coinciden'); return; }
+
     if (typeof Admin !== 'undefined') await Admin.actualizarJugadoresGlobales();
     const errorRegistro = typeof Admin !== 'undefined'
       ? Admin.validarRegistro(nombre, telefono, null) : null;
-    if (errorRegistro) {
-      alert(errorRegistro);
-      return;
-    }
-    if (pin && !/^\d{4}$/.test(pin)) {
-      alert('El PIN debe ser de 4 números (o déjalo vacío)');
-      return;
-    }
+    if (errorRegistro) { alert(errorRegistro); return; }
+
     const perfil = {
       id: 'p' + Date.now().toString(36) + Math.random().toString(36).slice(2, 7),
       nombre,
       telefono,
-      telefonoCambiadoEn: 0, // aún no ha gastado su cambio del mes
-      pinHash: pin ? await Utilidades.sha256('pin-perfil|' + pin) : null,
+      telefonoCambiadoEn: 0,
+      pinHash: await Utilidades.sha256('pin-perfil|' + clave),
       creado: Date.now()
     };
     this.datos.lista.push(perfil);
@@ -103,76 +150,29 @@ const Usuarios = {
     this._activar(perfil);
   },
 
-  async elegir(perfil) {
-    if (perfil.pinHash) {
-      const pin = prompt('PIN de ' + perfil.nombre + ':');
-      if (pin === null) return;
-      const hash = await Utilidades.sha256('pin-perfil|' + pin.trim());
-      if (hash !== perfil.pinHash) {
-        alert('PIN incorrecto');
-        return;
-      }
-    }
-    if (!await this._asegurarTelefono(perfil)) return;
-    if (typeof Admin !== 'undefined') {
-      await Admin.actualizarJugadoresGlobales();
-      const err = Admin.validarRegistro(perfil.nombre, perfil.telefono, perfil.id);
-      if (err) { alert(err); return; }
-    }
-    this._activar(perfil);
-  },
-
-  // Sin número de teléfono válido no se puede jugar
-  async _asegurarTelefono(perfil) {
-    if (perfil.telefono && this.telefonoValido(perfil.telefono)) return true;
-    const tel = prompt(
-      'Para entrar, ' + perfil.nombre + ' necesita un número de teléfono\n' +
-      '(ahí llegarán las recompensas):',
-      perfil.telefono || ''
-    );
-    if (tel === null) return false;
-    const limpio = tel.trim().replace(/[\s-]/g, '');
-    if (!this.telefonoValido(limpio)) {
-      alert('Número inválido: solo números, mínimo 6 dígitos');
-      return false;
-    }
-    if (typeof Admin !== 'undefined') {
-      await Admin.actualizarJugadoresGlobales();
-      const err = Admin.validarRegistro(perfil.nombre, limpio, perfil.id);
-      if (err) { alert(err); return false; }
-    }
-    perfil.telefono = limpio;
-    if (!perfil.telefonoCambiadoEn) perfil.telefonoCambiadoEn = 0;
-    this._guardarLista();
-    return true;
-  },
-
   _activar(perfil) {
     this.datos.activo = perfil.id;
+    this.datos.sesionId = perfil.id;
     this.perfilActivo = perfil;
     this._guardarLista();
     if (typeof Admin !== 'undefined') Admin.registrarJugador(perfil);
-    document.getElementById('pantalla-usuarios').classList.add('oculto');
+    this._ocultarAuth();
     if (this._resolver) { this._resolver(); this._resolver = null; }
   },
 
-  // Volver a la pantalla de selección (desde Opciones)
-  cambiarJugador() {
+  cerrarSesion() {
+    this.datos.sesionId = null;
     this.datos.activo = null;
+    this.perfilActivo = null;
     this._guardarLista();
     location.reload();
   },
 
-  // ---------- CAMBIO DE NÚMERO DE TELÉFONO ----------
-  // Solo 1 vez al mes. El administrador puede saltarse el límite con su
-  // PIN (para corregir errores). Las recompensas llegan a este número.
-  UN_MES_MS: 30 * 24 * 60 * 60 * 1000,
+  cambiarJugador() { this.cerrarSesion(); },
 
   async cambiarTelefono() {
     const perfil = this.perfilActivo;
     if (!perfil) return;
-
-    // Perfiles antiguos sin número: siempre pueden ponerlo
     const yaTiene = !!perfil.telefono;
     const gastadoEn = perfil.telefonoCambiadoEn || 0;
     const faltanMs = this.UN_MES_MS - (Date.now() - gastadoEn);
@@ -180,38 +180,46 @@ const Usuarios = {
 
     if (yaTiene && gastadoEn > 0 && faltanMs > 0) {
       const cuando = Utilidades.fechaLegible(gastadoEn + this.UN_MES_MS);
-      const esAdmin = (typeof Admin !== 'undefined' && Admin.datos && Admin.datos.pinHash) &&
-        confirm('📱 Solo puedes cambiar tu número 1 vez al mes.\n' +
-          'Podrás cambiarlo de nuevo el: ' + cuando + '\n\n' +
-          '¿Eres el ADMINISTRADOR y fue un error? Acepta para poner el PIN de admin.');
+      const esAdmin = this.esAdministrador() && typeof Admin !== 'undefined' && Admin.datos && Admin.datos.pinHash &&
+        confirm('📱 Solo 1 cambio al mes.\nPróximo: ' + cuando + '\n\n¿Eres el ADMIN?');
       if (!esAdmin) {
         Notificaciones.mostrar('📱 Podrás cambiar tu número el ' + cuando, 'alerta', 6000);
         return;
       }
-      const pin = prompt('PIN de administrador:');
+      const pin = prompt('Contraseña de administrador (4 números):');
       if (pin === null) return;
-      const hash = await Utilidades.sha256('pin-admin|' + pin.trim());
-      if (hash !== Admin.datos.pinHash) { alert('PIN incorrecto'); return; }
+      const hash = await Utilidades.sha256('pin-perfil|' + pin.trim());
+      if (hash !== perfil.pinHash) { alert('Contraseña incorrecta'); return; }
       cambioDeAdmin = true;
     }
 
-    const nuevo = prompt('Nuevo número de teléfono (ahí llegarán tus recompensas):',
-      perfil.telefono || '');
+    const nuevo = prompt('Nuevo número de teléfono:', perfil.telefono || '');
     if (nuevo === null) return;
     const limpio = nuevo.trim().replace(/[\s-]/g, '');
-    if (!this.telefonoValido(limpio)) {
-      alert('Número inválido: solo números, mínimo 6 dígitos');
-      return;
+    if (!this.telefonoValido(limpio)) { alert('Número inválido'); return; }
+    if (typeof Admin !== 'undefined') {
+      await Admin.actualizarJugadoresGlobales();
+      const err = Admin.validarRegistro(perfil.nombre, limpio, perfil.id);
+      if (err) { alert(err); return; }
     }
     perfil.telefono = limpio;
-    // El cambio del admin no gasta el cambio mensual del jugador
     if (!cambioDeAdmin) perfil.telefonoCambiadoEn = Date.now();
     this._guardarLista();
-    Notificaciones.mostrar('📱 Número actualizado: ' + limpio +
-      (cambioDeAdmin ? ' (corregido por el admin)' : ''), 'exito', 5000);
-    Historial.registrar('objetos', {
-      detalle: '📱 Número de teléfono cambiado a ' + limpio + (cambioDeAdmin ? ' (por el admin)' : ''),
-      monto: 0
-    });
-  }
+    if (typeof Admin !== 'undefined') Admin.registrarJugador(perfil);
+    Notificaciones.mostrar('📱 Número actualizado: ' + limpio, 'exito', 5000);
+  },
+
+  UN_MES_MS: 30 * 24 * 60 * 60 * 1000
 };
+
+// Enlaces de pantallas (HTML estático)
+document.addEventListener('DOMContentLoaded', () => {
+  const irReg = document.getElementById('btn-ir-registro');
+  const irLog = document.getElementById('btn-ir-login');
+  const btnLog = document.getElementById('btn-iniciar-sesion');
+  const btnReg = document.getElementById('btn-crear-perfil');
+  if (irReg) irReg.addEventListener('click', () => Usuarios.mostrarRegistro());
+  if (irLog) irLog.addEventListener('click', () => Usuarios.mostrarLogin());
+  if (btnLog) btnLog.addEventListener('click', () => Usuarios.iniciarSesion());
+  if (btnReg) btnReg.addEventListener('click', () => Usuarios.crear());
+});

@@ -110,6 +110,12 @@ const Correo = {
       Notificaciones.mostrar('❌ Código inválido: revisa que esté completo y bien escrito', 'error', 5000);
       return;
     }
+
+    const reclamadoGlobal = await MundoPublico.correoYaReclamado(codigo);
+    if (reclamadoGlobal && reclamadoGlobal.jugadorId !== Usuarios.perfilActivo.id) {
+      aviso('⚠️ Ese código ya fue reclamado por otro jugador');
+      return;
+    }
     if (Guardado.datos.correoRecibidos.includes(codigo)) {
       aviso('⚠️ Ese código ya fue cobrado en este teléfono');
       return;
@@ -119,26 +125,30 @@ const Correo = {
     const mio = Guardado.datos.correoEnviados.find(e => e.codigo === codigo);
 
     if (mio) {
-      // El remitente intenta usar su propio código
       if (mio.resuelto) { aviso('⚠️ Ese envío ya fue resuelto'); return; }
       if (!vencido) {
         const minutos = Math.ceil((this.VENCIMIENTO_MS - (Date.now() - envio.t)) / 60000);
         aviso('⏳ Este envío salió de este teléfono. Si nadie lo cobra, podrás reclamarlo en ' + minutos + ' min');
         return;
       }
-      // Venció sin cobrarse: el remitente recupera su objeto
       mio.resuelto = true;
     } else {
       if (vencido) { aviso('⌛ Ese código venció (más de 1 hora). Solo el remitente puede reclamarlo'); return; }
     }
 
+    const okCola = await MundoPublico.reclamarCodigoCorreo(codigo, Usuarios.perfilActivo);
+    if (!okCola) {
+      aviso('⏳ Otro jugador está reclamando este código. Intenta en unos segundos.');
+      return;
+    }
+
     if (!Mochila.agregar(envio.itemId, envio.cantidad, { silencioso: true })) return;
     Guardado.datos.correoRecibidos.push(codigo);
+    if (mio) mio.resuelto = true;
     Guardado.guardar();
     const item = Items.seguro(envio.itemId);
     Historial.registrar('objetos', {
-      detalle: (mio ? 'Reclamado del correo (venció): ' : 'Recibido por correo: ') + item.nombre +
-        ' (código ' + codigo.slice(-8) + ')',
+      detalle: (mio ? 'Reclamado del correo (venció): ' : 'Recibido por correo: ') + item.nombre,
       monto: envio.cantidad
     });
     Notificaciones.mostrar('📬 ' + item.icono + ' ' + (mio ? 'Recuperaste ' : 'Recibiste ') + item.nombre, 'exito', 5000);

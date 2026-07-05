@@ -44,14 +44,22 @@ const Guardado = {
 
   _estadoNuevo() {
     return {
-      mochila: null,          // lo llena el módulo Mochila
-      dinero: null,           // lo llena el módulo Dinero
+      mochila: null,
+      dinero: null,
       vida: CONFIG.vidaMaxima,
+      hambre: CONFIG.hambreInicial,
+      xp: 0,
+      nivel: 1,
       historialDinero: [],
       historialObjetos: [],
       tesorosRecogidos: [],
       misiones: {},
-      posicionJugador: null
+      misionesEstado: {},
+      posicionJugador: null,
+      correoEnviados: [],
+      correoRecibidos: [],
+      mensajesVistos: [],
+      admin: { misiones: [], tesoros: [], objetos: [] }
     };
   },
 

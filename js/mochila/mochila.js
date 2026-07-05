@@ -250,7 +250,8 @@ const Mochila = {
     document.getElementById('detalle-desc').textContent = sl.texto
       ? '«' + sl.texto + '»' : (item.desc || '');
     document.getElementById('detalle-cantidad').textContent = 'Cantidad: ' + sl.cantidad;
-    document.getElementById('btn-usar-item').style.display = item.cura ? '' : 'none';
+    document.getElementById('btn-usar-item').style.display =
+      (item.cura || sl.id === 'cofre') ? '' : 'none';
     // Escribir: solo con papel en la mano y un lápiz en la mochila
     document.getElementById('btn-escribir-item').style.display =
       (sl.id === 'papel' && this.tieneItem('lapiz')) ? '' : 'none';
@@ -281,13 +282,28 @@ const Mochila = {
     const sl = this.slots[this.slotSeleccionado];
     if (!sl) return;
     const item = Items.seguro(sl.id);
-    if (!item.cura) return;
-    if (Vida.actual >= CONFIG.vidaMaxima) {
-      Notificaciones.mostrar('Ya tienes la vida al máximo', 'alerta');
+    if (sl.id === 'cofre') {
+      this.ocultarDetalle();
+      document.getElementById('ventana-mochila').classList.add('oculto');
+      Cofres.usarCofreInventario();
       return;
     }
-    this.quitar(sl.id, 1, 'Consumido');
-    Vida.cambiar(item.cura, item.nombre);
+    if (item.tipo === 'comida' && item.cura) {
+      if (Vida.hambre >= CONFIG.hambreMaxima) {
+        Notificaciones.mostrar('No tienes hambre', 'alerta');
+        return;
+      }
+      this.quitar(sl.id, 1, 'Consumido');
+      Vida.alimentar(item.cura, item.nombre);
+      Vida.ganarXp(5, 'Comer');
+    } else if (item.cura) {
+      if (Vida.actual >= CONFIG.vidaMaxima) {
+        Notificaciones.mostrar('Ya tienes la vida al máximo', 'alerta');
+        return;
+      }
+      this.quitar(sl.id, 1, 'Consumido');
+      Vida.cambiar(item.cura, item.nombre);
+    }
     if (this.slots[this.slotSeleccionado]) this.mostrarDetalle(this.slotSeleccionado);
     else this.ocultarDetalle();
   },

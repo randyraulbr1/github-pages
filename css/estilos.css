@@ -464,3 +464,76 @@ button { font-family: inherit; }
   .btn-redondo { width: 60px; height: 60px; font-size: 26px; }
   .notificacion { max-width: 380px; }
 }
+
+/* ============ AUTH + HAMBRE/XP + COFRES (v19) ============ */
+body.en-auth #mapa,
+body.en-auth #barra-superior,
+body.en-auth #botones-inferiores,
+body.en-auth #letrero-misiones,
+body.en-auth #banner-tesoro,
+body.en-auth #admin-controles,
+body.en-auth #zona-notificaciones { display: none !important; }
+
+.pantalla-auth {
+  position: fixed; inset: 0; z-index: 5000;
+  display: flex; align-items: center; justify-content: center;
+  background: linear-gradient(165deg, #0c1020 0%, #1a2540 50%, #0e1628 100%);
+  padding: 20px;
+}
+.auth-caja {
+  width: 100%; max-width: 360px;
+  background: rgba(255,255,255,.06); border-radius: 20px;
+  padding: 24px 20px; backdrop-filter: blur(12px);
+  border: 1px solid rgba(255,255,255,.1);
+}
+.auth-titulo { font-size: 22px; font-weight: 800; text-align: center; margin-bottom: 4px; }
+.auth-sub { text-align: center; color: #9aa5bd; margin-bottom: 18px; font-size: 14px; }
+.auth-caja input {
+  width: 100%; margin-bottom: 10px; padding: 14px 12px;
+  border-radius: 12px; border: 1px solid rgba(255,255,255,.15);
+  background: rgba(0,0,0,.25); color: #fff; font-size: 16px;
+}
+.campo-clave { position: relative; margin-bottom: 10px; }
+.campo-clave input { margin-bottom: 0; padding-right: 44px; }
+.btn-ojo-clave {
+  position: absolute; right: 8px; top: 50%; transform: translateY(-50%);
+  border: none; background: none; font-size: 18px; cursor: pointer; padding: 4px;
+}
+.btn-auth-principal {
+  width: 100%; padding: 14px; margin-top: 6px;
+  border: none; border-radius: 14px; font-size: 16px; font-weight: 700;
+  background: linear-gradient(180deg, #3d8bfd, #2563eb); color: #fff; cursor: pointer;
+}
+.btn-auth-secundario {
+  width: 100%; padding: 12px; margin-top: 10px;
+  border: none; border-radius: 12px; background: transparent;
+  color: #8ab4ff; font-size: 14px; cursor: pointer;
+}
+#grupo-barras { flex: 1; display: flex; flex-direction: column; gap: 3px; max-width: 240px; }
+#contenedor-hambre { height: 4px; background: #2a2010; border-radius: 2px; overflow: hidden; }
+#hambre-relleno {
+  height: 100%; width: 50%;
+  background: linear-gradient(90deg, #c8860a, #ffb020);
+  transition: width .4s ease;
+}
+#contenedor-xp {
+  position: relative; height: 14px; background: #1a2040; border-radius: 8px; overflow: hidden;
+}
+#xp-relleno {
+  height: 100%; width: 0;
+  background: linear-gradient(90deg, #6b4eff, #a78bfa);
+  transition: width .4s ease;
+}
+#nivel-texto {
+  position: absolute; right: 6px; top: 0; bottom: 0;
+  display: flex; align-items: center; font-size: 9px; font-weight: 800;
+  color: #fff; text-shadow: 0 1px 2px rgba(0,0,0,.6); z-index: 1;
+}
+.mision-letrero.lista { border-color: #ffd60a; box-shadow: 0 0 8px rgba(255,214,10,.35); }
+.mision-letrero { cursor: pointer; }
+#rejilla-cofre, #rejilla-cofre-mochila {
+  display: grid; grid-template-columns: repeat(6, 1fr); gap: 6px; padding: 10px 14px;
+}
+.cofre-slot { min-height: 44px; }
+#cofre-mochila-titulo { padding: 8px 14px 0; font-size: 13px; color: #9aa5bd; }
+#cofre-info { padding: 8px 14px; font-size: 13px; color: #c5d0e8; }

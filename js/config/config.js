@@ -3,10 +3,17 @@
 // ============================================================
 const CONFIG = {
   // Cambiar al publicar: obliga al móvil a descartar caché vieja
-  version: '18',
+  version: '19',
 
   // Nombre reservado del administrador (solo este jugador ve el panel admin)
   adminNombre: 'randy',
+
+  vidaMaxima: 100,
+  hambreMaxima: 100,
+  hambreInicial: 50,
+  nivelMaximo: 100,
+  segundosDesgasteHambre: 120,
+  radioColocarCofre: 60,
 
   // Cuba: dejar vacío. Usar clave de GitHub en Admin (🔑 Configurar clave de publicación).
   firebaseMundoUrl: '',
@@ -30,9 +37,8 @@ const CONFIG = {
 
   // Valores iniciales del jugador
   dineroInicial: 100,
-  vidaMaxima: 100,
 
-  // La vida baja 1 punto cada X segundos (el jugador debe comer)
+  // La vida baja solo si el hambre llega a 0 (ver vida.js)
   segundosDesgasteVida: 90,
 
   claveGuardado: 'mariel_explorer_v1',

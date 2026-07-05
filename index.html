@@ -13,7 +13,7 @@
   <script>
     // Aviso temprano en móvil (antes de cargar 20+ archivos JS)
     (function () {
-      var V = '18';
+      var V = '19';
       var texto = document.getElementById('carga-texto');
       if (texto) texto.textContent = 'Conectando…';
       var prev = localStorage.getItem('mariel_app_version');
@@ -34,8 +34,10 @@
       setTimeout(function () {
         var carga = document.getElementById('pantalla-carga');
         if (!carga || carga.classList.contains('oculto')) return;
-        var usuarios = document.getElementById('pantalla-usuarios');
+        var usuarios = document.getElementById('pantalla-login');
         if (usuarios && !usuarios.classList.contains('oculto')) return;
+        var reg = document.getElementById('pantalla-registro');
+        if (reg && !reg.classList.contains('oculto')) return;
         var t = document.getElementById('carga-texto');
         if (t) {
           t.textContent = 'Tarda mucho… borra datos del sitio en el navegador y vuelve a entrar.';
@@ -67,11 +69,18 @@
   <!-- MAPA -->
   <div id="mapa"></div>
 
-  <!-- BARRA SUPERIOR: vida + dinero -->
+  <!-- BARRA SUPERIOR: vida + hambre + XP + dinero -->
   <div id="barra-superior">
-    <div id="contenedor-vida" title="Vida">
-      <div id="vida-relleno"></div>
-      <span id="vida-texto">100</span>
+    <div id="grupo-barras">
+      <div id="contenedor-vida" title="Vida">
+        <div id="vida-relleno"></div>
+        <span id="vida-texto">100</span>
+      </div>
+      <div id="contenedor-hambre" title="Hambre"><div id="hambre-relleno"></div></div>
+      <div id="contenedor-xp" title="Experiencia">
+        <div id="xp-relleno"></div>
+        <span id="nivel-texto">Nv 1</span>
+      </div>
     </div>
     <div id="contenedor-dinero" title="Dinero">
       <span class="icono-dinero">$</span>
@@ -105,19 +114,38 @@
   <!-- NOTIFICACIONES -->
   <div id="zona-notificaciones"></div>
 
-  <!-- ============ PANTALLA DE REGISTRO / SELECCIÓN DE JUGADOR ============ -->
-  <div id="pantalla-usuarios" class="oculto">
-    <div id="usuarios-caja">
-      <div id="usuarios-titulo">🌴 Mariel Explorer</div>
-      <div id="usuarios-sub">¿Quién va a jugar?</div>
-      <div id="lista-perfiles"></div>
-      <div id="separador-registro">— o crea un jugador nuevo —</div>
-      <div id="form-registro">
-        <input id="registro-nombre" maxlength="20" placeholder="Tu nombre" autocomplete="off">
-        <input id="registro-telefono" inputmode="tel" maxlength="16" placeholder="📱 Tu número de teléfono (para las recompensas)" autocomplete="off">
-        <input id="registro-pin" inputmode="numeric" maxlength="4" placeholder="PIN de 4 dígitos (opcional)" autocomplete="off">
-        <button id="btn-crear-perfil">Crear jugador</button>
+  <!-- ============ LOGIN ============ -->
+  <div id="pantalla-login" class="pantalla-auth oculto">
+    <div class="auth-caja">
+      <div class="auth-titulo">🌴 Mariel Explorer</div>
+      <div class="auth-sub">Iniciar sesión</div>
+      <input id="login-usuario" maxlength="20" placeholder="Nombre o teléfono" autocomplete="username">
+      <div class="campo-clave">
+        <input id="login-clave" type="password" inputmode="numeric" maxlength="4" placeholder="Contraseña (4 números)" autocomplete="current-password">
+        <button type="button" class="btn-ojo-clave" data-campo="login-clave">👁️</button>
       </div>
+      <button id="btn-iniciar-sesion" class="btn-auth-principal">Entrar al juego</button>
+      <button type="button" id="btn-ir-registro" class="btn-auth-secundario">Crear cuenta nueva</button>
+    </div>
+  </div>
+
+  <!-- ============ REGISTRO ============ -->
+  <div id="pantalla-registro" class="pantalla-auth oculto">
+    <div class="auth-caja">
+      <div class="auth-titulo">🌴 Mariel Explorer</div>
+      <div class="auth-sub">Crear cuenta</div>
+      <input id="registro-nombre" maxlength="20" placeholder="Tu nombre" autocomplete="off">
+      <input id="registro-telefono" inputmode="tel" maxlength="16" placeholder="📱 Teléfono (solo números)" autocomplete="off">
+      <div class="campo-clave">
+        <input id="registro-clave" type="password" inputmode="numeric" maxlength="4" placeholder="Contraseña (4 números)" autocomplete="new-password">
+        <button type="button" class="btn-ojo-clave" data-campo="registro-clave">👁️</button>
+      </div>
+      <div class="campo-clave">
+        <input id="registro-clave2" type="password" inputmode="numeric" maxlength="4" placeholder="Repetir contraseña" autocomplete="new-password">
+        <button type="button" class="btn-ojo-clave" data-campo="registro-clave2">👁️</button>
+      </div>
+      <button id="btn-crear-perfil" class="btn-auth-principal">Registrarme</button>
+      <button type="button" id="btn-ir-login" class="btn-auth-secundario">Ya tengo cuenta</button>
     </div>
   </div>
 
@@ -221,8 +249,7 @@
       <div id="opciones-jugador">Jugador: <b id="opciones-nombre">—</b> · ID: <span id="opciones-id">—</span></div>
       <div id="lista-opciones">
         <button class="fila-opcion" id="opcion-centrar"><span class="icono-opcion">🎯</span> Centrar el mapa en mi posición</button>
-        <button class="fila-opcion" id="opcion-cambiar"><span class="icono-opcion">👤</span> Cambiar de jugador</button>
-        <button class="fila-opcion" id="opcion-telefono"><span class="icono-opcion">📱</span> Cambiar mi número de teléfono</button>
+        <button class="fila-opcion peligro" id="opcion-salir"><span class="icono-opcion">🚪</span> Cerrar sesión (Sign out)</button>
         <button class="fila-opcion" id="opcion-tarjeta"><span class="icono-opcion">🪪</span> Mi tarjeta de jugador (copiar)</button>
         <button class="fila-opcion" id="opcion-reportar"><span class="icono-opcion">🚩</span> Reportar a un jugador</button>
         <button class="fila-opcion oculto" id="opcion-admin"><span class="icono-opcion">🛠️</span> Modo administrador</button>
@@ -243,7 +270,8 @@
         <button class="fila-opcion" id="admin-item-nuevo"><span class="icono-opcion">➕</span> Crear objeto nuevo</button>
         <button class="fila-opcion" id="admin-organizar"><span class="icono-opcion">✋</span> Organizar pines (mover)</button>
         <button class="fila-opcion peligro" id="admin-eliminar"><span class="icono-opcion">🗑️</span> Eliminar pines del mapa</button>
-        <button class="fila-opcion" id="admin-jugadores"><span class="icono-opcion">👥</span> Jugadores de este teléfono</button>
+        <button class="fila-opcion" id="admin-jugadores"><span class="icono-opcion">👥</span> Cuentas registradas</button>
+        <button class="fila-opcion" id="admin-ver-cofres"><span class="icono-opcion">👁️</span> Ver cofres ocultos</button>
         <button class="fila-opcion" id="admin-ver-historial"><span class="icono-opcion">🧾</span> Ver historial del jugador actual</button>
         <button class="fila-opcion" id="admin-mantenimiento"><span class="icono-opcion">🚧</span> Activar / quitar mantenimiento</button>
         <button class="fila-opcion" id="admin-mensaje"><span class="icono-opcion">✉️</span> Enviar mensaje a jugadores</button>
@@ -265,39 +293,51 @@
     </div>
   </div>
 
+  <!-- ============ VENTANA: COFRE ============ -->
+  <div id="ventana-cofre" class="ventana oculto">
+    <div class="ventana-caja">
+      <div class="ventana-titulo">🧰 Cofre <button class="btn-cerrar" data-cierra="ventana-cofre">✕</button></div>
+      <div id="cofre-info"></div>
+      <div id="rejilla-cofre"></div>
+      <div id="cofre-mochila-titulo">Tu mochila</div>
+      <div id="rejilla-cofre-mochila"></div>
+    </div>
+  </div>
+
   <!-- LIBRERÍAS -->
-  <script src="lib/leaflet/leaflet.js?v=18"></script>
+  <script src="lib/leaflet/leaflet.js?v=19"></script>
 
   <!-- MÓDULOS DEL JUEGO (orden importante) -->
-  <script src="js/config/config.js?v=18"></script>
-  <script src="js/nucleo/utilidades.js?v=18"></script>
-  <script src="js/mundo/mundo_publico.js?v=18"></script>
-  <script src="js/notificaciones/notificaciones.js?v=18"></script>
-  <script src="js/usuarios/usuarios.js?v=18"></script>
-  <script src="js/guardado/guardado.js?v=18"></script>
-  <script src="js/historial/historial.js?v=18"></script>
-  <script src="js/dinero/dinero.js?v=18"></script>
-  <script src="js/vida/vida.js?v=18"></script>
-  <script src="js/items/items.js?v=18"></script>
-  <script src="js/mochila/mochila.js?v=18"></script>
-  <script src="js/mapa/mapa.js?v=18"></script>
-  <script src="js/gps/gps.js?v=18"></script>
-  <script src="js/tiendas/datos_tiendas.js?v=18"></script>
-  <script src="js/tiendas/tiendas.js?v=18"></script>
-  <script src="js/pesca/pesca.js?v=18"></script>
-  <script src="js/tesoros/datos_tesoros.js?v=18"></script>
-  <script src="js/tesoros/tesoros.js?v=18"></script>
-  <script src="js/misiones/datos_misiones.js?v=18"></script>
-  <script src="js/misiones/misiones.js?v=18"></script>
-  <script src="js/correo/correo.js?v=18"></script>
-  <script src="js/admin/admin.js?v=18"></script>
-  <script src="js/opciones/opciones.js?v=18"></script>
-  <script src="js/principal.js?v=18"></script>
+  <script src="js/config/config.js?v=19"></script>
+  <script src="js/nucleo/utilidades.js?v=19"></script>
+  <script src="js/mundo/mundo_publico.js?v=19"></script>
+  <script src="js/notificaciones/notificaciones.js?v=19"></script>
+  <script src="js/usuarios/usuarios.js?v=19"></script>
+  <script src="js/guardado/guardado.js?v=19"></script>
+  <script src="js/historial/historial.js?v=19"></script>
+  <script src="js/dinero/dinero.js?v=19"></script>
+  <script src="js/vida/vida.js?v=19"></script>
+  <script src="js/items/items.js?v=19"></script>
+  <script src="js/mochila/mochila.js?v=19"></script>
+  <script src="js/mapa/mapa.js?v=19"></script>
+  <script src="js/gps/gps.js?v=19"></script>
+  <script src="js/tiendas/datos_tiendas.js?v=19"></script>
+  <script src="js/tiendas/tiendas.js?v=19"></script>
+  <script src="js/pesca/pesca.js?v=19"></script>
+  <script src="js/tesoros/datos_tesoros.js?v=19"></script>
+  <script src="js/tesoros/tesoros.js?v=19"></script>
+  <script src="js/misiones/datos_misiones.js?v=19"></script>
+  <script src="js/misiones/misiones.js?v=19"></script>
+  <script src="js/cofres/cofres.js?v=19"></script>
+  <script src="js/correo/correo.js?v=19"></script>
+  <script src="js/admin/admin.js?v=19"></script>
+  <script src="js/opciones/opciones.js?v=19"></script>
+  <script src="js/principal.js?v=19"></script>
   <script>
     // Registrar la app instalable (PWA)
     if ('serviceWorker' in navigator) {
       const yaTeniaVersion = !!navigator.serviceWorker.controller;
-      navigator.serviceWorker.register('sw.js?v=18', { updateViaCache: 'none' })
+      navigator.serviceWorker.register('sw.js?v=19', { updateViaCache: 'none' })
         .then(function (reg) { reg.update(); })
         .catch(function () {});
       // Cuando llega una versión nueva del juego: avisar y recargar solo

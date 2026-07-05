@@ -197,6 +197,7 @@ const Misiones = {
   },
 
   abandonar(m) {
+    if (!confirm('¿Abandonar la misión "' + m.titulo + '"?\n\nPerderás todo el progreso de esta misión.')) return;
     this._poner(m.id, { estado: 'disponible', progreso: 0 });
     document.getElementById('ventana-misiones').classList.add('oculto');
     Notificaciones.mostrar('✖ Misión abandonada: ' + m.titulo, 'alerta');
@@ -221,6 +222,7 @@ const Misiones = {
     Notificaciones.mostrar('🎉 Recompensa recolectada: ' + m.titulo, 'exito', 5000);
     if (m.dinero) await Dinero.ganar(m.dinero, 'Misión: ' + m.titulo);
     for (const it of (m.items || [])) Mochila.agregar(it.id, it.cantidad);
+    Vida.ganarXp(25 + (m.dinero || 0), 'Misión completada');
     this.pintarLetrero();
     this.actualizarLineas();
   },
@@ -241,13 +243,37 @@ const Misiones = {
       else if (m.requiere.length) estadoTxt = m.requiere.map(r =>
         Items.seguro(r.id).nombre + ' ' + Mochila.contar(r.id) + '/' + r.cantidad).join(', ');
       const fila = document.createElement('div');
-      fila.className = 'mision-letrero';
+      fila.className = 'mision-letrero' + (this.puedeRecolectar(m) ? ' lista' : '');
       fila.innerHTML =
         '<span class="punto-color" style="background:' + this.COLORES[i % 3] + '"></span>' +
-        '<div class="datos-letrero"><div class="titulo-letrero">' + m.titulo + '</div>' +
+        '<div class="datos-letrero"><div class="titulo-letrero">' + m.titulo +
+        (this.puedeRecolectar(m) ? ' ➜' : '') + '</div>' +
         (estadoTxt ? '<div class="estado-letrero">' + estadoTxt + '</div>' : '') + '</div>';
+      fila.addEventListener('click', () => this._popupLetrero(m));
       cont.appendChild(fila);
     });
+  },
+
+  _popupLetrero(m) {
+    const e = this._estado(m.id);
+    let requisitos = '';
+    if (m.tipo === 'contar') requisitos = 'Hacer: ' + e.progreso + ' / ' + m.meta;
+    else if (m.requiere.length) {
+      requisitos = 'Necesitas: ' + m.requiere.map(r =>
+        Items.seguro(r.id).nombre + ' ' + Mochila.contar(r.id) + '/' + r.cantidad).join(', ');
+    } else if (m.texto) requisitos = m.texto;
+    else if (m.tipo === 'visitar') requisitos = 'Ve al icono ❗ de la misión';
+    const premio = '$' + (m.dinero || 0) +
+      (m.items || []).map(it => ' + ' + Items.seguro(it.id).icono + ' x' + it.cantidad).join('');
+    const msg = '📜 ' + m.titulo + '\n\n' + requisitos + '\n\n🎁 Recompensa: ' + premio;
+    if (this.puedeRecolectar(m)) {
+      if (confirm(msg + '\n\n¿Ir a recolectar? (toca el icono ❗ en el mapa)')) {
+        document.getElementById('ventana-misiones').classList.add('oculto');
+        this.abrirMision(m);
+      }
+      return;
+    }
+    if (confirm(msg + '\n\n¿Abandonar esta misión?\nSe pierde el progreso.')) this.abandonar(m);
   },
 
   // ---------- LÍNEAS GUÍA EN EL MAPA ----------

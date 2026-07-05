@@ -69,15 +69,15 @@
       document.getElementById('bloqueo-icono').textContent = '🚧';
       document.getElementById('bloqueo-titulo').textContent = 'Juego en mantenimiento';
       document.getElementById('bloqueo-mensaje').textContent = bloqueo.mensaje;
-      if (Admin.datos && Admin.datos.pinHash && Usuarios.esAdministrador()) {
+      if (Admin.datos && Usuarios.esAdministrador() && Usuarios.perfilActivo.pinHash) {
         const boton = document.getElementById('btn-bloqueo-admin');
         boton.classList.remove('oculto');
         boton.addEventListener('click', async () => {
-          const pin = prompt('PIN de administrador:');
+          const pin = prompt('Contraseña de administrador (4 números):');
           if (pin === null) return;
-          const hash = await Utilidades.sha256('pin-admin|' + pin.trim());
-          if (hash === Admin.datos.pinHash) pantalla.classList.add('oculto');
-          else alert('PIN incorrecto');
+          const hash = await Utilidades.sha256('pin-perfil|' + pin.trim());
+          if (hash === Usuarios.perfilActivo.pinHash) pantalla.classList.add('oculto');
+          else alert('Contraseña incorrecta');
         });
       }
     }
@@ -96,6 +96,7 @@
     Tesoros.iniciar();
     Misiones.iniciar();
     Correo.iniciar();
+    Cofres.iniciar();
     await pasoSeguro('admin', () => { Admin.iniciar(); });
     await pasoSeguro('opciones', () => { Opciones.iniciar(); });
 
