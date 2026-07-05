@@ -40,8 +40,8 @@
       "telefono": "7709908375",
       "creado": 1783263656375,
       "pinHash": "4bdc96ffc0926b62d55708e3c1755ca3f04b8c28bec6fd85777117da67497f11",
-      "sesionToken": "mr7x4zi03qc2bwc2bn",
-      "sesionT": 1783263656376
+      "sesionToken": "mr7xb25v3lff31ifow",
+      "sesionT": 1783263939763
     }
   ],
   "cofres": [],
@@ -88,7 +88,7 @@
           "control": "68e382a3687042dcd0420432d9bf210eada6d12606b6ecd367d18c724c2f4b38"
         },
         "vida": 100,
-        "hambre": 48,
+        "hambre": 38,
         "xp": 0,
         "nivel": 1,
         "posicionJugador": null,
@@ -113,7 +113,7 @@
         "historialObjetos": [],
         "mensajesVistos": []
       },
-      "t": 1783263918251
+      "t": 1783265265432
     }
   }
 }
