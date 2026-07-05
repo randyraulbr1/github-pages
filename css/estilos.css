@@ -404,11 +404,30 @@ button { font-family: inherit; }
 #btn-crear-perfil:active { opacity: .8; }
 
 /* ============ PANEL DE ADMINISTRADOR ============ */
+#ventana-admin.ventana {
+  align-items: stretch;
+  justify-content: center;
+  padding: env(safe-area-inset-top) 0 env(safe-area-inset-bottom);
+}
 #ventana-admin .ventana-admin-caja {
-  max-width: min(96vw, 820px);
-  max-height: 88vh;
+  max-width: min(98vw, 1400px);
+  width: 100%;
+  max-height: 96vh;
+  height: min(96vh, 940px);
   display: flex;
   flex-direction: column;
+  border-radius: 18px;
+  margin: auto;
+}
+@media (min-width: 900px) {
+  #ventana-admin.ventana {
+    align-items: center;
+    padding: 12px;
+  }
+  #ventana-admin .ventana-admin-caja {
+    border-radius: 22px;
+    box-shadow: 0 24px 80px rgba(0,0,0,.55);
+  }
 }
 .admin-layout {
   display: flex;
@@ -417,24 +436,24 @@ button { font-family: inherit; }
   overflow: hidden;
 }
 #lista-admin {
-  width: 38%;
-  min-width: 132px;
-  max-width: 210px;
-  padding: 8px 6px 12px;
+  width: clamp(148px, 22vw, 260px);
+  min-width: 148px;
+  max-width: 260px;
+  padding: 10px 8px 14px;
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 5px;
   overflow-y: auto;
   border-right: 1px solid rgba(255,255,255,.08);
   flex-shrink: 0;
 }
 #lista-admin .fila-opcion {
-  padding: 10px 10px;
-  font-size: 13px;
+  padding: 11px 12px;
+  font-size: clamp(12px, 1.4vw, 14px);
   border-radius: 12px;
 }
 #lista-admin .admin-seccion-titulo {
-  padding: 10px 8px 4px;
+  padding: 12px 10px 5px;
   font-size: 10px;
 }
 .admin-panel-derecho {
@@ -637,15 +656,37 @@ body.sesion-cerrada .ventana { display: none !important; }
 .admin-editor-oro label { font-size: 13px; white-space: nowrap; }
 .admin-editor-oro input { flex: 1; padding: 8px 10px; border-radius: 8px; border: 1px solid rgba(255,255,255,.15); background: rgba(0,0,0,.25); color: #fff; }
 .admin-editor-seccion { padding: 8px 14px 4px; font-size: 12px; color: #9aa5bd; }
+.admin-jugadores-toolbar {
+  padding: 10px 12px 0;
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.admin-btn-toolbar {
+  flex: 1;
+  min-width: 140px;
+  padding: 12px 14px !important;
+  font-size: 14px !important;
+}
 .admin-rejilla-inventario {
-  display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; padding: 8px 14px;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(52px, 1fr));
+  gap: clamp(6px, 1vw, 12px);
+  padding: 10px 14px;
 }
 .admin-rejilla-catalogo {
-  display: grid; grid-template-columns: repeat(6, 1fr); gap: 5px; padding: 8px 14px 14px;
-  max-height: 180px; overflow-y: auto;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(48px, 1fr));
+  gap: clamp(5px, 0.8vw, 10px);
+  padding: 8px 14px 14px;
+  max-height: 220px;
+  overflow-y: auto;
 }
-.admin-slot-jugador, .admin-slot-catalogo {
-  min-height: 42px; font-size: 22px; cursor: grab; touch-action: none;
+.admin-slot-jugador, .admin-slot-catalogo, .admin-slot-infinito {
+  min-height: clamp(44px, 6vw, 58px);
+  font-size: clamp(20px, 2.5vw, 28px);
+  cursor: grab;
+  touch-action: none;
 }
 .admin-slot-jugador.destino { border-color: #3d8bfd; background: rgba(61,139,253,.22); }
 .admin-ban-botones { display: flex; flex-wrap: wrap; gap: 8px; padding: 14px; }
@@ -690,6 +731,7 @@ body.sesion-cerrada .ventana { display: none !important; }
 .admin-editor-stats { display: flex; gap: 10px; padding: 10px 14px 0; }
 .admin-editor-stats .admin-editor-oro { flex: 1; padding: 0; }
 .admin-editor-guardar { margin: 10px 14px 14px; }
+#btn-admin-crear-jugador-guardar { margin: 4px 14px 16px; }
 #admin-buscar-jugador {
   margin: 10px 12px 6px;
   width: calc(100% - 24px);
@@ -741,10 +783,10 @@ body.sesion-cerrada .ventana { display: none !important; }
 .admin-ban-campo { padding: 12px 14px 0; }
 .admin-rejilla-infinito {
   display: grid;
-  grid-template-columns: repeat(5, 1fr);
-  gap: 8px;
+  grid-template-columns: repeat(auto-fill, minmax(52px, 1fr));
+  gap: clamp(6px, 1vw, 12px);
   padding: 8px 14px 14px;
-  max-height: 220px;
+  max-height: min(280px, 35vh);
   overflow-y: auto;
 }
 .admin-slot-infinito { cursor: grab; }

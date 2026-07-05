@@ -91,6 +91,7 @@
     if (typeof L === 'undefined') throw new Error('No se cargó el mapa (Leaflet)');
     Mapa.iniciar();
     GPS.iniciar();
+    Mapa.restaurarVista();
     Tiendas.iniciar();
     Pesca.iniciar();
     Tesoros.iniciar();

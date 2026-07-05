@@ -91,7 +91,12 @@ const Guardado = {
   _aplicarSnapshot(snap) {
     if (!snap) return;
     for (const k of this._camposNube()) {
-      if (snap[k] !== undefined && snap[k] !== null) {
+      if (snap[k] === undefined) continue;
+      // No pisar posición local con null de la nube (evita volver al centro del mapa)
+      if (k === 'posicionJugador') {
+        if (!snap[k] || !Array.isArray(snap[k]) || snap[k].length < 2) continue;
+      }
+      if (snap[k] !== null) {
         this.datos[k] = JSON.parse(JSON.stringify(snap[k]));
       }
     }

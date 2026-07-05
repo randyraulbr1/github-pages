@@ -70,6 +70,15 @@ const Admin = {
     if (!this.publicado.posiciones) this.publicado.posiciones = {};
     if (!Array.isArray(this.publicado.eliminados)) this.publicado.eliminados = [];
 
+    // Conservar posiciones del mundo publicado si el borrador local no las tiene
+    if (this.publicado.posiciones) {
+      for (const [id, pos] of Object.entries(this.publicado.posiciones)) {
+        if (!this.datos.posiciones[id] && Array.isArray(pos) && pos.length >= 2) {
+          this.datos.posiciones[id] = [pos[0], pos[1]];
+        }
+      }
+    }
+
     // Aplicar al catálogo los objetos nuevos y precios globales
     const nuevosPorId = new Map();
     for (const it of this.publicado.itemsNuevos) nuevosPorId.set(it.id, it);
@@ -79,6 +88,20 @@ const Admin = {
 
     // Todos los jugadores vigilan el mundo desde que arranca el juego
     this.iniciarVigilancia();
+
+    // Admin: si hay borradores locales no publicados, subirlos en segundo plano
+    if (typeof Usuarios !== 'undefined' && Usuarios.esAdministrador() && MundoPublico.puedePublicar()) {
+      const localN = (this.datos.objetos || []).length + (this.datos.tesoros || []).length +
+        (this.datos.misiones || []).length;
+      const pubN = (this.publicado.objetos || []).length + (this.publicado.tesoros || []).length +
+        (this.publicado.misiones || []).length;
+      const posLocal = Object.keys(this.datos.posiciones || {}).length;
+      const posPub = Object.keys(this.publicado.posiciones || {}).length;
+      if (localN > pubN || posLocal > posPub) {
+        setTimeout(() => this._publicarParaTodos(true), 3500);
+      }
+    }
+    this._mundoCargado = true;
   },
 
   // ---------- VISTA COMBINADA: publicado en GitHub + borradores locales ----------
@@ -120,6 +143,7 @@ const Admin = {
   // solo al archivo global (con una espera corta para agrupar cambios).
   // Los jugadores lo reciben al momento por la vigilancia del mundo.
   _autoPublicar() {
+    if (!this._mundoCargado) return;
     if (!MundoPublico.puedePublicar()) {
       if (this.esAdminJugador() && !this._avisoSinToken) {
         this._avisoSinToken = true;
@@ -136,6 +160,7 @@ const Admin = {
 
   // Sube el mapa a GitHub para que TODOS los jugadores lo vean
   async _publicarParaTodos(silencioso) {
+    if (!this._mundoCargado) return false;
     if (!MundoPublico.puedePublicar()) {
       if (!silencioso) {
         Notificaciones.mostrar(
@@ -335,6 +360,18 @@ const Admin = {
     enlazar('admin-mensaje', () => this.abrirMensaje());
     enlazar('admin-organizar', () => this.entrarModo('organizar'));
     enlazar('admin-jugadores', () => this._listarCuentasAsync());
+    enlazar('admin-crear-jugador', () => this._abrirCrearJugador());
+    enlazar('btn-admin-crear-jugador-guardar', () => this._guardarCrearJugador());
+    const chkInv = document.getElementById('admin-nuevo-inventario-default');
+    if (chkInv) {
+      chkInv.addEventListener('change', () => {
+        if (!this._editorJugador?._creando) return;
+        if (chkInv.checked) {
+          this._editorJugador.partida = this._partidaNuevaCompleta();
+          this._pintarCrearJugador();
+        }
+      });
+    }
     enlazar('admin-cofres-ocultos', () => this.abrirCofresOcultos());
     enlazar('admin-publicar', () => this.publicarMundo(false));
     enlazar('admin-clave-publicar', () => this.abrirConfiguracionClave());
@@ -534,6 +571,7 @@ const Admin = {
   },
 
   _volverAlPanel() {
+    if (this._editorJugador?._creando) this._editorJugador = null;
     this._ocultarPanelDerecho();
     document.getElementById('btn-admin-guardar').style.display = '';
     document.getElementById('ventana-admin').classList.remove('oculto');
@@ -1300,6 +1338,127 @@ const Admin = {
     };
   },
 
+  _partidaNuevaCompleta() {
+    const mochila = new Array(25).fill(null);
+    mochila[0] = { id: 'agua', cantidad: 2 };
+    mochila[1] = { id: 'pan', cantidad: 1 };
+    return {
+      mochila,
+      dinero: { saldo: CONFIG.dineroInicial },
+      vida: CONFIG.vidaMaxima,
+      hambre: CONFIG.hambreInicial,
+      muerto: false
+    };
+  },
+
+  _abrirCrearJugador() {
+    this._editorJugador = {
+      perfil: { id: '__nuevo__', nombre: '', telefono: '' },
+      partida: this._partidaNuevaCompleta(),
+      _arrastre: null,
+      _creando: true
+    };
+    const nom = document.getElementById('admin-nuevo-nombre');
+    const tel = document.getElementById('admin-nuevo-telefono');
+    const c1 = document.getElementById('admin-nuevo-clave');
+    const c2 = document.getElementById('admin-nuevo-clave2');
+    const chk = document.getElementById('admin-nuevo-inventario-default');
+    if (nom) nom.value = '';
+    if (tel) tel.value = '';
+    if (c1) c1.value = '';
+    if (c2) c2.value = '';
+    if (chk) chk.checked = true;
+    this._pintarCrearJugador();
+    this._mostrarPanelDerecho('admin-vista-crear-jugador', '➕ Crear jugador');
+  },
+
+  _pintarCrearJugador() {
+    const ed = this._editorJugador;
+    if (!ed || !ed._creando) return;
+    const rejJug = document.getElementById('admin-nuevo-rejilla');
+    const rejInf = document.getElementById('admin-nuevo-infinito');
+    if (!rejJug) return;
+    rejJug.innerHTML = '';
+    ed.partida.mochila.forEach((sl, i) => {
+      const cel = document.createElement('div');
+      cel.className = 'slot admin-slot-jugador';
+      cel.dataset.indice = i;
+      if (sl) {
+        const item = Items.seguro(sl.id);
+        cel.textContent = item.icono;
+        const cant = document.createElement('span');
+        cant.className = 'cantidad';
+        cant.textContent = sl.cantidad;
+        cel.appendChild(cant);
+        cel.title = item.nombre + ' x' + sl.cantidad;
+      }
+      cel.addEventListener('pointerdown', ev => this._editorArrastre(ev, 'jugador', i));
+      rejJug.appendChild(cel);
+    });
+    this._pintarInventarioInfinito(rejInf);
+  },
+
+  async _guardarCrearJugador() {
+    const ed = this._editorJugador;
+    if (!ed || !ed._creando) return;
+    const nombre = (document.getElementById('admin-nuevo-nombre').value || '').trim();
+    const telefono = (document.getElementById('admin-nuevo-telefono').value || '').trim().replace(/[\s-]/g, '');
+    const clave = document.getElementById('admin-nuevo-clave').value || '';
+    const clave2 = document.getElementById('admin-nuevo-clave2').value || '';
+    const usarDefault = document.getElementById('admin-nuevo-inventario-default').checked;
+
+    if (nombre.length < 2) { alert('Ponle un nombre al jugador'); return; }
+    if (clave.length < 4) { alert('La contraseña debe tener al menos 4 caracteres'); return; }
+    if (clave !== clave2) { alert('Las contraseñas no coinciden'); return; }
+    if (telefono && typeof Usuarios !== 'undefined' && !Usuarios.telefonoValido(telefono)) {
+      alert('Número de teléfono inválido');
+      return;
+    }
+
+    await this.actualizarJugadoresGlobales();
+    const err = this.validarRegistro(nombre, telefono, null);
+    if (err) { alert(err); return; }
+
+    if (usarDefault && !ed.partida.mochila.some(s => s)) {
+      ed.partida = this._partidaNuevaCompleta();
+    }
+
+    const perfil = {
+      id: 'p' + Date.now().toString(36) + Math.random().toString(36).slice(2, 7),
+      nombre,
+      telefono,
+      pinHash: await Utilidades.sha256('pin-perfil|' + clave),
+      creado: Date.now()
+    };
+
+    const partida = {
+      mochila: ed.partida.mochila,
+      dinero: ed.partida.dinero || { saldo: CONFIG.dineroInicial },
+      vida: ed.partida.vida ?? CONFIG.vidaMaxima,
+      hambre: CONFIG.hambreInicial,
+      muerto: false
+    };
+    partida.dinero.control = await Utilidades.sha256(Guardado.SAL + '|saldo|' + partida.dinero.saldo);
+
+    this.registrarJugador(perfil, true);
+    if (!this.datos.partidasExtra) this.datos.partidasExtra = {};
+    const snap = { datos: partida, t: Date.now() };
+    this.datos.partidasExtra[perfil.id] = snap;
+    this.guardar();
+
+    const ok = await MundoPublico.registrarJugadorEnMundo(perfil, {
+      pinHash: perfil.pinHash,
+      partida: snap
+    });
+    await this._publicarParaTodos(true);
+
+    this._editorJugador = null;
+    Notificaciones.mostrar(
+      (ok ? '✅' : '⚠️') + ' Cuenta de ' + nombre + ' creada. Inicia sesión con nombre y contraseña.',
+      ok ? 'exito' : 'alerta', 9000);
+    this._listarCuentasAsync();
+  },
+
   async _obtenerPartidaJugador(perfil) {
     if (perfil.id === Usuarios.perfilActivo?.id) {
       return JSON.parse(JSON.stringify({
@@ -1560,7 +1719,8 @@ const Admin = {
     const slotEl = bajo?.closest?.('.admin-slot-jugador');
     if (!slotEl) {
       if (a.origen === 'jugador' && a.movio) ed.partida.mochila[a.ref] = null;
-      this._pintarEditorJugador();
+      if (ed._creando) this._pintarCrearJugador();
+      else this._pintarEditorJugador();
       return;
     }
     const dest = parseInt(slotEl.dataset.indice, 10);
@@ -1576,7 +1736,8 @@ const Admin = {
       if (origen === dest) return;
       this._moverSlotAdmin(ed.partida.mochila, origen, dest);
     }
-    this._pintarEditorJugador();
+    if (ed._creando) this._pintarCrearJugador();
+    else this._pintarEditorJugador();
   },
 
   async _guardarEditorJugador() {
@@ -1802,6 +1963,7 @@ const Admin = {
   },
 
   async publicarMundo(silencioso) {
+    if (!this._mundoCargado) return;
     const json = this._jsonMundo();
     if (json === this._ultimoPublicado) return;
     if (!silencioso) Notificaciones.mostrar('🌍 Publicando el mundo…', 'info');

@@ -7,6 +7,12 @@
 const Mapa = {
   mapa: null,
   puntosInteractivos: [], // { id, posicion, radio, marcador, alTocar, alCambiarDistancia }
+  CLAVE_VISTA: 'mariel_vista_mapa_v1',
+
+  _claveVista() {
+    const id = (typeof Usuarios !== 'undefined' && Usuarios.perfilActivo?.id) || 'global';
+    return this.CLAVE_VISTA + '::' + id;
+  },
 
   iniciar() {
     this.mapa = L.map('mapa', {
@@ -34,6 +40,47 @@ const Mapa = {
     L.polygon([mundo, zona], {
       color: '#22293d', weight: 3, fillColor: '#141926', fillOpacity: 1, interactive: false
     }).addTo(this.mapa);
+
+    this.mapa.on('moveend zoomend', () => this._guardarVista());
+    window.addEventListener('pagehide', () => this._guardarVista());
+  },
+
+  _guardarVista() {
+    if (!this.mapa) return;
+    try {
+      const c = this.mapa.getCenter();
+      const z = this.mapa.getZoom();
+      const payload = JSON.stringify({
+        lat: +c.lat.toFixed(6),
+        lng: +c.lng.toFixed(6),
+        zoom: z
+      });
+      localStorage.setItem(this._claveVista(), payload);
+      localStorage.setItem(this.CLAVE_VISTA, payload);
+    } catch (e) { /* almacenamiento lleno */ }
+  },
+
+  _leerVistaGuardada() {
+    for (const clave of [this._claveVista(), this.CLAVE_VISTA]) {
+      try {
+        const raw = localStorage.getItem(clave);
+        if (!raw) continue;
+        const v = JSON.parse(raw);
+        if (v && typeof v.lat === 'number' && typeof v.lng === 'number' && v.zoom) return v;
+      } catch (e) { /* ignorar */ }
+    }
+    return null;
+  },
+
+  restaurarVista() {
+    if (!this.mapa) return;
+    const v = this._leerVistaGuardada();
+    if (v) {
+      this.mapa.setView([v.lat, v.lng], v.zoom, { animate: false });
+      return;
+    }
+    const pos = (typeof GPS !== 'undefined' && GPS.posicion) ? GPS.posicion : CONFIG.centro;
+    this.mapa.setView(pos, CONFIG.zoomInicial, { animate: false });
   },
 
   // Crea un marcador con un emoji

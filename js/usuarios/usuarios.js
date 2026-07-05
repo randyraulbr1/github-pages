@@ -141,9 +141,7 @@ const Usuarios = {
       sesionT: perfil.sesionT
     }).catch(() => {});
     this._registrarEnAdminLocal(perfil);
-    if (typeof Admin !== 'undefined' && Admin.esAdminJugador()) {
-      Admin._publicarParaTodos().catch(() => {});
-    }
+    // No publicar el mundo aquí: Admin.cargar() aún no terminó y se podría pisar mundo.json
   },
 
   async iniciarSesion() {
