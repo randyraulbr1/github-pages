@@ -123,7 +123,7 @@ const MundoPublico = {
     const token = this._tokenGitHub();
     if (!token) return false;
 
-    for (let intento = 0; intento < 4; intento++) {
+    for (let intento = 0; intento < 8; intento++) {
       let mundo = {
         misiones: [], tesoros: [], objetos: [], posiciones: {}, eliminados: [],
         precios: {}, itemsNuevos: [], mantenimiento: { activo: false, mensaje: '' },
@@ -165,14 +165,16 @@ const MundoPublico = {
         });
         if (r.ok) {
           if (mundo._syncToken) this._tokenDesdeMundo = mundo._syncToken;
+          if (mundo.claveSyncNube) this._tokenDesdeMundo = mundo.claveSyncNube;
           if (typeof Admin !== 'undefined') {
             Admin._crudoPublicado = json;
+            Admin._ultimoPublicado = json;
             try { Admin.publicado = Object.assign(Admin.publicado || {}, JSON.parse(json)); } catch (e) {}
           }
           return true;
         }
         if (r.status === 409) {
-          await new Promise(res => setTimeout(res, 400 + intento * 300));
+          await new Promise(res => setTimeout(res, 500 + intento * 400));
           continue;
         }
       } catch (e) {}

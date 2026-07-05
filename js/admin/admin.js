@@ -1524,6 +1524,48 @@ const Admin = {
     this.abrirConfiguracionClave();
   },
 
+  // Fusiona el mundo del admin con el remoto (evita pisar jugadores/partidas más nuevas)
+  _aplicarAdminEnMundo(remoto, admin) {
+    remoto.misiones = admin.misiones || [];
+    remoto.tesoros = admin.tesoros || [];
+    remoto.objetos = admin.objetos || [];
+    remoto.posiciones = admin.posiciones || {};
+    remoto.eliminados = admin.eliminados || [];
+    remoto.precios = admin.precios || {};
+    remoto.itemsNuevos = admin.itemsNuevos || [];
+    remoto.mantenimiento = admin.mantenimiento || { activo: false, mensaje: '' };
+    remoto.baneados = admin.baneados || [];
+    remoto.mensajes = admin.mensajes || [];
+    remoto.cofres = admin.cofres || [];
+    remoto.correoReclamados = admin.correoReclamados || [];
+    remoto.correoTienda = admin.correoTienda || [];
+    if (admin.claveSyncNube) remoto.claveSyncNube = admin.claveSyncNube;
+
+    const porJugador = new Map();
+    for (const j of (remoto.jugadores || [])) {
+      if (j && j.id) porJugador.set(j.id, Object.assign({}, j));
+    }
+    for (const j of (admin.jugadores || [])) {
+      if (!j || !j.id) continue;
+      const prev = porJugador.get(j.id) || {};
+      const sesionRemota = (prev.sesionT || 0) >= (j.sesionT || 0);
+      porJugador.set(j.id, Object.assign({}, j, prev, {
+        pinHash: j.pinHash || prev.pinHash,
+        nombre: j.nombre || prev.nombre,
+        telefono: j.telefono || prev.telefono,
+        sesionToken: sesionRemota ? prev.sesionToken : j.sesionToken,
+        sesionT: Math.max(prev.sesionT || 0, j.sesionT || 0)
+      }));
+    }
+    remoto.jugadores = [...porJugador.values()];
+
+    if (!remoto.partidas) remoto.partidas = {};
+    for (const [id, p] of Object.entries(admin.partidas || {})) {
+      const actual = remoto.partidas[id];
+      if (!actual || !actual.t || (p.t || 0) >= actual.t) remoto.partidas[id] = p;
+    }
+  },
+
   async publicarMundo(silencioso) {
     const json = this._jsonMundo();
     if (json === this._ultimoPublicado) return;
@@ -1557,42 +1599,34 @@ const Admin = {
       }
       return;
     }
-    const url = 'https://api.github.com/repos/' + CONFIG.repoPublicacion + '/contents/datos/mundo.json';
-    const cabeceras = {
-      'Authorization': 'Bearer ' + token,
-      'Accept': 'application/vnd.github+json'
-    };
-    let sha = null;
-    try {
-      const r = await fetch(url + '?ref=' + CONFIG.ramaPublicacion, { headers: cabeceras });
-      if (r.ok) sha = (await r.json()).sha;
-    } catch (e) {}
-    const cuerpo = {
-      message: silencioso ? 'Actualización automática desde el juego' : 'Publicar mundo desde el juego (admin)',
-      content: btoa(unescape(encodeURIComponent(json))),
-      branch: CONFIG.ramaPublicacion
-    };
-    if (sha) cuerpo.sha = sha;
-    try {
-      const r = await fetch(url, { method: 'PUT', headers: cabeceras, body: JSON.stringify(cuerpo) });
-      if (r.ok) {
-        this._ultimoPublicado = json;
-        this._crudoPublicado = json;
-        this._aplicarMundoRemoto(json);
-        if (silencioso) {
-          Notificaciones.mostrar('☁️ Mundo actualizado para todos', 'exito', 2500);
-        } else {
-          Notificaciones.mostrar('🌍 ¡MUNDO PUBLICADO! Todos lo ven en ~1 min', 'exito', 8000);
-        }
-      } else if (r.status === 401 || r.status === 403) {
-        if (!silencioso) {
-          Notificaciones.mostrar('❌ La clave no tiene permiso: revisa el token en GitHub', 'error', 7000);
-        }
-      } else if (!silencioso) {
-        Notificaciones.mostrar('❌ GitHub respondió error ' + r.status + ': intenta de nuevo', 'error', 7000);
+
+    let adminLocal;
+    try { adminLocal = JSON.parse(json); } catch (e) { return; }
+
+    const mensaje = silencioso
+      ? 'Actualización automática desde el juego'
+      : 'Publicar mundo desde el juego (admin)';
+
+    const ok = await MundoPublico.actualizarMundo(
+      remoto => this._aplicarAdminEnMundo(remoto, adminLocal),
+      mensaje
+    );
+
+    if (ok) {
+      this._ultimoPublicado = this._crudoPublicado;
+      if (silencioso) {
+        Notificaciones.mostrar('☁️ Mundo actualizado para todos', 'exito', 2500);
+      } else {
+        Notificaciones.mostrar('🌍 ¡MUNDO PUBLICADO! Todos lo ven en ~1 min', 'exito', 8000);
       }
-    } catch (e) {
-      if (!silencioso) Notificaciones.mostrar('❌ Sin conexión con GitHub: intenta más tarde', 'error', 6000);
+    } else if (!silencioso) {
+      Notificaciones.mostrar(
+        '❌ GitHub ocupado (conflicto 409). Espera 5 s y pulsa Forzar sincronización',
+        'error', 8000
+      );
+    } else {
+      clearTimeout(this._tempReintento409);
+      this._tempReintento409 = setTimeout(() => this.publicarMundo(true), 5000);
     }
   },
 
