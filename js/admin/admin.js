@@ -37,6 +37,7 @@ const Admin = {
     if (!this.datos.objetos) this.datos.objetos = [];
     if (!this.datos.posiciones) this.datos.posiciones = {};
     if (!this.datos.eliminados) this.datos.eliminados = [];
+    if (!this.datos.partidasExtra) this.datos.partidasExtra = {};
     if (this.datos.mantenimiento === undefined) this.datos.mantenimiento = null;
 
     // El mundo oficial vive en GitHub: al actualizar datos/mundo.json,
