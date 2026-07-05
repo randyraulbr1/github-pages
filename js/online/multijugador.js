@@ -87,15 +87,16 @@ const Multijugador = {
 
     this.socket.on('disconnect', () => {
       this.activo = false;
-      if (typeof MundoOnline !== 'undefined') MundoOnline.detener();
     });
 
     this.socket.on('game:init', (data) => {
       if (typeof Amigos !== 'undefined') Amigos.aplicarSocial(data.social);
-      if (typeof MundoOnline !== 'undefined') {
-        MundoOnline.iniciar(data.worldObjects || []);
+      if (data.mundoSnapshot && typeof Admin !== 'undefined') {
+        const localTs = Admin.publicado?.actualizadoEn || 0;
+        if ((data.mundoActualizadoEn || 0) >= localTs) {
+          Admin._aplicarMundoRemoto(JSON.stringify(data.mundoSnapshot));
+        }
       }
-      if (typeof Enemigos !== 'undefined') Enemigos._recargar();
       this.online = (data.onlinePlayers || []).filter(p => this._visible(p.playerId));
       this._redibujar(false);
       this.enviarStats(true);
@@ -139,11 +140,20 @@ const Multijugador = {
     });
 
     this.socket.on('world:updateObject', (obj) => {
-      if (typeof MundoOnline !== 'undefined') MundoOnline.actualizar(obj);
+      if (obj.type === 'enemy' && obj.data?.origenId && typeof Enemigos !== 'undefined') {
+        Enemigos.actualizarDesdeServidor(obj.data.origenId, obj.x, obj.y, obj.data);
+      }
     });
 
-    this.socket.on('world:removeObject', (data) => {
-      if (typeof MundoOnline !== 'undefined') MundoOnline.quitar(data.id);
+    this.socket.on('world:removeObject', () => { /* el mundo completo llega por mundo:sync */ });
+
+    this.socket.on('mundo:sync', (data) => {
+      if (!data?.mundo || typeof Admin === 'undefined') return;
+      Admin._aplicarMundoRemoto(JSON.stringify(data.mundo));
+      if (typeof Usuarios !== 'undefined' && !Usuarios.esAdministrador() &&
+          typeof Notificaciones !== 'undefined') {
+        Notificaciones.mostrar('🌍 El admin actualizó el mapa', 'info', 4000);
+      }
     });
 
     this.socket.on('enemy:attack', (data) => {

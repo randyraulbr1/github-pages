@@ -92,6 +92,12 @@ function initDb() {
       FOREIGN KEY (blocker_id) REFERENCES players(id) ON DELETE CASCADE,
       FOREIGN KEY (blocked_id) REFERENCES players(id) ON DELETE CASCADE
     );
+
+    CREATE TABLE IF NOT EXISTS world_snapshot (
+      id INTEGER PRIMARY KEY CHECK (id = 1),
+      json TEXT NOT NULL,
+      updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
   `);
 
   // Solo si la BD está vacía: semilla mínima; importMundo trae datos reales de mundo.json
@@ -530,6 +536,20 @@ function formatMission(row) {
   };
 }
 
+function saveWorldSnapshot(mundo) {
+  const json = typeof mundo === 'string' ? mundo : JSON.stringify(mundo);
+  db.prepare(`
+    INSERT INTO world_snapshot (id, json, updated_at) VALUES (1, ?, datetime('now'))
+    ON CONFLICT(id) DO UPDATE SET json = excluded.json, updated_at = excluded.updated_at
+  `).run(json);
+}
+
+function getWorldSnapshot() {
+  const row = db.prepare('SELECT json FROM world_snapshot WHERE id = 1').get();
+  if (!row) return null;
+  try { return JSON.parse(row.json); } catch (e) { return null; }
+}
+
 module.exports = {
   db,
   initDb,
@@ -568,5 +588,7 @@ module.exports = {
   isBlocked,
   formatPlayer,
   formatWorldObject,
-  formatMission
+  formatMission,
+  saveWorldSnapshot,
+  getWorldSnapshot
 };

@@ -69,6 +69,20 @@ function adminMiddleware(req, res, next) {
   next();
 }
 
+const GAME_ADMIN_NAME = (process.env.GAME_ADMIN_NAME || 'randy').toLowerCase();
+
+function gameAdminMiddleware(req, res, next) {
+  if (!req.auth || req.auth.role !== 'player') {
+    return res.status(401).json({ ok: false, error: 'Token de jugador requerido' });
+  }
+  const { findPlayerById } = require('./db');
+  const player = findPlayerById(req.auth.playerId);
+  if (!player || player.name.trim().toLowerCase() !== GAME_ADMIN_NAME) {
+    return res.status(403).json({ ok: false, error: 'Solo el administrador del juego puede publicar el mundo' });
+  }
+  next();
+}
+
 function validateAdminLogin(username, password) {
   return username === ADMIN_USERNAME && password === ADMIN_PASSWORD;
 }
@@ -81,6 +95,7 @@ module.exports = {
   verifyToken,
   authMiddleware,
   adminMiddleware,
+  gameAdminMiddleware,
   validateAdminLogin,
   ADMIN_USERNAME
 };

@@ -14,6 +14,7 @@ const {
   getPlayerMissions,
   getSocialData,
   getBlockedIds,
+  getWorldSnapshot,
   formatPlayer,
   formatWorldObject,
   formatMission
@@ -129,6 +130,7 @@ function setupSockets(io) {
 
     const onlineIds = [...onlinePlayers.keys()];
     const social = getSocialData(socket.playerId, onlineIds);
+    const mundoSnapshot = getWorldSnapshot();
 
     socket.emit('game:init', {
       player: formatted,
@@ -136,7 +138,9 @@ function setupSockets(io) {
       worldObjects: getAllWorldObjects().map(formatWorldObject),
       missions: getActiveMissions().map(formatMission),
       playerMissions: getPlayerMissions(socket.playerId),
-      social
+      social,
+      mundoSnapshot,
+      mundoActualizadoEn: mundoSnapshot?.actualizadoEn || 0
     });
 
     socket.broadcast.emit('player:online', playerSnapshot(onlinePlayers.get(socket.playerId)));

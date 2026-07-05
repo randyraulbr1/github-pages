@@ -104,12 +104,6 @@ const Enemigos = {
   },
 
   _recargar() {
-    if (typeof Multijugador !== 'undefined' && Multijugador.activo &&
-        typeof MundoOnline !== 'undefined' && MundoOnline.enemigosServidorActivos()) {
-      for (const id of Object.keys(this._marcadores)) this._quitarMarcador(id);
-      this.lista = [];
-      return;
-    }
     this.lista = (typeof Admin !== 'undefined' && Admin.enemigosTodos)
       ? Admin.enemigosTodos() : [];
     const ids = new Set(this.lista.map(e => e.id));
@@ -217,6 +211,30 @@ const Enemigos = {
     delete this._ultimoGolpeAuto[id];
   },
 
+  /** Posición/vida sincronizada desde el servidor (enemigo compartido en vivo). */
+  actualizarDesdeServidor(origenId, lat, lng, data) {
+    const e = this.lista.find(x => x.id === origenId);
+    if (!e) return;
+    e.pos = [lat, lng];
+    if (typeof Admin !== 'undefined') {
+      Admin.publicado.posiciones = Admin.publicado.posiciones || {};
+      Admin.publicado.posiciones[origenId] = [lat, lng];
+      if (data?.hp != null) {
+        Admin.publicado.enemigosEstado = Admin.publicado.enemigosEstado || {};
+        Admin.publicado.enemigosEstado[origenId] = Object.assign(
+          Admin.publicado.enemigosEstado[origenId] || {},
+          { vida: data.hp }
+        );
+        e.vida = data.hp;
+      }
+    }
+    const m = this._marcadores[origenId];
+    if (m) {
+      m.setLatLng([lat, lng]);
+      this._actualizarBarra(e);
+    }
+  },
+
   _actualizarMarcador(e) {
     const m = this._marcadores[e.id];
     if (m) {
@@ -309,8 +327,6 @@ const Enemigos = {
   },
 
   _tick() {
-    if (typeof Multijugador !== 'undefined' && Multijugador.activo &&
-        typeof MundoOnline !== 'undefined' && MundoOnline.enemigosServidorActivos()) return;
     if (!GPS.posicion || Vida.estaMuerto()) return;
     for (const e of this.lista) {
       if (!this._marcadores[e.id]) continue;

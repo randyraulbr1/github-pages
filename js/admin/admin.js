@@ -291,14 +291,16 @@ const Admin = {
     }
   },
 
-  // Sube el mapa a GitHub para que TODOS los jugadores lo vean
+  // Sube el mapa para que TODOS los jugadores lo vean (GitHub + servidor en vivo)
   async _publicarParaTodos(silencioso) {
     if (!this._mundoCargado) return false;
     if (!this.esAdminJugador()) return false;
-    if (!MundoPublico.puedePublicar()) {
+    const puedeGitHub = MundoPublico.puedePublicar();
+    const puedeServidor = typeof SyncServidor !== 'undefined' && SyncServidor.puedePublicar();
+    if (!puedeGitHub && !puedeServidor) {
       if (!silencioso) {
         Notificaciones.mostrar(
-          '⚠️ Configura la 🔑 clave de GitHub en Admin (solo una vez en tu teléfono)',
+          '⚠️ Conéctate al juego (login) para publicar en vivo, o configura la 🔑 clave GitHub',
           'alerta', 12000
         );
       }
@@ -3230,59 +3232,64 @@ const Admin = {
     const json = JSON.stringify(adminLocal, (clave, valor) =>
       clave.startsWith('_') ? undefined : valor, 2);
 
+    let okGitHub = false;
+    let okServidor = false;
+
     // Opción A: Firebase (automático, sin token en el teléfono)
     if (CONFIG.firebaseMundoUrl) {
       try {
-        const ok = await MundoPublico.publicar(json);
-        if (ok) {
-          this._sincronizarEstadoTrasPublicar(adminLocal, json);
-          this._aplicarMundoRemoto(json);
-          if (!silencioso) {
-            this._avisoSyncManual('☁️ Mundo publicado en Firebase');
-          }
+        okGitHub = await MundoPublico.publicar(json);
+        if (okGitHub) {
+          if (!silencioso) this._avisoSyncManual('☁️ Mundo publicado en Firebase');
         } else if (!silencioso) {
           Notificaciones.mostrar('❌ No se pudo subir a Firebase. Revisa firebaseMundoUrl', 'error', 7000);
         }
-        return !!ok;
       } catch (e) {
         if (!silencioso) Notificaciones.mostrar('❌ Sin conexión. Intenta con WiFi', 'error', 6000);
-        return false;
       }
-    }
-
-    const token = this._tokenPublicacion();
-    if (!token) {
-      if (!silencioso) {
-        Notificaciones.mostrar('🔑 Configura tu clave en Admin → Clave GitHub (en tu teléfono)', 'alerta', 8000);
-        this.abrirConfiguracionClave();
-      }
-      return false;
-    }
-
-    const mensaje = silencioso
-      ? 'Actualización automática desde el juego'
-      : 'Publicar mundo desde el juego (admin)';
-
-    const ok = await MundoPublico.actualizarMundo(
-      remoto => this._aplicarAdminEnMundo(remoto, adminLocal),
-      mensaje
-    );
-
-    if (ok) {
-      this._sincronizarEstadoTrasPublicar(adminLocal, json);
-      if (!silencioso) {
-        this._avisoSyncManual('🌍 Mundo publicado en GitHub');
-      }
-    } else if (!silencioso) {
-      Notificaciones.mostrar(
-        '❌ No se pudo subir a GitHub. Revisa el token o pulsa Sincronizar',
-        'error', 8000
-      );
     } else {
-      clearTimeout(this._tempReintento409);
-      this._tempReintento409 = setTimeout(() => this._encolarPublicacion(true), 8000);
+      const token = this._tokenPublicacion();
+      if (token) {
+        const mensaje = silencioso
+          ? 'Actualización automática desde el juego'
+          : 'Publicar mundo desde el juego (admin)';
+        okGitHub = await MundoPublico.actualizarMundo(
+          remoto => this._aplicarAdminEnMundo(remoto, adminLocal),
+          mensaje
+        );
+        if (okGitHub && !silencioso) {
+          this._avisoSyncManual('🌍 Mundo publicado en GitHub');
+        } else if (!okGitHub && !silencioso) {
+          Notificaciones.mostrar(
+            '❌ No se pudo subir a GitHub. Revisa el token o pulsa Sincronizar',
+            'error', 8000
+          );
+        } else if (!okGitHub) {
+          clearTimeout(this._tempReintento409);
+          this._tempReintento409 = setTimeout(() => this._encolarPublicacion(true), 8000);
+        }
+      }
     }
-    return !!ok;
+
+    // Servidor en vivo (Render): todos conectados ven el cambio al instante
+    if (typeof SyncServidor !== 'undefined' && SyncServidor.puedePublicar()) {
+      okServidor = await SyncServidor.publicar(json);
+      if (okServidor && !silencioso) {
+        this._avisoSyncManual('📡 Mundo enviado a todos en vivo');
+      }
+    }
+
+    if (okGitHub || okServidor) {
+      this._sincronizarEstadoTrasPublicar(adminLocal, json);
+      this._aplicarMundoRemoto(json);
+      return true;
+    }
+
+    if (!CONFIG.firebaseMundoUrl && !this._tokenPublicacion() && !okServidor && !silencioso) {
+      Notificaciones.mostrar('🔑 Inicia sesión en el juego para publicar en vivo, o configura clave GitHub', 'alerta', 8000);
+      this.abrirConfiguracionClave();
+    }
+    return false;
   },
 
   // ---------- EXPORTAR ----------
