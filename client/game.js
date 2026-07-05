@@ -45,9 +45,14 @@
   async function api(path, opts = {}) {
     const headers = Object.assign({ 'Content-Type': 'application/json' }, opts.headers || {});
     if (token) headers.Authorization = 'Bearer ' + token;
-    const r = await fetch(API + path, Object.assign({}, opts, { headers }));
+    let r;
+    try {
+      r = await fetch(API + path, Object.assign({ mode: 'cors' }, opts, { headers }));
+    } catch (e) {
+      throw new Error('No llega al servidor. Espera 1 min (Render gratis) e intenta de nuevo.');
+    }
     const data = await r.json().catch(() => ({}));
-    if (!r.ok) throw new Error(data.error || 'Error de red');
+    if (!r.ok) throw new Error(data.error || ('Error ' + r.status + ' — revisa usuario/contraseña'));
     return data;
   }
 

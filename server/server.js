@@ -18,11 +18,20 @@ const playerRoutes = require('./routes/playerRoutes');
 const worldRoutes = require('./routes/worldRoutes');
 
 const PORT = process.env.PORT || 3000;
-const CORS_ORIGINS = (process.env.CORS_ORIGINS ||
-  'http://localhost:3000,http://127.0.0.1:3000,https://tcodm.com,https://www.tcodm.com,https://randyraulbr1.github.io')
-  .split(',')
-  .map(s => s.trim())
-  .filter(Boolean);
+const CORS_ORIGINS = (() => {
+  const fijos = [
+    'https://tcodm.com',
+    'https://www.tcodm.com',
+    'http://localhost:3000',
+    'http://127.0.0.1:3000',
+    'https://randyraulbr1.github.io'
+  ];
+  const env = (process.env.CORS_ORIGINS || '')
+    .split(',')
+    .map(s => s.trim())
+    .filter(s => s && s !== 'value' && s.startsWith('http'));
+  return [...new Set([...fijos, ...env])];
+})();
 
 initDb();
 
