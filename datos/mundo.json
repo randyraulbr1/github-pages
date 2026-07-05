@@ -11,6 +11,16 @@
       "itemId": "coco",
       "cantidad": 1,
       "reaparece": 0
+    },
+    {
+      "id": "admx_o_mr770ncj",
+      "pos": [
+        22.992788,
+        -82.759709
+      ],
+      "itemId": "cangrejo",
+      "cantidad": 1,
+      "reaparece": 0
     }
   ],
   "posiciones": {},
