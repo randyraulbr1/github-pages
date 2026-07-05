@@ -126,10 +126,14 @@ const Vida = {
   pintar() {
     const pctVida = (this.actual / CONFIG.vidaMaxima) * 100;
     document.getElementById('vida-relleno').style.width = pctVida + '%';
+    const vt = document.getElementById('vida-texto');
+    if (vt) vt.textContent = this.actual + '/' + CONFIG.vidaMaxima;
 
     const pctHam = (this.hambre / CONFIG.hambreMaxima) * 100;
     const hr = document.getElementById('hambre-relleno');
     if (hr) hr.style.width = pctHam + '%';
+    const ht = document.getElementById('hambre-texto');
+    if (ht) ht.textContent = this.hambre + '/' + CONFIG.hambreMaxima;
 
     const nl = document.getElementById('nivel-texto');
     if (nl) nl.textContent = 'Nv ' + this.nivel;
@@ -140,5 +144,11 @@ const Vida = {
     const pctXp = this.nivel >= CONFIG.nivelMaximo ? 100 : Math.min(100, (enNivel / necesita) * 100);
     const xr = document.getElementById('xp-relleno');
     if (xr) xr.style.width = pctXp + '%';
+    const xt = document.getElementById('xp-texto');
+    if (xt) {
+      xt.textContent = this.nivel >= CONFIG.nivelMaximo
+        ? 'MAX' : Math.floor(enNivel) + '/' + necesita;
+    }
+    if (typeof Opciones !== 'undefined' && Opciones.pintarPerfil) Opciones.pintarPerfil();
   }
 };

@@ -68,5 +68,6 @@ const Dinero = {
 
   pintar() {
     document.getElementById('dinero-cantidad').textContent = this.saldo;
+    if (typeof Opciones !== 'undefined' && Opciones.pintarPerfil) Opciones.pintarPerfil();
   }
 };

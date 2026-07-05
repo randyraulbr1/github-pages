@@ -5,7 +5,14 @@ const Opciones = {
 
   iniciar() {
     document.getElementById('btn-opciones').addEventListener('click', () => this.abrir());
+    const perfilBtn = document.getElementById('perfil-hud');
+    if (perfilBtn) perfilBtn.addEventListener('click', () => this.abrir());
+    const adminHud = document.getElementById('btn-admin-hud');
+    if (adminHud) {
+      adminHud.addEventListener('click', () => Admin.solicitarAcceso());
+    }
     this._refrescarAdmin();
+    this.pintarPerfil();
 
     document.getElementById('opcion-centrar').addEventListener('click', () => {
       Mapa.mapa.setView(GPS.posicion, 17);
@@ -19,11 +26,6 @@ const Opciones = {
       }
     });
 
-    document.getElementById('opcion-admin').addEventListener('click', () => {
-      this.cerrar();
-      Admin.solicitarAcceso();
-    });
-
     document.getElementById('opcion-tarjeta').addEventListener('click', () => this.copiarTarjeta());
 
     document.getElementById('opcion-borrar').addEventListener('click', () => {
@@ -31,10 +33,43 @@ const Opciones = {
         Guardado.borrarPartidaActual();
       }
     });
+
+    const rep = document.getElementById('opcion-reportar');
+    if (rep) rep.addEventListener('click', () => this.reportar());
+  },
+
+  pintarPerfil() {
+    const perfil = Usuarios.perfilActivo;
+    const nom = document.getElementById('perfil-nombre');
+    const det = document.getElementById('perfil-detalle');
+    const idEl = document.getElementById('perfil-id');
+    const av = document.getElementById('perfil-avatar');
+    if (!nom || !perfil) return;
+
+    nom.textContent = perfil.nombre || 'Jugador';
+    if (av) av.textContent = (perfil.nombre || '?').charAt(0).toUpperCase();
+
+    const nivel = (typeof Vida !== 'undefined') ? Vida.nivel : 1;
+    const vida = (typeof Vida !== 'undefined') ? Vida.actual : CONFIG.vidaMaxima;
+    const hambre = (typeof Vida !== 'undefined') ? Vida.hambre : CONFIG.hambreInicial;
+    const oro = (typeof Dinero !== 'undefined') ? Dinero.saldo : 0;
+    if (det) det.textContent = 'Nv ' + nivel + ' · ❤️ ' + vida + ' · 🍽️ ' + hambre + ' · $' + oro;
+    if (idEl) {
+      const tel = perfil.telefono ? '📱 ' + perfil.telefono + ' · ' : '';
+      idEl.textContent = tel + perfil.id;
+    }
+
+    const opAv = document.getElementById('opciones-avatar');
+    const opStats = document.getElementById('opciones-stats');
+    if (opAv) opAv.textContent = (perfil.nombre || '?').charAt(0).toUpperCase();
+    if (opStats) opStats.textContent = 'Nv ' + nivel + ' · ❤️ ' + vida + ' · 🍽️ ' + hambre + ' · $' + oro;
+
+    this._refrescarAdmin();
   },
 
   abrir() {
     this._refrescarAdmin();
+    this.pintarPerfil();
     document.getElementById('opciones-nombre').textContent =
       Usuarios.perfilActivo ? Usuarios.perfilActivo.nombre : '—';
     document.getElementById('opciones-id').textContent =
@@ -46,13 +81,10 @@ const Opciones = {
 
   _refrescarAdmin() {
     const btn = document.getElementById('opcion-admin');
-    if (!btn) return;
-    if (Usuarios.esAdministrador()) {
-      btn.classList.remove('oculto');
-      btn.innerHTML = '<span class="icono-opcion">🛠️</span> Modo administrador';
-    } else {
-      btn.classList.add('oculto');
-    }
+    const hud = document.getElementById('btn-admin-hud');
+    const esAdmin = Usuarios.esAdministrador();
+    if (btn) btn.classList.add('oculto');
+    if (hud) hud.classList.toggle('oculto', !esAdmin);
   },
 
   cerrar() {

@@ -13,7 +13,7 @@
   <script>
     // Aviso temprano en móvil (antes de cargar 20+ archivos JS)
     (function () {
-      var V = '33';
+      var V = '34';
       var texto = document.getElementById('carga-texto');
       if (texto) texto.textContent = 'Conectando…';
       var prev = localStorage.getItem('mariel_app_version');
@@ -88,18 +88,49 @@
   <!-- MAPA -->
   <div id="mapa"></div>
 
-  <!-- BARRA SUPERIOR: vida + hambre + XP + dinero -->
+  <!-- BARRA SUPERIOR: botones + barras + perfil + dinero -->
   <div id="barra-superior">
-    <div id="grupo-barras">
-      <div id="contenedor-vida" title="Vida">
-        <div id="vida-relleno"></div>
+    <div id="hud-izquierda">
+      <div id="hud-botones-mini">
+        <button id="btn-opciones" class="btn-hud-mini" type="button" title="Opciones">⚙️</button>
+        <button id="btn-notific" class="btn-hud-mini" type="button" title="Avisos">
+          🔔<span id="badge-avisos" class="badge-avisos oculto">●</span>
+        </button>
+        <button id="btn-admin-hud" class="btn-hud-mini oculto" type="button" title="Administrador">🛠️</button>
       </div>
-      <div id="contenedor-hambre" title="Hambre"><div id="hambre-relleno"></div></div>
-      <div id="contenedor-xp" title="Experiencia">
-        <div id="xp-relleno"></div>
-        <span id="nivel-texto">Nv 1</span>
+      <div id="grupo-barras">
+        <span id="nivel-texto" class="nivel-badge">Nv 1</span>
+        <div class="fila-barra" title="Vida">
+          <span class="barra-icono">❤️</span>
+          <div id="contenedor-vida">
+            <div id="vida-relleno"></div>
+            <span id="vida-texto">100/100</span>
+          </div>
+        </div>
+        <div class="fila-barra" title="Hambre">
+          <span class="barra-icono">🍽️</span>
+          <div id="contenedor-hambre">
+            <div id="hambre-relleno"></div>
+            <span id="hambre-texto">50/100</span>
+          </div>
+        </div>
+        <div class="fila-barra" title="Experiencia">
+          <span class="barra-icono">⭐</span>
+          <div id="contenedor-xp">
+            <div id="xp-relleno"></div>
+            <span id="xp-texto">0/80</span>
+          </div>
+        </div>
       </div>
     </div>
+    <button id="perfil-hud" class="perfil-hud" type="button" title="Mi perfil">
+      <span class="perfil-avatar" id="perfil-avatar">?</span>
+      <span class="perfil-datos">
+        <span class="perfil-nombre" id="perfil-nombre">Jugador</span>
+        <span class="perfil-detalle" id="perfil-detalle">Nv 1 · $0</span>
+        <span class="perfil-id" id="perfil-id">—</span>
+      </span>
+    </button>
     <div id="contenedor-dinero" title="Dinero">
       <span class="icono-dinero">$</span>
       <span id="dinero-cantidad">0</span>
@@ -124,9 +155,7 @@
   <!-- BOTONES INFERIORES (burbujas) -->
   <div id="botones-inferiores">
     <button id="btn-mochila" class="btn-burbuja"><span class="burbuja-icono">🎒</span><span class="burbuja-texto">Mochila</span></button>
-    <button id="btn-notific" class="btn-burbuja"><span class="burbuja-icono">🔔</span><span class="burbuja-texto">Avisos</span><span id="badge-avisos" class="badge-avisos oculto">●</span></button>
     <button id="btn-gps" class="btn-burbuja"><span class="burbuja-icono">📍</span><span class="burbuja-texto">GPS</span></button>
-    <button id="btn-opciones" class="btn-burbuja"><span class="burbuja-icono">⚙️</span><span class="burbuja-texto">Opciones</span></button>
   </div>
 
   <!-- NOTIFICACIONES -->
@@ -276,12 +305,19 @@
   <div id="ventana-opciones" class="ventana oculto">
     <div class="ventana-caja">
       <div class="ventana-titulo">⚙️ Opciones <button class="btn-cerrar" data-cierra="ventana-opciones">✕</button></div>
-      <div id="opciones-jugador">Jugador: <b id="opciones-nombre">—</b> · ID: <span id="opciones-id">—</span></div>
+      <div class="perfil-opciones-cabecera">
+        <span class="perfil-opciones-avatar" id="opciones-avatar">?</span>
+        <div class="perfil-opciones-info">
+          <div class="perfil-opciones-nombre" id="opciones-nombre">—</div>
+          <div class="perfil-opciones-stats" id="opciones-stats">Nv 1 · ❤️ 100 · 🍽️ 50 · $0</div>
+          <div class="perfil-opciones-id" id="opciones-id">—</div>
+        </div>
+      </div>
       <div id="lista-opciones">
         <button class="fila-opcion" id="opcion-centrar"><span class="icono-opcion">🎯</span> Centrar el mapa en mi posición</button>
-        <button class="fila-opcion peligro" id="opcion-salir"><span class="icono-opcion">🚪</span> Cerrar sesión (Sign out)</button>
         <button class="fila-opcion" id="opcion-tarjeta"><span class="icono-opcion">🪪</span> Mi tarjeta de jugador (copiar)</button>
         <button class="fila-opcion" id="opcion-reportar"><span class="icono-opcion">🚩</span> Reportar a un jugador</button>
+        <button class="fila-opcion peligro" id="opcion-salir"><span class="icono-opcion">🚪</span> Cerrar sesión (Sign out)</button>
         <button class="fila-opcion oculto" id="opcion-admin"><span class="icono-opcion">🛠️</span> Modo administrador</button>
         <button class="fila-opcion peligro" id="opcion-borrar"><span class="icono-opcion">🗑️</span> Borrar mi partida (empezar de cero)</button>
       </div>
@@ -340,34 +376,42 @@
           </div>
 
           <div id="admin-vista-crear-jugador" class="admin-vista oculto">
-            <div class="admin-clave-cuerpo">
+            <div class="admin-clave-cuerpo admin-crear-form">
               <p class="admin-clave-ayuda">Crea la cuenta aquí. El jugador inicia sesión con <b>nombre + contraseña</b> en su teléfono.</p>
-              <div class="campo-admin">
-                <label for="admin-nuevo-nombre">Nombre de usuario</label>
-                <input id="admin-nuevo-nombre" maxlength="24" placeholder="Ej: pedro">
-              </div>
-              <div class="campo-admin">
-                <label for="admin-nuevo-telefono">Teléfono (opcional)</label>
-                <input id="admin-nuevo-telefono" inputmode="tel" placeholder="Ej: 51234567">
-              </div>
-              <div class="campo-doble">
+              <div class="admin-crear-campos">
                 <div class="campo-admin">
-                  <label for="admin-nuevo-clave">Contraseña</label>
-                  <input id="admin-nuevo-clave" type="password" placeholder="Mín. 4 caracteres">
+                  <label for="admin-nuevo-nombre">Nombre de usuario</label>
+                  <input id="admin-nuevo-nombre" maxlength="24" placeholder="Ej: pedro">
                 </div>
                 <div class="campo-admin">
-                  <label for="admin-nuevo-clave2">Repetir</label>
-                  <input id="admin-nuevo-clave2" type="password" placeholder="Repite la contraseña">
+                  <label for="admin-nuevo-telefono">Teléfono (opcional)</label>
+                  <input id="admin-nuevo-telefono" inputmode="tel" placeholder="Ej: 51234567">
+                </div>
+                <div class="campo-doble">
+                  <div class="campo-admin">
+                    <label for="admin-nuevo-clave">Contraseña</label>
+                    <input id="admin-nuevo-clave" type="password" placeholder="Mín. 4 caracteres">
+                  </div>
+                  <div class="campo-admin">
+                    <label for="admin-nuevo-clave2">Repetir</label>
+                    <input id="admin-nuevo-clave2" type="password" placeholder="Repite la contraseña">
+                  </div>
+                </div>
+                <div class="campo-caja">
+                  <input type="checkbox" id="admin-nuevo-inventario-default" checked>
+                  <label for="admin-nuevo-inventario-default">Inventario inicial (agua x2, pan x1, $100)</label>
                 </div>
               </div>
-              <div class="campo-caja">
-                <input type="checkbox" id="admin-nuevo-inventario-default" checked>
-                <label for="admin-nuevo-inventario-default">Inventario inicial (agua x2, pan x1, $100)</label>
+              <div class="admin-editor-horizontal">
+                <div class="admin-editor-columna">
+                  <div class="admin-editor-seccion">Inventario inicial</div>
+                  <div id="admin-nuevo-rejilla" class="admin-rejilla-inventario admin-rejilla-fija"></div>
+                </div>
+                <div class="admin-editor-columna admin-editor-columna-adm">
+                  <div class="admin-editor-seccion">ADM ∞ — arrastra a la izquierda</div>
+                  <div id="admin-nuevo-infinito" class="admin-rejilla-infinito"></div>
+                </div>
               </div>
-              <div class="admin-editor-seccion">Inventario inicial — arrastra desde abajo (opcional)</div>
-              <div id="admin-nuevo-rejilla" class="admin-rejilla-inventario"></div>
-              <div class="admin-editor-seccion">Catálogo admin (∞)</div>
-              <div id="admin-nuevo-infinito" class="admin-rejilla-infinito"></div>
               <button type="button" id="btn-admin-crear-jugador-guardar" class="btn-auth-principal">Crear cuenta y publicar</button>
             </div>
           </div>
@@ -383,10 +427,16 @@
                 <input id="admin-editor-vida" type="number" min="0" max="100" inputmode="numeric">
               </div>
             </div>
-            <div class="admin-editor-seccion">Inventario — arrastra, intercambia o suelta fuera para quitar (máx. 10 por pila)</div>
-            <div id="admin-rejilla-jugador" class="admin-rejilla-inventario"></div>
-            <div class="admin-editor-seccion">Inventario admin (∞) — arrastra a las casillas de arriba</div>
-            <div id="admin-rejilla-infinito" class="admin-rejilla-infinito"></div>
+            <div class="admin-editor-horizontal">
+              <div class="admin-editor-columna">
+                <div class="admin-editor-seccion">Inventario — arrastra o suelta fuera (máx. 10/pila)</div>
+                <div id="admin-rejilla-jugador" class="admin-rejilla-inventario admin-rejilla-fija"></div>
+              </div>
+              <div class="admin-editor-columna admin-editor-columna-adm">
+                <div class="admin-editor-seccion">ADM ∞ — arrastra a las casillas de la izquierda</div>
+                <div id="admin-rejilla-infinito" class="admin-rejilla-infinito"></div>
+              </div>
+            </div>
             <button id="btn-admin-editor-guardar" class="btn-auth-principal admin-editor-guardar">Guardar cambios</button>
           </div>
 
@@ -509,39 +559,39 @@
   </div>
 
   <!-- LIBRERÍAS -->
-  <script src="lib/leaflet/leaflet.js?v=33"></script>
+  <script src="lib/leaflet/leaflet.js?v=34"></script>
 
   <!-- MÓDULOS DEL JUEGO (orden importante) -->
-  <script src="js/config/config.js?v=33"></script>
-  <script src="js/nucleo/utilidades.js?v=33"></script>
-  <script src="js/mundo/mundo_publico.js?v=33"></script>
-  <script src="js/notificaciones/notificaciones.js?v=33"></script>
-  <script src="js/usuarios/usuarios.js?v=33"></script>
-  <script src="js/guardado/guardado.js?v=33"></script>
-  <script src="js/historial/historial.js?v=33"></script>
-  <script src="js/dinero/dinero.js?v=33"></script>
-  <script src="js/vida/vida.js?v=33"></script>
-  <script src="js/items/items.js?v=33"></script>
-  <script src="js/mochila/mochila.js?v=33"></script>
-  <script src="js/mapa/mapa.js?v=33"></script>
-  <script src="js/gps/gps.js?v=33"></script>
-  <script src="js/tiendas/datos_tiendas.js?v=33"></script>
-  <script src="js/tiendas/tiendas.js?v=33"></script>
-  <script src="js/pesca/pesca.js?v=33"></script>
-  <script src="js/tesoros/datos_tesoros.js?v=33"></script>
-  <script src="js/tesoros/tesoros.js?v=33"></script>
-  <script src="js/misiones/datos_misiones.js?v=33"></script>
-  <script src="js/misiones/misiones.js?v=33"></script>
-  <script src="js/cofres/cofres.js?v=33"></script>
-  <script src="js/correo/correo.js?v=33"></script>
-  <script src="js/admin/admin.js?v=33"></script>
-  <script src="js/opciones/opciones.js?v=33"></script>
-  <script src="js/principal.js?v=33"></script>
+  <script src="js/config/config.js?v=34"></script>
+  <script src="js/nucleo/utilidades.js?v=34"></script>
+  <script src="js/mundo/mundo_publico.js?v=34"></script>
+  <script src="js/notificaciones/notificaciones.js?v=34"></script>
+  <script src="js/usuarios/usuarios.js?v=34"></script>
+  <script src="js/guardado/guardado.js?v=34"></script>
+  <script src="js/historial/historial.js?v=34"></script>
+  <script src="js/dinero/dinero.js?v=34"></script>
+  <script src="js/vida/vida.js?v=34"></script>
+  <script src="js/items/items.js?v=34"></script>
+  <script src="js/mochila/mochila.js?v=34"></script>
+  <script src="js/mapa/mapa.js?v=34"></script>
+  <script src="js/gps/gps.js?v=34"></script>
+  <script src="js/tiendas/datos_tiendas.js?v=34"></script>
+  <script src="js/tiendas/tiendas.js?v=34"></script>
+  <script src="js/pesca/pesca.js?v=34"></script>
+  <script src="js/tesoros/datos_tesoros.js?v=34"></script>
+  <script src="js/tesoros/tesoros.js?v=34"></script>
+  <script src="js/misiones/datos_misiones.js?v=34"></script>
+  <script src="js/misiones/misiones.js?v=34"></script>
+  <script src="js/cofres/cofres.js?v=34"></script>
+  <script src="js/correo/correo.js?v=34"></script>
+  <script src="js/admin/admin.js?v=34"></script>
+  <script src="js/opciones/opciones.js?v=34"></script>
+  <script src="js/principal.js?v=34"></script>
   <script>
     // Registrar la app instalable (PWA)
     if ('serviceWorker' in navigator) {
       const yaTeniaVersion = !!navigator.serviceWorker.controller;
-      navigator.serviceWorker.register('sw.js?v=33', { updateViaCache: 'none' })
+      navigator.serviceWorker.register('sw.js?v=34', { updateViaCache: 'none' })
         .then(function (reg) { reg.update(); })
         .catch(function () {});
       // Cuando llega una versión nueva del juego: avisar y recargar solo
