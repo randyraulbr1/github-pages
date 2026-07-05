@@ -22,6 +22,7 @@ const Usuarios = {
         this.perfilActivo = sesion;
         this.datos.activo = sesion.id;
         document.body.classList.remove('en-auth');
+        if (window.MarielBoot) MarielBoot.enfrente('Cargando tu partida…');
         if (this._resolver) { this._resolver(); this._resolver = null; }
         return;
       }
@@ -60,8 +61,7 @@ const Usuarios = {
   },
 
   mostrarLogin() {
-    const carga = document.getElementById('pantalla-carga');
-    if (carga) carga.classList.add('oculto');
+    if (window.MarielBoot) MarielBoot.detrasAuth('Mundo listo · Inicia sesión');
     document.body.classList.add('en-auth');
     document.getElementById('pantalla-registro').classList.add('oculto');
     document.getElementById('pantalla-login').classList.remove('oculto');
@@ -73,6 +73,7 @@ const Usuarios = {
   },
 
   mostrarRegistro() {
+    if (window.MarielBoot) MarielBoot.detrasAuth('Mundo listo · Crea tu cuenta');
     document.getElementById('pantalla-login').classList.add('oculto');
     document.getElementById('pantalla-registro').classList.remove('oculto');
     ['registro-nombre', 'registro-telefono', 'registro-clave', 'registro-clave2'].forEach(id => {
@@ -282,6 +283,7 @@ const Usuarios = {
     perfil.sesionT = Date.now();
     this._guardarLista();
     this._ocultarAuth();
+    if (window.MarielBoot) MarielBoot.enfrente('Cargando tu partida…');
     if (this._resolver) { this._resolver(); this._resolver = null; }
     this._publicarSesionEnFondo(perfil, token);
   },
@@ -330,6 +332,14 @@ const Usuarios = {
     this.datos.activo = null;
     this.perfilActivo = null;
     this._guardarLista();
+    if (typeof Guardado !== 'undefined') {
+      Guardado.guardarAhora().catch(() => {}).finally(() => {
+        if (window.MarielBoot) MarielBoot.mostrar('Cerrando sesión…');
+        location.reload();
+      });
+      return;
+    }
+    if (window.MarielBoot) MarielBoot.mostrar('Cerrando sesión…');
     location.reload();
   },
 

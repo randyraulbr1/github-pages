@@ -1,13 +1,45 @@
 // ============================================================
 // ARRANQUE DEL JUEGO — conecta todos los módulos en orden
-// (la pantalla de carga se muestra sola desde el HTML y se
-// esconde aquí cuando todo está listo)
+// El mundo SIEMPRE carga antes de la sesión y del mapa.
 // ============================================================
+
+(function registrarMarielBoot() {
+  const el = () => document.getElementById('pantalla-carga');
+  const texto = () => document.getElementById('carga-texto') || document.querySelector('.carga-texto');
+
+  window.MarielBoot = {
+    avanzar(msg) {
+      const t = texto();
+      if (t && msg) t.textContent = msg;
+    },
+    mostrar(msg) {
+      const c = el();
+      if (!c) return;
+      c.classList.remove('oculto', 'carga-detras-auth');
+      c.classList.add('carga-enfrente');
+      if (msg) this.avanzar(msg);
+    },
+    detrasAuth(msg) {
+      const c = el();
+      if (!c) return;
+      c.classList.remove('oculto', 'carga-enfrente');
+      c.classList.add('carga-detras-auth');
+      if (msg) this.avanzar(msg);
+    },
+    enfrente(msg) {
+      this.mostrar(msg);
+    },
+    ocultar() {
+      const c = el();
+      if (c) c.classList.add('oculto');
+    }
+  };
+})();
 
 // ---------- INDICADOR DE DESCARGA (primera instalación) ----------
 (function escucharProgreso() {
   if (!('serviceWorker' in navigator)) return;
-  const barra    = document.querySelector('.carga-progreso');
+  const barra = document.querySelector('.carga-progreso');
   const textoCarga = document.getElementById('carga-texto') ||
                      document.querySelector('.carga-texto');
 
@@ -29,14 +61,26 @@
   });
 })();
 
+async function esperarMapaListo() {
+  if (typeof Mapa === 'undefined' || !Mapa.mapa) return;
+  MarielBoot.avanzar('Cargando mapa…');
+  await new Promise(resolve => {
+    const limite = setTimeout(resolve, 5000);
+    Mapa.mapa.whenReady(() => {
+      Mapa.mapa.invalidateSize();
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          clearTimeout(limite);
+          setTimeout(resolve, 250);
+        });
+      });
+    });
+  });
+}
+
 (async function arrancar() {
-  const ocultarCarga = () => {
-    const el = document.getElementById('pantalla-carga');
-    if (el) el.classList.add('oculto');
-  };
-  const textoCarga = document.getElementById('carga-texto') ||
-                     document.querySelector('.carga-texto');
-  const avanzarCarga = (msg) => { if (textoCarga) textoCarga.textContent = msg; };
+  const ocultarCarga = () => MarielBoot.ocultar();
+  const avanzarCarga = (msg) => MarielBoot.avanzar(msg);
   const pasoSeguro = async (nombre, fn) => {
     try {
       await fn();
@@ -49,13 +93,23 @@
   };
 
   try {
-    avanzarCarga('Conectando con la nube…');
+    MarielBoot.mostrar('Conectando con la nube…');
+
+    // —— FASE 1: MUNDO SIEMPRE PRIMERO (antes de sesión o partida) ——
     await pasoSeguro('mundo-remoto', () => MundoPublico.descargar());
-    await Usuarios.iniciar();
-    avanzarCarga('Cargando tu partida…');
-    await pasoSeguro('partida', () => Guardado.iniciar());
     avanzarCarga('Descargando el mundo…');
     await pasoSeguro('mundo', () => Admin.cargar());
+    if (typeof Admin !== 'undefined' && !Admin._mundoCargado) {
+      throw new Error('El mundo no terminó de cargar');
+    }
+
+    // —— FASE 2: SESIÓN (login si hace falta; el mundo ya está listo) ——
+    avanzarCarga('Comprobando sesión…');
+    await Usuarios.iniciar();
+
+    // —— FASE 3: PARTIDA DEL JUGADOR ACTIVO ——
+    avanzarCarga('Cargando tu partida…');
+    await pasoSeguro('partida', () => Guardado.iniciar());
     Usuarios.iniciarVigilanciaSesion();
 
     const bloqueo = Admin.estadoBloqueo();
@@ -80,8 +134,10 @@
           Admin.solicitarAcceso();
         });
       }
+      return;
     }
 
+    // —— FASE 4: SISTEMAS DEL JUEGO ——
     avanzarCarga('Preparando el mapa…');
     Historial.iniciarVisor();
     Notificaciones.iniciarVisor();
@@ -91,7 +147,6 @@
     if (typeof L === 'undefined') throw new Error('No se cargó el mapa (Leaflet)');
     Mapa.iniciar();
     GPS.iniciar();
-    Mapa.restaurarVista();
     Tiendas.iniciar();
     Pesca.iniciar();
     Tesoros.iniciar();
@@ -101,6 +156,7 @@
     Cofres.iniciar();
     await pasoSeguro('admin', () => { Admin.iniciar(); });
     await pasoSeguro('opciones', () => { Opciones.iniciar(); });
+    Mapa.restaurarVista();
 
     document.querySelectorAll('.btn-cerrar').forEach(b => {
       b.addEventListener('click', () => {
@@ -116,12 +172,21 @@
       });
     });
 
+    // —— FASE 5: MAPA LISTO ANTES DE ENTRAR ——
+    await esperarMapaListo();
+
     if (Guardado.integridadRota) {
       Notificaciones.mostrar('⚠️ Los datos guardados fueron modificados a mano (revisa el Historial)', 'error', 7000);
     }
 
     if (Usuarios.perfilActivo) {
-      Notificaciones.mostrar('🌴 ¡Hola ' + Usuarios.perfilActivo.nombre + '! Toca 📍 para usar tu GPS', 'info', 4500);
+      const cambio = sessionStorage.getItem('mariel_cambio_sesion');
+      if (cambio) {
+        sessionStorage.removeItem('mariel_cambio_sesion');
+        Notificaciones.mostrar('🎮 Jugando como ' + Usuarios.perfilActivo.nombre, 'exito', 4000);
+      } else {
+        Notificaciones.mostrar('🌴 ¡Hola ' + Usuarios.perfilActivo.nombre + '! Toca 📍 para usar tu GPS', 'info', 4500);
+      }
       Guardado.sincronizarNube(true).catch(() => {});
       if (!Usuarios.perfilActivo.telefono) {
         Notificaciones.mostrar('📱 Registra tu número de teléfono en ⚙️ Opciones para poder recibir recompensas', 'alerta', 8000);
@@ -132,9 +197,7 @@
     if (typeof Notificaciones !== 'undefined') Notificaciones._actualizarBadge();
   } catch (e) {
     console.error('Error arrancando Mariel Explorer:', e);
-    if (textoCarga) {
-      textoCarga.textContent = 'Error al cargar. Recarga la página.';
-    }
+    MarielBoot.avanzar('Error al cargar. Recarga la página.');
     if (typeof Notificaciones !== 'undefined') {
       Notificaciones.mostrar(
         '⚠️ No se pudo cargar todo. Recarga la página o revisa tu conexión.',

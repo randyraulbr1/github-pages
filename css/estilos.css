@@ -446,10 +446,12 @@ button { font-family: inherit; }
 
 /* ============ PANTALLA DE CARGA ============ */
 #pantalla-carga {
-  position: fixed; inset: 0; z-index: 5000;
+  position: fixed; inset: 0; z-index: 5200;
   background: linear-gradient(170deg, #16223a 0%, #10141f 70%);
   display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px;
 }
+#pantalla-carga.carga-detras-auth { z-index: 4900; }
+#pantalla-carga.carga-enfrente { z-index: 5200; }
 .carga-logo { font-size: 64px; animation: flotar 2s ease-in-out infinite; }
 @keyframes flotar { 50% { transform: translateY(-8px); } }
 .carga-titulo { font-size: 26px; font-weight: 800; letter-spacing: -.5px; }

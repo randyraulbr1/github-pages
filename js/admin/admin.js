@@ -2701,6 +2701,10 @@ const Admin = {
         ed.partida.hambre = prev.datos.hambre;
       }
     } catch (e) {}
+
+    if (typeof Guardado !== 'undefined' && Usuarios.perfilActivo) {
+      await Guardado.guardarAhora();
+    }
     await this._guardarPartidaJugador(perfil, ed.partida);
 
     const local = Usuarios.datos.lista.find(p => p.id === perfil.id);
@@ -2715,11 +2719,21 @@ const Admin = {
     const idx = Usuarios.datos.lista.findIndex(p => p.id === entrada.id);
     if (idx >= 0) Usuarios.datos.lista[idx] = Object.assign(Usuarios.datos.lista[idx], entrada);
     else Usuarios.datos.lista.push(entrada);
+    entrada.sesionToken = Usuarios._generarTokenSesion();
+    entrada.sesionT = Date.now();
+    if (idx >= 0) {
+      Usuarios.datos.lista[idx].sesionToken = entrada.sesionToken;
+      Usuarios.datos.lista[idx].sesionT = entrada.sesionT;
+    }
+    Usuarios.datos.activo = entrada.id;
+    Usuarios.datos.sesionId = entrada.id;
     Usuarios._guardarLista();
     this.registrarJugador(entrada, true);
+    Usuarios._publicarSesionEnFondo(entrada, entrada.sesionToken);
     this._editorJugador = null;
     document.getElementById('ventana-admin')?.classList.add('oculto');
-    await Usuarios._activar(entrada);
+    sessionStorage.setItem('mariel_cambio_sesion', entrada.id);
+    if (window.MarielBoot) MarielBoot.mostrar('Entrando como ' + entrada.nombre + '…');
     location.reload();
   },
 
