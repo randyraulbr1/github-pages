@@ -12,10 +12,11 @@
   <link rel="stylesheet" href="css/estilos.css">
   <link rel="stylesheet" href="css/chat.css?v=115">
   <link rel="stylesheet" href="css/amigos.css">
+  <link rel="stylesheet" href="css/opciones.css?v=116">
   <script>
     // Aviso temprano en móvil (antes de cargar 20+ archivos JS)
     (function () {
-      var V = '115';
+      var V = '116';
       var texto = document.getElementById('carga-texto');
       if (texto) texto.textContent = 'Conectando…';
       var prev = localStorage.getItem('mariel_app_version');
@@ -454,45 +455,80 @@
   </div>
 
   <!-- ============ VENTANA: OPCIONES ============ -->
-  <div id="ventana-opciones" class="ventana oculto">
-    <div class="ventana-caja panel-social-caja">
-      <div class="ventana-titulo">⚙️ Opciones <button class="btn-cerrar" data-cierra="ventana-opciones">✕</button></div>
-      <div class="perfil-opciones-cabecera">
-        <span class="perfil-opciones-avatar" id="opciones-avatar">?</span>
-        <div class="perfil-opciones-info">
-          <div class="perfil-opciones-nombre" id="opciones-nombre">—</div>
-          <div class="perfil-opciones-id" id="opciones-id">—</div>
-        </div>
+  <div id="ventana-opciones" class="opciones-ventana oculto" aria-label="Opciones del juego">
+    <div class="opciones-panel">
+      <div class="opciones-header">
+        <div class="opciones-title">⚙️ Opciones</div>
+        <button type="button" class="opciones-close" id="cerrar-opciones" aria-label="Cerrar">✕</button>
       </div>
-      <div class="perfil-stats-grid" id="opciones-stats-grid"></div>
-      <div class="panel-seccion-titulo">Notificaciones</div>
-      <label class="fila-opcion fila-opcion-toggle" for="opcion-notif-chat">
-        <span class="icono-opcion">💬</span>
-        <span class="opcion-toggle-texto">Aviso de mensajes de chat</span>
-        <input type="checkbox" id="opcion-notif-chat" class="opcion-toggle-check" checked>
-      </label>
-      <label class="fila-opcion fila-opcion-toggle" for="opcion-notif-amigos">
-        <span class="icono-opcion">👥</span>
-        <span class="opcion-toggle-texto">Aviso de solicitudes de amistad</span>
-        <input type="checkbox" id="opcion-notif-amigos" class="opcion-toggle-check" checked>
-      </label>
-      <div class="panel-seccion-titulo">Acciones</div>
-      <div id="lista-opciones">
-        <button class="fila-opcion fila-opcion-compacta" id="opcion-centrar"><span class="icono-opcion">🎯</span> Centrar mapa</button>
-        <button class="fila-opcion fila-opcion-compacta" id="opcion-tarjeta"><span class="icono-opcion">🪪</span> Mi tarjeta</button>
-        <button class="fila-opcion fila-opcion-compacta" id="opcion-reportar"><span class="icono-opcion">🚩</span> Reportar jugador</button>
-        <button class="fila-opcion fila-opcion-compacta peligro" id="opcion-salir"><span class="icono-opcion">🚪</span> Cerrar sesión</button>
-        <button class="fila-opcion fila-opcion-compacta oculto" id="opcion-admin"><span class="icono-opcion">🛠️</span> Administrador</button>
-        <div id="opciones-confirm-salir" class="opciones-confirm oculto">
-          <p>¿Cerrar sesión y volver al inicio?</p>
-          <div class="opciones-confirm-botones">
-            <button type="button" id="opcion-salir-cancelar" class="opciones-btn-mini">Cancelar</button>
-            <button type="button" id="opcion-salir-confirmar" class="opciones-btn-mini peligro">Sí, salir</button>
+
+      <div class="opciones-content">
+        <div class="opciones-profile">
+          <div class="opciones-avatar" id="opciones-avatar">?</div>
+          <div class="opciones-user">
+            <div class="opciones-name" id="opciones-nombre">—</div>
+            <div class="opciones-id" id="opciones-id">—</div>
           </div>
         </div>
+
+        <div class="opciones-stats" id="opciones-stats-grid"></div>
+
+        <div class="opciones-section">NOTIFICACIONES</div>
+
+        <div class="opciones-row">
+          <div class="opciones-icon">💬</div>
+          <div class="opciones-row-text">Aviso de mensajes de chat</div>
+          <button type="button" class="opciones-toggle" id="opcion-toggle-chat" data-pref="notifChat" aria-label="Notificaciones de chat">✓</button>
+        </div>
+
+        <div class="opciones-row">
+          <div class="opciones-icon">👥</div>
+          <div class="opciones-row-text">Aviso de solicitudes de amistad</div>
+          <button type="button" class="opciones-toggle" id="opcion-toggle-amigos" data-pref="notifAmigos" aria-label="Notificaciones de amigos">✓</button>
+        </div>
+
+        <div class="opciones-section">ACCIONES</div>
+
+        <button type="button" class="opciones-action" id="opcion-centrar">
+          <div class="opciones-icon">🎯</div>
+          <div class="opciones-row-text">Centrar mapa</div>
+        </button>
+
+        <button type="button" class="opciones-action" id="opcion-tarjeta">
+          <div class="opciones-icon">🎫</div>
+          <div class="opciones-row-text">Mi tarjeta</div>
+        </button>
+
+        <button type="button" class="opciones-action" id="opcion-reportar">
+          <div class="opciones-icon">🚩</div>
+          <div class="opciones-row-text">Reportar jugador</div>
+        </button>
+
+        <button type="button" class="opciones-action danger" id="opcion-salir">
+          <div class="opciones-icon">🚪</div>
+          <div class="opciones-row-text">Cerrar sesión</div>
+        </button>
+
+        <button type="button" class="opciones-action oculto" id="opcion-admin">
+          <div class="opciones-icon">🛠️</div>
+          <div class="opciones-row-text">Administrador</div>
+        </button>
       </div>
     </div>
   </div>
+
+  <div id="opciones-overlay" class="oculto" aria-hidden="true">
+    <div class="opciones-confirm" role="dialog" aria-modal="true">
+      <h3 id="opciones-confirm-title">Confirmar</h3>
+      <p id="opciones-confirm-text">¿Seguro?</p>
+      <div class="opciones-confirm-row">
+        <button type="button" class="opciones-modal-btn cancel" id="opciones-confirm-cancel">Cancelar</button>
+        <button type="button" class="opciones-modal-btn ok" id="opciones-confirm-ok">Aceptar</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="opciones-toast" aria-live="polite"></div>
 
   <!-- ============ VENTANA: PANEL ADMIN (menú izq + panel der) ============ -->
   <div id="ventana-admin" class="ventana oculto">
@@ -856,7 +892,7 @@
   <script src="js/enemigos/enemigos.js?v=104"></script>
   <script src="js/online/sync_servidor.js?v=104"></script>
   <script src="js/admin/admin.js?v=104"></script>
-  <script src="js/opciones/opciones.js?v=104"></script>
+  <script src="js/opciones/opciones.js?v=116"></script>
   <script src="js/online/mundo_online.js?v=104"></script>
   <script src="js/online/amigos.js?v=107"></script>
   <script src="js/chat/chat.js?v=115"></script>
@@ -866,7 +902,7 @@
     // Registrar la app instalable (PWA)
     if ('serviceWorker' in navigator) {
       const yaTeniaVersion = !!navigator.serviceWorker.controller;
-      navigator.serviceWorker.register('sw.js?v=115', { updateViaCache: 'none' })
+      navigator.serviceWorker.register('sw.js?v=116', { updateViaCache: 'none' })
         .then(function (reg) { reg.update(); })
         .catch(function () {});
       // Cuando llega una versión nueva del juego: avisar y recargar solo
