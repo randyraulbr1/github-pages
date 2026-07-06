@@ -225,6 +225,19 @@ button { font-family: inherit; }
   margin-top: 6px; width: 100%; padding: 7px; border-radius: 10px;
   border: none; background: rgba(61,139,253,.22); color: #7eb8ff;
   font-weight: 700; cursor: pointer; font-size: 12px;
+  transition: background .15s, transform .1s;
+}
+.popup-muerto-amigo:active:not(:disabled) {
+  background: rgba(61,139,253,.42); transform: scale(0.97);
+}
+.popup-muerto-amigo.cargando {
+  opacity: 0.65; cursor: wait;
+}
+.popup-muerto-item-saqueado {
+  opacity: 0;
+  transform: translateX(12px);
+  transition: opacity .18s, transform .18s;
+  pointer-events: none;
 }
 .enemigo-pin {
   position: relative;
