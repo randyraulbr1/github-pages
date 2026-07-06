@@ -10,12 +10,12 @@
   <link rel="apple-touch-icon" href="iconos/icono-192.png">
   <link rel="stylesheet" href="lib/leaflet/leaflet.css">
   <link rel="stylesheet" href="css/estilos.css">
-  <link rel="stylesheet" href="css/chat.css?v=114">
+  <link rel="stylesheet" href="css/chat.css?v=115">
   <link rel="stylesheet" href="css/amigos.css">
   <script>
     // Aviso temprano en móvil (antes de cargar 20+ archivos JS)
     (function () {
-      var V = '114';
+      var V = '115';
       var texto = document.getElementById('carga-texto');
       if (texto) texto.textContent = 'Conectando…';
       var prev = localStorage.getItem('mariel_app_version');
@@ -859,14 +859,14 @@
   <script src="js/opciones/opciones.js?v=104"></script>
   <script src="js/online/mundo_online.js?v=104"></script>
   <script src="js/online/amigos.js?v=107"></script>
-  <script src="js/chat/chat.js?v=114"></script>
+  <script src="js/chat/chat.js?v=115"></script>
   <script src="js/online/multijugador.js?v=104"></script>
   <script src="js/principal.js?v=104"></script>
   <script>
     // Registrar la app instalable (PWA)
     if ('serviceWorker' in navigator) {
       const yaTeniaVersion = !!navigator.serviceWorker.controller;
-      navigator.serviceWorker.register('sw.js?v=114', { updateViaCache: 'none' })
+      navigator.serviceWorker.register('sw.js?v=115', { updateViaCache: 'none' })
         .then(function (reg) { reg.update(); })
         .catch(function () {});
       // Cuando llega una versión nueva del juego: avisar y recargar solo

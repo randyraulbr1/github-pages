@@ -59,7 +59,11 @@ const Chat = {
     document.getElementById('btn-chat-pin-cancelar')?.addEventListener('click', () => this.cancelarColocacionPin());
 
     const panel = document.getElementById('chatPanel');
-    panel?.addEventListener('click', (e) => e.stopPropagation());
+    const inner = panel?.querySelector('.chat-inner-panel');
+    inner?.addEventListener('click', (e) => e.stopPropagation());
+    panel?.addEventListener('click', (e) => {
+      if (e.target === panel) this.cerrarPanel();
+    });
 
     const input = document.getElementById('chatInput');
     input?.addEventListener('keydown', (e) => {
@@ -100,12 +104,16 @@ const Chat = {
 
     if (!this._clickFueraOk) {
       this._clickFueraOk = true;
-      document.addEventListener('click', (e) => {
+      const cerrarSiFuera = (e) => {
         const p = document.getElementById('chatPanel');
         if (!p?.classList.contains('show')) return;
-        if (p.contains(e.target) || e.target.closest('#btn-chat')) return;
+        if (e.target.closest('#btn-chat')) return;
+        const caja = p.querySelector('.chat-inner-panel');
+        if (caja?.contains(e.target)) return;
         this.cerrarPanel();
-      });
+      };
+      document.addEventListener('click', cerrarSiFuera);
+      document.addEventListener('touchstart', cerrarSiFuera, { passive: true });
     }
 
     this.showList();
