@@ -1,47 +1,139 @@
 // ============================================================
-// MENÚ DE OPCIONES
+// MENÚ DE OPCIONES — HUD estilo mockup gris
 // ============================================================
 const Opciones = {
+  _pending: null,
+  _toastTimer: null,
 
   iniciar() {
-    document.getElementById('btn-opciones').addEventListener('click', () => this.abrir());
+    document.getElementById('btn-opciones')?.addEventListener('click', (e) => {
+      e.stopPropagation();
+      this.abrir();
+    });
+
+    document.getElementById('cerrar-opciones')?.addEventListener('click', () => this.cerrar());
+
     const adminBtn = document.getElementById('btn-admin');
     if (adminBtn) adminBtn.addEventListener('click', () => Admin.solicitarAcceso());
+
+    document.getElementById('opcion-admin')?.addEventListener('click', () => {
+      this.cerrar();
+      Admin.solicitarAcceso();
+    });
+
     this._refrescarAdmin();
 
-    document.getElementById('opcion-centrar').addEventListener('click', () => {
+    document.getElementById('opcion-centrar')?.addEventListener('click', () => {
       Mapa.centrarEnJugador(true);
+      this._toast('Mapa centrado');
       this.cerrar();
     });
 
-    const chkChat = document.getElementById('opcion-notif-chat');
-    const chkAmigos = document.getElementById('opcion-notif-amigos');
-    if (chkChat) {
-      chkChat.addEventListener('change', () => this._guardarPreferencia('notifChat', chkChat.checked));
-    }
-    if (chkAmigos) {
-      chkAmigos.addEventListener('change', () => this._guardarPreferencia('notifAmigos', chkAmigos.checked));
+    document.querySelectorAll('.opciones-toggle').forEach(btn => {
+      btn.addEventListener('click', () => this._togglePref(btn));
+    });
+
+    document.getElementById('opcion-salir')?.addEventListener('click', () => {
+      this._confirmar(
+        'logout',
+        '¿Cerrar sesión?',
+        'Saldrás de tu cuenta. Puedes volver a entrar después.'
+      );
+    });
+
+    document.getElementById('opcion-reportar')?.addEventListener('click', () => {
+      this._confirmar(
+        'report',
+        '¿Reportar jugador?',
+        'Se enviará un reporte para revisión.'
+      );
+    });
+
+    document.getElementById('opciones-confirm-cancel')?.addEventListener('click', () => this._cerrarConfirm());
+    document.getElementById('opciones-confirm-ok')?.addEventListener('click', () => this._aceptarConfirm());
+
+    document.getElementById('opcion-tarjeta')?.addEventListener('click', () => this.copiarTarjeta());
+
+    const ventana = document.getElementById('ventana-opciones');
+    const panel = ventana?.querySelector('.opciones-panel');
+    panel?.addEventListener('click', (e) => e.stopPropagation());
+    ventana?.addEventListener('click', (e) => {
+      if (e.target === ventana) this.cerrar();
+    });
+
+    if (!this._clickFueraOk) {
+      this._clickFueraOk = true;
+      const cerrarSiFuera = (e) => {
+        const v = document.getElementById('ventana-opciones');
+        if (!v || v.classList.contains('oculto')) return;
+        if (e.target.closest('#btn-opciones')) return;
+        const caja = v.querySelector('.opciones-panel');
+        if (caja?.contains(e.target)) return;
+        if (e.target.closest('#opciones-overlay.show')) return;
+        this.cerrar();
+      };
+      document.addEventListener('click', cerrarSiFuera);
     }
 
-    document.getElementById('opcion-salir').addEventListener('click', () => {
-      const panel = document.getElementById('opciones-confirm-salir');
-      if (panel) panel.classList.remove('oculto');
+    document.getElementById('opciones-overlay')?.addEventListener('click', (e) => {
+      if (e.target.id === 'opciones-overlay') this._cerrarConfirm();
     });
-    const btnCancel = document.getElementById('opcion-salir-cancelar');
-    const btnConfirm = document.getElementById('opcion-salir-confirmar');
-    if (btnCancel) btnCancel.addEventListener('click', () => {
-      document.getElementById('opciones-confirm-salir')?.classList.add('oculto');
-    });
-    if (btnConfirm) btnConfirm.addEventListener('click', () => {
-      document.getElementById('opciones-confirm-salir')?.classList.add('oculto');
+  },
+
+  _togglePref(btn) {
+    const clave = btn.dataset.pref;
+    if (!clave) return;
+    const activo = btn.classList.contains('off');
+    this._setToggle(btn, activo);
+    this._guardarPreferencia(clave, activo);
+    this._toast(activo ? 'Notificación activada' : 'Notificación apagada');
+  },
+
+  _setToggle(btn, on) {
+    if (!btn) return;
+    btn.classList.toggle('off', !on);
+    btn.textContent = on ? '✓' : '';
+  },
+
+  _confirmar(accion, titulo, texto) {
+    this._pending = accion;
+    const tit = document.getElementById('opciones-confirm-title');
+    const txt = document.getElementById('opciones-confirm-text');
+    if (tit) tit.textContent = titulo;
+    if (txt) txt.textContent = texto;
+    const ov = document.getElementById('opciones-overlay');
+    ov?.classList.remove('oculto');
+    ov?.classList.add('show');
+  },
+
+  _cerrarConfirm() {
+    this._pending = null;
+    const ov = document.getElementById('opciones-overlay');
+    ov?.classList.add('oculto');
+    ov?.classList.remove('show');
+  },
+
+  _aceptarConfirm() {
+    const accion = this._pending;
+    this._cerrarConfirm();
+    if (accion === 'logout') {
       this.cerrar();
       Usuarios.cerrarSesion();
-    });
+      this._toast('Sesión cerrada');
+      return;
+    }
+    if (accion === 'report') {
+      this.reportar();
+    }
+  },
 
-    document.getElementById('opcion-tarjeta').addEventListener('click', () => this.copiarTarjeta());
-
-    const rep = document.getElementById('opcion-reportar');
-    if (rep) rep.addEventListener('click', () => this.reportar());
+  _toast(texto) {
+    const el = document.getElementById('opciones-toast');
+    if (!el) return;
+    el.textContent = texto;
+    el.classList.add('show');
+    clearTimeout(this._toastTimer);
+    this._toastTimer = setTimeout(() => el.classList.remove('show'), 1700);
   },
 
   pintarPerfilOpciones() {
@@ -60,10 +152,10 @@ const Opciones = {
     const oro = (typeof Dinero !== 'undefined') ? Dinero.saldo : 0;
     if (grid) {
       grid.innerHTML =
-        '<div class="perfil-stat-chip">Nivel<b>Nv ' + nivel + '</b></div>' +
-        '<div class="perfil-stat-chip">Vida<b>❤️ ' + vida + '/' + maxVida + '</b></div>' +
-        '<div class="perfil-stat-chip">Hambre<b>🍽️ ' + hambre + '/' + CONFIG.hambreMaxima + '</b></div>' +
-        '<div class="perfil-stat-chip">Oro<b>💰 $' + oro + '</b></div>';
+        '<div class="opciones-stat"><div class="opciones-label">Nivel</div><div class="opciones-value">Nv ' + nivel + '</div></div>' +
+        '<div class="opciones-stat"><div class="opciones-label">Vida</div><div class="opciones-value">❤️ ' + vida + '/' + maxVida + '</div></div>' +
+        '<div class="opciones-stat"><div class="opciones-label">Hambre</div><div class="opciones-value">🍽️ ' + hambre + '/' + CONFIG.hambreMaxima + '</div></div>' +
+        '<div class="opciones-stat"><div class="opciones-label">Oro</div><div class="opciones-value">💰 $' + oro + '</div></div>';
     }
     if (idEl) {
       idEl.textContent = (perfil.telefono ? '📱 ' + perfil.telefono + ' · ' : '') + perfil.id;
@@ -74,16 +166,16 @@ const Opciones = {
     this._refrescarAdmin();
     this.pintarPerfilOpciones();
     this._pintarPreferencias();
-    document.getElementById('opciones-confirm-salir')?.classList.add('oculto');
-    document.getElementById('ventana-opciones').classList.remove('oculto');
+    this._cerrarConfirm();
+    const v = document.getElementById('ventana-opciones');
+    v?.classList.remove('oculto');
+    v?.classList.add('show');
   },
 
   _pintarPreferencias() {
     const prefs = Guardado.datos?.preferencias || {};
-    const chkChat = document.getElementById('opcion-notif-chat');
-    const chkAmigos = document.getElementById('opcion-notif-amigos');
-    if (chkChat) chkChat.checked = prefs.notifChat !== false;
-    if (chkAmigos) chkAmigos.checked = prefs.notifAmigos !== false;
+    this._setToggle(document.getElementById('opcion-toggle-chat'), prefs.notifChat !== false);
+    this._setToggle(document.getElementById('opcion-toggle-amigos'), prefs.notifAmigos !== false);
   },
 
   _guardarPreferencia(clave, valor) {
@@ -96,12 +188,16 @@ const Opciones = {
   },
 
   _refrescarAdmin() {
-    const btn = document.getElementById('btn-admin');
-    if (btn) btn.classList.toggle('oculto', !Usuarios.esAdministrador());
+    const esAdmin = Usuarios.esAdministrador();
+    document.getElementById('btn-admin')?.classList.toggle('oculto', !esAdmin);
+    document.getElementById('opcion-admin')?.classList.toggle('oculto', !esAdmin);
   },
 
   cerrar() {
-    document.getElementById('ventana-opciones').classList.add('oculto');
+    const v = document.getElementById('ventana-opciones');
+    v?.classList.add('oculto');
+    v?.classList.remove('show');
+    this._cerrarConfirm();
   },
 
   async generarTarjeta() {
@@ -135,10 +231,11 @@ const Opciones = {
   },
 
   async copiarTarjeta() {
+    this._toast('Abriendo tarjeta…');
     const codigo = await this.generarTarjeta();
     if (navigator.clipboard && navigator.clipboard.writeText) {
       navigator.clipboard.writeText(codigo)
-        .then(() => Notificaciones.mostrar('🪪 Tarjeta copiada: mándala por WhatsApp a quien quiera ver tu perfil', 'exito', 6000))
+        .then(() => this._toast('Tarjeta copiada al portapapeles'))
         .catch(() => prompt('Copia tu tarjeta:', codigo));
     } else {
       prompt('Copia tu tarjeta:', codigo);
@@ -157,7 +254,7 @@ const Opciones = {
       'Fecha: ' + Utilidades.fechaLegible(Date.now());
     if (navigator.clipboard && navigator.clipboard.writeText) {
       navigator.clipboard.writeText(texto)
-        .then(() => Notificaciones.mostrar('🚩 Reporte copiado: mándaselo al administrador por WhatsApp', 'exito', 7000))
+        .then(() => this._toast('Reporte enviado'))
         .catch(() => prompt('Copia el reporte y mándaselo al administrador:', texto));
     } else {
       prompt('Copia el reporte y mándaselo al administrador:', texto);
