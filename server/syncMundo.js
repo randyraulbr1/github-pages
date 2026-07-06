@@ -349,26 +349,53 @@ function findMissionByOrigenId(origenId) {
   return null;
 }
 
+function origenCambioEnemigo(prev, existing, payload, x, y) {
+  const nx = payload.origenX != null ? Number(payload.origenX) : Number(x);
+  const ny = payload.origenY != null ? Number(payload.origenY) : Number(y);
+  const px = prev.origenX != null ? Number(prev.origenX) : Number(existing.x);
+  const py = prev.origenY != null ? Number(prev.origenY) : Number(existing.y);
+  const umbral = 0.000001;
+  return Math.abs(nx - px) > umbral || Math.abs(ny - py) > umbral;
+}
+
 function upsertWorldObject(origenId, type, x, y, data, io, silent) {
   const payload = Object.assign({ origenId }, data || {});
   const existing = findObjectByOrigenId(origenId);
   let row;
+  let enemigoReposicionado = false;
   if (existing) {
     const campos = {
       type,
       state: 'active',
       data_json: JSON.stringify(payload)
     };
-    // La IA mueve enemigos en vivo — no resetear x/y al sincronizar mundo.json
+    // La IA mueve enemigos en vivo — no resetear x/y salvo que el admin movió el spawn
     if (type !== 'enemy') {
       campos.x = Number(x);
       campos.y = Number(y);
     } else {
       let prev = {};
       try { prev = JSON.parse(existing.data_json || '{}'); } catch (e) { prev = {}; }
-      if (payload.origenX == null && prev.origenX != null) payload.origenX = prev.origenX;
-      if (payload.origenY == null && prev.origenY != null) payload.origenY = prev.origenY;
-      campos.data_json = JSON.stringify(payload);
+      const spawnX = payload.origenX != null ? Number(payload.origenX) : Number(x);
+      const spawnY = payload.origenY != null ? Number(payload.origenY) : Number(y);
+      enemigoReposicionado = origenCambioEnemigo(prev, existing, payload, x, y);
+      if (enemigoReposicionado) {
+        payload.origenX = spawnX;
+        payload.origenY = spawnY;
+        payload.facingDeg = null;
+        payload.targetPlayerId = null;
+        campos.x = spawnX;
+        campos.y = spawnY;
+        campos.data_json = JSON.stringify(payload);
+        try {
+          const { clearEnemyStateByOrigenId } = require('./enemyAI');
+          clearEnemyStateByOrigenId(origenId);
+        } catch (e) { /* */ }
+      } else {
+        if (payload.origenX == null && prev.origenX != null) payload.origenX = prev.origenX;
+        if (payload.origenY == null && prev.origenY != null) payload.origenY = prev.origenY;
+        campos.data_json = JSON.stringify(payload);
+      }
     }
     row = updateWorldObject(existing.id, campos);
   } else {
@@ -381,7 +408,7 @@ function upsertWorldObject(origenId, type, x, y, data, io, silent) {
     });
   }
   const formatted = formatWorldObject(row);
-  if (io && !silent) io.emit('world:updateObject', formatted);
+  if (io && (!silent || enemigoReposicionado)) io.emit('world:updateObject', formatted);
   return formatted;
 }
 

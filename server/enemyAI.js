@@ -211,4 +211,17 @@ function startEnemyAI(io, onlinePlayers) {
   }, TICK_MS);
 }
 
-module.exports = { startEnemyAI, distanceMeters, bearingDeg };
+function clearEnemyStateByOrigenId(origenId) {
+  if (!origenId) return;
+  for (const obj of getAllWorldObjects()) {
+    if (obj.type !== 'enemy') continue;
+    let d = {};
+    try { d = JSON.parse(obj.data_json || '{}'); } catch (e) { d = {}; }
+    if (d.origenId === origenId) {
+      lastAttack.delete(obj.id);
+      enemyTargets.delete(obj.id);
+    }
+  }
+}
+
+module.exports = { startEnemyAI, distanceMeters, bearingDeg, clearEnemyStateByOrigenId };

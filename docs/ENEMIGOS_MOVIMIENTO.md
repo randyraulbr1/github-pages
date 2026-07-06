@@ -73,8 +73,13 @@ _moverEnemigo() → _sincronizarZonas()  // círculos con el pin
 2. **GitHub Pages**: merge a `claude/web-rpg-gps-game-n3ybow`, subir `CONFIG.version` y `sw.js` CACHE.
 3. **Jugadores**: borrar **datos del sitio** (no solo caché) por el service worker.
 
+### 4. Admin movió enemigo en Organizar pines (v119)
+Al publicar, `upsertWorldObject` no actualizaba `x/y` en SQLite — la IA seguía desde la posición vieja y el cliente recibía teletransporte.
+
+**Fix:**
+- Servidor: si `origenX/originY` cambió en `mundo.json`, resetear `x`, `y` y emitir `world:updateObject`.
+- Cliente: `_adminMovidoPos` ignora posiciones obsoletas del servidor; `fijarPosicion` mantiene `_posViva` y refresca distancia al jugador.
 ## Versiones
 
+- **v119**: admin mueve enemigo — servidor actualiza x/y si cambió origen; cliente anti-teletransporte.
 - **v93–v94**: anti-teletransporte, zona desde origen (círculos fijos — revertido en v96).
-- **v95**: `_posViva`, interpolación, sin reset en `_recargar`.
-- **v96**: círculos siguen al enemigo; zona medida desde `e.pos` / `obj.x,y`.

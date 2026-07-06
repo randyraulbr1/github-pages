@@ -49,6 +49,25 @@ const Enemigos = {
     if (this._zonasAtaque[e.id]) this._zonasAtaque[e.id].setLatLng(ll);
   },
 
+  _refrescarDistanciaJugador(e) {
+    if (!GPS?.posicion || !e?.pos || e.pos.length < 2) return;
+    const d = Utilidades.distanciaMetros(GPS.posicion, e.pos);
+    e._enZona = d <= this._radioZona(e);
+    this._actualizarVisibilidadZonas(e, d);
+    this._alCambiarDistancia(e, d);
+    const pi = typeof Mapa !== 'undefined'
+      ? Mapa.puntosInteractivos.find(x => x.id === e.id) : null;
+    if (pi?.marcador) {
+      const el = pi.marcador.getElement();
+      if (el) {
+        const icono = el.querySelector('.icono-mapa');
+        if (icono) {
+          icono.classList.toggle('cerca', d <= (pi.radio || CONFIG.distanciaInteraccion));
+        }
+      }
+    }
+  },
+
   iniciar() {
     this._recargar();
     if (this._tickId) clearInterval(this._tickId);
@@ -424,7 +443,12 @@ const Enemigos = {
       }
     }
     if (!e) return;
-    if (e._adminMovidoEn && Date.now() - e._adminMovidoEn < 10000) return;
+    if (e._adminMovidoPos?.length >= 2) {
+      const dAdmin = Utilidades.distanciaMetros(e._adminMovidoPos, [lat, lng]);
+      if (dAdmin > 5 && Date.now() - (e._adminMovidoEn || 0) < 60000) return;
+    } else if (e._adminMovidoEn && Date.now() - e._adminMovidoEn < 15000) {
+      return;
+    }
 
     this._posViva[origenId] = [lat, lng];
     const desde = this._posDesdeMarcador(e) || e.pos?.slice() || [lat, lng];
@@ -436,6 +460,13 @@ const Enemigos = {
     if (typeof Admin !== 'undefined') {
       if (data?.origenX != null && data?.origenY != null) {
         e.posOrigen = [data.origenX, data.origenY];
+        if (e._adminMovidoPos?.length >= 2) {
+          const dOrigen = Utilidades.distanciaMetros(e._adminMovidoPos, e.posOrigen);
+          if (dOrigen < 3) {
+            delete e._adminMovidoEn;
+            delete e._adminMovidoPos;
+          }
+        }
       }
       if (data?.hp != null) {
         Admin.publicado.enemigosEstado = Admin.publicado.enemigosEstado || {};
@@ -522,16 +553,24 @@ const Enemigos = {
     const p = [+pos[0], +pos[1]];
     e.pos = p.slice();
     e.posOrigen = p.slice();
-    delete this._posViva[e.id];
     delete this._interp[e.id];
     e.facingDeg = null;
     e._enZona = false;
     e._avisoZona = false;
-    if (!opts?.silencioso) e._adminMovidoEn = Date.now();
+    if (!opts?.silencioso) {
+      e._adminMovidoEn = Date.now();
+      e._adminMovidoPos = p.slice();
+    }
+    if (this._online()) {
+      this._posViva[e.id] = p.slice();
+    } else {
+      delete this._posViva[e.id];
+    }
     this._moverEnemigo(e, p[0], p[1]);
-    if (!this._adminOrganizando() && !opts?.silencioso) {
+    this._refrescarDistanciaJugador(e);
+    if (!opts?.silencioso) {
       this._sincronizarZonas(e);
-      this._refrescarIconoMarcador(e);
+      if (!this._adminOrganizando()) this._refrescarIconoMarcador(e);
     }
   },
 
@@ -548,6 +587,7 @@ const Enemigos = {
       pi.posicion[0] = nlat;
       pi.posicion[1] = nlng;
     }
+    if (this._adminOrganizando()) this._refrescarDistanciaJugador(e);
   },
 
   _golpeAutomatico(e) {
