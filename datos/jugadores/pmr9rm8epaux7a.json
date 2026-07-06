@@ -4,7 +4,7 @@
   "telefono": "91192994",
   "pinHash": "4bdc96ffc0926b62d55708e3c1755ca3f04b8c28bec6fd85777117da67497f11",
   "creado": 1783375315730,
-  "actualizadoEn": 1783376206115,
+  "actualizadoEn": 1783376218169,
   "partida": {
     "datos": {
       "mochila": [
@@ -89,6 +89,6 @@
       "muerto": false,
       "armaEquipada": null
     },
-    "t": 1783376202870
+    "t": 1783376214871
   }
 }
