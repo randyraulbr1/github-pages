@@ -19,7 +19,7 @@ const {
   formatWorldObject,
   formatMission
 } = require('./db');
-const { verifyToken } = require('./auth');
+const { verifyToken, isGameAdminName } = require('./auth');
 const { startEnemyAI } = require('./enemyAI');
 const { registrarRecogidaObjeto, registrarRecogidaTesoro, registrarCuerpoMuerto, quitarCuerpoMuerto, getCuerpoMuerto, actualizarInventarioCuerpo, actualizarPartidaEnSnapshot, revivirPartidaEnSnapshot } = require('./syncMundo');
 
@@ -33,7 +33,6 @@ const MAX_GPS_DELTA = 0.004;
 const INTERACT_DISTANCE = 0.0005;
 const REVIVE_DISTANCE = 0.00045;
 const SYNC_INTERVAL_MS = 8000;
-const GAME_ADMIN_NAME = (process.env.GAME_ADMIN_NAME || 'SoyCaos').toLowerCase();
 
 let enemyAIStarted = false;
 
@@ -273,7 +272,7 @@ function setupSockets(io) {
 
     socket.on('admin:revivePlayer', (payload, ack) => {
       const adminPl = findPlayerById(socket.playerId);
-      if (!adminPl || adminPl.name.trim().toLowerCase() !== GAME_ADMIN_NAME) {
+      if (!adminPl || !isGameAdminName(adminPl.name)) {
         return ack?.({ ok: false, error: 'Solo el administrador del juego' });
       }
 

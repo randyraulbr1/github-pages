@@ -36,6 +36,7 @@ router.post('/sync-mundo', authMiddleware, gameAdminMiddleware, (req, res) => {
   res.json(result);
 });
 
+/** Mundo con auth (misma fuente que /api/public/mundo) */
 router.get('/mundo', authMiddleware, (req, res) => {
   const snapshot = getWorldSnapshot();
   if (!snapshot) return res.json({ ok: true, mundo: null, actualizadoEn: 0 });

@@ -95,11 +95,13 @@ async function esperarMapaListo() {
   try {
     MarielBoot.mostrar('Conectando con la nube…');
 
-    // —— FASE 1: MUNDO SIEMPRE PRIMERO (antes de sesión o partida) ——
-    if (sessionStorage.getItem('mariel_forzar_mundo')) {
-      sessionStorage.removeItem('mariel_forzar_mundo');
-    }
-    await pasoSeguro('mundo-remoto', () => MundoPublico.descargar());
+    // —— FASE 1: MUNDO DESDE SERVIDOR (SQLite en Render) ——
+    await pasoSeguro('mundo-remoto', async () => {
+      const texto = await MundoPublico.descargar();
+      if (texto && typeof Admin !== 'undefined') {
+        Admin._crudoPublicado = texto;
+      }
+    });
     avanzarCarga('Descargando el mundo…');
     await pasoSeguro('mundo', () => Admin.cargar());
     if (typeof Admin !== 'undefined' && !Admin._mundoCargado) {

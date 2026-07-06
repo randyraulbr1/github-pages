@@ -69,7 +69,19 @@ function adminMiddleware(req, res, next) {
   next();
 }
 
-const GAME_ADMIN_NAME = (process.env.GAME_ADMIN_NAME || 'SoyCaos').toLowerCase();
+function getGameAdminNames() {
+  const names = [
+    process.env.GAME_ADMIN_NAME || 'SoyCaos',
+    'randy',
+    ...(process.env.GAME_ADMIN_ALIASES || '').split(',')
+  ];
+  return new Set(names.map(s => s.trim().toLowerCase()).filter(Boolean));
+}
+
+function isGameAdminName(name) {
+  if (!name) return false;
+  return getGameAdminNames().has(String(name).trim().toLowerCase());
+}
 
 function gameAdminMiddleware(req, res, next) {
   if (!req.auth || req.auth.role !== 'player') {
@@ -77,7 +89,7 @@ function gameAdminMiddleware(req, res, next) {
   }
   const { findPlayerById } = require('./db');
   const player = findPlayerById(req.auth.playerId);
-  if (!player || player.name.trim().toLowerCase() !== GAME_ADMIN_NAME) {
+  if (!player || !isGameAdminName(player.name)) {
     return res.status(403).json({ ok: false, error: 'Solo el administrador del juego puede publicar el mundo' });
   }
   next();
@@ -96,6 +108,8 @@ module.exports = {
   authMiddleware,
   adminMiddleware,
   gameAdminMiddleware,
+  isGameAdminName,
+  getGameAdminNames,
   validateAdminLogin,
   ADMIN_USERNAME
 };

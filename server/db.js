@@ -107,6 +107,16 @@ function initDb() {
     const imp = importarDesdeMundoJson(db);
     if (imp.objetos) console.log('   Importados', imp.objetos, 'objetos desde datos/mundo.json');
   } catch (e) { /* sin mundo.json */ }
+
+  try {
+    const { importarSnapshotSiFalta } = require('./importSnapshot');
+    const snap = importarSnapshotSiFalta();
+    if (snap.importado) {
+      console.log('   Snapshot mundo:', snap.jugadores, 'jugadores en SQLite');
+    }
+  } catch (e) {
+    console.warn('   importSnapshot:', e.message);
+  }
 }
 
 /** Objetos iniciales del mapa (como el coco y cangrejo del juego original). */

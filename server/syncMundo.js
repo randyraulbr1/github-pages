@@ -463,9 +463,9 @@ function syncMundoFromJson(mundo, io) {
   saveWorldSnapshot(mundo);
 
   pushMundoToGitHub(mundo).then((r) => {
-    if (r.ok) console.log('[mundo] Respaldo en GitHub OK');
-    else if (!r.skipped) console.warn('[mundo] GitHub:', r.error || r.reason);
-  }).catch((e) => console.warn('[mundo] GitHub:', e.message));
+    if (r.ok) console.log('[mundo] Respaldo GitHub OK');
+    else if (!r.skipped) console.warn('[mundo] Respaldo GitHub:', r.error || r.reason);
+  }).catch((e) => console.warn('[mundo] Respaldo GitHub:', e.message));
 
   if (io) {
     io.emit('mundo:sync', {

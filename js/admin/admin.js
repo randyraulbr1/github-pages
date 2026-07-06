@@ -124,8 +124,7 @@ const Admin = {
 
     // Admin: si hay borradores locales no publicados, subirlos en segundo plano
     if (typeof Usuarios !== 'undefined' && Usuarios.esAdministrador()) {
-      const puedePub = MundoPublico.puedePublicar() ||
-        (typeof SyncServidor !== 'undefined' && SyncServidor.puedePublicar());
+      const puedePub = typeof SyncServidor !== 'undefined' && SyncServidor.puedePublicar();
       if (puedePub) {
       const localN = (this.datos.objetos || []).length + (this.datos.tesoros || []).length +
         (this.datos.misiones || []).length + (this.datos.enemigos || []).length;
@@ -142,6 +141,9 @@ const Admin = {
     this._ultimoPublicado = this._crudoPublicado;
     if (this._crudoPublicado) this._ultimoFirmaPublicada = this._firmaMundo(this._crudoPublicado);
     this._detectarCambiosLocalesSinPublicar();
+    if (typeof Multijugador !== 'undefined' && Multijugador.aplicarMundoPendiente) {
+      Multijugador.aplicarMundoPendiente();
+    }
   },
 
   _firmaMundo(jsonStr) {
@@ -154,75 +156,39 @@ const Admin = {
     }
   },
 
-  /** Elige el mundo más reciente entre GitHub y el servidor Render. */
+  /** Carga el mundo solo desde el servidor Render (SQLite). */
   async _descargarMejorMundo() {
-    let mejor = null;
-    let mejorTs = 0;
-
+    if (!CONFIG.servidorOnline) return null;
     try {
       const texto = await MundoPublico.descargar();
-      if (texto) {
-        const ts = JSON.parse(texto).actualizadoEn || 0;
-        if (ts >= mejorTs) {
-          mejor = texto;
-          mejorTs = ts;
-        }
-      }
-    } catch (e) { /* */ }
-
-    if (CONFIG.servidorOnline) {
-      const token = localStorage.getItem(
-        (typeof Multijugador !== 'undefined' && Multijugador.TOKEN_KEY) || 'mariel_online_token'
-      );
-      if (token) {
-        try {
-          const base = CONFIG.servidorOnline.replace(/\/$/, '');
-          const r = await fetch(base + '/api/player/mundo', {
-            headers: { Authorization: 'Bearer ' + token }
-          });
-          const data = await r.json().catch(() => ({}));
-          if (data.ok && data.mundo) {
-            const ts = data.actualizadoEn || data.mundo.actualizadoEn || 0;
-            if (ts >= mejorTs) {
-              mejor = JSON.stringify(data.mundo);
-              mejorTs = ts;
-            }
-          }
-        } catch (e) { /* servidor dormido */ }
-      }
+      return texto || null;
+    } catch (e) {
+      return null;
     }
-
-    return mejor;
   },
 
   /** Tras iniciar sesión, vuelve a cargar el mundo del servidor si es más nuevo. */
   async refrescarMundoTrasLogin() {
     if (!CONFIG.servidorOnline || !this._mundoCargado) return false;
-    const token = localStorage.getItem(
-      (typeof Multijugador !== 'undefined' && Multijugador.TOKEN_KEY) || 'mariel_online_token'
-    );
-    if (!token) return false;
     try {
-      const base = CONFIG.servidorOnline.replace(/\/$/, '');
-      const r = await fetch(base + '/api/player/mundo', {
-        headers: { Authorization: 'Bearer ' + token }
-      });
-      const data = await r.json().catch(() => ({}));
-      if (!data.ok || !data.mundo) return false;
+      let data = null;
+      if (typeof SyncServidor !== 'undefined' && SyncServidor.obtenerMundo) {
+        data = await SyncServidor.obtenerMundo();
+      }
+      if (!data?.mundo) return false;
       const tsRemoto = data.actualizadoEn || data.mundo.actualizadoEn || 0;
       const tsLocal = this.publicado?.actualizadoEn || 0;
       if (tsRemoto < tsLocal) return false;
       const json = JSON.stringify(data.mundo);
-      if (this._firmaMundo(json) === this._firmaMundo(this._crudoPublicado || '{}') &&
-          tsRemoto === tsLocal) {
-        return false;
-      }
       this._crudoPublicado = json;
       this._ultimoFirmaPublicada = this._firmaMundo(json);
       if (typeof Multijugador !== 'undefined') {
-        Multijugador.mundoServidorTs = Math.max(Multijugador.mundoServidorTs || 0, tsRemoto);
+        Multijugador.mundoServidorTs = tsRemoto;
       }
       this._aplicarMundoRemoto(json);
+      if (typeof Multijugador !== 'undefined' && Multijugador.aplicarMundoPendiente) {
+        Multijugador.aplicarMundoPendiente();
+      }
       return true;
     } catch (e) {
       return false;
@@ -634,6 +600,9 @@ const Admin = {
   // ---------- ARRANQUE (después de los módulos base) ----------
   iniciar() {
     this._progreso();
+    if (typeof Multijugador !== 'undefined' && Multijugador.aplicarMundoPendiente) {
+      Multijugador.aplicarMundoPendiente();
+    }
     if (this.esAdminJugador() && Usuarios.datos && Usuarios.datos.lista) {
       for (const p of Usuarios.datos.lista) this.registrarJugador(p, true);
     }
@@ -777,7 +746,7 @@ const Admin = {
   iniciarVigilancia() {
     if (this._vigilanciaActiva) return;
     this._vigilanciaActiva = true;
-    const intervalo = (CONFIG.servidorOnline ? 3500 : 8000);
+    const intervalo = CONFIG.servidorOnline ? 4000 : 8000;
     setInterval(() => this._revisarActualizacion(), intervalo);
     document.addEventListener('visibilitychange', () => {
       if (!document.hidden) this._revisarActualizacion();
@@ -786,36 +755,24 @@ const Admin = {
 
   async _revisarActualizacion() {
     try {
-      if (CONFIG.servidorOnline && typeof Multijugador !== 'undefined' &&
-          localStorage.getItem(Multijugador.TOKEN_KEY)) {
+      if (!CONFIG.servidorOnline) return;
+      if (typeof Multijugador !== 'undefined' && Multijugador.obtenerMundoServidor) {
         await Multijugador.obtenerMundoServidor();
-        if (typeof Usuarios !== 'undefined') Usuarios.verificarSesionRemota();
-        if (typeof Guardado !== 'undefined' && Usuarios.perfilActivo) {
-          Guardado.sincronizarNube(true).catch(() => {});
+      } else if (typeof SyncServidor !== 'undefined' && SyncServidor.obtenerMundo) {
+        const data = await SyncServidor.obtenerMundo();
+        if (data?.mundo && typeof this._aplicarMundoRemoto === 'function') {
+          const ts = data.actualizadoEn || data.mundo.actualizadoEn || 0;
+          const localTs = this.publicado?.actualizadoEn || 0;
+          if (ts >= localTs) {
+            this._aplicarMundoRemoto(JSON.stringify(data.mundo));
+          }
         }
-        return;
       }
-      const texto = await MundoPublico.descargar();
-      if (!texto) return;
-      if (this._crudoPublicado === null) { this._crudoPublicado = texto; return; }
-      if (texto === this._crudoPublicado) {
-        if (typeof Usuarios !== 'undefined') Usuarios.verificarSesionRemota();
-        if (typeof Guardado !== 'undefined' && Usuarios.perfilActivo) {
-          Guardado.sincronizarNube(true).catch(() => {});
-        }
-        return;
+      if (typeof Usuarios !== 'undefined') Usuarios.verificarSesionRemota();
+      if (typeof Guardado !== 'undefined' && Usuarios?.perfilActivo) {
+        Guardado.sincronizarNube(true).catch(() => {});
       }
-      if (this._crudoPublicado && this._firmaMundo(texto) === this._firmaMundo(this._crudoPublicado)) {
-        this._crudoPublicado = texto;
-        return;
-      }
-      let remotoTs = 0;
-      try { remotoTs = JSON.parse(texto).actualizadoEn || 0; } catch (e) { /* */ }
-      const localTs = this.publicado?.actualizadoEn || 0;
-      const servidorTs = (typeof Multijugador !== 'undefined' && Multijugador.mundoServidorTs) || 0;
-      if (remotoTs < localTs || remotoTs < servidorTs) return;
-      this._aplicarMundoRemoto(texto);
-    } catch (e) { /* sin conexión: se intenta en el próximo ciclo */ }
+    } catch (e) { /* sin conexión */ }
   },
 
   // Aplica el mundo publicado sin recargar toda la página
@@ -1788,7 +1745,7 @@ const Admin = {
     this._pubPendiente = true;
     const ok = await this._publicarParaTodos(true);
     if (!ok && this.esAdminJugador()) {
-      this._adminAviso('Guardado en tu teléfono. Pulsa Sincronizar para que los demás lo vean.', 'alerta');
+      this._adminAviso('No se publicó en el servidor. Revisa tu conexión y pulsa Sincronizar.', 'error');
     }
     this._colocacion = null;
     this.salirModo();
@@ -3567,72 +3524,36 @@ const Admin = {
     const json = JSON.stringify(adminLocal, (clave, valor) =>
       clave.startsWith('_') ? undefined : valor, 2);
 
-    let okGitHub = false;
-    let okServidor = false;
-
-    if (typeof SyncServidor !== 'undefined' && SyncServidor.puedePublicar()) {
-      okServidor = await SyncServidor.publicar(json);
-      if (okServidor && !silencioso) {
-        this._avisoSyncManual('📡 Mundo enviado a todos en vivo (+ respaldo GitHub)');
-      }
-    }
-
-    if (typeof MundoPublico !== 'undefined' && MundoPublico.puedeEscribir && MundoPublico.puedeEscribir()) {
-      okGitHub = await MundoPublico._putMundoGitHub(json);
-      if (okGitHub && !silencioso && !okServidor) {
-        this._avisoSyncManual('🌍 Mundo guardado en GitHub');
-      }
-    } else if (CONFIG.firebaseMundoUrl) {
-      try {
-        okGitHub = await MundoPublico.publicar(json);
-        if (okGitHub) {
-          if (!silencioso) this._avisoSyncManual('☁️ Mundo publicado en Firebase');
-        } else if (!silencioso) {
-          Notificaciones.mostrar('❌ No se pudo subir a Firebase. Revisa firebaseMundoUrl', 'error', 7000);
-        }
-      } catch (e) {
-        if (!silencioso) Notificaciones.mostrar('❌ Sin conexión. Intenta con WiFi', 'error', 6000);
-      }
-    } else if (!CONFIG.servidorOnline) {
-      const token = this._tokenPublicacion();
-      if (token) {
-        const mensaje = silencioso
-          ? 'Actualización automática desde el juego'
-          : 'Publicar mundo desde el juego (admin)';
-        okGitHub = await MundoPublico.actualizarMundo(
-          remoto => this._aplicarAdminEnMundo(remoto, adminLocal),
-          mensaje
+    if (!CONFIG.servidorOnline || typeof SyncServidor === 'undefined' || !SyncServidor.puedePublicar()) {
+      if (!silencioso) {
+        Notificaciones.mostrar(
+          '⚠️ Inicia sesión para publicar al servidor.',
+          'alerta', 8000
         );
-        if (okGitHub && !silencioso) {
-          this._avisoSyncManual('🌍 Mundo publicado en GitHub');
-        } else if (!okGitHub && !silencioso) {
-          Notificaciones.mostrar(
-            '❌ No se pudo subir el mundo. Pulsa Sincronizar de nuevo.',
-            'error', 8000
-          );
-        } else if (!okGitHub) {
-          clearTimeout(this._tempReintento409);
-          this._tempReintento409 = setTimeout(() => this._encolarPublicacion(true), 8000);
-        }
       }
+      return false;
     }
 
-    if (okGitHub || okServidor) {
-      this._sincronizarEstadoTrasPublicar(adminLocal, json);
-      this._aplicarMundoRemoto(json);
-      if (okServidor && typeof Multijugador !== 'undefined') {
-        Multijugador.mundoServidorTs = adminLocal.actualizadoEn || Date.now();
+    const resultado = await SyncServidor.publicar(json);
+    if (!resultado.ok) {
+      if (!silencioso) {
+        Notificaciones.mostrar(
+          '❌ No se pudo publicar: ' + (resultado.error || 'error del servidor'),
+          'error', 9000
+        );
       }
-      return true;
+      return false;
     }
 
-    if (!okServidor && !okGitHub && !silencioso) {
-      Notificaciones.mostrar(
-        'Inicia sesión en el juego para publicar. El mapa solo queda en este teléfono hasta sincronizar.',
-        'alerta', 8000
-      );
+    this._sincronizarEstadoTrasPublicar(adminLocal, json);
+    this._aplicarMundoRemoto(json);
+    if (typeof Multijugador !== 'undefined') {
+      Multijugador.mundoServidorTs = adminLocal.actualizadoEn || Date.now();
     }
-    return false;
+    if (!silencioso) {
+      this._avisoSyncManual('📡 Mundo publicado — todos lo ven en vivo');
+    }
+    return true;
   },
 
   // ---------- EXPORTAR ----------

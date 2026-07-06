@@ -3,12 +3,13 @@
 // ============================================================
 const CONFIG = {
   // Cambiar al publicar: obliga al móvil a descartar caché vieja
-  version: '78',
+  version: '79',
   maxPila: 10,
 
   // Nombre reservado del administrador (solo este jugador ve el panel admin)
   adminNombre: 'SoyCaos',
   adminDisplayNombre: 'SoyCaos',
+  adminAlias: ['randy'],
 
   vidaMaxima: 100,
   vidaExtraPorNivel: 4,

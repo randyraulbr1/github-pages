@@ -16,6 +16,8 @@ const Multijugador = {
   _animaciones: {},
   _pollMundo: null,
   _ultimoPullMundo: 0,
+  _mundoPendiente: null,
+  _reconectando: false,
 
   urlServidor() {
     return (CONFIG.servidorOnline || '').replace(/\/$/, '');
@@ -114,16 +116,18 @@ const Multijugador = {
 
     this.socket.on('connect_error', () => {
       this.activo = false;
+      this._mostrarReconectando(true);
     });
 
     this.socket.on('connect', () => {
       this.activo = true;
+      this._mostrarReconectando(false);
       if (typeof GPS !== 'undefined' && GPS.posicion) {
         this.enviarPosicion(GPS.posicion[0], GPS.posicion[1], true);
       }
       this.enviarStats(true);
       this._iniciarPollingMundo();
-      this._pullMundoServidor();
+      this.loadWorld();
       if (typeof Usuarios !== 'undefined' && Usuarios.perfilActivo &&
           typeof SyncServidor !== 'undefined' && SyncServidor.registrarCuenta) {
         SyncServidor.registrarCuenta(Usuarios.perfilActivo, null).catch(() => {});
@@ -132,6 +136,7 @@ const Multijugador = {
 
     this.socket.on('disconnect', () => {
       this.activo = false;
+      this._mostrarReconectando(true);
       if (this._pollMundo) {
         clearInterval(this._pollMundo);
         this._pollMundo = null;
@@ -367,26 +372,37 @@ const Multijugador = {
     }
   },
 
-  _aplicarMundoServidor(data, avisar) {
-    if (!data?.mundo || typeof Admin === 'undefined') return false;
+  _mostrarReconectando(activo) {
+    this._reconectando = !!activo;
+    if (typeof Notificaciones === 'undefined') return;
+    if (activo) {
+      Notificaciones.mostrar('📡 Reconectando al servidor…', 'alerta', 0);
+    }
+  },
+
+  _aplicarMundoAlCliente(data, avisar) {
+    if (!data?.mundo) return false;
     const m = data.mundo;
     const tieneMapa = (m.misiones?.length || 0) + (m.objetos?.length || 0) +
       (m.enemigos?.length || 0) + (m.tesoros?.length || 0) +
       (m.tiendasAdmin?.length || 0) + Object.keys(m.posiciones || {}).length;
-    if (!tieneMapa) return false;
+    if (!tieneMapa && !(m.jugadores?.length)) return false;
+
+    if (typeof Admin === 'undefined' || typeof Admin._aplicarMundoRemoto !== 'function') {
+      this._mundoPendiente = data;
+      return false;
+    }
+
     const ts = data.actualizadoEn || m.actualizadoEn || Date.now();
     const json = JSON.stringify(m);
     const firma = Admin._firmaMundo(json);
-    if (ts <= this.mundoServidorTs) {
-      if (firma === Admin._ultimoFirmaPublicada) return false;
-    }
+    if (ts <= this.mundoServidorTs && firma === Admin._ultimoFirmaPublicada) return false;
+
     this.mundoServidorTs = Math.max(this.mundoServidorTs, ts);
     Admin._crudoPublicado = json;
     Admin._ultimoFirmaPublicada = firma;
     Admin._aplicarMundoRemoto(json);
-    if (m.cuerposMuertos && typeof Multijugador !== 'undefined') {
-      Multijugador._aplicarCuerpos(m.cuerposMuertos);
-    }
+    if (m.cuerposMuertos) this._aplicarCuerpos(m.cuerposMuertos);
     if (avisar && typeof Usuarios !== 'undefined' && !Usuarios.esAdministrador() &&
         typeof Notificaciones !== 'undefined') {
       Notificaciones.mostrar('🌍 El admin actualizó el mapa', 'info', 4000);
@@ -394,25 +410,45 @@ const Multijugador = {
     return true;
   },
 
-  /** Descarga el mundo del servidor (no requiere socket activo). */
+  aplicarMundoPendiente() {
+    if (!this._mundoPendiente) return false;
+    const data = this._mundoPendiente;
+    this._mundoPendiente = null;
+    return this._aplicarMundoAlCliente(data, false);
+  },
+
+  async loadWorld() {
+    return this.obtenerMundoServidor();
+  },
+
+  _aplicarMundoServidor(data, avisar) {
+    return this._aplicarMundoAlCliente(data, avisar);
+  },
+
+  /** Descarga el mundo del servidor (SQLite). */
   async obtenerMundoServidor() {
+    if (typeof SyncServidor !== 'undefined' && SyncServidor.obtenerMundo) {
+      const data = await SyncServidor.obtenerMundo();
+      if (data?.mundo) {
+        return this._aplicarMundoServidor(data, false);
+      }
+    }
     const base = this.urlServidor();
-    const token = localStorage.getItem(this.TOKEN_KEY);
-    if (!base || !token) return false;
+    if (!base) return false;
     try {
-      const r = await fetch(base + '/api/player/mundo', {
-        headers: { Authorization: 'Bearer ' + token }
-      });
+      const r = await fetch(base + '/api/public/mundo', { cache: 'no-store' });
       const data = await r.json().catch(() => ({}));
       if (!data.ok || !data.mundo) return false;
-      return this._aplicarMundoServidor(data, false);
+      return this._aplicarMundoServidor({
+        mundo: data.mundo,
+        actualizadoEn: data.actualizadoEn || data.mundo.actualizadoEn || 0
+      }, false);
     } catch (e) {
       return false;
     }
   },
 
   async _pullMundoServidor() {
-    if (!this.activo) return;
     const ahora = Date.now();
     if (ahora - this._ultimoPullMundo < 2500) return;
     this._ultimoPullMundo = ahora;
@@ -450,7 +486,8 @@ const Multijugador = {
   _esAdminMarcador(p) {
     const nom = (p.name || '').trim().toLowerCase();
     const adm = (CONFIG.adminNombre || 'soycaos').toLowerCase();
-    return nom === adm || nom === 'randy';
+    const alias = (CONFIG.adminAlias || []).map(a => a.toLowerCase());
+    return nom === adm || alias.includes(nom);
   },
 
   _nombreMarcador(p) {

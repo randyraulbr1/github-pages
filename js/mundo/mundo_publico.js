@@ -5,15 +5,8 @@
 // ============================================================
 const MundoPublico = {
 
-  // ¿Hay nube configurada para publicar al pulsar Confirmar?
   puedePublicar() {
-    if (CONFIG.firebaseMundoUrl) return true;
-    if (this._tokenGitHub()) return true;
-    try {
-      const d = JSON.parse(localStorage.getItem('mariel_admin_v1') || 'null');
-      if (d && d.tokenPublicar) return true;
-    } catch (e) {}
-    return false;
+    return typeof SyncServidor !== 'undefined' && SyncServidor.puedePublicar();
   },
 
   usaFirebase() {
@@ -161,15 +154,34 @@ const MundoPublico = {
     } catch (e) { return false; }
   },
 
-  // Mismo sitio primero (Cuba, sin VPN) — raw GitHub como respaldo
+  // Fuente única: servidor Render (SQLite). GitHub solo respaldo en servidor.
   urlsLectura() {
-    const urls = ['datos/mundo.json'];
-    if (CONFIG.repoPublicacion && CONFIG.ramaPublicacion) {
-      urls.push('https://raw.githubusercontent.com/' + CONFIG.repoPublicacion + '/' +
-        CONFIG.ramaPublicacion + '/datos/mundo.json');
+    return [];
+  },
+
+  async _descargarDesdeServidor() {
+    if (!CONFIG.servidorOnline) return null;
+    if (typeof SyncServidor !== 'undefined' && SyncServidor.obtenerMundo) {
+      const data = await SyncServidor.obtenerMundo();
+      if (data?.mundo) {
+        return {
+          texto: JSON.stringify(data.mundo),
+          actualizadoEn: data.actualizadoEn || data.mundo.actualizadoEn || 0
+        };
+      }
     }
-    if (CONFIG.firebaseMundoUrl) urls.push(this._urlFirebase('mundo'));
-    return urls;
+    try {
+      const base = CONFIG.servidorOnline.replace(/\/$/, '');
+      const r = await Utilidades.fetchConTimeout(base + '/api/public/mundo', { cache: 'no-store' }, 8000);
+      const data = await r.json().catch(() => ({}));
+      if (data.ok && data.mundo) {
+        return {
+          texto: JSON.stringify(data.mundo),
+          actualizadoEn: data.actualizadoEn || data.mundo.actualizadoEn || 0
+        };
+      }
+    } catch (e) { /* */ }
+    return null;
   },
 
   _aplicarTokenDesdeTexto(texto) {
@@ -197,44 +209,19 @@ const MundoPublico = {
       return { indice: ind, mundo };
     }
 
-    let indiceArchivo = null;
-    if (CONFIG.repoPublicacion) {
-      try {
-        indiceArchivo = await this._descargarJsonRepo(this._rutaIndiceCuentas());
-      } catch (e) { /* */ }
+    if (!CONFIG.servidorOnline) {
+      return { indice: [], mundo: null };
     }
 
-    let jugadoresServidor = [];
-    if (CONFIG.servidorOnline) {
-      try {
-        const base = CONFIG.servidorOnline.replace(/\/$/, '');
-        const r = await Utilidades.fetchConTimeout(base + '/api/public/cuentas', { cache: 'no-store' }, 6000);
-        const data = await r.json().catch(() => ({}));
-        if (data.ok && Array.isArray(data.jugadores)) jugadoresServidor = data.jugadores;
-      } catch (e) { /* */ }
-    }
-
-    const textoMundo = await this.descargar();
-    if (textoMundo) this._mundoCache = textoMundo;
+    const remoto = await this._descargarDesdeServidor();
     let mundo = null;
-    if (textoMundo) {
-      try { mundo = JSON.parse(textoMundo); } catch (e) {}
+    if (remoto?.texto) {
+      this._mundoCache = remoto.texto;
+      try { mundo = JSON.parse(remoto.texto); } catch (e) {}
     }
 
-    const porId = new Map();
-    const agregar = (lista) => {
-      for (const j of (lista || [])) {
-        if (!j?.id) continue;
-        porId.set(j.id, Object.assign({}, porId.get(j.id), j));
-      }
-    };
-    agregar(indiceArchivo);
-    agregar(jugadoresServidor);
-    agregar(mundo ? mundo.jugadores : null);
-
-    const indice = [...porId.values()].sort((a, b) =>
+    const indice = (mundo?.jugadores || []).slice().sort((a, b) =>
       (a.nombre || '').localeCompare(b.nombre || ''));
-    if (mundo && indice.length) mundo.jugadores = indice;
 
     return { indice, mundo };
   },
@@ -266,31 +253,9 @@ const MundoPublico = {
   },
 
   async descargar() {
-    const bust = '?v=' + Date.now();
-    const candidatos = [];
-    for (const base of this.urlsLectura()) {
-      try {
-        const url = base + (this.usaFirebase() ? '' : bust);
-        const r = await Utilidades.fetchConTimeout(url, { cache: 'no-store' }, 5000);
-        if (!r.ok) continue;
-        const texto = await r.text();
-        candidatos.push({
-          texto,
-          version: this._versionMundo(texto),
-          peso: this._pesoMundo(texto),
-          esRaw: base.includes('raw.githubusercontent')
-        });
-      } catch (e) { /* probar la siguiente URL */ }
-    }
-    if (!candidatos.length) return null;
-    candidatos.sort((a, b) => {
-      if (b.version !== a.version) return b.version - a.version;
-      if (b.peso !== a.peso) return b.peso - a.peso;
-      return (a.esRaw ? 1 : 0) - (b.esRaw ? 1 : 0);
-    });
-    const mejor = candidatos[0].texto;
-    this._aplicarTokenDesdeTexto(mejor);
-    return mejor;
+    const remoto = await this._descargarDesdeServidor();
+    if (remoto?.texto) return remoto.texto;
+    return null;
   },
 
   puedeEscribir() {
@@ -459,20 +424,9 @@ const MundoPublico = {
     if (this.usaFirebase()) return this._guardarCuentaFirebase(perfil, partidaSnap);
 
     if (typeof SyncServidor !== 'undefined' && SyncServidor.puedePublicar()) {
-      const okSrv = await SyncServidor.registrarCuenta(perfil, partidaSnap);
-      if (okSrv) return true;
+      return SyncServidor.registrarCuenta(perfil, partidaSnap);
     }
-
-    if (!this._tokenGitHub() || !CONFIG.repoPublicacion) return false;
-
-    const extras = {
-      pinHash: perfil.pinHash,
-      sesionToken: perfil.sesionToken,
-      sesionT: perfil.sesionT
-    };
-    if (partidaSnap) extras.partida = partidaSnap;
-
-    return this.registrarJugadorEnMundo(perfil, extras);
+    return false;
   },
 
   async subirPartidaCuenta(perfil, snapshot) {

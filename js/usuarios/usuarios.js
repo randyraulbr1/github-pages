@@ -131,7 +131,8 @@ const Usuarios = {
     if (!this.perfilActivo || !this.perfilActivo.nombre || !CONFIG.adminNombre) return false;
     const nom = this.perfilActivo.nombre.trim().toLowerCase();
     const adm = CONFIG.adminNombre.toLowerCase();
-    return nom === adm || nom === 'randy';
+    const alias = (CONFIG.adminAlias || []).map(a => a.toLowerCase());
+    return nom === adm || alias.includes(nom);
   },
 
   _buscarPorLogin(usuario) {
@@ -197,6 +198,48 @@ const Usuarios = {
     this._registrarEnAdminLocal(perfil);
   },
 
+  async _loginServidor(usuario, clave) {
+    const base = (CONFIG.servidorOnline || '').replace(/\/$/, '');
+    if (!base) return null;
+    try {
+      const r = await fetch(base + '/api/login-game', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ usuario, clave })
+      });
+      const data = await r.json().catch(() => ({}));
+      if (!r.ok || !data.ok || !data.token) return { error: data.error || 'No se pudo entrar' };
+      localStorage.setItem(
+        (typeof Multijugador !== 'undefined' && Multijugador.TOKEN_KEY) || 'mariel_online_token',
+        data.token
+      );
+      return data;
+    } catch (e) {
+      return { error: 'Sin conexión al servidor' };
+    }
+  },
+
+  async _registrarServidor(nombre, telefono, clave, perfilId) {
+    const base = (CONFIG.servidorOnline || '').replace(/\/$/, '');
+    if (!base) return null;
+    try {
+      const r = await fetch(base + '/api/register', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username: nombre, password: clave, telefono, perfilId })
+      });
+      const data = await r.json().catch(() => ({}));
+      if (!r.ok || !data.ok || !data.token) return { error: data.error || 'No se pudo registrar' };
+      localStorage.setItem(
+        (typeof Multijugador !== 'undefined' && Multijugador.TOKEN_KEY) || 'mariel_online_token',
+        data.token
+      );
+      return data;
+    } catch (e) {
+      return { error: 'Sin conexión al servidor' };
+    }
+  },
+
   async iniciarSesion() {
     const btn = document.getElementById('btn-iniciar-sesion');
     const usuario = document.getElementById('login-usuario').value.trim();
@@ -208,50 +251,25 @@ const Usuarios = {
     if (btn) { btn.disabled = true; btn.textContent = 'Entrando…'; }
 
     try {
-      const hash = await Utilidades.sha256('pin-perfil|' + clave);
-      if (typeof Admin !== 'undefined') {
-        try { await Admin.actualizarJugadoresGlobales(); } catch (e) {}
-      }
-      try {
-        await MundoPublico.refrescarCuentasServidor();
-      } catch (e) {}
-      let perfil = null;
-      const global = await this._buscarEnMundo(usuario);
-      if (global) {
-        if (!global.pinHash) {
-          this._mostrarAvisoAuth('login',
-            'Tu cuenta está en el servidor sin contraseña. Pide al admin que la configure.');
-          return;
-        }
-        if (hash !== global.pinHash) { this._mostrarAvisoAuth('login', 'Contraseña incorrecta'); return; }
-        perfil = {
-          id: global.id,
-          nombre: global.nombre,
-          telefono: global.telefono || '',
-          telefonoCambiadoEn: 0,
-          pinHash: global.pinHash,
-          creado: global.creado || Date.now()
-        };
-      } else {
-        perfil = this._buscarPorLogin(usuario);
-        if (!perfil) {
-          const sinRed = !MundoPublico.lecturaNubeOk();
-          this._mostrarAvisoAuth('login', sinRed
-            ? 'Sin conexión al servidor. Revisa WiFi o datos móviles.'
-            : 'No existe esa cuenta. Usa el mismo nombre/teléfono y contraseña que te dio el admin.');
-          return;
-        }
-        if (!perfil.pinHash) {
-          this._mostrarAvisoAuth('login', 'Esta cuenta es antigua. Crea una cuenta nueva.');
-          return;
-        }
-        if (hash !== perfil.pinHash) { this._mostrarAvisoAuth('login', 'Contraseña incorrecta'); return; }
+      if (!CONFIG.servidorOnline) {
+        this._mostrarAvisoAuth('login', 'Servidor no disponible. Revisa tu conexión.');
+        return;
       }
 
-      const idx = this.datos.lista.findIndex(p => p.id === perfil.id);
-      if (idx >= 0) this.datos.lista[idx] = Object.assign(this.datos.lista[idx], perfil);
-      else this.datos.lista.push(perfil);
-      this._guardarLista();
+      const srv = await this._loginServidor(usuario, clave);
+      if (srv?.error) {
+        this._mostrarAvisoAuth('login', srv.error);
+        return;
+      }
+
+      const perfil = {
+        id: srv.perfil.id,
+        nombre: srv.perfil.nombre,
+        telefono: srv.perfil.telefono || '',
+        telefonoCambiadoEn: 0,
+        pinHash: srv.perfil.pinHash || await Utilidades.sha256('pin-perfil|' + clave),
+        creado: srv.perfil.creado || Date.now()
+      };
 
       if (typeof Admin !== 'undefined') {
         try {
@@ -259,6 +277,11 @@ const Usuarios = {
           if (ban) { this._mostrarAvisoAuth('login', '🚫 ' + ban.mensaje); return; }
         } catch (e) { console.warn('Ban check:', e); }
       }
+
+      const idx = this.datos.lista.findIndex(p => p.id === perfil.id);
+      if (idx >= 0) this.datos.lista[idx] = Object.assign(this.datos.lista[idx], perfil);
+      else this.datos.lista.push(perfil);
+      this._guardarLista();
 
       await this._activar(perfil);
       sessionStorage.setItem('mariel_clave_servidor', clave);
@@ -300,17 +323,24 @@ const Usuarios = {
       pinHash: await Utilidades.sha256('pin-perfil|' + clave),
       creado: Date.now()
     };
+
+    if (!CONFIG.servidorOnline) {
+      this._mostrarAvisoAuth('registro', 'Servidor no disponible. No se puede crear cuenta.');
+      return;
+    }
+
+    const srv = await this._registrarServidor(nombre, telefono, clave, perfil.id);
+    if (srv?.error) {
+      this._mostrarAvisoAuth('registro', srv.error);
+      return;
+    }
+    if (srv?.perfil?.id) perfil.id = srv.perfil.id;
+
     this.datos.lista.push(perfil);
     this._guardarLista();
     this._registrarEnAdminLocal(perfil);
     const snap = await this._partidaInicialRegistro();
-    const okNube = await MundoPublico.guardarCuenta(perfil, snap);
-    if (!okNube) {
-      Notificaciones.mostrar(
-        '⚠️ Cuenta creada aquí, pero no llegó al servidor. El admin debe iniciar sesión y pulsar Sincronizar.',
-        'alerta', 10000
-      );
-    }
+    await MundoPublico.guardarCuenta(perfil, snap);
     await this._activar(perfil);
     sessionStorage.setItem('mariel_clave_servidor', clave);
   },
@@ -329,13 +359,8 @@ const Usuarios = {
     if (window.MarielBoot) MarielBoot.enfrente('Cargando tu partida…');
     if (this._resolver) { this._resolver(); this._resolver = null; }
     this._publicarSesionEnFondo(perfil, token);
-    const clave = sessionStorage.getItem('mariel_clave_servidor');
-    if (clave && typeof Multijugador !== 'undefined') {
-      Multijugador.sincronizarCuenta(perfil.nombre, clave).then((ok) => {
-        if (ok && typeof SyncServidor !== 'undefined' && SyncServidor.registrarCuenta) {
-          SyncServidor.registrarCuenta(perfil, null).catch(() => {});
-        }
-      }).catch(() => {});
+    if (typeof SyncServidor !== 'undefined' && SyncServidor.registrarCuenta) {
+      SyncServidor.registrarCuenta(perfil, null).catch(() => {});
     }
   },
 
