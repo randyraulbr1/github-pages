@@ -17,6 +17,7 @@ const Admin = {
   modo: null,       // null | 'colocar' | 'organizar'
   _colocacion: null,  // { tipo, valores, marcador }
   _fantasmas: [],     // marcadores temporales de tesoros base en modo admin
+  _marcadoresObjeto: {}, // id → marcador Leaflet (evita duplicados al sincronizar)
 
   // ---------- CARGA (llamar antes que tiendas/pesca/tesoros/misiones) ----------
   // Carga los borradores locales Y el mundo publicado en GitHub.
@@ -245,12 +246,136 @@ const Admin = {
   },
 
   // ---------- VISTA COMBINADA: publicado en GitHub + borradores locales ----------
+  _liberarMarcadorObjeto(id) {
+    if (!id) return;
+    const m = this._marcadoresObjeto[id];
+    if (m) {
+      try { m.remove(); } catch (e) { /* */ }
+      delete this._marcadoresObjeto[id];
+    }
+    for (const o of [...(this.publicado?.objetos || []), ...(this.datos?.objetos || [])]) {
+      if (o && o.id === id) o._marcador = null;
+    }
+    if (typeof Mapa !== 'undefined') {
+      const p = Mapa.puntosInteractivos.find(x => x.id === id);
+      if (p) p.marcador = null;
+    }
+  },
+
+  _vincularMarcadorObjeto(o, marcador) {
+    if (!o?.id || !marcador) return;
+    o._marcador = marcador;
+    this._marcadoresObjeto[o.id] = marcador;
+    if (typeof Mapa !== 'undefined') {
+      const p = Mapa.puntosInteractivos.find(x => x.id === o.id);
+      if (p) p.marcador = marcador;
+    }
+  },
+
+  _reaplicarArrastreOrganizar() {
+    if (this.modo !== 'organizar' || !this.esAdminJugador()) return;
+    if (typeof GPS !== 'undefined' && GPS.marcador && this.puedeMoverPinJugador()) {
+      this._habilitarArrastreMarcador(GPS.marcador, () => {
+        const p = GPS.marcador.getLatLng();
+        GPS._actualizar([+p.lat.toFixed(6), +p.lng.toFixed(6)], false);
+      });
+    }
+    for (const p of Mapa.puntosInteractivos) {
+      if (!p.marcador || p.marcador === GPS.marcador) continue;
+      this._arrastreOrganizarMarcador(p.marcador, p, (m) => {
+        const nueva = m.getLatLng();
+        p.posicion[0] = +nueva.lat.toFixed(6);
+        p.posicion[1] = +nueva.lng.toFixed(6);
+        this.datos.posiciones[p.id] = [p.posicion[0], p.posicion[1]];
+        this.guardar();
+        this._publicarParaTodos(true);
+      });
+    }
+    for (const o of this.objetosTodos()) {
+      if (this.eliminado(o.id)) continue;
+      if (this._objetoDisponible(o) && !o._marcador) this._revisarObjeto(o);
+      if (!o._marcador) continue;
+      this._arrastreOrganizarMarcador(o._marcador, { id: o.id, marcador: o._marcador }, (m) => {
+        const p = m.getLatLng();
+        o.pos[0] = +p.lat.toFixed(6);
+        o.pos[1] = +p.lng.toFixed(6);
+        this.datos.posiciones[o.id] = [o.pos[0], o.pos[1]];
+        this.guardar();
+        this._publicarParaTodos(true);
+      });
+    }
+    if (typeof Enemigos !== 'undefined') {
+      for (const e of Enemigos.lista) {
+        const m = Enemigos._marcadores[e.id];
+        if (!m) continue;
+        this._arrastreOrganizarMarcador(m, { id: e.id, marcador: m }, (marc) => {
+          const p = marc.getLatLng();
+          const pos = [+p.lat.toFixed(6), +p.lng.toFixed(6)];
+          e.pos = pos;
+          e.posOrigen = pos.slice();
+          this.datos.posiciones[e.id] = pos;
+          this.guardar();
+          this._publicarParaTodos(true);
+        });
+      }
+    }
+    if (typeof Misiones !== 'undefined') {
+      for (const [id, m] of Object.entries(Misiones._marcadores)) {
+        this._arrastreOrganizarMarcador(m, { id, marcador: m }, (marc) => {
+          const p = marc.getLatLng();
+          const pos = [+p.lat.toFixed(6), +p.lng.toFixed(6)];
+          this.datos.posiciones[id] = pos;
+          const exist = Misiones.lista.find(x => x.id === id);
+          if (exist) exist.pos = pos;
+          this.guardar();
+          this._publicarParaTodos(true);
+        });
+      }
+    }
+    if (typeof Cofres !== 'undefined' && Cofres._marcadores) {
+      for (const [id, m] of Object.entries(Cofres._marcadores)) {
+        this._arrastreOrganizarMarcador(m, { id, marcador: m }, (marc) => {
+          const p = marc.getLatLng();
+          this.datos.posiciones[id] = [+p.lat.toFixed(6), +p.lng.toFixed(6)];
+          this.guardar();
+          this._publicarParaTodos(true);
+        });
+      }
+    }
+    if (typeof Tiendas !== 'undefined' && Tiendas._marcadoresAdmin) {
+      for (const [id, m] of Object.entries(Tiendas._marcadoresAdmin)) {
+        const t = Tiendas._listaAdmin.find(x => x.id === id);
+        this._arrastreOrganizarMarcador(m, { id, marcador: m }, (marc) => {
+          const p = marc.getLatLng();
+          const pos = [+p.lat.toFixed(6), +p.lng.toFixed(6)];
+          if (t) { t.pos = pos; t.posicion = pos; }
+          this.datos.posiciones[id] = pos;
+          this.guardar();
+          this._publicarParaTodos(true);
+        });
+      }
+    }
+  },
+
   _combinar(publicados, locales) {
     const porId = new Map();
-    for (const e of (publicados || [])) porId.set(e.id, e);
-    for (const e of (locales || [])) porId.set(e.id, e);
+    for (const e of (publicados || [])) {
+      if (e?.id) porId.set(e.id, e);
+    }
+    for (const e of (locales || [])) {
+      if (!e?.id) continue;
+      const prev = porId.get(e.id);
+      const marcador = e._marcador || prev?._marcador || this._marcadoresObjeto[e.id];
+      const merged = Object.assign({}, prev || {}, e);
+      if (marcador) {
+        merged._marcador = marcador;
+        this._marcadoresObjeto[e.id] = marcador;
+      }
+      porId.set(e.id, merged);
+    }
     return [...porId.values()].filter(e => e && e.id && !this.eliminado(e.id));
   },
+
   misionesTodas() {
     if (this.esAdminJugador()) {
       return this._combinar(this.publicado.misiones || [], this.datos.misiones || []);
@@ -820,6 +945,9 @@ const Admin = {
 
     this._sincronizarMapaRemoto(idsObjetosAntes, idsTesorosAntes, idsMisionesAntes, eliminadosAntes);
     this._refrescarObjetosMapa();
+    for (const [id, st] of Object.entries(this.publicado.objetosEstado || {})) {
+      if (st?.recogidoAt) this.aplicarRecogidaCompartida(id, st.recogidoAt, st.playerId);
+    }
 
     if (typeof Cofres !== 'undefined') Cofres._pintarTodos();
     if (typeof Enemigos !== 'undefined') Enemigos._recargar();
@@ -835,6 +963,7 @@ const Admin = {
     this.mostrarMensajes();
     if (typeof Notificaciones !== 'undefined') Notificaciones._actualizarBadge();
     this._aplicarRevivirDesdeNube();
+    if (this.modo === 'organizar') this._reaplicarArrastreOrganizar();
     const vistaJug = document.getElementById('admin-vista-jugadores');
     if (vistaJug && !vistaJug.classList.contains('oculto')) this._listarCuentasAsync();
   },
@@ -1064,11 +1193,7 @@ const Admin = {
   },
 
   _quitarDelMapa(id) {
-    for (const o of this.objetosTodos()) {
-      if (o.id !== id || !o._marcador) continue;
-      o._marcador.remove();
-      o._marcador = null;
-    }
+    this._liberarMarcadorObjeto(id);
     for (const t of this.tesorosTodos()) {
       if (t.id !== id) continue;
       if (t._marcador) { t._marcador.remove(); t._marcador = null; }
@@ -1951,9 +2076,9 @@ const Admin = {
       recogidoAt: recogidoAt || Date.now(),
       playerId: playerId != null ? playerId : null
     };
+    this._liberarMarcadorObjeto(origenId);
     for (const o of this.objetosTodos()) {
       if (o.id !== origenId) continue;
-      if (o._marcador) { o._marcador.remove(); o._marcador = null; }
       this._revisarObjeto(o);
       break;
     }
@@ -1970,10 +2095,6 @@ const Admin = {
     if (!items.length) return;
     const principal = Items.obtener(items[0].id);
     if (!principal) return;
-    if (o._marcador) {
-      o._marcador.remove();
-      o._marcador = null;
-    }
     if (!Mapa.puntosInteractivos.find(x => x.id === o.id)) {
       Mapa.registrarPunto({
         id: o.id,
@@ -1992,20 +2113,32 @@ const Admin = {
     const principal = Items.obtener(items[0].id);
     if (!principal) return;
     const disponible = this._objetoDisponible(o);
-    const icono = items.length > 1 ? principal.icono + '<span class="obj-multi">+' + (items.length - 1) + '</span>' : principal.icono;
     if (disponible && !o._marcador) {
+      this._liberarMarcadorObjeto(o.id);
       o._marcador = Mapa.crearMarcadorEmoji(o.pos, principal.icono, 26);
+      this._vincularMarcadorObjeto(o, o._marcador);
       if (items.length > 1) {
         const el = o._marcador.getElement?.();
         if (el) el.classList.add('marcador-obj-multi');
       }
       o._marcador.on('click', () => {
+        const punto = Mapa.puntosInteractivos.find(x => x.id === o.id);
+        if (punto && this.manejarClickPunto(punto)) return;
         if (this.manejarClickPunto({ id: o.id, marcador: o._marcador })) return;
         this._recogerObjeto(o);
       });
-    } else if (!disponible && o._marcador) {
-      o._marcador.remove();
-      o._marcador = null;
+      if (this.modo === 'organizar') {
+        this._arrastreOrganizarMarcador(o._marcador, { id: o.id, marcador: o._marcador }, (m) => {
+          const p = m.getLatLng();
+          o.pos[0] = +p.lat.toFixed(6);
+          o.pos[1] = +p.lng.toFixed(6);
+          this.datos.posiciones[o.id] = [o.pos[0], o.pos[1]];
+          this.guardar();
+          this._publicarParaTodos(true);
+        });
+      }
+    } else if (!disponible) {
+      this._liberarMarcadorObjeto(o.id);
     }
   },
 
@@ -2027,7 +2160,7 @@ const Admin = {
       const ok = await Multijugador.recogerObjetoCompartido(o.id);
       if (!ok) this._objetosRecogidos()[o.id] = Date.now();
     } else {
-      this._objetosRecogidos()[o.id] = Date.now();
+      this.aplicarRecogidaCompartida(o.id, Date.now(), null);
     }
     Guardado.guardar();
     const principal = Items.obtener(items[0].id);
@@ -2089,7 +2222,10 @@ const Admin = {
     if (!marcador || marcador === GPS.marcador) return;
     marcador.options.draggable = true;
     if (marcador.dragging) marcador.dragging.enable();
-    if (alSoltar) marcador.on('dragend', alSoltar);
+    if (alSoltar) {
+      marcador.off('dragend', alSoltar);
+      marcador.on('dragend', alSoltar);
+    }
   },
 
   // ---------- MODOS ORGANIZAR / ELIMINAR ----------
@@ -2153,80 +2289,7 @@ const Admin = {
     }
 
     if (modo === 'organizar') {
-      if (typeof GPS !== 'undefined' && GPS.marcador && this.puedeMoverPinJugador()) {
-        this._habilitarArrastreMarcador(GPS.marcador, () => {
-          const p = GPS.marcador.getLatLng();
-          GPS._actualizar([+p.lat.toFixed(6), +p.lng.toFixed(6)], false);
-        });
-      }
-      for (const p of Mapa.puntosInteractivos) {
-        if (!p.marcador || p.marcador === GPS.marcador) continue;
-        this._arrastreOrganizarMarcador(p.marcador, p, (m) => {
-          const nueva = m.getLatLng();
-          p.posicion[0] = +nueva.lat.toFixed(6);
-          p.posicion[1] = +nueva.lng.toFixed(6);
-          this.datos.posiciones[p.id] = [p.posicion[0], p.posicion[1]];
-          this.guardar();
-        });
-      }
-      for (const o of this.objetosTodos()) {
-        if (!o._marcador) continue;
-        this._arrastreOrganizarMarcador(o._marcador, { id: o.id, marcador: o._marcador, nombre: Items.seguro(o.itemId || o.items?.[0]?.id)?.nombre }, (m) => {
-          const p = m.getLatLng();
-          o.pos[0] = +p.lat.toFixed(6);
-          o.pos[1] = +p.lng.toFixed(6);
-          this.datos.posiciones[o.id] = [o.pos[0], o.pos[1]];
-          this.guardar();
-        });
-      }
-      if (typeof Cofres !== 'undefined' && Cofres._marcadores) {
-        for (const [id, m] of Object.entries(Cofres._marcadores)) {
-          this._arrastreOrganizarMarcador(m, { id, marcador: m, nombre: 'Cofre' }, (marc) => {
-            const p = marc.getLatLng();
-            this.datos.posiciones[id] = [+p.lat.toFixed(6), +p.lng.toFixed(6)];
-            this.guardar();
-          });
-        }
-      }
-      if (typeof Misiones !== 'undefined') {
-        for (const [id, m] of Object.entries(Misiones._marcadores)) {
-          const mis = Misiones.lista.find(x => x.id === id);
-          this._arrastreOrganizarMarcador(m, { id, marcador: m, nombre: mis?.titulo || 'Misión' }, (marc) => {
-            const p = marc.getLatLng();
-            const pos = [+p.lat.toFixed(6), +p.lng.toFixed(6)];
-            this.datos.posiciones[id] = pos;
-            const exist = Misiones.lista.find(x => x.id === id);
-            if (exist) exist.pos = pos;
-            this.guardar();
-          });
-        }
-      }
-      if (typeof Enemigos !== 'undefined') {
-        for (const e of Enemigos.lista) {
-          const m = Enemigos._marcadores[e.id];
-          if (!m) continue;
-          this._arrastreOrganizarMarcador(m, { id: e.id, marcador: m, nombre: e.nombre || 'Enemigo' }, (marc) => {
-            const p = marc.getLatLng();
-            const pos = [+p.lat.toFixed(6), +p.lng.toFixed(6)];
-            e.pos = pos;
-            e.posOrigen = pos.slice();
-            this.datos.posiciones[e.id] = pos;
-            this.guardar();
-          });
-        }
-      }
-      if (typeof Tiendas !== 'undefined' && Tiendas._marcadoresAdmin) {
-        for (const [id, m] of Object.entries(Tiendas._marcadoresAdmin)) {
-          const t = Tiendas._listaAdmin.find(x => x.id === id);
-          this._arrastreOrganizarMarcador(m, { id, marcador: m, nombre: t?.nombre || 'Tienda' }, (marc) => {
-            const p = marc.getLatLng();
-            const pos = [+p.lat.toFixed(6), +p.lng.toFixed(6)];
-            if (t) { t.pos = pos; t.posicion = pos; }
-            this.datos.posiciones[id] = pos;
-            this.guardar();
-          });
-        }
-      }
+      this._reaplicarArrastreOrganizar();
     }
   },
 

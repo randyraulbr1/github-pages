@@ -225,10 +225,16 @@ const Multijugador = {
         return;
       }
       if (typeof Admin === 'undefined') return;
+      const origenId = obj.data.origenId;
+      const recogido = Admin.publicado?.objetosEstado?.[origenId]?.recogidoAt;
+      if (recogido) {
+        Admin.aplicarRecogidaCompartida(origenId, recogido, null);
+        return;
+      }
       Admin.publicado.posiciones = Admin.publicado.posiciones || {};
-      Admin.publicado.posiciones[obj.data.origenId] = [obj.x, obj.y];
+      Admin.publicado.posiciones[origenId] = [obj.x, obj.y];
       if (obj.type === 'item') {
-        const o = Admin.objetosTodos().find(x => x.id === obj.data.origenId);
+        const o = Admin.objetosTodos().find(x => x.id === origenId);
         if (o) {
           o.pos = [obj.x, obj.y];
           if (!o._marcador) Admin._crearMarcadorObjeto(o);

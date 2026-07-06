@@ -259,7 +259,7 @@ function findMissionByOrigenId(origenId) {
   return null;
 }
 
-function upsertWorldObject(origenId, type, x, y, data, io) {
+function upsertWorldObject(origenId, type, x, y, data, io, silent) {
   const payload = Object.assign({ origenId }, data || {});
   const existing = findObjectByOrigenId(origenId);
   let row;
@@ -281,7 +281,7 @@ function upsertWorldObject(origenId, type, x, y, data, io) {
     });
   }
   const formatted = formatWorldObject(row);
-  if (io) io.emit('world:updateObject', formatted);
+  if (io && !silent) io.emit('world:updateObject', formatted);
   return formatted;
 }
 
@@ -369,7 +369,7 @@ function syncMundoFromJson(mundo, io) {
       items: o.items || [],
       reaparece: o.reaparece,
       nombre: o.nombre || o.itemId
-    }, io);
+    }, io, true);
     objetos++;
   }
 
@@ -395,7 +395,7 @@ function syncMundoFromJson(mundo, io) {
       radioAtaque: e.radioAtaque || e.radioPersecucion || 18,
       origenX: pos[0],
       origenY: pos[1]
-    }, io);
+    }, io, true);
     objetos++;
   }
 
@@ -412,7 +412,7 @@ function syncMundoFromJson(mundo, io) {
       dinero: t.dinero || 0,
       respawnMin: t.respawnMin,
       tesoroEstado: (mundo.tesorosEstado || {})[t.id] || {}
-    }, io);
+    }, io, true);
     objetos++;
   }
 
@@ -426,7 +426,7 @@ function syncMundoFromJson(mundo, io) {
       icon: t.icono || '🏪',
       vende: t.vende || [],
       stock: (mundo.tiendasStock || {})[t.id] || {}
-    }, io);
+    }, io, true);
     objetos++;
   }
 
