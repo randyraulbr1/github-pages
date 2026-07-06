@@ -58,11 +58,17 @@ async function pushMundoToGitHub(mundo) {
 
   const payload = Object.assign({}, mundo);
   if (Array.isArray(mundo.jugadores)) {
-    // Lista explícita del admin: no resucitar jugadores borrados del remoto.
-    mergeJugadoresPartidas(payload, [{ partidas: (remoto || {}).partidas || {} }, mundo]);
+    if (mundo.jugadores.length === 0 && (remoto?.jugadores || []).length > 0) {
+      mergeJugadoresPartidas(payload, [remoto, mundo]);
+    } else if (mundo.purgarJugadores) {
+      mergeJugadoresPartidas(payload, [{ partidas: (remoto || {}).partidas || {} }, mundo]);
+    } else {
+      mergeJugadoresPartidas(payload, [remoto, { partidas: (remoto || {}).partidas || {} }, mundo]);
+    }
   } else {
     mergeJugadoresPartidas(payload, [remoto, mundo]);
   }
+  delete payload.purgarJugadores;
 
   const body = {
     message: `sync mundo admin ${new Date().toISOString()}`,
