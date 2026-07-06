@@ -15,7 +15,7 @@
   <script>
     // Aviso temprano en móvil (antes de cargar 20+ archivos JS)
     (function () {
-      var V = '109';
+      var V = '110';
       var texto = document.getElementById('carga-texto');
       if (texto) texto.textContent = 'Conectando…';
       var prev = localStorage.getItem('mariel_app_version');
@@ -228,15 +228,15 @@
       </div>
 
       <div class="panel-content">
-        <div class="section-title">➕ AGREGAR AMIGO</div>
+        <div class="section-title">➕ Agregar amigo</div>
         <div class="add-box">
           <div class="add-row">
-            <input id="amigos-buscar" type="text" maxlength="20" placeholder="Buscar usuario por nombre..." autocomplete="off">
-            <button type="button" class="add-btn" id="btn-amigos-agregar" title="Agregar">+</button>
+            <input id="amigos-buscar" type="text" maxlength="20" placeholder="Nombre del jugador..." autocomplete="off">
+            <button type="button" class="add-btn" id="btn-amigos-agregar" title="Agregar amigo" aria-label="Agregar amigo">+</button>
           </div>
         </div>
 
-        <div class="section-title">👥 MIS AMIGOS</div>
+        <div class="section-title">👥 Mis amigos</div>
         <div class="count" id="amigos-count">0 amigos</div>
 
         <div class="search-row">
