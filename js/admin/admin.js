@@ -44,11 +44,7 @@ const Admin = {
     if (!this.datos.partidasExtra) this.datos.partidasExtra = {};
     if (!this.datos.jugadoresPinAdmin) this.datos.jugadoresPinAdmin = {};
     if (localStorage.getItem('mariel_cuentas_reset_v') !== '56') {
-      this.datos.jugadoresExtra = [];
-      this.datos.partidasExtra = {};
-      this.datos.jugadoresPinAdmin = {};
-      localStorage.setItem(this.CLAVE, JSON.stringify(this.datos,
-        (clave, valor) => clave.startsWith('_') ? undefined : valor));
+      localStorage.setItem('mariel_cuentas_reset_v', '56');
     }
     if (this.datos.verCofresOcultos === undefined) this.datos.verCofresOcultos = false;
     if (!this.datos.enemigos) this.datos.enemigos = [];
@@ -581,11 +577,27 @@ const Admin = {
     if (!this.datos) {
       try { this.datos = JSON.parse(localStorage.getItem(this.CLAVE) || 'null'); } catch (e) {}
     }
+    const fusionarJugadores = (lista) => {
+      if (!Array.isArray(lista) || !lista.length) return;
+      const porId = new Map();
+      for (const j of (this.publicado.jugadores || [])) {
+        if (j?.id) porId.set(j.id, j);
+      }
+      for (const j of lista) {
+        if (!j?.id) continue;
+        porId.set(j.id, Object.assign({}, porId.get(j.id), j));
+      }
+      this.publicado.jugadores = [...porId.values()];
+    };
+    try {
+      const { indice } = await MundoPublico.refrescarCuentasServidor();
+      fusionarJugadores(indice);
+    } catch (e) { /* sin servidor */ }
     try {
       const texto = await MundoPublico.descargar();
       if (texto) {
         const p = JSON.parse(texto);
-        if (Array.isArray(p.jugadores)) this.publicado.jugadores = p.jugadores;
+        fusionarJugadores(p.jugadores);
       }
     } catch (e) { /* sin conexión */ }
   },

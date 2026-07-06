@@ -13,12 +13,6 @@ const Usuarios = {
 
   _aplicarResetCuentasV56() {
     if (localStorage.getItem('mariel_cuentas_reset_v') === this._CUENTAS_RESET_V) return;
-    if (this.datos) {
-      this.datos.lista = [];
-      this.datos.sesionId = null;
-      this.datos.activo = null;
-      this._guardarLista();
-    }
     localStorage.setItem('mariel_cuentas_reset_v', this._CUENTAS_RESET_V);
   },
 

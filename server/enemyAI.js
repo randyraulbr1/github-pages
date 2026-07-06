@@ -9,9 +9,9 @@ const {
   formatWorldObject
 } = require('./db');
 
-const TICK_MS = 800;
+const TICK_MS = 500;
 const ATTACK_COOLDOWN_MS = 2000;
-const ENEMY_STEP = 0.000018;
+const ENEMY_STEP = 0.000028;
 
 /** objectId -> lastAttackMs */
 const lastAttack = new Map();
@@ -57,15 +57,26 @@ function parseEnemyData(obj) {
   };
 }
 
-function pickTarget(objId, inZone) {
+function pickClosest(obj, players) {
+  if (!players.length) return null;
+  let best = players[0];
+  let bestD = distanceMeters(obj.x, obj.y, best.x, best.y);
+  for (let i = 1; i < players.length; i++) {
+    const d = distanceMeters(obj.x, obj.y, players[i].x, players[i].y);
+    if (d < bestD) { best = players[i]; bestD = d; }
+  }
+  return best;
+}
+
+function pickTarget(objId, obj, inZone) {
   if (!inZone.length) {
     enemyTargets.delete(objId);
     return null;
   }
   const prevId = enemyTargets.get(objId);
   const prev = prevId ? inZone.find(p => p.playerId === prevId) : null;
-  if (prev && Math.random() > 0.15) return prev;
-  const chosen = inZone[Math.floor(Math.random() * inZone.length)];
+  if (prev) return prev;
+  const chosen = pickClosest(obj, inZone);
   enemyTargets.set(objId, chosen.playerId);
   return chosen;
 }
@@ -86,7 +97,7 @@ function startEnemyAI(io, onlinePlayers) {
         return distanceMeters(obj.x, obj.y, p.x, p.y) <= data.radioZona;
       });
 
-      const target = pickTarget(obj.id, inZone);
+      const target = pickTarget(obj.id, obj, inZone);
       let facingDeg = null;
       let targetPlayerId = null;
 
@@ -114,7 +125,7 @@ function startEnemyAI(io, onlinePlayers) {
           const prev = lastAttack.get(obj.id) || 0;
           if (now - prev >= ATTACK_COOLDOWN_MS) {
             lastAttack.set(obj.id, now);
-            const victim = inAttack[Math.floor(Math.random() * inAttack.length)];
+            const victim = pickClosest(obj, inAttack);
             enemyTargets.set(obj.id, victim.playerId);
             facingDeg = bearingDeg(obj.x, obj.y, victim.x, victim.y);
             targetPlayerId = victim.playerId;

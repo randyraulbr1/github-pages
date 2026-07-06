@@ -149,7 +149,7 @@
 
   <!-- BOTONES INFERIORES -->
   <div id="botones-inferiores">
-    <button id="hud-arma-equipada" class="btn-hud-accion btn-hud-principal hud-btn-arma" type="button" title="Arma equipada">🗡️</button>
+    <span id="hud-arma-equipada" class="hud-arma-equipada" title="Arma equipada" aria-hidden="true">✋</span>
     <button id="btn-mochila" class="btn-hud-accion btn-hud-principal hud-btn-mochila" type="button" title="Mochila">🎒</button>
     <button id="btn-gps" class="btn-hud-accion btn-hud-principal hud-btn-gps" type="button" title="GPS">📍</button>
     <button id="btn-admin" class="btn-hud-accion btn-hud-principal hud-btn-admin oculto" type="button" title="Admin">🛠️</button>
@@ -263,7 +263,7 @@
       </div>
       <div class="inv-pie">
         <p class="inv-ayuda">Mantén presionado un objeto <span class="inv-rojo">para moverlo o eliminarlo</span></p>
-        <div id="inv-delete-zone" class="inv-delete-zone">🗑️ ELIMINAR</div>
+        <div id="inv-delete-zone" class="inv-delete-zone" title="Suelta aquí para eliminar">🗑️</div>
       </div>
       <div id="papelera" class="oculto" aria-hidden="true"></div>
     </div>
@@ -385,12 +385,18 @@
       <div class="perfil-stats-grid" id="opciones-stats-grid"></div>
       <div class="panel-seccion-titulo">Acciones</div>
       <div id="lista-opciones">
-        <button class="fila-opcion" id="opcion-centrar"><span class="icono-opcion">🎯</span> Centrar el mapa en mi posición</button>
-        <button class="fila-opcion" id="opcion-tarjeta"><span class="icono-opcion">🪪</span> Mi tarjeta de jugador (copiar)</button>
-        <button class="fila-opcion" id="opcion-reportar"><span class="icono-opcion">🚩</span> Reportar a un jugador</button>
-        <button class="fila-opcion peligro" id="opcion-salir"><span class="icono-opcion">🚪</span> Cerrar sesión (Sign out)</button>
-        <button class="fila-opcion oculto" id="opcion-admin"><span class="icono-opcion">🛠️</span> Modo administrador</button>
-        <button class="fila-opcion peligro" id="opcion-borrar"><span class="icono-opcion">🗑️</span> Borrar mi partida (empezar de cero)</button>
+        <button class="fila-opcion fila-opcion-compacta" id="opcion-centrar"><span class="icono-opcion">🎯</span> Centrar mapa</button>
+        <button class="fila-opcion fila-opcion-compacta" id="opcion-tarjeta"><span class="icono-opcion">🪪</span> Mi tarjeta</button>
+        <button class="fila-opcion fila-opcion-compacta" id="opcion-reportar"><span class="icono-opcion">🚩</span> Reportar jugador</button>
+        <button class="fila-opcion fila-opcion-compacta peligro" id="opcion-salir"><span class="icono-opcion">🚪</span> Cerrar sesión</button>
+        <button class="fila-opcion fila-opcion-compacta oculto" id="opcion-admin"><span class="icono-opcion">🛠️</span> Administrador</button>
+        <div id="opciones-confirm-salir" class="opciones-confirm oculto">
+          <p>¿Cerrar sesión y volver al inicio?</p>
+          <div class="opciones-confirm-botones">
+            <button type="button" id="opcion-salir-cancelar" class="opciones-btn-mini">Cancelar</button>
+            <button type="button" id="opcion-salir-confirmar" class="opciones-btn-mini peligro">Sí, salir</button>
+          </div>
+        </div>
       </div>
     </div>
   </div>
@@ -729,44 +735,44 @@
   </div>
 
   <!-- LIBRERÍAS -->
-  <script src="lib/leaflet/leaflet.js?v=92"></script>
+  <script src="lib/leaflet/leaflet.js?v=93"></script>
 
   <!-- MÓDULOS DEL JUEGO (orden importante) -->
-  <script src="js/config/config.js?v=92"></script>
-  <script src="js/nucleo/utilidades.js?v=92"></script>
-  <script src="js/mundo/mundo_publico.js?v=92"></script>
-  <script src="js/notificaciones/notificaciones.js?v=92"></script>
-  <script src="js/usuarios/usuarios.js?v=92"></script>
-  <script src="js/guardado/guardado.js?v=92"></script>
-  <script src="js/historial/historial.js?v=92"></script>
-  <script src="js/dinero/dinero.js?v=92"></script>
-  <script src="js/vida/vida.js?v=92"></script>
-  <script src="js/items/items.js?v=92"></script>
-  <script src="js/mochila/mochila.js?v=92"></script>
-  <script src="js/mapa/mapa.js?v=92"></script>
-  <script src="js/gps/gps.js?v=92"></script>
-  <script src="js/tiendas/datos_tiendas.js?v=92"></script>
-  <script src="js/tiendas/tiendas.js?v=92"></script>
-  <script src="js/pesca/pesca.js?v=92"></script>
-  <script src="js/tesoros/datos_tesoros.js?v=92"></script>
-  <script src="js/tesoros/tesoros.js?v=92"></script>
-  <script src="js/misiones/datos_misiones.js?v=92"></script>
-  <script src="js/misiones/misiones.js?v=92"></script>
-  <script src="js/cofres/cofres.js?v=92"></script>
-  <script src="js/correo/correo.js?v=92"></script>
-  <script src="js/enemigos/enemigos.js?v=92"></script>
-  <script src="js/online/sync_servidor.js?v=92"></script>
-  <script src="js/admin/admin.js?v=92"></script>
-  <script src="js/opciones/opciones.js?v=92"></script>
-  <script src="js/online/mundo_online.js?v=92"></script>
-  <script src="js/online/amigos.js?v=92"></script>
-  <script src="js/online/multijugador.js?v=92"></script>
-  <script src="js/principal.js?v=92"></script>
+  <script src="js/config/config.js?v=93"></script>
+  <script src="js/nucleo/utilidades.js?v=93"></script>
+  <script src="js/mundo/mundo_publico.js?v=93"></script>
+  <script src="js/notificaciones/notificaciones.js?v=93"></script>
+  <script src="js/usuarios/usuarios.js?v=93"></script>
+  <script src="js/guardado/guardado.js?v=93"></script>
+  <script src="js/historial/historial.js?v=93"></script>
+  <script src="js/dinero/dinero.js?v=93"></script>
+  <script src="js/vida/vida.js?v=93"></script>
+  <script src="js/items/items.js?v=93"></script>
+  <script src="js/mochila/mochila.js?v=93"></script>
+  <script src="js/mapa/mapa.js?v=93"></script>
+  <script src="js/gps/gps.js?v=93"></script>
+  <script src="js/tiendas/datos_tiendas.js?v=93"></script>
+  <script src="js/tiendas/tiendas.js?v=93"></script>
+  <script src="js/pesca/pesca.js?v=93"></script>
+  <script src="js/tesoros/datos_tesoros.js?v=93"></script>
+  <script src="js/tesoros/tesoros.js?v=93"></script>
+  <script src="js/misiones/datos_misiones.js?v=93"></script>
+  <script src="js/misiones/misiones.js?v=93"></script>
+  <script src="js/cofres/cofres.js?v=93"></script>
+  <script src="js/correo/correo.js?v=93"></script>
+  <script src="js/enemigos/enemigos.js?v=93"></script>
+  <script src="js/online/sync_servidor.js?v=93"></script>
+  <script src="js/admin/admin.js?v=93"></script>
+  <script src="js/opciones/opciones.js?v=93"></script>
+  <script src="js/online/mundo_online.js?v=93"></script>
+  <script src="js/online/amigos.js?v=93"></script>
+  <script src="js/online/multijugador.js?v=93"></script>
+  <script src="js/principal.js?v=93"></script>
   <script>
     // Registrar la app instalable (PWA)
     if ('serviceWorker' in navigator) {
       const yaTeniaVersion = !!navigator.serviceWorker.controller;
-      navigator.serviceWorker.register('sw.js?v=92', { updateViaCache: 'none' })
+      navigator.serviceWorker.register('sw.js?v=93', { updateViaCache: 'none' })
         .then(function (reg) { reg.update(); })
         .catch(function () {});
       // Cuando llega una versión nueva del juego: avisar y recargar solo

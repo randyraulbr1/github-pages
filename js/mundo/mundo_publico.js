@@ -241,6 +241,17 @@ const MundoPublico = {
       return { indice: [], mundo: null };
     }
 
+    let indice = [];
+    try {
+      const base = CONFIG.servidorOnline.replace(/\/$/, '');
+      const r = await Utilidades.fetchConTimeout(base + '/api/public/cuentas', { cache: 'no-store' }, 8000);
+      const data = await r.json().catch(() => ({}));
+      if (data.ok && Array.isArray(data.jugadores) && data.jugadores.length) {
+        indice = data.jugadores.slice().sort((a, b) =>
+          (a.nombre || '').localeCompare(b.nombre || ''));
+      }
+    } catch (e) { /* */ }
+
     const remoto = await this._descargarDesdeServidor();
     let mundo = null;
     if (remoto?.texto) {
@@ -248,8 +259,10 @@ const MundoPublico = {
       try { mundo = JSON.parse(remoto.texto); } catch (e) {}
     }
 
-    const indice = (mundo?.jugadores || []).slice().sort((a, b) =>
-      (a.nombre || '').localeCompare(b.nombre || ''));
+    if (!indice.length && mundo?.jugadores?.length) {
+      indice = mundo.jugadores.slice().sort((a, b) =>
+        (a.nombre || '').localeCompare(b.nombre || ''));
+    }
 
     return { indice, mundo };
   },

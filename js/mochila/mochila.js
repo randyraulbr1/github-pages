@@ -23,8 +23,6 @@ const Mochila = {
     this.slots = Guardado.datos.mochila;
 
     document.getElementById('btn-mochila').addEventListener('click', () => this.abrir());
-    const hudArma = document.getElementById('hud-arma-equipada');
-    if (hudArma) hudArma.addEventListener('click', () => this.abrir());
     document.getElementById('btn-usar-item').addEventListener('click', () => this.usarSeleccionado());
     document.getElementById('btn-escribir-item').addEventListener('click', () => this.escribirNota());
     document.getElementById('btn-eliminar-item').addEventListener('click', () => this.eliminarSeleccionado());
@@ -207,11 +205,16 @@ const Mochila = {
     const icon = item ? (item.icono || '🗡️') : null;
     const nombre = item ? item.nombre : 'Sin arma';
     const dano = item ? (item.dano || 0) : 0;
-    const titulo = dano > 0 ? nombre + ' (+' + dano + ' daño)' : nombre;
+    const titulo = dano > 0 ? nombre + ' (+' + dano + ' daño)' : (tiene ? nombre : 'Sin arma');
     const hud = document.getElementById('hud-arma-equipada');
     const slot = document.getElementById('slot-arma-equipada');
     const status = document.getElementById('inv-weapon-status');
-    if (hud) { hud.textContent = icon || '🗡️'; hud.title = 'Arma: ' + titulo; }
+    if (hud) {
+      hud.textContent = tiene ? (icon || '🗡️') : '✋';
+      hud.title = tiene ? ('Arma: ' + titulo) : 'Sin arma equipada';
+      hud.classList.toggle('equipada', !!tiene);
+      hud.setAttribute('aria-hidden', tiene ? 'false' : 'true');
+    }
     if (status) {
       status.textContent = tiene ? ('⚔️ ' + nombre + ' equipada') : '⚔️ Sin arma';
     }
@@ -322,6 +325,14 @@ const Mochila = {
     window.addEventListener('pointerup', cancelHold, { once: true });
   },
 
+  _sobreZonaEliminar(ev, deleteZone) {
+    if (!deleteZone || !deleteZone.classList.contains('show')) return false;
+    const r = deleteZone.getBoundingClientRect();
+    const pad = 8;
+    return ev.clientX >= r.left - pad && ev.clientX <= r.right + pad &&
+      ev.clientY >= r.top - pad && ev.clientY <= r.bottom + pad;
+  },
+
   _moverGhost(ev, ghost, deleteZone) {
     if (!ghost) return;
     ghost.style.left = ev.clientX + 'px';
@@ -331,7 +342,7 @@ const Mochila = {
     const el = document.elementFromPoint(ev.clientX, ev.clientY);
     const slot = el?.closest?.('.slot');
     if (slot) slot.classList.add('drag-over');
-    const sobreEliminar = !!(el && el.closest('#inv-delete-zone'));
+    const sobreEliminar = this._sobreZonaEliminar(ev, deleteZone);
     this._eliminarActivo = sobreEliminar;
     if (deleteZone) deleteZone.classList.toggle('active', sobreEliminar);
   },
@@ -342,7 +353,7 @@ const Mochila = {
     if (deleteZone) deleteZone.classList.remove('show', 'active');
     document.querySelectorAll('.slot.drag-over, .inv-equip-slot.drag-over')
       .forEach(s => s.classList.remove('drag-over'));
-    const eliminar = this._eliminarActivo || deleteZone?.classList.contains('active');
+    const eliminar = this._eliminarActivo || this._sobreZonaEliminar(ev, deleteZone);
     this._eliminarActivo = false;
     this._arrastre = null;
 

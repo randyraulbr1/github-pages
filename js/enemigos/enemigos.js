@@ -19,6 +19,7 @@ const Enemigos = {
   _enCombate: null,
   _tickId: null,
   _ultimoGolpeAuto: {},
+  _interp: {},
 
   iniciar() {
     this._recargar();
@@ -112,6 +113,17 @@ const Enemigos = {
   },
 
   _recargar() {
+    const vivos = new Map();
+    for (const e of this.lista) {
+      if (!e?.id) continue;
+      vivos.set(e.id, {
+        pos: e.pos?.slice(),
+        posOrigen: e.posOrigen?.slice(),
+        _ultimoMovServidor: e._ultimoMovServidor,
+        facingDeg: e.facingDeg,
+        _enZona: e._enZona
+      });
+    }
     const todos = (typeof Admin !== 'undefined' && Admin.enemigosTodos)
       ? Admin.enemigosTodos() : [];
     const porId = new Map();
@@ -127,8 +139,24 @@ const Enemigos = {
       if (Admin.eliminado && Admin.eliminado(e.id)) continue;
       const pos = (typeof Admin._posItem === 'function') ? Admin._posItem(e) : Admin.pos(e.id, e.pos);
       if (!pos || pos.length < 2) continue;
-      e.pos = pos.slice();
-      e.posOrigen = pos.slice();
+      const prev = vivos.get(e.id);
+      const servidorReciente = prev?._ultimoMovServidor &&
+        Date.now() - prev._ultimoMovServidor < 15000;
+      if (e.posOrigen?.length >= 2) {
+        /* conservar punto de origen del enemigo */
+      } else if (e.origenX != null && e.origenY != null) {
+        e.posOrigen = [e.origenX, e.origenY];
+      } else {
+        e.posOrigen = pos.slice();
+      }
+      if (servidorReciente && prev?.pos?.length >= 2) {
+        e.pos = prev.pos.slice();
+        e._ultimoMovServidor = prev._ultimoMovServidor;
+        e.facingDeg = prev.facingDeg;
+        e._enZona = prev._enZona;
+      } else {
+        e.pos = pos.slice();
+      }
       const st = this._estadoGlobal()[e.id];
       if (st && st.ocultoHasta && Date.now() < st.ocultoHasta) {
         this._quitarMarcador(e.id);
@@ -315,8 +343,13 @@ const Enemigos = {
     }
     if (!e) return;
     if (e._adminMovidoEn && Date.now() - e._adminMovidoEn < 10000) return;
-    e.pos = [lat, lng];
+
+    const desde = e.pos?.length >= 2 ? e.pos.slice() : [lat, lng];
+    const hasta = [lat, lng];
+    this._interp[origenId] = { desde, hasta, inicio: Date.now(), duracion: 480 };
+
     e._ultimoMovServidor = Date.now();
+    e.pos = desde.slice();
     if (typeof Admin !== 'undefined') {
       Admin.publicado.posiciones = Admin.publicado.posiciones || {};
       Admin.publicado.posiciones[origenId] = [lat, lng];
@@ -338,6 +371,18 @@ const Enemigos = {
     }
     if (!this._marcadores[origenId]) this._crearEnMapa(e);
     else this._actualizarMarcador(e);
+  },
+
+  _aplicarInterp(e) {
+    const it = this._interp[e.id];
+    if (!it) return false;
+    const t = Math.min(1, (Date.now() - it.inicio) / (it.duracion || 480));
+    const lat = it.desde[0] + (it.hasta[0] - it.desde[0]) * t;
+    const lng = it.desde[1] + (it.hasta[1] - it.desde[1]) * t;
+    e.pos = [lat, lng];
+    this._moverEnemigo(e, lat, lng);
+    if (t >= 1) delete this._interp[e.id];
+    return true;
   },
 
   _actualizarMarcador(e) {
@@ -439,6 +484,11 @@ const Enemigos = {
     for (const e of this.lista) {
       if (!this._marcadores[e.id]) continue;
       this._aplicarEstadoRemoto(e);
+
+      if (online && this._interp[e.id]) {
+        this._aplicarInterp(e);
+      }
+
       const d = Utilidades.distanciaMetros(GPS.posicion, e.pos);
       const radioZona = this._radioZona(e);
       const radioAtaque = this._radioAtaque(e);
@@ -447,13 +497,15 @@ const Enemigos = {
       e._enZona = enZona;
       this._actualizarVisibilidadZonas(e, d);
 
-      const serverDrive = online && e._ultimoMovServidor &&
-        Date.now() - e._ultimoMovServidor < 1400;
+      const serverDrive = online && (
+        this._interp[e.id] ||
+        (e._ultimoMovServidor && Date.now() - e._ultimoMovServidor < 3000)
+      );
 
-      if (enZona && GPS.posicion) {
+      if (enZona && GPS.posicion && !online) {
         e.facingDeg = this._bearingDeg(e.pos[0], e.pos[1], GPS.posicion[0], GPS.posicion[1]);
         this._refrescarIconoMarcador(e);
-      } else if (!enZona) {
+      } else if (!enZona && !online) {
         e.facingDeg = null;
         this._refrescarIconoMarcador(e);
       }

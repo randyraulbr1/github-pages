@@ -197,13 +197,23 @@ button { font-family: inherit; }
 }
 .slot-arma-nombre { font-size: 13px; font-weight: 700; color: #e8eef8; }
 .hud-arma-equipada {
-  width: 44px; height: 44px; border-radius: 50%;
+  width: clamp(28px, 7.5vw, 32px);
+  height: clamp(28px, 7.5vw, 32px);
+  border-radius: 50%;
   display: flex; align-items: center; justify-content: center;
-  font-size: 22px; flex-shrink: 0;
-  background: rgba(12,16,28,.75);
-  border: 2px solid rgba(255,255,255,.2);
-  box-shadow: 0 3px 10px rgba(0,0,0,.4);
-  margin-bottom: 4px;
+  font-size: clamp(14px, 3.8vw, 16px);
+  flex-shrink: 0;
+  pointer-events: none;
+  user-select: none;
+  background: rgba(12,16,28,.65);
+  border: 1.5px solid rgba(255,255,255,.16);
+  box-shadow: 0 2px 6px rgba(0,0,0,.35);
+  margin-bottom: clamp(10px, 2.8vw, 14px);
+  opacity: .92;
+}
+.hud-arma-equipada.equipada {
+  border-color: rgba(191,90,242,.5);
+  background: rgba(12,16,28,.78);
 }
 #zona-dano-flotante {
   position: fixed; left: 50%; top: 42%;
@@ -352,7 +362,7 @@ button { font-family: inherit; }
 /* ============ BOTONES INFERIORES (burbujas estilo juego) ============ */
 #botones-inferiores {
   position: fixed; bottom: calc(10px + env(safe-area-inset-bottom)); left: 50%; transform: translateX(-50%);
-  z-index: 1000; display: flex; gap: clamp(8px, 2.5vw, 14px); align-items: center;
+  z-index: 1000; display: flex; gap: clamp(8px, 2.5vw, 14px); align-items: flex-end;
   max-width: min(100vw, 480px); padding: 0 clamp(6px, 2vw, 16px);
 }
 @media (min-width: 768px) {
@@ -601,23 +611,25 @@ button { font-family: inherit; }
 }
 .inv-delete-zone {
   position: fixed;
-  left: 50%;
-  bottom: max(18px, env(safe-area-inset-bottom));
-  transform: translateX(-50%);
+  right: max(12px, env(safe-area-inset-right));
+  bottom: max(72px, calc(12px + env(safe-area-inset-bottom)));
   z-index: 2000;
-  width: 132px; min-height: 48px; border-radius: 12px;
-  border: 2px dashed #ff4545; color: #ff5959;
+  width: 40px; height: 40px; border-radius: 10px;
+  border: 1px dashed rgba(255,69,58,.45);
+  color: #ff6b6b;
   display: none; justify-content: center; align-items: center;
-  font-weight: 900; font-size: 12px;
-  background: rgba(20,8,8,.92); flex-shrink: 0;
-  box-shadow: 0 8px 24px rgba(0,0,0,.5);
-  pointer-events: auto;
+  font-size: 20px; line-height: 1;
+  background: rgba(16,8,8,.75);
+  pointer-events: none;
+  opacity: .85;
+  transition: transform .12s ease, background .12s ease, border-color .12s ease;
 }
 .inv-delete-zone.show { display: flex; }
 .inv-delete-zone.active {
-  background: rgba(80,12,12,.96); border-style: solid;
-  transform: translateX(-50%) scale(1.06);
-  box-shadow: 0 0 18px rgba(255,60,60,.55);
+  background: rgba(72,10,10,.92);
+  border-style: solid;
+  transform: scale(1.12);
+  opacity: 1;
 }
 .inv-ghost-item {
   position: fixed; z-index: 2500; pointer-events: none;
@@ -905,7 +917,28 @@ button { font-family: inherit; }
 }
 
 /* ============ OPCIONES ============ */
-#lista-opciones { padding: 0 14px 16px; display: flex; flex-direction: column; gap: 8px; }
+#lista-opciones { padding: 0 14px 16px; display: flex; flex-direction: column; gap: 6px; }
+.fila-opcion-compacta {
+  padding: 10px 12px !important;
+  font-size: 13px !important;
+  border-radius: 11px !important;
+  gap: 10px !important;
+}
+.fila-opcion-compacta .icono-opcion { font-size: 17px !important; width: 22px !important; }
+.opciones-confirm {
+  margin-top: 4px; padding: 10px 12px; border-radius: 11px;
+  background: rgba(255,69,58,.08); border: 1px solid rgba(255,69,58,.28);
+}
+.opciones-confirm p { margin: 0 0 8px; font-size: 13px; color: #ffc9c4; text-align: center; }
+.opciones-confirm-botones { display: flex; gap: 8px; justify-content: center; }
+.opciones-btn-mini {
+  padding: 8px 14px; border-radius: 9px; border: 1px solid rgba(255,255,255,.14);
+  background: rgba(255,255,255,.08); color: #eef2f8;
+  font-size: 12px; font-weight: 700; cursor: pointer;
+}
+.opciones-btn-mini.peligro {
+  background: rgba(255,69,58,.22); border-color: rgba(255,69,58,.45); color: #ffb4ae;
+}
 .fila-opcion {
   display: flex; align-items: center; gap: 12px; padding: 14px 16px;
   background: rgba(255,255,255,.05); border-radius: 14px;

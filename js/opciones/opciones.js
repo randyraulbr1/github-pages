@@ -15,19 +15,21 @@ const Opciones = {
     });
 
     document.getElementById('opcion-salir').addEventListener('click', () => {
-      if (confirm('¿Cerrar sesión y volver a la pantalla de inicio?')) {
-        this.cerrar();
-        Usuarios.cerrarSesion();
-      }
+      const panel = document.getElementById('opciones-confirm-salir');
+      if (panel) panel.classList.remove('oculto');
+    });
+    const btnCancel = document.getElementById('opcion-salir-cancelar');
+    const btnConfirm = document.getElementById('opcion-salir-confirmar');
+    if (btnCancel) btnCancel.addEventListener('click', () => {
+      document.getElementById('opciones-confirm-salir')?.classList.add('oculto');
+    });
+    if (btnConfirm) btnConfirm.addEventListener('click', () => {
+      document.getElementById('opciones-confirm-salir')?.classList.add('oculto');
+      this.cerrar();
+      Usuarios.cerrarSesion();
     });
 
     document.getElementById('opcion-tarjeta').addEventListener('click', () => this.copiarTarjeta());
-
-    document.getElementById('opcion-borrar').addEventListener('click', () => {
-      if (confirm('¿Seguro? Se borra TODA tu partida (dinero, mochila e historial) y empiezas de cero.')) {
-        Guardado.borrarPartidaActual();
-      }
-    });
 
     const rep = document.getElementById('opcion-reportar');
     if (rep) rep.addEventListener('click', () => this.reportar());
@@ -62,6 +64,7 @@ const Opciones = {
   abrir() {
     this._refrescarAdmin();
     this.pintarPerfilOpciones();
+    document.getElementById('opciones-confirm-salir')?.classList.add('oculto');
     document.getElementById('ventana-opciones').classList.remove('oculto');
   },
 
