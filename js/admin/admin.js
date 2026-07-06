@@ -663,6 +663,40 @@ const Admin = {
     if (!this.datos) {
       try { this.datos = JSON.parse(localStorage.getItem(this.CLAVE) || 'null'); } catch (e) {}
     }
+    if (!this.datos) this.datos = { jugadoresExtra: [] };
+
+    let listaServidor = null;
+    try {
+      const { indice } = await MundoPublico.refrescarCuentasServidor();
+      if (Array.isArray(indice)) listaServidor = indice;
+    } catch (e) { /* sin servidor */ }
+
+    if (listaServidor) {
+      const porId = new Map();
+      for (const j of listaServidor) {
+        if (j?.id) porId.set(j.id, j);
+      }
+      for (const j of (this.datos.jugadoresExtra || [])) {
+        if (j?.id) porId.set(j.id, Object.assign({}, porId.get(j.id), j));
+      }
+      if (typeof Usuarios !== 'undefined' && Usuarios.datos?.lista) {
+        for (const p of Usuarios.datos.lista) {
+          if (!p?.id) continue;
+          porId.set(p.id, Object.assign({}, porId.get(p.id), {
+            id: p.id,
+            nombre: p.nombre || porId.get(p.id)?.nombre,
+            telefono: p.telefono || porId.get(p.id)?.telefono || '',
+            creado: p.creado || porId.get(p.id)?.creado,
+            pinHash: p.pinHash || porId.get(p.id)?.pinHash
+          }));
+        }
+      }
+      this.publicado.jugadores = this._deduplicarJugadoresPorNombre([...porId.values()]).jugadores;
+      this._jugadoresListaCache = this.publicado.jugadores.slice();
+      this._jugadoresListaCacheTs = Date.now();
+      return;
+    }
+
     const fusionarJugadores = (lista) => {
       if (!Array.isArray(lista) || !lista.length) return;
       const porId = new Map();
@@ -676,16 +710,14 @@ const Admin = {
       this.publicado.jugadores = [...porId.values()];
     };
     try {
-      const { indice } = await MundoPublico.refrescarCuentasServidor();
-      fusionarJugadores(indice);
-    } catch (e) { /* sin servidor */ }
-    try {
       const texto = await MundoPublico.descargar();
       if (texto) {
         const p = JSON.parse(texto);
         fusionarJugadores(p.jugadores);
       }
     } catch (e) { /* sin conexión */ }
+    this._jugadoresListaCache = this.jugadoresGlobales().slice();
+    this._jugadoresListaCacheTs = Date.now();
   },
 
   validarRegistro(nombre, telefono, perfilIdExcluir) {
@@ -1060,7 +1092,7 @@ const Admin = {
   iniciarVigilancia() {
     if (this._vigilanciaActiva) return;
     this._vigilanciaActiva = true;
-    const intervalo = CONFIG.servidorOnline ? 4000 : 8000;
+    const intervalo = CONFIG.servidorOnline ? 12000 : 8000;
     setInterval(() => this._revisarActualizacion(), intervalo);
     document.addEventListener('visibilitychange', () => {
       if (!document.hidden) this._revisarActualizacion();
@@ -1070,7 +1102,10 @@ const Admin = {
   async _revisarActualizacion() {
     try {
       if (!CONFIG.servidorOnline) return;
-      if (typeof Multijugador !== 'undefined' && Multijugador.obtenerMundoServidor) {
+      const socketActivo = typeof Multijugador !== 'undefined' && Multijugador.activo;
+      if (socketActivo && Multijugador._pullMundoVersion) {
+        await Multijugador._pullMundoVersion();
+      } else if (typeof Multijugador !== 'undefined' && Multijugador.obtenerMundoServidor) {
         await Multijugador.obtenerMundoServidor();
       } else if (typeof SyncServidor !== 'undefined' && SyncServidor.obtenerMundo) {
         const data = await SyncServidor.obtenerMundo();
@@ -1078,9 +1113,15 @@ const Admin = {
           const ts = data.actualizadoEn || data.mundo.actualizadoEn || 0;
           const localTs = this.publicado?.actualizadoEn || 0;
           if (ts >= localTs) {
-            this._aplicarMundoRemoto(JSON.stringify(data.mundo));
+            this._aplicarMundoRemoto(JSON.stringify(data.mundo), { soloMapa: true });
           }
         }
+      }
+      const panelJug = document.getElementById('admin-vista-jugadores');
+      const jugadoresAbierto = panelJug && !panelJug.classList.contains('oculto');
+      if (this.esAdminJugador() && jugadoresAbierto) {
+        await this.actualizarJugadoresGlobales();
+        this._listarCuentasAsync({ soloRefrescar: true });
       }
       if (typeof Usuarios !== 'undefined') Usuarios.verificarSesionRemota();
       if (typeof Guardado !== 'undefined' && Usuarios?.perfilActivo) {
@@ -1090,7 +1131,10 @@ const Admin = {
   },
 
   // Aplica el mundo publicado sin recargar toda la página
-  _aplicarMundoRemoto(texto) {
+  _aplicarMundoRemoto(texto, opciones) {
+    const opts = opciones || {};
+    const jugadoresGuardados = (this.publicado?.jugadores || []).slice();
+    const partidasGuardadas = Object.assign({}, this.publicado?.partidas || {});
     const idsObjetosAntes = new Set(this.objetosTodos().map(o => o.id));
     const idsTesorosAntes = new Set(this.tesorosTodos().map(t => t.id));
     const idsMisionesAntes = new Set(this.misionesTodas().map(m => m.id));
@@ -1111,6 +1155,14 @@ const Admin = {
         mantenimiento: { activo: false, mensaje: '' }
       }, JSON.parse(texto));
     } catch (e) { return; }
+
+    if (opts.soloMapa) {
+      if (jugadoresGuardados.length) this.publicado.jugadores = jugadoresGuardados;
+      this.publicado.partidas = Object.assign({}, partidasGuardadas, this.publicado.partidas || {});
+    } else if (!(this.publicado.jugadores || []).length && jugadoresGuardados.length) {
+      this.publicado.jugadores = jugadoresGuardados;
+    }
+    if (!this.publicado.partidas) this.publicado.partidas = partidasGuardadas;
 
     if (!this.publicado.precios) this.publicado.precios = {};
     if (!this.publicado.itemsNuevos) this.publicado.itemsNuevos = [];
@@ -2967,10 +3019,11 @@ const Admin = {
 
   async _listarCuentasAsync(opciones) {
     const opts = opciones || {};
-    await this.actualizarJugadoresGlobales();
-    await this._actualizarPartidasDesdeServidor();
     const cont = document.getElementById('admin-lista-jugadores');
     const buscar = document.getElementById('admin-buscar-jugador');
+
+    await this.actualizarJugadoresGlobales();
+    await this._actualizarPartidasDesdeServidor();
     if (!opts.soloRefrescar && buscar) buscar.value = '';
 
     const pintarFila = (j, destino) => {
@@ -3067,9 +3120,10 @@ const Admin = {
       if (tabV) tabV.textContent = '🟢 Vivos (' + vivos.length + ')';
       if (tabM) tabM.textContent = '💀 Muertos (' + muertos.length + ')';
       if (!lista.length) {
-        cont.innerHTML = '<div class="campo-caja" style="padding:14px;">' +
-          (this._jugadoresTab === 'muertos' ? 'No hay jugadores muertos' : 'No hay jugadores vivos con ese criterio') +
-          '</div>';
+        const msg = f
+          ? 'No hay jugadores que coincidan con "' + (filtro || '').trim() + '"'
+          : (this._jugadoresTab === 'muertos' ? 'No hay jugadores muertos' : 'No hay jugadores registrados');
+        cont.innerHTML = '<div class="campo-caja" style="padding:14px;">' + msg + '</div>';
       }
     };
 

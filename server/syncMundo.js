@@ -604,6 +604,11 @@ function syncMundoFromJson(mundo, io) {
     else if (!r.skipped) console.warn('[mundo] Respaldo GitHub:', r.error || r.reason);
   }).catch((e) => console.warn('[mundo] Respaldo GitHub:', e.message));
 
+  try {
+    const { respaldarJugadoresEnGitHubAsync } = require('./jugadoresBackup');
+    respaldarJugadoresEnGitHubAsync(mundo);
+  } catch (e) { /* */ }
+
   if (io) {
     io.emit('mundo:sync', {
       actualizadoEn: mundo.actualizadoEn,

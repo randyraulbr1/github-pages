@@ -2,8 +2,18 @@
  * Sincroniza cuentas entre SQLite (users/players) y world_snapshot.jugadores.
  * Evita que desaparezcan usuarios tras redeploy o importación desde mundo.json.
  */
-const { db, getWorldSnapshot, saveWorldSnapshot } = require('./db');
+const {
+  db,
+  getWorldSnapshot,
+  saveWorldSnapshot,
+  findUserByUsername,
+  findPlayerByUserId,
+  findPlayerByName,
+  createUser,
+  createPlayer
+} = require('./db');
 const { mergeJugadoresPartidas } = require('./syncMundo');
+const { hashPassword } = require('./auth');
 
 function countUsers() {
   return db.prepare('SELECT COUNT(*) AS n FROM users').get().n;
@@ -192,10 +202,87 @@ async function respaldarCuentasEnGitHub() {
   if (!snap) return { ok: false, reason: 'sin snapshot' };
   try {
     const { pushMundoToGitHub } = require('./githubMundo');
-    return await pushMundoToGitHub(snap);
+    const { respaldarJugadoresEnGitHubAsync } = require('./jugadoresBackup');
+    const r = await pushMundoToGitHub(snap);
+    respaldarJugadoresEnGitHubAsync(snap);
+    return r;
   } catch (e) {
     return { ok: false, error: e.message };
   }
+}
+
+/** Busca jugador por nombre o teléfono (exacto o parcial si hay un solo match). */
+function buscarJugadorPublico(termino) {
+  const raw = String(termino || '').trim();
+  if (!raw) return null;
+  const t = raw.toLowerCase();
+  const limpio = raw.replace(/[\s-]/g, '');
+  const lista = getJugadoresPublicos();
+
+  let hit = lista.find(j =>
+    (j.nombre && j.nombre.toLowerCase() === t) ||
+    (j.telefono && String(j.telefono).replace(/[\s-]/g, '') === limpio)
+  );
+  if (hit) return hit;
+
+  const parciales = lista.filter(j => {
+    const n = String(j.nombre || '').toLowerCase();
+    return n.includes(t) || (j.telefono && String(j.telefono).includes(limpio));
+  });
+  if (parciales.length === 1) return parciales[0];
+  if (parciales.length > 1) {
+    const prefijo = parciales.find(j => j.nombre.toLowerCase().startsWith(t));
+    if (prefijo) return prefijo;
+  }
+  return null;
+}
+
+/** Asegura fila en SQLite para un perfil del snapshot (amigos/chat en vivo). */
+function asegurarPlayerEnSqlite(jugador) {
+  if (!jugador?.nombre) return null;
+  const nombre = String(jugador.nombre).trim();
+  let p = findPlayerByName(nombre);
+  if (p) return p;
+
+  const idStr = String(jugador.id || '');
+  if (idStr.startsWith('srv_')) {
+    const n = parseInt(idStr.slice(4), 10);
+    if (Number.isFinite(n)) {
+      p = db.prepare('SELECT * FROM players WHERE id = ?').get(n);
+      if (p) return p;
+    }
+  }
+
+  let user = findUserByUsername(nombre);
+  if (!user) {
+    try {
+      user = createUser(nombre, hashPassword('sync_' + (jugador.id || Date.now())));
+      p = createPlayer(user.id, nombre);
+      return p;
+    } catch (e) {
+      user = findUserByUsername(nombre);
+    }
+  }
+  if (user) {
+    p = findPlayerByUserId(user.id);
+    if (p) return p;
+    try {
+      return createPlayer(user.id, nombre);
+    } catch (e) {
+      return findPlayerByName(nombre);
+    }
+  }
+  return null;
+}
+
+/** Resuelve playerId numérico para amigos/chat desde nombre. */
+function resolverPlayerIdPorNombre(nombre) {
+  const p = findPlayerByName(String(nombre || '').trim());
+  if (p) return p.id;
+  const j = buscarJugadorPublico(nombre);
+  if (!j) return null;
+  const migrado = asegurarPlayerEnSqlite(j);
+  return migrado?.id || null;
 }
 
 module.exports = {
@@ -205,5 +292,8 @@ module.exports = {
   purgarCuentasFueraDeSnapshot,
   deduplicarJugadoresPorNombre,
   getJugadoresPublicos,
-  respaldarCuentasEnGitHub
+  respaldarCuentasEnGitHub,
+  buscarJugadorPublico,
+  asegurarPlayerEnSqlite,
+  resolverPlayerIdPorNombre
 };

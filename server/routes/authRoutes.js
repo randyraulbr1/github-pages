@@ -18,7 +18,7 @@ const {
 const { hashPassword, comparePassword, signPlayerToken } = require('../auth');
 const { mergeJugadoresPartidas } = require('../syncMundo');
 const { forzarImportJugadores } = require('../importSnapshot');
-const { getJugadoresPublicos, respaldarCuentasEnGitHub } = require('../syncCuentas');
+const { getJugadoresPublicos, respaldarCuentasEnGitHub, buscarJugadorPublico } = require('../syncCuentas');
 
 const router = express.Router();
 
@@ -27,6 +27,8 @@ function sha256Pin(clave) {
 }
 
 function buscarJugadorSnapshot(usuario) {
+  const hit = buscarJugadorPublico(usuario);
+  if (hit) return hit;
   const snap = getWorldSnapshot();
   if (!snap?.jugadores?.length) return null;
   const u = usuario.trim().toLowerCase();
@@ -59,6 +61,25 @@ router.get('/public/cuentas', (req, res) => {
     jugadores,
     actualizadoEn: snap?.actualizadoEn || 0
   });
+});
+
+/** Solo versión del mundo (para polling ligero sin descargar todo el JSON). */
+router.get('/public/mundo/version', (req, res) => {
+  const snap = getWorldSnapshot();
+  res.json({
+    ok: true,
+    actualizadoEn: snap?.actualizadoEn || 0,
+    jugadores: (snap?.jugadores || []).length
+  });
+});
+
+/** Buscar cuenta por nombre/teléfono (panel admin y amigos). */
+router.get('/public/buscar-cuenta', (req, res) => {
+  const q = (req.query.q || req.query.nombre || '').trim();
+  if (!q) return res.status(400).json({ ok: false, error: 'Nombre requerido' });
+  const hit = buscarJugadorPublico(q);
+  if (!hit) return res.json({ ok: false, error: 'No se encontró esa cuenta' });
+  res.json({ ok: true, jugador: hit });
 });
 
 /** Importar jugadores desde mundo.json hacia SQLite (una vez tras deploy) */

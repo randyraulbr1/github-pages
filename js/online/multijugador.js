@@ -425,7 +425,7 @@ const Multijugador = {
     this.mundoServidorTs = Math.max(this.mundoServidorTs, ts);
     Admin._crudoPublicado = json;
     Admin._ultimoFirmaPublicada = firma;
-    Admin._aplicarMundoRemoto(json);
+    Admin._aplicarMundoRemoto(json, { soloMapa: true });
     if (m.cuerposMuertos) this._aplicarCuerpos(m.cuerposMuertos);
     if (avisar && typeof Usuarios !== 'undefined' && !Usuarios.esAdministrador() &&
         typeof Notificaciones !== 'undefined') {
@@ -483,7 +483,27 @@ const Multijugador = {
     }
   },
 
+  async _pullMundoVersion() {
+    const base = this.urlServidor();
+    if (!base) return false;
+    try {
+      const r = await fetch(base + '/api/public/mundo/version', { cache: 'no-store' });
+      const data = await r.json().catch(() => ({}));
+      if (!data.ok) return false;
+      const ts = data.actualizadoEn || 0;
+      if (ts > this.mundoServidorTs) {
+        return this.obtenerMundoServidor();
+      }
+      return false;
+    } catch (e) {
+      return false;
+    }
+  },
+
   async _pullMundoServidor() {
+    if (this.activo) {
+      return this._pullMundoVersion();
+    }
     const ahora = Date.now();
     if (ahora - this._ultimoPullMundo < 2500) return;
     this._ultimoPullMundo = ahora;

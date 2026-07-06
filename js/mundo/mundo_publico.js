@@ -255,7 +255,7 @@ const MundoPublico = {
       const base = CONFIG.servidorOnline.replace(/\/$/, '');
       const r = await Utilidades.fetchConTimeout(base + '/api/public/cuentas', { cache: 'no-store' }, 8000);
       const data = await r.json().catch(() => ({}));
-      if (data.ok && Array.isArray(data.jugadores) && data.jugadores.length) {
+      if (data.ok && Array.isArray(data.jugadores)) {
         indice = data.jugadores.slice().sort((a, b) =>
           (a.nombre || '').localeCompare(b.nombre || ''));
       }
@@ -431,16 +431,37 @@ const MundoPublico = {
     const buscar = lista => (lista || []).find(j =>
       (j.nombre && j.nombre.toLowerCase() === u) ||
       (j.telefono && j.telefono === limpio));
+    const buscarParcial = lista => {
+      const parciales = (lista || []).filter(j => {
+        const n = String(j.nombre || '').toLowerCase();
+        return n.includes(u) || (j.telefono && String(j.telefono).includes(limpio));
+      });
+      if (parciales.length === 1) return parciales[0];
+      return buscar(parciales);
+    };
+
+    if (CONFIG.servidorOnline) {
+      try {
+        const base = CONFIG.servidorOnline.replace(/\/$/, '');
+        const r = await Utilidades.fetchConTimeout(
+          base + '/api/public/buscar-cuenta?q=' + encodeURIComponent(usuario.trim()),
+          { cache: 'no-store' },
+          8000
+        );
+        const data = await r.json().catch(() => ({}));
+        if (data.ok && data.jugador) return data.jugador;
+      } catch (e) { /* */ }
+    }
 
     const { indice, mundo } = await this.refrescarCuentasServidor().catch(() => ({ indice: null, mundo: null }));
 
     if (mundo && Array.isArray(mundo.jugadores)) {
-      const hit = buscar(mundo.jugadores);
+      const hit = buscar(mundo.jugadores) || buscarParcial(mundo.jugadores);
       if (hit) return hit;
     }
 
     if (Array.isArray(indice)) {
-      const hit = buscar(indice);
+      const hit = buscar(indice) || buscarParcial(indice);
       if (hit) return hit;
     }
 

@@ -56,7 +56,13 @@ async function pushMundoToGitHub(mundo) {
     return { ok: false, error: e.message };
   }
 
-  const payload = mergeJugadoresPartidas(Object.assign({}, mundo), [remoto, mundo]);
+  const payload = Object.assign({}, mundo);
+  if (Array.isArray(mundo.jugadores)) {
+    // Lista explícita del admin: no resucitar jugadores borrados del remoto.
+    mergeJugadoresPartidas(payload, [{ partidas: (remoto || {}).partidas || {} }, mundo]);
+  } else {
+    mergeJugadoresPartidas(payload, [remoto, mundo]);
+  }
 
   const body = {
     message: `sync mundo admin ${new Date().toISOString()}`,
@@ -79,4 +85,4 @@ async function pushMundoToGitHub(mundo) {
   }
 }
 
-module.exports = { pushMundoToGitHub, fetchMundoFromGitHub };
+module.exports = { pushMundoToGitHub, fetchMundoFromGitHub, repoConfig };

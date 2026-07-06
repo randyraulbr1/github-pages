@@ -8,6 +8,42 @@ const { getWorldSnapshot, saveWorldSnapshot } = require('./db');
 const { mergeJugadoresPartidas } = require('./syncMundo');
 const { countUsers, reconciliarCuentasEnSnapshot } = require('./syncCuentas');
 
+function leerJugadoresDesdeCarpeta() {
+  const dir = path.join(__dirname, '..', 'datos', 'jugadores');
+  if (!fs.existsSync(dir)) return { jugadores: [], partidas: {} };
+  const jugadores = [];
+  const partidas = {};
+  const indicePath = path.join(dir, 'indice.json');
+  if (fs.existsSync(indicePath)) {
+    try {
+      const ind = JSON.parse(fs.readFileSync(indicePath, 'utf8'));
+      if (Array.isArray(ind)) jugadores.push(...ind);
+    } catch (e) { /* */ }
+  }
+  try {
+    for (const f of fs.readdirSync(dir)) {
+      if (!f.endsWith('.json') || f === 'indice.json') continue;
+      try {
+        const data = JSON.parse(fs.readFileSync(path.join(dir, f), 'utf8'));
+        if (data?.id && data?.nombre) {
+          const idx = jugadores.findIndex(j => j.id === data.id);
+          const perfil = {
+            id: data.id,
+            nombre: data.nombre,
+            telefono: data.telefono || '',
+            pinHash: data.pinHash || '',
+            creado: data.creado || Date.now()
+          };
+          if (idx >= 0) jugadores[idx] = Object.assign({}, jugadores[idx], perfil);
+          else jugadores.push(perfil);
+          if (data.partida) partidas[data.id] = data.partida;
+        }
+      } catch (e) { /* */ }
+    }
+  } catch (e) { /* */ }
+  return { jugadores, partidas };
+}
+
 function leerMundoJson() {
   const ruta = path.join(__dirname, '..', 'datos', 'mundo.json');
   if (!fs.existsSync(ruta)) return null;
@@ -62,6 +98,7 @@ function _fusionarPartidas(mundo, fuentes) {
  */
 async function restaurarMundoAlArranque() {
   const local = leerMundoJson();
+  const carpeta = leerJugadoresDesdeCarpeta();
   let remoto = null;
   try {
     const { fetchMundoFromGitHub } = require('./githubMundo');
@@ -88,8 +125,8 @@ async function restaurarMundoAlArranque() {
     mundo = Object.assign(_mundoVacio(), base, { jugadores: [], partidas: {} });
   }
 
-  mergeJugadoresPartidas(mundo, fuentes.concat(prev));
-  _fusionarPartidas(mundo, fuentes.concat(prev));
+  mergeJugadoresPartidas(mundo, fuentes.concat(prev, [{ jugadores: carpeta.jugadores }]));
+  _fusionarPartidas(mundo, fuentes.concat(prev, [{ partidas: carpeta.partidas }]));
 
   if ((sinSnapshot || !(mundo.objetos || []).length) && base) {
     if ((base.objetos || []).length) mundo.objetos = base.objetos;

@@ -14,6 +14,7 @@ const {
   getSocialData
 } = require('../db');
 const { authMiddleware } = require('../auth');
+const { resolverPlayerIdPorNombre } = require('../syncCuentas');
 
 const router = express.Router();
 
@@ -26,8 +27,13 @@ router.post('/request', authMiddleware, (req, res) => {
   const me = req.auth.playerId;
   let targetId = parseInt(req.body.playerId, 10);
   if (!Number.isFinite(targetId) && req.body.username) {
-    const p = findPlayerByName(String(req.body.username).trim());
+    const nombre = String(req.body.username).trim();
+    const p = findPlayerByName(nombre);
     if (p) targetId = p.id;
+    else {
+      const resuelto = resolverPlayerIdPorNombre(nombre);
+      if (Number.isFinite(resuelto)) targetId = resuelto;
+    }
   }
   if (!Number.isFinite(targetId)) {
     return res.status(400).json({ ok: false, error: 'Jugador no encontrado' });
