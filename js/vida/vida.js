@@ -204,6 +204,9 @@ const Vida = {
     Guardado.guardar();
     if (typeof Guardado !== 'undefined') Guardado.sincronizarNube(true).catch(() => {});
     this._mostrarPantallaMuerte();
+    if (typeof Enemigos !== 'undefined' && Enemigos._limpiarVisionHaciaJugador) {
+      Enemigos._limpiarVisionHaciaJugador();
+    }
     if (typeof Multijugador !== 'undefined') Multijugador.enviarStats(true);
   },
 

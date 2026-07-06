@@ -325,6 +325,9 @@ const Admin = {
           const pos = [+p.lat.toFixed(6), +p.lng.toFixed(6)];
           e.pos = pos;
           e.posOrigen = pos.slice();
+          if (typeof Enemigos !== 'undefined' && Enemigos._moverEnemigo) {
+            Enemigos._moverEnemigo(e, pos[0], pos[1]);
+          }
           this.datos.posiciones[e.id] = pos;
           this.guardar();
           this._publicarParaTodos(true);
@@ -2465,6 +2468,9 @@ const Admin = {
     this.modo = null;
     document.getElementById('admin-controles').classList.add('oculto');
     if (typeof GPS !== 'undefined') GPS._actualizarArrastre();
+    else if (typeof Enemigos !== 'undefined' && Enemigos._actualizarPrioridadAdmin) {
+      Enemigos._actualizarPrioridadAdmin(false);
+    }
   },
 
   _mostrarControles(texto, conConfirmar) {

@@ -202,8 +202,8 @@ const Enemigos = {
     return L.divIcon({
       className: '',
       html: this._htmlMarcador(e),
-      iconSize: [56, 62],
-      iconAnchor: [28, 54]
+      iconSize: [120, 72],
+      iconAnchor: [60, 58]
     });
   },
 
@@ -213,18 +213,41 @@ const Enemigos = {
     m.setIcon(this._iconoMarcador(e));
   },
 
+  _adminOrganizando() {
+    return typeof Admin !== 'undefined' && Admin.modo === 'organizar';
+  },
+
   _adminPrioridadPin() {
     return (typeof Admin !== 'undefined' && Admin.puedeMoverPinJugador && Admin.puedeMoverPinJugador()) ||
-      (typeof Admin !== 'undefined' && Admin.modo === 'organizar');
+      this._adminOrganizando();
   },
 
   _actualizarPrioridadAdmin(activo) {
-    const bloquear = activo != null ? activo : this._adminPrioridadPin();
+    const organizando = this._adminOrganizando();
+    const moverPin = typeof Admin !== 'undefined' && Admin.puedeMoverPinJugador && Admin.puedeMoverPinJugador();
+    const bloquearClics = activo != null ? (activo && !organizando) : (moverPin && !organizando);
     for (const m of Object.values(this._marcadores)) {
       if (!m) continue;
-      m.options.interactive = !bloquear;
-      const el = m.getElement();
-      if (el) el.style.pointerEvents = bloquear ? 'none' : '';
+      if (organizando) {
+        m.options.interactive = true;
+        m.setZIndexOffset(12000);
+        const el = m.getElement();
+        if (el) el.style.pointerEvents = '';
+      } else {
+        m.options.interactive = !bloquearClics;
+        m.setZIndexOffset(0);
+        const el = m.getElement();
+        if (el) el.style.pointerEvents = bloquearClics ? 'none' : '';
+      }
+    }
+  },
+
+  _limpiarVisionHaciaJugador() {
+    for (const e of this.lista) {
+      if (e.facingDeg == null && !e._enZona) continue;
+      e.facingDeg = null;
+      e._enZona = false;
+      this._refrescarIconoMarcador(e);
     }
   },
 
@@ -282,6 +305,7 @@ const Enemigos = {
 
   /** Posición/vida sincronizada desde el servidor (enemigo compartido en vivo). */
   actualizarDesdeServidor(origenId, lat, lng, data) {
+    if (this._adminOrganizando()) return;
     let e = this.lista.find(x => x.id === origenId);
     if (!e) {
       this._recargar();
@@ -375,7 +399,15 @@ const Enemigos = {
   },
 
   _tick() {
-    if (!GPS.posicion || Vida.estaMuerto()) return;
+    if (this._adminOrganizando()) return;
+
+    const muerto = typeof Vida !== 'undefined' && Vida.estaMuerto();
+    if (muerto) {
+      this._limpiarVisionHaciaJugador();
+      return;
+    }
+
+    if (!GPS.posicion) return;
     const online = typeof Multijugador !== 'undefined' && Multijugador.activo;
     for (const e of this.lista) {
       if (!this._marcadores[e.id]) continue;
