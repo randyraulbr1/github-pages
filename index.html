@@ -15,7 +15,7 @@
   <script>
     // Aviso temprano en móvil (antes de cargar 20+ archivos JS)
     (function () {
-      var V = '103';
+      var V = '104';
       var texto = document.getElementById('carga-texto');
       if (texto) texto.textContent = 'Conectando…';
       var prev = localStorage.getItem('mariel_app_version');
@@ -829,45 +829,45 @@
   </div>
 
   <!-- LIBRERÍAS -->
-  <script src="lib/leaflet/leaflet.js?v=103"></script>
+  <script src="lib/leaflet/leaflet.js?v=104"></script>
 
   <!-- MÓDULOS DEL JUEGO (orden importante) -->
-  <script src="js/config/config.js?v=103"></script>
-  <script src="js/nucleo/utilidades.js?v=103"></script>
-  <script src="js/mundo/mundo_publico.js?v=103"></script>
-  <script src="js/notificaciones/notificaciones.js?v=103"></script>
-  <script src="js/usuarios/usuarios.js?v=103"></script>
-  <script src="js/guardado/guardado.js?v=103"></script>
-  <script src="js/historial/historial.js?v=103"></script>
-  <script src="js/dinero/dinero.js?v=103"></script>
-  <script src="js/vida/vida.js?v=103"></script>
-  <script src="js/items/items.js?v=103"></script>
-  <script src="js/mochila/mochila.js?v=103"></script>
-  <script src="js/mapa/mapa.js?v=103"></script>
-  <script src="js/gps/gps.js?v=103"></script>
-  <script src="js/tiendas/datos_tiendas.js?v=103"></script>
-  <script src="js/tiendas/tiendas.js?v=103"></script>
-  <script src="js/pesca/pesca.js?v=103"></script>
-  <script src="js/tesoros/datos_tesoros.js?v=103"></script>
-  <script src="js/tesoros/tesoros.js?v=103"></script>
-  <script src="js/misiones/datos_misiones.js?v=103"></script>
-  <script src="js/misiones/misiones.js?v=103"></script>
-  <script src="js/cofres/cofres.js?v=103"></script>
-  <script src="js/correo/correo.js?v=103"></script>
-  <script src="js/enemigos/enemigos.js?v=103"></script>
-  <script src="js/online/sync_servidor.js?v=103"></script>
-  <script src="js/admin/admin.js?v=103"></script>
-  <script src="js/opciones/opciones.js?v=103"></script>
-  <script src="js/online/mundo_online.js?v=103"></script>
-  <script src="js/online/amigos.js?v=103"></script>
-  <script src="js/chat/chat.js?v=103"></script>
-  <script src="js/online/multijugador.js?v=103"></script>
-  <script src="js/principal.js?v=103"></script>
+  <script src="js/config/config.js?v=104"></script>
+  <script src="js/nucleo/utilidades.js?v=104"></script>
+  <script src="js/mundo/mundo_publico.js?v=104"></script>
+  <script src="js/notificaciones/notificaciones.js?v=104"></script>
+  <script src="js/usuarios/usuarios.js?v=104"></script>
+  <script src="js/guardado/guardado.js?v=104"></script>
+  <script src="js/historial/historial.js?v=104"></script>
+  <script src="js/dinero/dinero.js?v=104"></script>
+  <script src="js/vida/vida.js?v=104"></script>
+  <script src="js/items/items.js?v=104"></script>
+  <script src="js/mochila/mochila.js?v=104"></script>
+  <script src="js/mapa/mapa.js?v=104"></script>
+  <script src="js/gps/gps.js?v=104"></script>
+  <script src="js/tiendas/datos_tiendas.js?v=104"></script>
+  <script src="js/tiendas/tiendas.js?v=104"></script>
+  <script src="js/pesca/pesca.js?v=104"></script>
+  <script src="js/tesoros/datos_tesoros.js?v=104"></script>
+  <script src="js/tesoros/tesoros.js?v=104"></script>
+  <script src="js/misiones/datos_misiones.js?v=104"></script>
+  <script src="js/misiones/misiones.js?v=104"></script>
+  <script src="js/cofres/cofres.js?v=104"></script>
+  <script src="js/correo/correo.js?v=104"></script>
+  <script src="js/enemigos/enemigos.js?v=104"></script>
+  <script src="js/online/sync_servidor.js?v=104"></script>
+  <script src="js/admin/admin.js?v=104"></script>
+  <script src="js/opciones/opciones.js?v=104"></script>
+  <script src="js/online/mundo_online.js?v=104"></script>
+  <script src="js/online/amigos.js?v=104"></script>
+  <script src="js/chat/chat.js?v=104"></script>
+  <script src="js/online/multijugador.js?v=104"></script>
+  <script src="js/principal.js?v=104"></script>
   <script>
     // Registrar la app instalable (PWA)
     if ('serviceWorker' in navigator) {
       const yaTeniaVersion = !!navigator.serviceWorker.controller;
-      navigator.serviceWorker.register('sw.js?v=103', { updateViaCache: 'none' })
+      navigator.serviceWorker.register('sw.js?v=104', { updateViaCache: 'none' })
         .then(function (reg) { reg.update(); })
         .catch(function () {});
       // Cuando llega una versión nueva del juego: avisar y recargar solo

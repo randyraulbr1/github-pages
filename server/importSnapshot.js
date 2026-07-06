@@ -1,6 +1,6 @@
 /**
- * Importa/merge el snapshot del mundo desde datos/mundo.json hacia SQLite.
- * Se ejecuta al arrancar si el snapshot está vacío o sin jugadores.
+ * Importa/merge el snapshot del mundo hacia SQLite.
+ * Plan GRATIS Render: cuentas viven en GitHub (datos/mundo.json), no en disco local.
  */
 const fs = require('fs');
 const path = require('path');
@@ -18,21 +18,8 @@ function leerMundoJson() {
   }
 }
 
-function importarSnapshotSiFalta() {
-  const archivo = leerMundoJson();
-  if (!archivo) return { ok: false, reason: 'sin archivo' };
-
-  const prev = getWorldSnapshot();
-  const sinSnapshot = !prev;
-  const sinJugadores = !prev?.jugadores?.length;
-  const archivoTieneJugadores = (archivo.jugadores || []).length > 0;
-  const usuariosSqlite = countUsers();
-
-  if (!sinSnapshot && !sinJugadores && usuariosSqlite === 0) {
-    return { ok: true, skipped: true, jugadores: prev.jugadores.length };
-  }
-
-  let mundo = prev || {
+function _mundoVacio() {
+  return {
     actualizadoEn: Date.now(),
     misiones: [],
     tesoros: [],
@@ -57,12 +44,100 @@ function importarSnapshotSiFalta() {
     tiendasStock: {},
     combate: {}
   };
+}
 
-  if (sinSnapshot) {
-    mundo = Object.assign(mundo, archivo);
+function _fusionarPartidas(mundo, fuentes) {
+  if (!mundo.partidas) mundo.partidas = {};
+  for (const f of fuentes) {
+    if (!f?.partidas) continue;
+    for (const [id, p] of Object.entries(f.partidas)) {
+      const prev = mundo.partidas[id];
+      if (!prev || !prev.t || (p.t || 0) >= (prev.t || 0)) mundo.partidas[id] = p;
+    }
+  }
+}
+
+/**
+ * Al arrancar: descarga mundo.json de GitHub (gratis, sin disco) y fusiona jugadores.
+ */
+async function restaurarMundoAlArranque() {
+  const local = leerMundoJson();
+  let remoto = null;
+  try {
+    const { fetchMundoFromGitHub } = require('./githubMundo');
+    remoto = await fetchMundoFromGitHub();
+  } catch (e) {
+    console.warn('[mundo] No se pudo leer GitHub:', e.message);
   }
 
+  const fuentes = [remoto, local].filter(Boolean);
+  if (!fuentes.length) return { ok: false, reason: 'sin mundo.json' };
+
+  const prev = getWorldSnapshot();
+  const sqliteVacio = countUsers() === 0;
+  const sinSnapshot = !prev;
+  const sinJugadores = !prev?.jugadores?.length;
+
+  if (!sqliteVacio && !sinSnapshot && !sinJugadores) {
+    return { ok: true, skipped: true, jugadores: prev.jugadores.length };
+  }
+
+  let mundo = prev ? Object.assign({}, prev) : _mundoVacio();
+  const base = remoto || local;
+  if (sinSnapshot && base) {
+    mundo = Object.assign(_mundoVacio(), base, { jugadores: [], partidas: {} });
+  }
+
+  mergeJugadoresPartidas(mundo, fuentes.concat(prev));
+  _fusionarPartidas(mundo, fuentes.concat(prev));
+
+  if ((sinSnapshot || !(mundo.objetos || []).length) && base) {
+    if ((base.objetos || []).length) mundo.objetos = base.objetos;
+    if ((base.enemigos || []).length) mundo.enemigos = base.enemigos;
+    if ((base.misiones || []).length) mundo.misiones = base.misiones;
+    if ((base.tesoros || []).length) mundo.tesoros = base.tesoros;
+    if (base.posiciones) {
+      mundo.posiciones = Object.assign({}, base.posiciones, mundo.posiciones || {});
+    }
+  }
+
+  const ts = Math.max(
+    mundo.actualizadoEn || 0,
+    remoto?.actualizadoEn || 0,
+    local?.actualizadoEn || 0
+  );
+  mundo.actualizadoEn = ts || Date.now();
+
+  reconciliarCuentasEnSnapshot(mundo);
+  saveWorldSnapshot(mundo);
+
+  const n = (mundo.jugadores || []).length;
+  console.log(
+    '[mundo] Cuentas restauradas:', n,
+    'jugador(es) — GitHub:', remoto ? 'sí' : 'no',
+    '| local:', local ? 'sí' : 'no'
+  );
+
+  return { ok: true, jugadores: n, desdeGitHub: !!remoto };
+}
+
+function importarSnapshotSiFalta() {
+  const archivo = leerMundoJson();
+  if (!archivo) return { ok: false, reason: 'sin archivo' };
+
+  const prev = getWorldSnapshot();
+  const sinSnapshot = !prev;
+  const sinJugadores = !prev?.jugadores?.length;
+  const usuariosSqlite = countUsers();
+
+  if (!sinSnapshot && !sinJugadores && usuariosSqlite === 0) {
+    return { ok: true, skipped: true, jugadores: prev.jugadores.length };
+  }
+
+  let mundo = prev || _mundoVacio();
+  if (sinSnapshot) mundo = Object.assign(mundo, archivo);
   mergeJugadoresPartidas(mundo, [archivo, prev]);
+  _fusionarPartidas(mundo, [archivo, prev]);
 
   if (!mundo.partidas && archivo.partidas) mundo.partidas = archivo.partidas;
   if (sinSnapshot || !(mundo.objetos || []).length) {
@@ -70,11 +145,9 @@ function importarSnapshotSiFalta() {
     if ((archivo.enemigos || []).length) mundo.enemigos = archivo.enemigos;
     if ((archivo.misiones || []).length) mundo.misiones = archivo.misiones;
     if ((archivo.tesoros || []).length) mundo.tesoros = archivo.tesoros;
-    if (archivo.posiciones) mundo.posiciones = Object.assign({}, archivo.posiciones, mundo.posiciones || {});
-  }
-
-  if (archivoTieneJugadores && sinJugadores) {
-    console.log('[importSnapshot] Restaurando', (archivo.jugadores || []).length, 'jugadores desde mundo.json');
+    if (archivo.posiciones) {
+      mundo.posiciones = Object.assign({}, archivo.posiciones, mundo.posiciones || {});
+    }
   }
 
   mundo.actualizadoEn = Math.max(mundo.actualizadoEn || 0, archivo.actualizadoEn || Date.now());
@@ -88,19 +161,21 @@ function importarSnapshotSiFalta() {
   };
 }
 
-/** Fuerza merge de jugadores desde archivo (endpoint admin). */
 function forzarImportJugadores() {
   const archivo = leerMundoJson();
   if (!archivo) return { ok: false, error: 'mundo.json no encontrado' };
   const prev = getWorldSnapshot() || { jugadores: [], partidas: {} };
   const mundo = Object.assign({}, prev);
   mergeJugadoresPartidas(mundo, [archivo, prev]);
-  if (archivo.partidas) {
-    mundo.partidas = Object.assign({}, archivo.partidas, mundo.partidas || {});
-  }
+  _fusionarPartidas(mundo, [archivo, prev]);
   mundo.actualizadoEn = Date.now();
   saveWorldSnapshot(mundo);
   return { ok: true, jugadores: (mundo.jugadores || []).length };
 }
 
-module.exports = { importarSnapshotSiFalta, forzarImportJugadores, leerMundoJson };
+module.exports = {
+  importarSnapshotSiFalta,
+  restaurarMundoAlArranque,
+  forzarImportJugadores,
+  leerMundoJson
+};

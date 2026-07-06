@@ -4,14 +4,33 @@
  */
 const { mergeJugadoresPartidas } = require('./syncMundo');
 
+function repoConfig() {
+  return {
+    repo: process.env.GITHUB_REPO || 'randyraulbr1/github-pages',
+    branch: process.env.GITHUB_BRANCH || 'claude/web-rpg-gps-game-n3ybow',
+    path: 'datos/mundo.json'
+  };
+}
+
+/** Lee mundo.json desde GitHub (público, sin token). */
+async function fetchMundoFromGitHub() {
+  const { repo, branch } = repoConfig();
+  const rawUrl = `https://raw.githubusercontent.com/${repo}/${branch}/datos/mundo.json?t=${Date.now()}`;
+  try {
+    const r = await fetch(rawUrl, { headers: { 'Cache-Control': 'no-cache' } });
+    if (!r.ok) return null;
+    return await r.json();
+  } catch (e) {
+    return null;
+  }
+}
+
 async function pushMundoToGitHub(mundo) {
   const token = process.env.GITHUB_TOKEN;
   if (!token) return { ok: false, skipped: true, reason: 'GITHUB_TOKEN no configurado' };
 
-  const repo = process.env.GITHUB_REPO || 'randyraulbr1/github-pages';
-  const branch = process.env.GITHUB_BRANCH || 'claude/web-rpg-gps-game-n3ybow';
-  const path = 'datos/mundo.json';
-  const apiUrl = `https://api.github.com/repos/${repo}/contents/${path}`;
+  const { repo, branch, path: filePath } = repoConfig();
+  const apiUrl = `https://api.github.com/repos/${repo}/contents/${filePath}`;
 
   const headers = {
     Authorization: `Bearer ${token}`,
@@ -60,4 +79,4 @@ async function pushMundoToGitHub(mundo) {
   }
 }
 
-module.exports = { pushMundoToGitHub };
+module.exports = { pushMundoToGitHub, fetchMundoFromGitHub };

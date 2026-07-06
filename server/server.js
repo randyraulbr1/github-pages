@@ -1,6 +1,7 @@
 /**
  * Servidor principal — Express + Socket.IO + SQLite
  * Sin Firebase. Estado autoritativo en el servidor.
+ * Plan gratis Render: cuentas respaldadas en GitHub (datos/mundo.json).
  */
 require('dotenv').config();
 
@@ -37,15 +38,6 @@ const CORS_ORIGINS = (() => {
 
 initDb();
 
-try {
-  const { countUsers, reconciliarCuentasEnSnapshot } = require('./syncCuentas');
-  const n = countUsers();
-  const rec = reconciliarCuentasEnSnapshot();
-  console.log('   Usuarios en BD:', n, '| Jugadores en snapshot:', rec.total);
-} catch (e) {
-  console.warn('   syncCuentas al arranque:', e.message);
-}
-
 const app = express();
 const server = http.createServer(app);
 
@@ -70,7 +62,6 @@ app.use(cors({
 }));
 app.use(express.json());
 
-// API REST
 app.use('/api', authRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/player', playerRoutes);
@@ -78,13 +69,11 @@ app.use('/api/world', worldRoutes);
 app.use('/api/friends', friendRoutes);
 app.use('/api/chat', chatRoutes);
 
-// Panel admin
 app.use('/admin', express.static(path.join(__dirname, 'public')));
 app.get('/admin', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'admin.html'));
 });
 
-// Cliente del juego + mapa Leaflet (también en /client/ para GitHub Pages)
 app.use('/client', express.static(path.join(__dirname, '..', 'client')));
 app.use('/lib', express.static(path.join(__dirname, '..', 'lib')));
 app.use(express.static(path.join(__dirname, '..', 'client')));
@@ -92,7 +81,6 @@ app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, '..', 'client', 'index.html'));
 });
 
-// Entrada desde GitHub Pages: /online/
 app.use('/online', express.static(path.join(__dirname, '..', 'online')));
 app.get('/online', (req, res) => {
   res.sendFile(path.join(__dirname, '..', 'online', 'index.html'));
@@ -104,12 +92,38 @@ app.get('/health', (req, res) => {
 
 setupSockets(io);
 
-server.listen(PORT, '0.0.0.0', () => {
-  console.log('');
-  console.log('🌍 Mariel Online Server');
-  console.log('   Juego:  http://localhost:' + PORT + '/');
-  console.log('   Admin:  http://localhost:' + PORT + '/admin');
-  console.log('   API:    http://localhost:' + PORT + '/api');
-  console.log('   CORS:   ' + CORS_ORIGINS.join(', '));
-  console.log('');
+async function arrancar() {
+  try {
+    const { restaurarMundoAlArranque } = require('./importSnapshot');
+    await restaurarMundoAlArranque();
+  } catch (e) {
+    console.warn('   restaurarMundoAlArranque:', e.message);
+  }
+
+  try {
+    const { countUsers, reconciliarCuentasEnSnapshot } = require('./syncCuentas');
+    const n = countUsers();
+    const rec = reconciliarCuentasEnSnapshot();
+    console.log('   Usuarios en BD:', n, '| Jugadores en snapshot:', rec.total);
+    if (!process.env.GITHUB_TOKEN) {
+      console.warn('   ⚠️ GITHUB_TOKEN no configurado — nuevas cuentas NO se respaldan en GitHub');
+    }
+  } catch (e) {
+    console.warn('   syncCuentas al arranque:', e.message);
+  }
+
+  server.listen(PORT, '0.0.0.0', () => {
+    console.log('');
+    console.log('🌍 Mariel Online Server (plan gratis — cuentas en GitHub)');
+    console.log('   Juego:  http://localhost:' + PORT + '/');
+    console.log('   Admin:  http://localhost:' + PORT + '/admin');
+    console.log('   API:    http://localhost:' + PORT + '/api');
+    console.log('   CORS:   ' + CORS_ORIGINS.join(', '));
+    console.log('');
+  });
+}
+
+arrancar().catch((e) => {
+  console.error('Error al arrancar:', e);
+  process.exit(1);
 });

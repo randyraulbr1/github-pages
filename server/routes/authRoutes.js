@@ -147,6 +147,7 @@ router.post('/login-game', (req, res) => {
   mergeJugadoresPartidas(snap, [{ jugadores: [legacy] }]);
   snap.actualizadoEn = Date.now();
   saveWorldSnapshot(snap);
+  respaldarCuentasEnGitHub().catch(() => {});
 
   return res.json({
     ok: true,
@@ -249,6 +250,13 @@ router.post('/login', (req, res) => {
   updateLastLogin(user.id);
   const token = signPlayerToken(user, player);
   const legacy = buscarJugadorSnapshot(username);
+  if (legacy) {
+    const snap = getWorldSnapshot() || { jugadores: [], partidas: {} };
+    mergeJugadoresPartidas(snap, [{ jugadores: [legacy] }]);
+    snap.actualizadoEn = Date.now();
+    saveWorldSnapshot(snap);
+    respaldarCuentasEnGitHub().catch(() => {});
+  }
 
   return res.json({
     ok: true,
