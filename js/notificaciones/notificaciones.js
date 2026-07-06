@@ -9,6 +9,21 @@ const Notificaciones = {
   _toastEl: null,
   _toastPila: 0,
 
+  _contadorGlobo(cantidad) {
+    if (typeof Utilidades !== 'undefined' && typeof Utilidades.contadorBadge === 'function') {
+      return Utilidades.contadorBadge(cantidad);
+    }
+    const n = Math.max(0, Math.floor(Number(cantidad) || 0));
+    if (n <= 0) return '';
+    if (n > 10) return '+10';
+    return String(n);
+  },
+
+  _sinLeer() {
+    if (!Guardado.datos) return 0;
+    return (Guardado.datos.notificaciones || []).filter(n => n && n.leido !== true).length;
+  },
+
   _esImportante(texto, tipo) {
     if (tipo === 'admin' || tipo === 'error') return true;
     const t = (texto || '').toLowerCase();
@@ -72,7 +87,7 @@ const Notificaciones = {
       const pila = this._toastEl.querySelector('.notif-pila');
       if (txt) txt.textContent = texto;
       if (pila) {
-        pila.textContent = Utilidades.contadorBadge(this._toastPila);
+        pila.textContent = this._contadorGlobo(this._toastPila);
         pila.classList.toggle('oculto', this._toastPila <= 1);
       }
       this._toastEl.className = 'notificacion visible ' + tipo;
@@ -105,10 +120,11 @@ const Notificaciones = {
 
   _actualizarBadge() {
     const badge = document.getElementById('badge-avisos');
-    if (!badge || !Guardado.datos) return;
-    const sinLeer = (Guardado.datos.notificaciones || []).filter(n => !n.leido).length;
-    badge.textContent = Utilidades.contadorBadge(sinLeer);
+    if (!badge) return;
+    const sinLeer = this._sinLeer();
+    badge.textContent = this._contadorGlobo(sinLeer);
     badge.classList.toggle('oculto', sinLeer <= 0);
+    badge.setAttribute('aria-label', sinLeer > 0 ? (sinLeer + ' avisos sin leer') : '');
   },
 
   mostrarAdmin(texto, duracionMs) {
@@ -143,6 +159,7 @@ const Notificaciones = {
       };
       document.addEventListener('click', cerrarSiFuera);
     }
+    this._actualizarBadge();
   },
 
   _claseAviso(aviso) {
