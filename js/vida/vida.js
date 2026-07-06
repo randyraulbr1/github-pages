@@ -45,17 +45,17 @@ const Vida = {
   },
 
   _vidaMinimaAdmin() {
-    return Math.ceil(this.vidaMaxima() * 0.5);
+    return this.vidaMaxima();
   },
 
   _asegurarVidaAdmin() {
     if (!this._esAdmin()) return;
-    const min = this._vidaMinimaAdmin();
-    if (this._muerto || this.actual < min) {
+    const max = this.vidaMaxima();
+    if (this._muerto || this.actual < max) {
       this._muerto = false;
       Guardado.datos.muerto = false;
-      this.actual = Math.max(min, this.actual || min);
-      Guardado.datos.vida = this.actual;
+      this.actual = max;
+      Guardado.datos.vida = max;
       const pantalla = document.getElementById('pantalla-muerte');
       if (pantalla) pantalla.classList.add('oculto');
       document.body.classList.remove('jugador-muerto');
@@ -142,7 +142,7 @@ const Vida = {
     if (this.estaMuerto() || cantidad <= 0) return;
     const antes = this.actual;
     let nuevo = Math.max(0, this.actual - cantidad);
-    if (this._esAdmin()) nuevo = Math.max(this._vidaMinimaAdmin(), nuevo);
+    if (this._esAdmin()) nuevo = this.vidaMaxima();
     this.actual = nuevo;
     if (this.actual !== antes) {
       Guardado.datos.vida = this.actual;

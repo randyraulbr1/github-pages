@@ -191,6 +191,8 @@ const Multijugador = {
         this.online[i].dead = false;
         this.online[i].deathX = null;
         this.online[i].deathY = null;
+        this.online[i].deadInventory = [];
+        this.online[i].deadLevel = null;
         this._actualizarMarcador(this.online[i]);
       }
     });
@@ -205,6 +207,20 @@ const Multijugador = {
 
     this.socket.on('mundo:sync', (data) => {
       this._aplicarMundoServidor(data, true);
+    });
+
+    this.socket.on('world:tesoroRecogido', (data) => {
+      if (!data?.tesoroId || typeof Admin === 'undefined') return;
+      Admin.aplicarRecogidaTesoro(data.tesoroId, data.recogidoAt);
+    });
+
+    this.socket.on('player:lootUpdate', (data) => {
+      if (!data?.playerId) return;
+      const i = this.online.findIndex(x => Number(x.playerId) === Number(data.playerId));
+      if (i >= 0) {
+        this.online[i].deadInventory = data.deadInventory || [];
+        this._actualizarMarcador(this.online[i]);
+      }
     });
 
     this.socket.on('world:objetoRecogido', (data) => {
@@ -309,6 +325,88 @@ const Multijugador = {
     } catch (e) { /* servidor dormido */ }
   },
 
+  recogerTesoroCompartido(tesoroId) {
+    return new Promise((resolve) => {
+      if (!this.socket || !this.activo || !tesoroId) return resolve(false);
+      this.socket.emit('world:tesoroRecogido', { tesoroId }, (res) => {
+        if (res?.ok && typeof Admin !== 'undefined') {
+          Admin.aplicarRecogidaTesoro(tesoroId, res.recogidoAt);
+        }
+        resolve(!!res?.ok);
+      });
+    });
+  },
+
+  saquearMuerto(playerId, itemId, cantidad) {
+    if (!this.socket || !this.activo) return;
+    this.socket.emit('player:lootBody', { targetPlayerId: playerId, itemId, cantidad: cantidad || 1 }, (res) => {
+      if (res?.ok) {
+        if (typeof Mochila !== 'undefined' && res.item) {
+          Mochila.agregar(res.item.id, res.item.cantidad, { silencioso: true });
+        }
+        Notificaciones.mostrar('🎒 Saqueaste del cuerpo', 'exito', 3000);
+        const i = this.online.findIndex(x => Number(x.playerId) === Number(playerId));
+        if (i >= 0 && res.deadInventory) this.online[i].deadInventory = res.deadInventory;
+      } else if (res?.error) {
+        Notificaciones.mostrar('❌ ' + res.error, 'error', 3500);
+      }
+    });
+  },
+
+  _esAdminMarcador(p) {
+    const nom = (p.name || '').trim().toLowerCase();
+    const adm = (CONFIG.adminNombre || 'soycaos').toLowerCase();
+    return nom === adm || nom === 'randy';
+  },
+
+  _nombreMarcador(p) {
+    if (this._esAdminMarcador(p)) return CONFIG.adminDisplayNombre || 'SoyCaos';
+    return (p.name || '?').replace(/</g, '');
+  },
+
+  _popupMuertoHtml(p) {
+    const nombre = (p.name || 'Jugador').replace(/</g, '');
+    const nv = p.deadLevel || p.level || 1;
+    let html = '<div class="popup-muerto">';
+    html += '<div class="popup-muerto-nombre">' + nombre + '</div>';
+    html += '<div class="popup-muerto-nivel">Nv ' + nv + ' · 💀 Muerto</div>';
+    const items = p.deadInventory || [];
+    if (items.length) {
+      html += '<div class="popup-muerto-items">';
+      for (const it of items) {
+        const item = typeof Items !== 'undefined' ? Items.seguro(it.id) : { nombre: it.id, icono: '📦' };
+        html += '<div class="popup-muerto-item"><span>' + (item.icono || '') + ' ' +
+          item.nombre + ' x' + (it.cantidad || 1) + '</span>' +
+          '<button type="button" data-loot-id="' + it.id + '" data-loot-pid="' + p.playerId +
+          '" data-loot-q="' + (it.cantidad || 1) + '">Saquear</button></div>';
+      }
+      html += '</div>';
+    }
+    html += '<button type="button" class="popup-muerto-revivir" data-revive-pid="' + p.playerId +
+      '">🩹 Revivir (botiquín)</button></div>';
+    return html;
+  },
+
+  _enlazarPopupMuerto(m, p) {
+    m.off('popupopen').on('popupopen', () => {
+      const el = m.getPopup()?.getElement();
+      if (!el) return;
+      el.querySelector('.popup-muerto-revivir')?.addEventListener('click', () => {
+        m.closePopup();
+        this.revivirJugador(p);
+      });
+      el.querySelectorAll('[data-loot-id]').forEach(btn => {
+        btn.addEventListener('click', () => {
+          this.saquearMuerto(
+            Number(btn.getAttribute('data-loot-pid')),
+            btn.getAttribute('data-loot-id'),
+            Number(btn.getAttribute('data-loot-q') || 1)
+          );
+        });
+      });
+    });
+  },
+
   recogerObjetoCompartido(origenId) {
     return new Promise((resolve) => {
       if (!this.socket || !this.activo || !origenId) return resolve(false);
@@ -390,12 +488,13 @@ const Multijugador = {
     const ahora = Date.now();
     if (!forzar && ahora - this._ultimoStats < 3500) return;
     this._ultimoStats = ahora;
+    const esAdmin = typeof Usuarios !== 'undefined' && Usuarios.esAdministrador();
     const hpMax = Vida.vidaMaxima();
     const muerto = Vida.estaMuerto();
     const payload = {
-      hp: Math.round(Vida.actual),
+      hp: esAdmin ? hpMax : Math.round(Vida.actual),
       hpMax,
-      level: Vida.nivel,
+      level: esAdmin ? 999 : Vida.nivel,
       hunger: Math.round(Vida.hambre),
       xp: Vida.xp,
       dead: muerto
@@ -403,6 +502,10 @@ const Multijugador = {
     if (muerto && typeof Guardado !== 'undefined' && Guardado.datos.muertePos) {
       payload.deathX = Guardado.datos.muertePos[0];
       payload.deathY = Guardado.datos.muertePos[1];
+      payload.deadInventory = (Guardado.datos.mochila || [])
+        .filter(Boolean)
+        .map(s => ({ id: s.id, cantidad: s.cantidad || 1 }));
+      payload.deadLevel = Vida.nivel;
     }
     this.socket.emit('player:updateStats', payload, () => {});
   },
@@ -413,7 +516,7 @@ const Multijugador = {
   },
 
   _iconoJugadorMuerto(p) {
-    const nombre = (p.name || '?').replace(/</g, '');
+    const nombre = this._nombreMarcador(p);
     return L.divIcon({
       className: '',
       html: '<div class="marcador-jugador-muerto">' +
@@ -425,9 +528,23 @@ const Multijugador = {
   },
 
   _iconoJugador(p) {
+    if (this._esAdminMarcador(p)) {
+      return L.divIcon({
+        className: '',
+        html: '<div class="marcador-jugador-online marcador-admin">' +
+          '<div class="mjo-corona">👑</div>' +
+          '<div class="mjo-etiqueta">' +
+          '<span class="mjo-nombre">' + (CONFIG.adminDisplayNombre || 'SoyCaos') + '</span>' +
+          '<span class="mjo-nivel mjo-nivel-inf">∞</span></div>' +
+          '<div class="mjo-barra mjo-barra-admin"><div class="mjo-barra-fill" style="width:100%"></div></div>' +
+          '<div class="mjo-punto mjo-punto-admin"></div></div>',
+        iconSize: [96, 62],
+        iconAnchor: [48, 58]
+      });
+    }
     const amigo = typeof Amigos !== 'undefined' && Amigos.esAmigo(p.playerId);
     const pct = this._pctVida(p);
-    const nombre = (p.name || '?').replace(/</g, '');
+    const nombre = this._nombreMarcador(p);
     const nv = p.level || 1;
     return L.divIcon({
       className: '',
@@ -489,8 +606,9 @@ const Multijugador = {
         zIndexOffset: muerto ? 9999 : 900
       }).addTo(Mapa.mapa);
       if (muerto) {
-        m.on('click', () => this.revivirJugador(p));
-        m.bindPopup('⚰️ ' + (p.name || 'Jugador') + ' · Toca con 🩹 botiquín para revivir');
+        m.on('click', () => m.openPopup());
+        m.bindPopup(() => this._popupMuertoHtml(p), { maxWidth: 260, className: 'popup-muerto-wrap' });
+        this._enlazarPopupMuerto(m, p);
       } else {
         m.bindPopup(() => typeof Amigos !== 'undefined' ? Amigos.popupHtml(p) : p.name);
       }
@@ -500,8 +618,9 @@ const Multijugador = {
       m.setIcon(icon);
       m.off('click');
       if (muerto) {
-        m.on('click', () => this.revivirJugador(p));
-        m.bindPopup('⚰️ ' + (p.name || 'Jugador') + ' · Toca con 🩹 botiquín para revivir');
+        m.on('click', () => m.openPopup());
+        m.bindPopup(() => this._popupMuertoHtml(p), { maxWidth: 260, className: 'popup-muerto-wrap' });
+        this._enlazarPopupMuerto(m, p);
       } else {
         m.bindPopup(() => typeof Amigos !== 'undefined' ? Amigos.popupHtml(p) : p.name);
       }

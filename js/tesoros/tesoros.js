@@ -15,6 +15,8 @@ const Tesoros = {
     for (const t of DATOS_TESOROS) {
       if (Admin.eliminado(t.id)) continue;
       Admin.pos(t.id, t.posicion);
+      if (typeof Admin !== 'undefined' && Admin._tesoroDisponiblePorId &&
+          !Admin._tesoroDisponiblePorId(t.id, 0)) continue;
       if (Guardado.datos.tesorosRecogidos.includes(t.id)) continue;
       const estado = { datos: t, marcador: null };
       this.activos.push(estado);
@@ -29,7 +31,13 @@ const Tesoros = {
   },
 
   _segunDistancia(estado, distancia) {
-    if (Guardado.datos.tesorosRecogidos.includes(estado.datos.id)) return;
+    const tid = estado.datos.id;
+    if (typeof Admin !== 'undefined' && Admin._tesoroDisponiblePorId &&
+        !Admin._tesoroDisponiblePorId(tid, 0)) {
+      if (estado.marcador) { estado.marcador.remove(); estado.marcador = null; }
+      return;
+    }
+    if (Guardado.datos.tesorosRecogidos.includes(tid)) return;
 
     // El icono solo existe estando MUY cerca; si te alejas, se esconde
     if (distancia <= CONFIG.distanciaVerTesoro && !estado.marcador) {
@@ -89,9 +97,24 @@ const Tesoros = {
     const t = estado.datos;
     const d = Utilidades.distanciaMetros(GPS.posicion, t.posicion);
     if (d > CONFIG.distanciaInteraccion) return;
+    if (typeof Admin !== 'undefined' && Admin._tesoroDisponiblePorId &&
+        !Admin._tesoroDisponiblePorId(t.id, 0)) return;
     if (Guardado.datos.tesorosRecogidos.includes(t.id)) return;
 
-    Guardado.datos.tesorosRecogidos.push(t.id);
+    if (typeof Multijugador !== 'undefined' && Multijugador.activo && CONFIG.servidorOnline) {
+      const ok = await Multijugador.recogerTesoroCompartido(t.id);
+      if (!ok) return;
+    } else if (typeof Admin !== 'undefined') {
+      Admin.aplicarRecogidaTesoro(t.id, Date.now());
+      if (Admin.esAdminJugador()) {
+        Admin.guardar();
+        Admin._publicarParaTodos(true);
+      }
+    }
+
+    if (!Guardado.datos.tesorosRecogidos.includes(t.id)) {
+      Guardado.datos.tesorosRecogidos.push(t.id);
+    }
     Guardado.guardar();
 
     // Animación: el tesoro vuela hacia la mochila

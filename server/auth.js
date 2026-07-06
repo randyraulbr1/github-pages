@@ -69,7 +69,7 @@ function adminMiddleware(req, res, next) {
   next();
 }
 
-const GAME_ADMIN_NAME = (process.env.GAME_ADMIN_NAME || 'randy').toLowerCase();
+const GAME_ADMIN_NAME = (process.env.GAME_ADMIN_NAME || 'SoyCaos').toLowerCase();
 
 function gameAdminMiddleware(req, res, next) {
   if (!req.auth || req.auth.role !== 'player') {

@@ -31,6 +31,22 @@ function findObjectByOrigenId(origenId) {
   return null;
 }
 
+function registrarRecogidaTesoro(tesoroId, playerId, io) {
+  const snapshot = getWorldSnapshot() || { actualizadoEn: Date.now() };
+  if (!snapshot.tesorosEstado) snapshot.tesorosEstado = {};
+
+  const recogidoAt = Date.now();
+  snapshot.tesorosEstado[tesoroId] = { recogidoAt, playerId };
+  snapshot.actualizadoEn = Date.now();
+  saveWorldSnapshot(snapshot);
+
+  if (io) {
+    io.emit('world:tesoroRecogido', { tesoroId, recogidoAt, playerId });
+  }
+
+  return { ok: true, recogidoAt };
+}
+
 function registrarRecogidaObjeto(origenId, playerId, io) {
   const snapshot = getWorldSnapshot() || { actualizadoEn: Date.now() };
   if (!snapshot.objetosEstado) snapshot.objetosEstado = {};
@@ -274,4 +290,4 @@ function syncMundoFromJson(mundo, io) {
   return { ok: true, objetos, misiones, actualizadoEn: mundo.actualizadoEn };
 }
 
-module.exports = { syncMundoFromJson, getWorldSnapshot, registrarRecogidaObjeto };
+module.exports = { syncMundoFromJson, getWorldSnapshot, registrarRecogidaObjeto, registrarRecogidaTesoro };

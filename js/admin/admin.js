@@ -98,14 +98,8 @@ const Admin = {
     if (!this.publicado.posiciones) this.publicado.posiciones = {};
     if (!Array.isArray(this.publicado.eliminados)) this.publicado.eliminados = [];
 
-    // Conservar posiciones del mundo publicado si el borrador local no las tiene
-    if (this.publicado.posiciones) {
-      for (const [id, pos] of Object.entries(this.publicado.posiciones)) {
-        if (!this.datos.posiciones[id] && Array.isArray(pos) && pos.length >= 2) {
-          this.datos.posiciones[id] = [pos[0], pos[1]];
-        }
-      }
-    }
+    // Posiciones únicas del mundo: lo publicado es la verdad, el local solo añade lo no publicado aún
+    this._aplicarPosicionesMundo();
 
     // Aplicar al catálogo los objetos nuevos y precios globales
     const nuevosPorId = new Map();
@@ -161,6 +155,11 @@ const Admin = {
       this.datos.partidasExtra = {};
     }
     this._limpiarBorradoresLocalesPublicados(['enemigos', 'misiones', 'tesoros', 'objetos', 'tiendasAdmin']);
+    if (adminLocal && adminLocal.posiciones) {
+      this.datos.posiciones = Object.assign({}, adminLocal.posiciones);
+      localStorage.setItem(this.CLAVE, JSON.stringify(this.datos,
+        (clave, valor) => clave.startsWith('_') ? undefined : valor));
+    }
   },
 
   _limpiarBorradoresLocalesPublicados(campos) {
@@ -173,19 +172,24 @@ const Admin = {
     }
   },
 
+  _aplicarPosicionesMundo() {
+    if (!this.datos.posiciones) this.datos.posiciones = {};
+    const pub = this.publicado.posiciones || {};
+    for (const [id, pos] of Object.entries(pub)) {
+      if (Array.isArray(pos) && pos.length >= 2) {
+        this.datos.posiciones[id] = [Number(pos[0]), Number(pos[1])];
+      }
+    }
+  },
+
   _detectarCambiosLocalesSinPublicar() {
-    if (!this.esAdminJugador() || !MundoPublico.puedePublicar()) return;
+    if (!this.esAdminJugador()) return;
+    const puedePub = MundoPublico.puedePublicar() ||
+      (typeof SyncServidor !== 'undefined' && SyncServidor.puedePublicar());
+    if (!puedePub) return;
     const json = this._jsonMundo();
     if (this._ultimoFirmaPublicada && this._firmaMundo(json) === this._ultimoFirmaPublicada) return;
-    const localN = (this.datos.objetos || []).length + (this.datos.tesoros || []).length +
-      (this.datos.misiones || []).length + (this.datos.enemigos || []).length;
-    const pubN = (this.publicado.objetos || []).length + (this.publicado.tesoros || []).length +
-      (this.publicado.misiones || []).length + (this.publicado.enemigos || []).length;
-    const posLocal = Object.keys(this.datos.posiciones || {}).length;
-    const posPub = Object.keys(this.publicado.posiciones || {}).length;
-    if (localN > pubN || posLocal > posPub) {
-      this._encolarPublicacion(true);
-    }
+    this._encolarPublicacion(true);
   },
 
   // ---------- VISTA COMBINADA: publicado en GitHub + borradores locales ----------
@@ -756,6 +760,8 @@ const Admin = {
     if (!this.publicado.enemigosEstado) this.publicado.enemigosEstado = {};
     if (!this.publicado.objetosEstado) this.publicado.objetosEstado = {};
     if (!this.publicado.tiendasAdmin) this.publicado.tiendasAdmin = [];
+
+    this._aplicarPosicionesMundo();
 
     const nuevosPorId = new Map();
     for (const it of this.publicado.itemsNuevos) nuevosPorId.set(it.id, it);
@@ -1615,10 +1621,34 @@ const Admin = {
   },
 
   _tesoroDisponible(t) {
-    const st = this._tesorosEstadoGlobal()[t.id];
+    return this._tesoroDisponiblePorId(t.id, t.respawnMin);
+  },
+
+  _tesoroDisponiblePorId(id, respawnMin) {
+    const st = this._tesorosEstadoGlobal()[id];
     if (!st || !st.recogidoAt) return true;
-    if (!t.respawnMin) return false;
-    return Date.now() - st.recogidoAt > t.respawnMin * 60000;
+    if (!respawnMin) return false;
+    return Date.now() - st.recogidoAt > respawnMin * 60000;
+  },
+
+  aplicarRecogidaTesoro(tesoroId, recogidoAt) {
+    if (!tesoroId) return;
+    this._tesorosEstadoGlobal()[tesoroId] = { recogidoAt: recogidoAt || Date.now() };
+    if (typeof Tesoros !== 'undefined') {
+      const idx = Tesoros.activos.findIndex(x => x.datos.id === tesoroId);
+      if (idx >= 0) {
+        const estado = Tesoros.activos[idx];
+        if (estado.marcador) { estado.marcador.remove(); estado.marcador = null; }
+        Tesoros.activos.splice(idx, 1);
+        if (Tesoros.refrescarBanner) Tesoros.refrescarBanner();
+      }
+    }
+    for (const t of this.tesorosTodos()) {
+      if (t.id !== tesoroId) continue;
+      if (t._marcador) { t._marcador.remove(); t._marcador = null; }
+      this._revisarTesoro(t, Infinity);
+      break;
+    }
   },
 
   _itemsDeTesoro(t) {
@@ -1708,6 +1738,9 @@ const Admin = {
     }
     const est = this._tesorosEstadoGlobal();
     est[t.id] = { recogidoAt: Date.now() };
+    if (typeof Multijugador !== 'undefined' && Multijugador.activo && CONFIG.servidorOnline) {
+      await Multijugador.recogerTesoroCompartido(t.id);
+    }
     if (!this._progreso().tesoros.includes(t.id)) this._progreso().tesoros.push(t.id);
     Guardado.guardar();
     this.guardar();

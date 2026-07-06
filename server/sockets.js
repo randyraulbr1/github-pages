@@ -21,7 +21,7 @@ const {
 } = require('./db');
 const { verifyToken } = require('./auth');
 const { startEnemyAI } = require('./enemyAI');
-const { registrarRecogidaObjeto } = require('./syncMundo');
+const { registrarRecogidaObjeto, registrarRecogidaTesoro } = require('./syncMundo');
 
 /** playerId -> { socketId, playerId, name, x, y, hp, hpMax, level } */
 const onlinePlayers = new Map();
@@ -53,7 +53,9 @@ function playerSnapshot(p) {
     level: p.level,
     dead: !!p.dead || (p.hp != null && p.hp <= 0),
     deathX: p.deathX != null ? p.deathX : null,
-    deathY: p.deathY != null ? p.deathY : null
+    deathY: p.deathY != null ? p.deathY : null,
+    deadInventory: p.deadInventory || [],
+    deadLevel: p.deadLevel || p.level || 1
   };
 }
 
@@ -211,12 +213,20 @@ function setupSockets(io) {
         if (dead && payload?.deathX != null && payload?.deathY != null) {
           online.deathX = Number(payload.deathX);
           online.deathY = Number(payload.deathY);
+          online.deadInventory = Array.isArray(payload.deadInventory) ? payload.deadInventory : [];
+          online.deadLevel = payload.deadLevel || online.level;
         } else if (!dead) {
           online.deathX = null;
           online.deathY = null;
+          online.deadInventory = [];
+          online.deadLevel = null;
         } else if (dead && online.deathX == null) {
           online.deathX = data.x;
           online.deathY = data.y;
+          if (Array.isArray(payload.deadInventory)) {
+            online.deadInventory = payload.deadInventory;
+            online.deadLevel = payload.deadLevel || online.level;
+          }
         }
       }
 
@@ -229,7 +239,9 @@ function setupSockets(io) {
         level: data.level,
         dead: online?.dead || data.hp <= 0,
         deathX: online?.deathX,
-        deathY: online?.deathY
+        deathY: online?.deathY,
+        deadInventory: online?.deadInventory || [],
+        deadLevel: online?.deadLevel || data.level
       });
       ack?.({ ok: true, player: data });
     });
@@ -320,6 +332,39 @@ function setupSockets(io) {
       if (!origenId) return ack?.({ ok: false, error: 'origenId requerido' });
       const result = registrarRecogidaObjeto(origenId, socket.playerId, io);
       ack?.(result);
+    });
+
+    socket.on('world:tesoroRecogido', (payload, ack) => {
+      const tesoroId = (payload?.tesoroId || '').trim();
+      if (!tesoroId) return ack?.({ ok: false, error: 'tesoroId requerido' });
+      const result = registrarRecogidaTesoro(tesoroId, socket.playerId, io);
+      ack?.(result);
+    });
+
+    socket.on('player:lootBody', (payload, ack) => {
+      const targetId = parseInt(payload?.targetPlayerId, 10);
+      const itemId = (payload?.itemId || '').trim();
+      const cantidad = Math.max(1, parseInt(payload?.cantidad, 10) || 1);
+      const targetOnline = onlinePlayers.get(targetId);
+      const reviver = findPlayerById(socket.playerId);
+      if (!targetOnline || !reviver) return ack?.({ ok: false, error: 'Jugador no encontrado' });
+      if (!targetOnline.dead && targetOnline.hp > 0) {
+        return ack?.({ ok: false, error: 'No está muerto' });
+      }
+      const tx = targetOnline.deathX ?? targetOnline.x;
+      const ty = targetOnline.deathY ?? targetOnline.y;
+      if (distance(reviver.x, reviver.y, tx, ty) > REVIVE_DISTANCE) {
+        return ack?.({ ok: false, error: 'Demasiado lejos (máx. 50 m)' });
+      }
+      const inv = targetOnline.deadInventory || [];
+      const idx = inv.findIndex(x => x.id === itemId);
+      if (idx < 0) return ack?.({ ok: false, error: 'Objeto no encontrado' });
+      const tomar = Math.min(cantidad, inv[idx].cantidad || 1);
+      inv[idx].cantidad -= tomar;
+      if (inv[idx].cantidad <= 0) inv.splice(idx, 1);
+      targetOnline.deadInventory = inv;
+      io.emit('player:lootUpdate', { playerId: targetId, deadInventory: inv });
+      ack?.({ ok: true, item: { id: itemId, cantidad: tomar }, deadInventory: inv });
     });
 
     socket.on('world:pickup', (payload, ack) => {

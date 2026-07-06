@@ -119,23 +119,34 @@ button { font-family: inherit; }
 }
 
 #hud-acciones-mini {
-  display: flex; gap: 6px;
+  display: flex; gap: 8px; justify-content: flex-end;
+  margin-top: 4px;
 }
 .btn-hud-accion {
   position: relative;
   flex: 0 0 auto;
   display: flex; align-items: center; justify-content: center;
-  width: clamp(32px, 9vw, 42px);
-  height: clamp(32px, 9vw, 42px);
+  width: clamp(44px, 12vw, 52px);
+  height: clamp(44px, 12vw, 52px);
   padding: 0;
-  border-radius: 10px;
-  border: none;
-  background: transparent;
+  border-radius: 14px;
+  border: 2px solid rgba(255,255,255,.18);
+  background: rgba(12,16,28,.55);
   color: #e8eef8;
-  font-size: 20px;
+  font-size: clamp(22px, 6vw, 28px);
   cursor: pointer;
   text-shadow: 0 1px 3px rgba(0,0,0,.85);
+  box-shadow: 0 3px 10px rgba(0,0,0,.35);
 }
+.mochila-dinero-bar {
+  display: flex; align-items: center; justify-content: center; gap: 8px;
+  margin: 0 14px 10px; padding: 10px 14px;
+  border-radius: 14px;
+  background: linear-gradient(135deg, rgba(255,214,10,.18), rgba(255,159,10,.12));
+  border: 1px solid rgba(255,214,10,.35);
+  font-size: 18px; font-weight: 800; color: #ffd60a;
+}
+.mochila-dinero-icono { font-size: 22px; }
 .enemigo-pin {
   position: relative;
   display: flex;
@@ -286,14 +297,15 @@ button { font-family: inherit; }
 
 /* ============ NOTIFICACIONES ============ */
 #zona-notificaciones {
-  position: fixed; top: calc(120px + env(safe-area-inset-top)); right: 0; z-index: 2000;
-  display: flex; flex-direction: column; gap: 8px; align-items: flex-end;
+  position: fixed; top: calc(110px + env(safe-area-inset-top)); right: 0; z-index: 2000;
+  display: flex; flex-direction: column; gap: 10px; align-items: flex-end;
   pointer-events: none;
 }
 .notificacion {
-  background: rgba(20,26,42,.92); color: #fff; padding: 11px 16px;
-  border-left: 3px solid #3d8bfd; border-radius: 14px 0 0 14px;
-  font-size: 14px; max-width: 78vw; box-shadow: 0 6px 18px rgba(0,0,0,.35);
+  background: rgba(20,26,42,.95); color: #fff; padding: 14px 18px;
+  border-left: 4px solid #3d8bfd; border-radius: 16px 0 0 16px;
+  font-size: clamp(15px, 4vw, 17px); font-weight: 600; max-width: 88vw;
+  box-shadow: 0 8px 22px rgba(0,0,0,.45);
   backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
   transform: translateX(110%); transition: transform .35s ease, opacity .35s ease;
 }
@@ -742,7 +754,40 @@ button { font-family: inherit; }
   border-radius: 3px; transition: width .3s ease;
 }
 .marcador-jugador-online.es-amigo .mjo-punto {
-  background: #34c759; box-shadow: 0 0 0 4px rgba(52,199,89,.35), 0 2px 6px rgba(0,0,0,.4);
+  background: #30d158; box-shadow: 0 0 0 4px rgba(48,209,88,.35);
+}
+.marcador-jugador-online.marcador-admin .mjo-corona {
+  font-size: 16px; line-height: 1; margin-bottom: 1px;
+  filter: drop-shadow(0 0 6px rgba(255,214,10,.9));
+}
+.marcador-jugador-online.marcador-admin .mjo-nombre {
+  color: #bf5af2; font-weight: 800;
+}
+.marcador-jugador-online.marcador-admin .mjo-nivel-inf {
+  color: #bf5af2; font-weight: 800; font-size: 11px;
+}
+.marcador-jugador-online.marcador-admin .mjo-barra-admin .mjo-barra-fill {
+  background: linear-gradient(90deg, #6b4eff, #bf5af2);
+}
+.marcador-jugador-online.marcador-admin .mjo-punto-admin {
+  background: #bf5af2; box-shadow: 0 0 0 5px rgba(191,90,242,.35);
+}
+.popup-muerto { min-width: 160px; text-align: center; }
+.popup-muerto-nombre { font-weight: 800; font-size: 14px; margin-bottom: 2px; }
+.popup-muerto-nivel { font-size: 12px; color: #8e8e93; margin-bottom: 8px; }
+.popup-muerto-items { text-align: left; margin: 8px 0; max-height: 120px; overflow-y: auto; }
+.popup-muerto-item {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 4px 0; border-bottom: 1px solid rgba(255,255,255,.08); font-size: 12px;
+}
+.popup-muerto-item button {
+  font-size: 11px; padding: 3px 8px; border-radius: 8px;
+  border: none; background: rgba(255,214,10,.25); color: #ffd60a; cursor: pointer;
+}
+.popup-muerto-revivir {
+  margin-top: 8px; width: 100%; padding: 8px; border-radius: 10px;
+  border: none; background: rgba(48,209,88,.25); color: #7dffb0;
+  font-weight: 700; cursor: pointer;
 }
 .mjo-punto {
   width: 18px; height: 18px; border-radius: 50%;

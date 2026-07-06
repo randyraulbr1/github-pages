@@ -17,6 +17,40 @@ const Cofres = {
     if (!Guardado.datos.cofresAbiertos) Guardado.datos.cofresAbiertos = [];
     this._pintarTodos();
     this._enlazarUi();
+    setInterval(() => this._revisarCofresVacios(), 60000);
+  },
+
+  _cofreVacio(c) {
+    return !(c.slots || []).some(s => s && (s.cantidad || 0) > 0);
+  },
+
+  _revisarCofresVacios() {
+    const horas = CONFIG.cofreVacioHoras || 1;
+    const limite = horas * 3600000;
+    let cambio = false;
+    for (const c of this.lista()) {
+      if (this._cofreVacio(c)) {
+        if (!c.vacioDesde) c.vacioDesde = Date.now();
+        else if (Date.now() - c.vacioDesde >= limite) {
+          c.eliminado = true;
+          this._quitarMarcador(c.id);
+          cambio = true;
+        }
+      } else {
+        c.vacioDesde = null;
+      }
+    }
+    if (cambio) this._persistirCofres();
+  },
+
+  _persistirCofres() {
+    const locales = (Guardado.datos.cofresLocales || []).map(c => Object.assign({}, c));
+    Guardado.datos.cofresLocales = locales.filter(c => !c.eliminado);
+    Guardado.guardar();
+    if (typeof Admin !== 'undefined' && Admin.esAdminJugador()) {
+      Admin.guardar();
+      Admin._publicarParaTodos(true);
+    }
   },
 
   _enlazarUi() {
@@ -591,6 +625,7 @@ const Cofres = {
   },
 
   _guardarCofre() {
+    this._revisarCofresVacios();
     Guardado.guardar();
     if (typeof Admin !== 'undefined' && Admin.esAdminJugador()) Admin._publicarParaTodos(true);
   },
