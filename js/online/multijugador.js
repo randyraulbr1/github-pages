@@ -162,16 +162,35 @@ const Multijugador = {
       const i = this.online.findIndex(x => Number(x.playerId) === Number(p.playerId));
       if (i >= 0) Object.assign(this.online[i], p);
       else this.online.push(p);
-      this._actualizarMarcador(p);
+      this._actualizarMarcador(this.online[i >= 0 ? i : this.online.length - 1]);
     });
 
     this.socket.on('player:updateStats', (p) => {
       if (!this._visible(p.playerId)) return;
       const i = this.online.findIndex(x => Number(x.playerId) === Number(p.playerId));
       if (i >= 0) {
-        this.online[i].hp = p.hp;
-        this.online[i].hpMax = p.hpMax || this.online[i].hpMax || 100;
-        this.online[i].level = p.level;
+        Object.assign(this.online[i], p);
+        this._actualizarMarcador(this.online[i]);
+      }
+    });
+
+    this.socket.on('player:revived', (data) => {
+      if (!data?.playerId) return;
+      if (Number(data.playerId) === this._miPlayerId()) {
+        if (typeof Vida !== 'undefined') {
+          const nombre = (data.reviverName || 'Un jugador').replace(/</g, '');
+          Vida.revivir(
+            data.hp,
+            '❤️ ' + nombre + ' te revivió con un botiquín. ¡Ya puedes seguir jugando!'
+          );
+        }
+      }
+      const i = this.online.findIndex(x => Number(x.playerId) === Number(data.playerId));
+      if (i >= 0) {
+        this.online[i].hp = data.hp;
+        this.online[i].dead = false;
+        this.online[i].deathX = null;
+        this.online[i].deathY = null;
         this._actualizarMarcador(this.online[i]);
       }
     });
@@ -302,6 +321,61 @@ const Multijugador = {
     });
   },
 
+  _estaMuerto(p) {
+    return !!(p && (p.dead || (p.hp != null && p.hp <= 0)));
+  },
+
+  _posMarcador(p) {
+    if (this._estaMuerto(p) && p.deathX != null && p.deathY != null) {
+      return { x: p.deathX, y: p.deathY };
+    }
+    return { x: p.x, y: p.y };
+  },
+
+  _distanciaMarcador(p) {
+    if (!GPS.posicion || !p) return Infinity;
+    const pos = this._posMarcador(p);
+    return Utilidades.distanciaMetros(GPS.posicion, [pos.x, pos.y]);
+  },
+
+  _visibleMuertoCerca(p) {
+    return this._distanciaMarcador(p) <= (CONFIG.distanciaVerMuerto || 50);
+  },
+
+  refrescarMarcadoresDistancia() {
+    if (!this.activo) return;
+    for (const p of this.online) this._actualizarMarcador(p);
+  },
+
+  revivirJugador(p) {
+    if (!this.socket || !this.activo || !p) return;
+    if (!this._estaMuerto(p)) return;
+    const d = this._distanciaMarcador(p);
+    const maxDist = CONFIG.distanciaVerMuerto || 50;
+    if (d > maxDist) {
+      Notificaciones.mostrar('📍 Demasiado lejos para revivir (' + Math.round(d) + ' m). Máx. ' + maxDist + ' m', 'info', 3500);
+      return;
+    }
+    if (typeof Mochila === 'undefined' || !Mochila.tieneItem('botiquin')) {
+      Notificaciones.mostrar('🩹 Necesitas un botiquín en la mochila ($300 en la farmacia)', 'alerta', 4500);
+      return;
+    }
+    const cura = (typeof Items !== 'undefined' && Items.obtener('botiquin')?.curaVida) || 55;
+    const hpMax = typeof Vida !== 'undefined' ? Vida.vidaMaxima() : 100;
+    this.socket.emit('player:revive', {
+      targetPlayerId: p.playerId,
+      curaVida: cura,
+      hpMax
+    }, (res) => {
+      if (res?.ok) {
+        Mochila.quitar('botiquin', 1, 'Revivió a ' + (p.name || 'jugador'));
+        Notificaciones.mostrar('🩹 Reviviste a ' + (p.name || 'jugador'), 'exito', 5000);
+      } else {
+        Notificaciones.mostrar('❌ ' + (res?.error || 'No se pudo revivir'), 'error', 4000);
+      }
+    });
+  },
+
   enviarPosicion(lat, lng, forzar) {
     if (!this.socket || !this.activo) return;
     const ahora = Date.now();
@@ -317,18 +391,37 @@ const Multijugador = {
     if (!forzar && ahora - this._ultimoStats < 3500) return;
     this._ultimoStats = ahora;
     const hpMax = Vida.vidaMaxima();
-    this.socket.emit('player:updateStats', {
+    const muerto = Vida.estaMuerto();
+    const payload = {
       hp: Math.round(Vida.actual),
       hpMax,
       level: Vida.nivel,
       hunger: Math.round(Vida.hambre),
-      xp: Vida.xp
-    }, () => {});
+      xp: Vida.xp,
+      dead: muerto
+    };
+    if (muerto && typeof Guardado !== 'undefined' && Guardado.datos.muertePos) {
+      payload.deathX = Guardado.datos.muertePos[0];
+      payload.deathY = Guardado.datos.muertePos[1];
+    }
+    this.socket.emit('player:updateStats', payload, () => {});
   },
 
   _pctVida(p) {
     const max = Math.max(1, p.hpMax || 100);
     return Math.max(0, Math.min(100, Math.round((p.hp != null ? p.hp : max) / max * 100)));
+  },
+
+  _iconoJugadorMuerto(p) {
+    const nombre = (p.name || '?').replace(/</g, '');
+    return L.divIcon({
+      className: '',
+      html: '<div class="marcador-jugador-muerto">' +
+        '<div class="mjm-etiqueta">' + nombre + '</div>' +
+        '<div class="mjm-carabela">⚰️</div></div>',
+      iconSize: [56, 58],
+      iconAnchor: [28, 54]
+    });
   },
 
   _iconoJugador(p) {
@@ -381,19 +474,37 @@ const Multijugador = {
   _actualizarMarcador(p) {
     if (!Mapa.mapa || !p) return;
     const id = p.playerId;
+    const muerto = this._estaMuerto(p);
+    if (muerto && !this._visibleMuertoCerca(p)) {
+      this._quitarMarcador(id);
+      return;
+    }
+    const pos = this._posMarcador(p);
     let m = this.marcadores[id];
-    const icon = this._iconoJugador(p);
+    const icon = muerto ? this._iconoJugadorMuerto(p) : this._iconoJugador(p);
     if (!m) {
-      m = L.marker([p.x, p.y], {
+      m = L.marker([pos.x, pos.y], {
         icon,
         interactive: true,
-        zIndexOffset: 900
+        zIndexOffset: muerto ? 880 : 900
       }).addTo(Mapa.mapa);
-      m.bindPopup(() => typeof Amigos !== 'undefined' ? Amigos.popupHtml(p) : p.name);
+      if (muerto) {
+        m.on('click', () => this.revivirJugador(p));
+        m.bindPopup('⚰️ ' + (p.name || 'Jugador') + ' · Toca con 🩹 botiquín para revivir');
+      } else {
+        m.bindPopup(() => typeof Amigos !== 'undefined' ? Amigos.popupHtml(p) : p.name);
+      }
       this.marcadores[id] = m;
     } else {
-      this._animarMarcador(id, p.x, p.y);
+      this._animarMarcador(id, pos.x, pos.y);
       m.setIcon(icon);
+      m.off('click');
+      if (muerto) {
+        m.on('click', () => this.revivirJugador(p));
+        m.bindPopup('⚰️ ' + (p.name || 'Jugador') + ' · Toca con 🩹 botiquín para revivir');
+      } else {
+        m.bindPopup(() => typeof Amigos !== 'undefined' ? Amigos.popupHtml(p) : p.name);
+      }
     }
   },
 

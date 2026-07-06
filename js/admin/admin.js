@@ -807,7 +807,7 @@ const Admin = {
     Guardado.datos.nubeT = snap.t;
     Guardado.guardarAhora();
     if (typeof Vida !== 'undefined' && typeof Vida.revivir === 'function') {
-      Vida.revivir(snap.datos.vida);
+      Vida.revivir(snap.datos.vida, '❤️ El administrador te revivió. ¡Ya puedes seguir jugando!');
     }
   },
 
@@ -1764,6 +1764,7 @@ const Admin = {
     };
     for (const o of this.objetosTodos()) {
       if (o.id !== origenId) continue;
+      if (o._marcador) { o._marcador.remove(); o._marcador = null; }
       this._revisarObjeto(o);
       break;
     }
@@ -1780,14 +1781,19 @@ const Admin = {
     if (!items.length) return;
     const principal = Items.obtener(items[0].id);
     if (!principal) return;
-    o._marcador = null;
-    Mapa.registrarPunto({
-      id: o.id,
-      posicion: o.pos,
-      radio: CONFIG.distanciaInteraccion,
-      marcador: null,
-      alCambiarDistancia: () => this._revisarObjeto(o)
-    });
+    if (o._marcador) {
+      o._marcador.remove();
+      o._marcador = null;
+    }
+    if (!Mapa.puntosInteractivos.find(x => x.id === o.id)) {
+      Mapa.registrarPunto({
+        id: o.id,
+        posicion: o.pos,
+        radio: CONFIG.distanciaInteraccion,
+        marcador: null,
+        alCambiarDistancia: () => this._revisarObjeto(o)
+      });
+    }
     this._revisarObjeto(o);
   },
 
@@ -1818,7 +1824,7 @@ const Admin = {
     if (!this._objetoDisponible(o)) return;
     const d = Utilidades.distanciaMetros(GPS.posicion, o.pos);
     if (d > CONFIG.distanciaInteraccion) {
-      Notificaciones.mostrar('📍 Acércate más (' + Math.round(d) + ' m)', 'alerta');
+      Notificaciones.mostrar('📍 Acércate más para recoger (' + Math.round(d) + ' m)', 'info', 3500);
       return;
     }
     const items = this._itemsDeObjeto(o);
@@ -1841,7 +1847,7 @@ const Admin = {
     const nombres = items.map(it => Items.seguro(it.id).nombre + ' x' + (it.cantidad || 1)).join(', ');
     Notificaciones.mostrar('📦 Recogiste: ' + nombres +
       ((o.reaparece || 0) > 0 ? ' (vuelve en ' + o.reaparece + ' min)' : ''), 'exito');
-    if (o._marcador) { o._marcador.remove(); o._marcador = null; }
+    this._revisarObjeto(o);
   },
 
   // Habilita arrastre de un marcador Leaflet (organizar pines)
@@ -2306,11 +2312,72 @@ const Admin = {
   async _listarCuentasAsync() {
     await this.actualizarJugadoresGlobales();
     const cont = document.getElementById('admin-lista-jugadores');
+    const contMuertos = document.getElementById('admin-lista-muertos');
+    const seccionMuertos = document.getElementById('admin-seccion-muertos');
     const buscar = document.getElementById('admin-buscar-jugador');
     if (buscar) buscar.value = '';
 
+    const pintarFila = (j, destino) => {
+      const local = Usuarios.datos.lista.find(p => p.id === j.id);
+      const partida = (this.publicado.partidas || {})[j.id] || (this.datos.partidasExtra || {})[j.id];
+      let pd = partida ? (partida.datos || partida) : null;
+      if (Usuarios.perfilActivo && j.id === Usuarios.perfilActivo.id && typeof Guardado !== 'undefined') {
+        pd = {
+          dinero: Guardado.datos.dinero,
+          vida: Guardado.datos.vida,
+          mochila: Guardado.datos.mochila,
+          muerto: Guardado.datos.muerto,
+          nivel: Guardado.datos.nivel
+        };
+      }
+      const oro = pd?.dinero?.saldo;
+      const nivel = pd?.nivel ?? 1;
+      const maxVida = (typeof Vida !== 'undefined' && Vida.vidaMaxima)
+        ? Vida.vidaMaxima(nivel) : CONFIG.vidaMaxima;
+      const vida = pd?.vida ?? maxVida;
+      const muerto = this._jugadorEstaMuerto(pd, vida);
+      const ban = [...(this.publicado.baneados || []), ...(this.datos.baneados || [])]
+        .find(b => b.id === j.id || b.id === j.telefono);
+      const pctV = muerto ? 0 : Math.max(0, Math.min(100, Math.round((vida / maxVida) * 100)));
+      const claseV = pctV > 70 ? 'alta' : pctV > 30 ? 'media' : 'baja';
+      const fila = document.createElement('div');
+      fila.className = 'fila-jugador-admin' + (muerto ? ' jugador-muerto-admin' : '');
+      const inicial = (j.nombre || '?').trim()[0].toUpperCase();
+      let chips = '';
+      if (ban && this._banActivo(ban)) chips += '<span class="stat-chip ban">🚫 Baneado</span>';
+      if (muerto) chips += '<span class="stat-chip muerto">💀 Muerto · ❤️ 0/' + maxVida + '</span>';
+      if (oro != null) chips += '<span class="stat-chip">💰 ' + oro + '</span>';
+      fila.innerHTML =
+        '<div class="avatar">' + inicial + '</div>' +
+        '<div class="datos"><div class="nombre">' + j.nombre + '</div>' +
+        '<div class="meta">📱 ' + (j.telefono || 'sin teléfono') + '</div>' +
+        '<div class="meta">ID: ' + j.id + '</div>' +
+        '<div class="jugador-barra-vida ' + claseV + '" title="Vida ' + (muerto ? 0 : vida) + '/' + maxVida + '">' +
+        '<div class="jugador-barra-relleno" style="width:' + pctV + '%"></div>' +
+        '<span class="jugador-barra-texto">❤️ ' + (muerto ? '0' : vida) + '/' + maxVida + '</span></div>' +
+        (chips ? '<div class="stats">' + chips + '</div>' : '') + '</div>';
+      const acciones = document.createElement('div');
+      acciones.className = 'acciones';
+      const mk = (t, fn, title, cls) => {
+        const b = document.createElement('button');
+        b.type = 'button';
+        b.textContent = t;
+        if (title) b.title = title;
+        if (cls) b.className = cls;
+        b.addEventListener('click', fn);
+        acciones.appendChild(b);
+      };
+      if (muerto) mk('❤️', () => this._revivirJugador(j), 'Revivir jugador', 'btn-revivir-jugador');
+      mk('✏️', () => this._abrirEditorJugador(local || j, !local), 'Editar cuenta e inventario');
+      mk('✉️', () => this.abrirMensaje(j.id), 'Enviar mensaje');
+      mk('🚫', () => this._abrirBanJugador(j), 'Banear');
+      fila.appendChild(acciones);
+      destino.appendChild(fila);
+    };
+
     const pintar = (filtro) => {
       cont.innerHTML = '';
+      if (contMuertos) contMuertos.innerHTML = '';
       const f = (filtro || '').trim().toLowerCase();
       const globales = this.jugadoresGlobales().filter(j => {
         if (!f) return true;
@@ -2318,63 +2385,22 @@ const Admin = {
           (j.telefono || '').includes(f) ||
           (j.id || '').toLowerCase().includes(f);
       });
+      const muertos = [];
+      const vivos = [];
       for (const j of globales) {
-        const local = Usuarios.datos.lista.find(p => p.id === j.id);
         const partida = (this.publicado.partidas || {})[j.id] || (this.datos.partidasExtra || {})[j.id];
         let pd = partida ? (partida.datos || partida) : null;
         if (Usuarios.perfilActivo && j.id === Usuarios.perfilActivo.id && typeof Guardado !== 'undefined') {
-          pd = {
-            dinero: Guardado.datos.dinero,
-            vida: Guardado.datos.vida,
-            mochila: Guardado.datos.mochila,
-            muerto: Guardado.datos.muerto,
-            nivel: Guardado.datos.nivel
-          };
+          pd = { vida: Guardado.datos.vida, muerto: Guardado.datos.muerto, nivel: Guardado.datos.nivel };
         }
-        const oro = pd?.dinero?.saldo;
-        const nivel = pd?.nivel ?? 1;
-        const maxVida = (typeof Vida !== 'undefined' && Vida.vidaMaxima)
-          ? Vida.vidaMaxima(nivel) : CONFIG.vidaMaxima;
-        const vida = pd?.vida ?? maxVida;
-        const muerto = this._jugadorEstaMuerto(pd, vida);
-        const ban = [...(this.publicado.baneados || []), ...(this.datos.baneados || [])]
-          .find(b => b.id === j.id || b.id === j.telefono);
-        const pctV = muerto ? 0 : Math.max(0, Math.min(100, Math.round((vida / maxVida) * 100)));
-        const claseV = pctV > 70 ? 'alta' : pctV > 30 ? 'media' : 'baja';
-        const fila = document.createElement('div');
-        fila.className = 'fila-jugador-admin' + (muerto ? ' jugador-muerto-admin' : '');
-        const inicial = (j.nombre || '?').trim()[0].toUpperCase();
-        let chips = '';
-        if (ban && this._banActivo(ban)) chips += '<span class="stat-chip ban">🚫 Baneado</span>';
-        if (muerto) chips += '<span class="stat-chip muerto">💀 Muerto</span>';
-        if (oro != null) chips += '<span class="stat-chip">💰 ' + oro + '</span>';
-        fila.innerHTML =
-          '<div class="avatar">' + inicial + '</div>' +
-          '<div class="datos"><div class="nombre">' + j.nombre + '</div>' +
-          '<div class="meta">📱 ' + (j.telefono || 'sin teléfono') + '</div>' +
-          '<div class="meta">ID: ' + j.id + '</div>' +
-          '<div class="jugador-barra-vida ' + claseV + '" title="Vida ' + (muerto ? 0 : vida) + '/' + maxVida + '">' +
-          '<div class="jugador-barra-relleno" style="width:' + pctV + '%"></div>' +
-          '<span class="jugador-barra-texto">❤️ ' + (muerto ? '0' : vida) + '/' + maxVida + '</span></div>' +
-          (chips ? '<div class="stats">' + chips + '</div>' : '') + '</div>';
-        const acciones = document.createElement('div');
-        acciones.className = 'acciones';
-        const mk = (t, fn, title, cls) => {
-          const b = document.createElement('button');
-          b.type = 'button';
-          b.textContent = t;
-          if (title) b.title = title;
-          if (cls) b.className = cls;
-          b.addEventListener('click', fn);
-          acciones.appendChild(b);
-        };
-        if (muerto) mk('❤️', () => this._revivirJugador(j), 'Revivir jugador', 'btn-revivir-jugador');
-        mk('✏️', () => this._abrirEditorJugador(local || j, !local), 'Editar cuenta e inventario');
-        mk('✉️', () => this.abrirMensaje(j.id), 'Enviar mensaje');
-        mk('🚫', () => this._abrirBanJugador(j), 'Banear');
-        fila.appendChild(acciones);
-        cont.appendChild(fila);
+        const maxV = (typeof Vida !== 'undefined' && Vida.vidaMaxima)
+          ? Vida.vidaMaxima(pd?.nivel ?? 1) : CONFIG.vidaMaxima;
+        const muerto = this._jugadorEstaMuerto(pd, pd?.vida ?? maxV);
+        if (muerto) muertos.push(j); else vivos.push(j);
       }
+      if (seccionMuertos) seccionMuertos.classList.toggle('oculto', !muertos.length);
+      for (const j of muertos) pintarFila(j, contMuertos || cont);
+      for (const j of vivos) pintarFila(j, cont);
       if (!globales.length) {
         cont.innerHTML = '<div class="campo-caja" style="padding:14px;">No hay jugadores con ese criterio</div>';
       }
@@ -2579,7 +2605,7 @@ const Admin = {
       Dinero.pintar();
       if (partida.muerto) Vida._activarMuerte();
       else if (typeof Vida.revivir === 'function' && (Guardado.datos.muerto || Vida.estaMuerto())) {
-        Vida.revivir(partida.vida);
+        Vida.revivir(partida.vida, '❤️ El administrador te revivió. ¡Ya puedes seguir jugando!');
       } else {
         Vida.actual = partida.vida;
         if (partida.hambre != null) {

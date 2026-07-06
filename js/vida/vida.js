@@ -26,6 +26,9 @@ const Vida = {
     this.hambre = Guardado.datos.hambre ?? CONFIG.hambreInicial;
     this._muerto = !!(Guardado.datos.muerto || this.actual <= 0);
     if (this._muerto) this.actual = 0;
+    if (this._muerto && !Guardado.datos.muertePos && Guardado.datos.posicionJugador) {
+      Guardado.datos.muertePos = Guardado.datos.posicionJugador.slice();
+    }
     this._asegurarVidaAdmin();
     this.pintar();
     if (this._muerto) this._mostrarPantallaMuerte();
@@ -174,8 +177,12 @@ const Vida = {
     this._muerto = true;
     Guardado.datos.muerto = true;
     Guardado.datos.vida = 0;
+    if (typeof GPS !== 'undefined' && GPS.posicion) {
+      Guardado.datos.muertePos = GPS.posicion.slice();
+    }
     Guardado.guardar();
     this._mostrarPantallaMuerte();
+    if (typeof Multijugador !== 'undefined') Multijugador.enviarStats(true);
   },
 
   _mostrarPantallaMuerte() {
@@ -184,9 +191,10 @@ const Vida = {
     document.body.classList.add('jugador-muerto');
   },
 
-  revivir(vida) {
+  revivir(vida, motivo) {
     this._muerto = false;
     Guardado.datos.muerto = false;
+    Guardado.datos.muertePos = null;
     const max = this.vidaMaxima();
     this.actual = Math.max(1, Math.min(max, vida || max));
     Guardado.datos.vida = this.actual;
@@ -195,7 +203,11 @@ const Vida = {
     const pantalla = document.getElementById('pantalla-muerte');
     if (pantalla) pantalla.classList.add('oculto');
     document.body.classList.remove('jugador-muerto');
-    Notificaciones.mostrar('❤️ El administrador te ha revivido', 'exito', 6000);
+    Notificaciones.mostrar(
+      motivo || '❤️ El administrador te revivió. ¡Ya puedes seguir jugando!',
+      'exito', 6000
+    );
+    if (typeof Multijugador !== 'undefined') Multijugador.enviarStats(true);
   },
 
   pintar() {

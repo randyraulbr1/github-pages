@@ -49,7 +49,7 @@ const CATALOGO_ITEMS = {
   platano_frito:  { nombre: 'Plátano frito',     icono: '🍌', tipo: 'comida', precio: 32,  cura: 20, desc: 'Chatinos crujientes.' },
   mango:          { nombre: 'Mango',             icono: '🥭', tipo: 'comida', precio: 28,  cura: 16, desc: 'Dulce, de la mata del patio.' },
   coco:           { nombre: 'Coco',              icono: '🥥', tipo: 'comida', precio: 35,  cura: 18, desc: 'Agua de coco directa de la palma.' },
-  botiquin:       { nombre: 'Botiquín',          icono: '🩹', tipo: 'comida', precio: 165, curaVida: 55, desc: 'Vendas y medicinas: recupera vida.' },
+  botiquin:       { nombre: 'Botiquín',          icono: '🩹', tipo: 'comida', precio: 300, curaVida: 55, desc: 'Vendas y medicinas: recupera vida o revive a un amigo.' },
   pocion_vida:    { nombre: 'Medicina fuerte',   icono: '🧪', tipo: 'comida', precio: 320, curaVida: 100, desc: 'Recupera toda la vida.' },
 
   // ---------- ARMAS (10) — una por tramo de nivel, daño suma al combate global ----------

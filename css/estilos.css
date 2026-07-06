@@ -1137,6 +1137,25 @@ body.sesion-cerrada .ventana { display: none !important; }
   background: rgba(48,209,88,.22); color: #7dffb0; font-weight: 700;
 }
 .fila-jugador-admin .acciones .btn-revivir-jugador:active { background: rgba(48,209,88,.4); }
+.admin-seccion-titulo {
+  font-size: 13px; font-weight: 700; color: #8e8e93;
+  margin: 12px 0 8px; padding: 0 4px;
+}
+.admin-seccion-muertos {
+  margin-bottom: 8px; padding-bottom: 8px;
+  border-bottom: 1px solid rgba(255,69,58,.25);
+}
+.marcador-jugador-muerto {
+  display: flex; flex-direction: column; align-items: center;
+  pointer-events: auto; cursor: pointer;
+  filter: drop-shadow(0 2px 5px rgba(0,0,0,.45));
+}
+.mjm-etiqueta {
+  font-size: 10px; font-weight: 700; color: #ff6b6b;
+  max-width: 72px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  margin-bottom: 2px;
+}
+.mjm-carabela { font-size: 28px; line-height: 1; }
 .jugador-barra-vida {
   position: relative; height: 14px; border-radius: 7px; overflow: hidden;
   margin-top: 6px; background: #2b1016; border: 1px solid rgba(255,255,255,.1);

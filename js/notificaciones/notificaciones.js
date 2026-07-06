@@ -16,6 +16,7 @@ const Notificaciones = {
       return true;
     }
     if (tipo === 'exito' && /misión|misión completada|recompensa/i.test(t)) return true;
+    if (tipo === 'info' && /acércate|recoger|demasiado lejos|revivir|botiquín/i.test(t)) return true;
     return false;
   },
 

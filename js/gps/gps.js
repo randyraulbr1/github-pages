@@ -71,6 +71,7 @@ const GPS = {
     Mapa.jugadorSeMovio(nuevaPosicion);
     if (typeof Multijugador !== 'undefined') {
       Multijugador.enviarPosicion(nuevaPosicion[0], nuevaPosicion[1], cambioGrande);
+      Multijugador.refrescarMarcadoresDistancia();
     }
   },
 

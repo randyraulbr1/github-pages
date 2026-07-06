@@ -31,6 +31,7 @@ const socketToPlayer = new Map();
 const MAX_MOVE_DELTA = 0.00035;
 const MAX_GPS_DELTA = 0.004;
 const INTERACT_DISTANCE = 0.0005;
+const REVIVE_DISTANCE = 0.00045;
 const SYNC_INTERVAL_MS = 8000;
 
 let enemyAIStarted = false;
@@ -49,7 +50,10 @@ function playerSnapshot(p) {
     y: p.y,
     hp: p.hp,
     hpMax: p.hpMax || 100,
-    level: p.level
+    level: p.level,
+    dead: !!p.dead || (p.hp != null && p.hp <= 0),
+    deathX: p.deathX != null ? p.deathX : null,
+    deathY: p.deathY != null ? p.deathY : null
   };
 }
 
@@ -69,6 +73,9 @@ function broadcastMove(io, playerId, online) {
     hp: online.hp,
     hpMax: online.hpMax || 100,
     level: online.level,
+    dead: !!online.dead || online.hp <= 0,
+    deathX: online.deathX,
+    deathY: online.deathY,
     t: Date.now()
   });
 }
@@ -125,7 +132,10 @@ function setupSockets(io) {
       y: formatted.y,
       hp: formatted.hp,
       hpMax,
-      level: formatted.level
+      level: formatted.level,
+      dead: formatted.hp <= 0,
+      deathX: formatted.hp <= 0 ? formatted.x : null,
+      deathY: formatted.hp <= 0 ? formatted.y : null
     });
     socketToPlayer.set(socket.id, socket.playerId);
 
@@ -196,6 +206,18 @@ function setupSockets(io) {
         if (payload?.hpMax !== undefined) {
           online.hpMax = Math.max(1, Math.round(payload.hpMax));
         }
+        const dead = payload?.dead === true || data.hp <= 0;
+        online.dead = dead;
+        if (dead && payload?.deathX != null && payload?.deathY != null) {
+          online.deathX = Number(payload.deathX);
+          online.deathY = Number(payload.deathY);
+        } else if (!dead) {
+          online.deathX = null;
+          online.deathY = null;
+        } else if (dead && online.deathX == null) {
+          online.deathX = data.x;
+          online.deathY = data.y;
+        }
       }
 
       io.emit('player:updateStats', {
@@ -204,9 +226,57 @@ function setupSockets(io) {
         hpMax: online?.hpMax || 100,
         hunger: data.hunger,
         xp: data.xp,
-        level: data.level
+        level: data.level,
+        dead: online?.dead || data.hp <= 0,
+        deathX: online?.deathX,
+        deathY: online?.deathY
       });
       ack?.({ ok: true, player: data });
+    });
+
+    socket.on('player:revive', (payload, ack) => {
+      const targetId = parseInt(payload?.targetPlayerId, 10);
+      const targetOnline = onlinePlayers.get(targetId);
+      const targetDb = findPlayerById(targetId);
+      const reviver = findPlayerById(socket.playerId);
+      if (!targetDb || !reviver) return ack?.({ ok: false, error: 'Jugador no encontrado' });
+
+      const isDead = targetOnline?.dead || targetDb.hp <= 0;
+      if (!isDead) return ack?.({ ok: false, error: 'Ese jugador no está muerto' });
+
+      const tx = targetOnline?.deathX ?? targetDb.x;
+      const ty = targetOnline?.deathY ?? targetDb.y;
+      if (distance(reviver.x, reviver.y, tx, ty) > REVIVE_DISTANCE) {
+        return ack?.({ ok: false, error: 'Demasiado lejos (máx. 50 m)' });
+      }
+
+      const hpMax = Math.max(1, Math.round(payload?.hpMax || targetOnline?.hpMax || 100));
+      const cura = Math.max(1, Math.min(hpMax, Math.round(payload?.curaVida || 55)));
+      updatePlayer(targetId, { hp: cura });
+      if (targetOnline) {
+        targetOnline.hp = cura;
+        targetOnline.dead = false;
+        targetOnline.deathX = null;
+        targetOnline.deathY = null;
+      }
+
+      io.emit('player:revived', {
+        playerId: targetId,
+        hp: cura,
+        hpMax,
+        reviverId: socket.playerId,
+        reviverName: reviver.name
+      });
+      io.emit('player:updateStats', {
+        playerId: targetId,
+        hp: cura,
+        hpMax,
+        level: targetDb.level,
+        dead: false,
+        deathX: null,
+        deathY: null
+      });
+      ack?.({ ok: true, hp: cura });
     });
 
     socket.on('player:updateInventory', (payload, ack) => {
