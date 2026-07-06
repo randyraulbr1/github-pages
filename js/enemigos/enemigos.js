@@ -165,35 +165,38 @@ const Enemigos = {
 
   _htmlMarcador(e) {
     const nv = this._nivelEnemigo(e);
+    const letal = this._esLetal(e);
     const mostrarCono = e.facingDeg != null && e._enZona;
     const cono = mostrarCono
       ? '<div class="enemigo-cono-wrap" style="transform:rotate(' + e.facingDeg + 'deg)">' +
         '<div class="enemigo-cono"></div></div>' : '';
-    return '<div class="enemigo-pin' + (this._esLetal(e) ? ' enemigo-letal' : '') + '">' +
+    const calavera = letal
+      ? '<span class="enemigo-calavera" title="Nv ' + nv + ' · 10× tu nivel">💀</span>' : '';
+    return '<div class="enemigo-pin' + (letal ? ' enemigo-letal' : '') + '">' +
       cono +
-      '<span class="enemigo-emoji">' + (e.icono || '👹') + '</span>' +
-      '<span class="enemigo-nivel-tag">Nv ' + nv + '</span></div>';
+      calavera +
+      '<div class="enemigo-etiqueta"><span class="enemigo-nivel">Nv ' + nv + '</span></div>' +
+      '<span class="enemigo-emoji">' + (e.icono || '👹') + '</span></div>';
+  },
+
+  _iconoMarcador(e) {
+    return L.divIcon({
+      className: '',
+      html: this._htmlMarcador(e),
+      iconSize: [56, 54],
+      iconAnchor: [28, 46]
+    });
   },
 
   _refrescarIconoMarcador(e) {
     const m = this._marcadores[e.id];
     if (!m) return;
-    m.setIcon(L.divIcon({
-      className: '',
-      html: this._htmlMarcador(e),
-      iconSize: [44, 52],
-      iconAnchor: [22, 26]
-    }));
+    m.setIcon(this._iconoMarcador(e));
   },
 
   _crearEnMapa(e) {
     const marcador = L.marker(e.pos, {
-      icon: L.divIcon({
-        className: '',
-        html: this._htmlMarcador(e),
-        iconSize: [44, 52],
-        iconAnchor: [22, 26]
-      })
+      icon: this._iconoMarcador(e)
     }).addTo(Mapa.mapa);
     this._marcadores[e.id] = marcador;
 
@@ -236,7 +239,11 @@ const Enemigos = {
 
   /** Posición/vida sincronizada desde el servidor (enemigo compartido en vivo). */
   actualizarDesdeServidor(origenId, lat, lng, data) {
-    const e = this.lista.find(x => x.id === origenId);
+    let e = this.lista.find(x => x.id === origenId);
+    if (!e) {
+      this._recargar();
+      e = this.lista.find(x => x.id === origenId);
+    }
     if (!e) return;
     e.pos = [lat, lng];
     if (typeof Admin !== 'undefined') {
@@ -250,9 +257,10 @@ const Enemigos = {
         );
         e.vida = data.hp;
       }
-      if (data?.facingDeg != null) e.facingDeg = data.facingDeg;
-      if (data?.targetPlayerId != null) e.targetPlayerId = data.targetPlayerId;
-      e._enZona = !!e.facingDeg || e._enZona;
+      if (data?.facingDeg != null) {
+        e.facingDeg = data.facingDeg;
+        e._enZona = true;
+      }
     }
     const m = this._marcadores[origenId];
     if (m) {
@@ -296,28 +304,21 @@ const Enemigos = {
     const m = this._marcadores[e.id];
     if (!m) return;
     let bar = this._barraVida[e.id];
-    const letal = this._esLetal(e);
-    const nv = this._nivelEnemigo(e);
-    const calavera = letal
-      ? '<span class="enemigo-calavera" title="Nv ' + nv + ' · 10× tu nivel">💀</span>' : '';
-    const html = calavera +
-      '<div class="enemigo-barra-vida"><div class="enemigo-barra-relleno" style="width:' + pct + '%"></div></div>';
-    const alto = letal ? 22 : 6;
-    const anclaY = letal ? 44 : 38;
+    const html = '<div class="enemigo-barra-vida"><div class="enemigo-barra-relleno" style="width:' + pct + '%"></div></div>';
     if (!bar) {
       bar = L.divIcon({
-        className: 'enemigo-barra-contenedor' + (letal ? ' enemigo-barra-letal' : ''),
+        className: 'enemigo-barra-contenedor',
         html: html,
-        iconSize: [40, alto],
-        iconAnchor: [20, anclaY]
+        iconSize: [52, 6],
+        iconAnchor: [26, 42]
       });
       this._barraVida[e.id] = L.marker(e.pos, { icon: bar, interactive: false, zIndexOffset: 500 }).addTo(Mapa.mapa);
     } else {
       bar.setIcon(L.divIcon({
-        className: 'enemigo-barra-contenedor' + (letal ? ' enemigo-barra-letal' : ''),
+        className: 'enemigo-barra-contenedor',
         html: html,
-        iconSize: [40, alto],
-        iconAnchor: [20, anclaY]
+        iconSize: [52, 6],
+        iconAnchor: [26, 42]
       }));
       bar.setLatLng(m.getLatLng());
     }

@@ -92,7 +92,11 @@ function actualizarPartidaEnSnapshot(perfilId, partidaSnap, io) {
   snapshot.actualizadoEn = Date.now();
   saveWorldSnapshot(snapshot);
   if (io) {
-    io.emit('mundo:sync', { actualizadoEn: snapshot.actualizadoEn, mundo: snapshot });
+    io.emit('partida:sync', {
+      perfilId,
+      partida: partidaSnap,
+      actualizadoEn: snapshot.actualizadoEn
+    });
   }
   return true;
 }
@@ -111,7 +115,13 @@ function revivirPartidaEnSnapshot(perfilId, hp, io) {
   snapshot.partidas[perfilId] = snap;
   snapshot.actualizadoEn = Date.now();
   saveWorldSnapshot(snapshot);
-  if (io) io.emit('mundo:sync', { actualizadoEn: snapshot.actualizadoEn, mundo: snapshot });
+  if (io) {
+    io.emit('partida:sync', {
+      perfilId,
+      partida: snap,
+      actualizadoEn: snapshot.actualizadoEn
+    });
+  }
   return true;
 }
 
@@ -126,7 +136,13 @@ function eliminarJugadorDeSnapshot(perfilId, io) {
   if (snapshot.partidas) delete snapshot.partidas[perfilId];
   snapshot.actualizadoEn = Date.now();
   saveWorldSnapshot(snapshot);
-  if (io) io.emit('mundo:sync', { actualizadoEn: snapshot.actualizadoEn, mundo: snapshot });
+  if (io) {
+    io.emit('partida:sync', {
+      perfilId,
+      eliminado: true,
+      actualizadoEn: snapshot.actualizadoEn
+    });
+  }
   return true;
 }
 

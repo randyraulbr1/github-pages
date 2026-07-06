@@ -139,6 +139,12 @@ const Multijugador = {
       this.online = (data.onlinePlayers || []).filter(p => this._visible(p.playerId));
       this._redibujar(false);
       if (data.cuerposMuertos) this._aplicarCuerpos(data.cuerposMuertos);
+      if (data.mundoSnapshot) {
+        this._aplicarMundoServidor({
+          mundo: data.mundoSnapshot,
+          actualizadoEn: data.mundoActualizadoEn || data.mundoSnapshot.actualizadoEn || 0
+        }, false);
+      }
       this.enviarStats(true);
     });
 
@@ -206,6 +212,9 @@ const Multijugador = {
     this.socket.on('world:updateObject', (obj) => {
       if (obj.type === 'enemy' && obj.data?.origenId && typeof Enemigos !== 'undefined') {
         Enemigos.actualizarDesdeServidor(obj.data.origenId, obj.x, obj.y, obj.data);
+      } else if (obj.data?.origenId && typeof Admin !== 'undefined') {
+        Admin.publicado.posiciones = Admin.publicado.posiciones || {};
+        Admin.publicado.posiciones[obj.data.origenId] = [obj.x, obj.y];
       }
     });
 
@@ -213,6 +222,10 @@ const Multijugador = {
 
     this.socket.on('mundo:sync', (data) => {
       this._aplicarMundoServidor(data, true);
+    });
+
+    this.socket.on('partida:sync', (data) => {
+      this._aplicarPartidaServidor(data);
     });
 
     this.socket.on('world:tesoroRecogido', (data) => {
@@ -302,6 +315,30 @@ const Multijugador = {
     this._pollMundo = setInterval(() => this._pullMundoServidor(), 4000);
   },
 
+  _aplicarPartidaServidor(data) {
+    if (!data?.perfilId || typeof Admin === 'undefined') return;
+    if (!Admin.publicado) return;
+    if (!Admin.publicado.partidas) Admin.publicado.partidas = {};
+    if (data.eliminado) {
+      delete Admin.publicado.partidas[data.perfilId];
+      if (Admin.publicado.jugadores) {
+        Admin.publicado.jugadores = Admin.publicado.jugadores.filter(
+          j => j && j.id !== data.perfilId
+        );
+      }
+    } else if (data.partida) {
+      const prev = Admin.publicado.partidas[data.perfilId];
+      if (!prev || (data.partida.t || 0) >= (prev.t || 0)) {
+        Admin.publicado.partidas[data.perfilId] = data.partida;
+      }
+    }
+    Admin._aplicarRevivirDesdeNube();
+    const vistaJug = document.getElementById('admin-vista-jugadores');
+    if (vistaJug && !vistaJug.classList.contains('oculto') && Admin._listarCuentasAsync) {
+      Admin._listarCuentasAsync();
+    }
+  },
+
   _aplicarMundoServidor(data, avisar) {
     if (!data?.mundo || typeof Admin === 'undefined') return false;
     const m = data.mundo;
@@ -310,8 +347,10 @@ const Multijugador = {
       (m.tiendasAdmin?.length || 0) + Object.keys(m.posiciones || {}).length;
     if (!tieneMapa) return false;
     const ts = data.actualizadoEn || m.actualizadoEn || Date.now();
-    if (ts <= this.mundoServidorTs) return false;
-    this.mundoServidorTs = ts;
+    const json = JSON.stringify(m);
+    const firma = Admin._firmaMundo(json);
+    if (ts <= this.mundoServidorTs && firma === Admin._ultimoFirmaPublicada) return false;
+    this.mundoServidorTs = Math.max(this.mundoServidorTs, ts);
     const json = JSON.stringify(m);
     Admin._crudoPublicado = json;
     Admin._ultimoFirmaPublicada = Admin._firmaMundo(json);

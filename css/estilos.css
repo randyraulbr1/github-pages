@@ -232,6 +232,18 @@ button { font-family: inherit; }
   flex-direction: column;
   align-items: center;
   text-align: center;
+  padding-top: 10px;
+}
+.enemigo-etiqueta {
+  display: flex; flex-direction: column; align-items: center;
+  margin-bottom: 2px; line-height: 1.1; position: relative; z-index: 2;
+}
+.enemigo-nivel {
+  font-size: 9px; font-weight: 700; color: #aeaeb2;
+  background: rgba(20,26,42,.88);
+  padding: 1px 6px; border-radius: 8px;
+  border: 1px solid rgba(255,255,255,.2);
+  white-space: nowrap;
 }
 .enemigo-cono-wrap {
   position: absolute;
@@ -249,26 +261,15 @@ button { font-family: inherit; }
   clip-path: polygon(50% 50%, 12% 4%, 88% 4%);
   filter: drop-shadow(0 0 4px rgba(255,69,58,.5));
 }
-.enemigo-emoji { font-size: 28px; line-height: 1; text-shadow: 0 2px 6px rgba(0,0,0,.55); position: relative; z-index: 1; }
-.enemigo-nivel-tag {
-  margin-top: 2px;
-  padding: 1px 6px;
-  border-radius: 8px;
-  font-size: 9px;
-  font-weight: 800;
-  color: #fff;
-  background: rgba(20,26,42,.88);
-  border: 1px solid rgba(255,255,255,.25);
-  white-space: nowrap;
-  position: relative;
-  z-index: 2;
-}
+.enemigo-emoji { font-size: 28px; line-height: 1; text-shadow: 0 2px 6px rgba(0,0,0,.55); position: relative; z-index: 2; }
 .enemigo-calavera {
-  display: block;
+  position: absolute;
+  top: 0;
+  left: 50%;
+  transform: translateX(-50%);
   font-size: 14px;
   line-height: 1;
-  text-align: center;
-  margin-bottom: 2px;
+  z-index: 3;
   filter: drop-shadow(0 0 6px rgba(255,69,58,.9));
   animation: misionIconoBrillo 1.2s ease-in-out infinite;
 }
