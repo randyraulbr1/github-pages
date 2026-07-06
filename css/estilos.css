@@ -308,13 +308,29 @@ button { font-family: inherit; }
   line-height: 1;
 }
 .btn-hud-accion:active { transform: scale(.92); }
-.btn-hud-accion .badge-avisos {
-  position: absolute; top: -5px; right: -5px;
-  min-width: 18px; height: 18px; padding: 0 4px;
-  border-radius: 999px; background: #ff453a; color: #fff;
-  font-size: 11px; font-weight: 800; line-height: 18px; text-align: center;
+.btn-hud-accion .badge-avisos,
+#btn-chat .badge-chat {
+  position: absolute;
+  top: -5px;
+  right: -5px;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 4px;
+  border-radius: 999px;
+  background: #ff453a;
+  color: #fff;
+  font-size: 10px;
+  font-weight: 800;
+  line-height: 18px;
+  text-align: center;
   box-shadow: 0 0 8px rgba(255,69,58,.65);
+  pointer-events: none;
 }
+
+.btn-hud-accion .badge-avisos.oculto,
+#btn-chat .badge-chat.oculto { display: none; }
+
+#btn-chat { position: relative; }
 
 #hud-dinero-mini {
   display: flex;
@@ -452,15 +468,27 @@ button { font-family: inherit; }
   position: fixed; top: calc(110px + env(safe-area-inset-top)); right: 0; z-index: 2000;
   display: flex; flex-direction: column; gap: 10px; align-items: flex-end;
   pointer-events: none;
+  max-width: 92vw;
 }
 .notificacion {
+  position: relative;
   background: rgba(20,26,42,.95); color: #fff; padding: 14px 18px;
   border-left: 4px solid #3d8bfd; border-radius: 16px 0 0 16px;
   font-size: clamp(15px, 4vw, 17px); font-weight: 600; max-width: 88vw;
   box-shadow: 0 8px 22px rgba(0,0,0,.45);
   backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
   transform: translateX(110%); transition: transform .35s ease, opacity .35s ease;
+  display: flex; align-items: center; gap: 10px;
 }
+.notificacion .notif-texto { flex: 1; min-width: 0; }
+.notificacion .notif-pila {
+  flex-shrink: 0;
+  min-width: 22px; height: 22px; padding: 0 6px;
+  border-radius: 999px; background: #ff453a; color: #fff;
+  font-size: 11px; font-weight: 800; line-height: 22px; text-align: center;
+  box-shadow: 0 0 8px rgba(255,69,58,.55);
+}
+.notificacion .notif-pila.oculto { display: none; }
 .notificacion.visible { transform: translateX(0); }
 .notificacion.saliendo { transform: translateX(110%); opacity: 0; }
 .notificacion.exito { border-left-color: #30d158; }
@@ -471,10 +499,6 @@ button { font-family: inherit; }
   box-shadow: 0 6px 18px rgba(255,69,58,.35);
 }
 .fila-aviso.admin { border-left: 3px solid #ff453a; background: rgba(60,12,12,.4); }
-.badge-avisos {
-  position: absolute; top: 2px; right: 2px; color: #ff453a; font-size: 14px;
-  text-shadow: 0 0 6px #ff453a;
-}
 .btn-burbuja { position: relative; }
 
 /* ============ VENTANAS (centradas en móvil, margen a los lados) ============ */

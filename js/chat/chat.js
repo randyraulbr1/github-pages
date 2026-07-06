@@ -39,6 +39,8 @@ const Chat = {
   },
 
   iniciarUI() {
+    if (this._uiLista) return;
+    this._uiLista = true;
     const btn = document.getElementById('btn-chat');
     if (!btn) return;
     btn.classList.remove('oculto');
@@ -404,7 +406,9 @@ const Chat = {
         '</div>' +
         '<div class="chat-row-meta">' +
           '<div class="chat-time">' + last.time + '</div>' +
-          ((this.unread[j.id] || 0) > 0 ? '<div class="unread">' + this.unread[j.id] + '</div>' : '') +
+          ((this.unread[j.id] || 0) > 0
+            ? '<div class="unread">' + Utilidades.contadorBadge(this.unread[j.id]) + '</div>'
+            : '') +
         '</div>';
       row.addEventListener('click', () => this.openConversation(j.id));
       lista.appendChild(row);
@@ -750,7 +754,7 @@ const Chat = {
     const badge = document.getElementById('badge-chat');
     if (!badge) return;
     const total = Object.values(this.unread).reduce((a, b) => a + (b || 0), 0);
-    badge.textContent = total > 9 ? '9+' : String(total);
+    badge.textContent = Utilidades.contadorBadge(total);
     badge.classList.toggle('oculto', total <= 0);
   },
 

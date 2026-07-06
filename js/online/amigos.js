@@ -209,6 +209,8 @@ const Amigos = {
   },
 
   iniciarUI() {
+    if (this._uiLista) return;
+    this._uiLista = true;
     this._cargarMarcados();
     const btn = document.getElementById('btn-amigos');
     if (btn) btn.addEventListener('click', () => this.abrir());
@@ -627,8 +629,9 @@ const Amigos = {
 
     const badge = document.getElementById('badge-amigos');
     if (badge) {
-      if (this.pendingIn.length) {
-        badge.textContent = String(this.pendingIn.length);
+      const n = this.pendingIn.length;
+      if (n > 0) {
+        badge.textContent = Utilidades.contadorBadge(n);
         badge.classList.remove('oculto');
       } else {
         badge.classList.add('oculto');

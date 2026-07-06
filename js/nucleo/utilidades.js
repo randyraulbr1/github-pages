@@ -75,5 +75,13 @@ const Utilidades = {
 
   pinCofreValido(pin) {
     return /^\d{4}$/.test(pin);
+  },
+
+  /** Contador para badges HUD: 1–10 exacto, 11+ muestra +10 */
+  contadorBadge(cantidad) {
+    const n = Math.max(0, Math.floor(Number(cantidad) || 0));
+    if (n <= 0) return '';
+    if (n > 10) return '+10';
+    return String(n);
   }
 };
