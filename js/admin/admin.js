@@ -294,6 +294,7 @@ const Admin = {
     }
     for (const p of Mapa.puntosInteractivos) {
       if (!p.marcador || p.marcador === GPS.marcador) continue;
+      if (typeof Enemigos !== 'undefined' && Enemigos._marcadores[p.id]) continue;
       this._arrastreOrganizarMarcador(p.marcador, p, (m) => {
         const nueva = m.getLatLng();
         p.posicion[0] = +nueva.lat.toFixed(6);
@@ -322,15 +323,12 @@ const Admin = {
         if (!m) continue;
         this._arrastreOrganizarMarcador(m, { id: e.id, marcador: m }, (marc) => {
           const p = marc.getLatLng();
-          const pos = [+p.lat.toFixed(6), +p.lng.toFixed(6)];
-          e.pos = pos;
-          e.posOrigen = pos.slice();
-          if (typeof Enemigos !== 'undefined' && Enemigos._moverEnemigo) {
-            Enemigos._moverEnemigo(e, pos[0], pos[1]);
+          this._fijarPosicionEnemigo(e.id, [+p.lat.toFixed(6), +p.lng.toFixed(6)]);
+        }, (marc) => {
+          const p = marc.getLatLng();
+          if (typeof Enemigos.fijarPosicion === 'function') {
+            Enemigos.fijarPosicion(e, [+p.lat.toFixed(6), +p.lng.toFixed(6)], { silencioso: true });
           }
-          this.datos.posiciones[e.id] = pos;
-          this.guardar();
-          this._publicarParaTodos(true);
         });
       }
     }
@@ -749,6 +747,33 @@ const Admin = {
     return null;
   },
 
+  /** Fija posición de spawn de un enemigo (mapa + datos + servidor). */
+  _fijarPosicionEnemigo(id, pos, publicar) {
+    if (!id || !pos || pos.length < 2) return;
+    const p = [+pos[0], +pos[1]];
+    if (!this.datos.posiciones) this.datos.posiciones = {};
+    if (!this.publicado.posiciones) this.publicado.posiciones = {};
+    this.datos.posiciones[id] = p.slice();
+    this.publicado.posiciones[id] = p.slice();
+    const patch = (arr) => {
+      if (!Array.isArray(arr)) return;
+      const i = arr.findIndex(x => x && x.id === id);
+      if (i >= 0) {
+        arr[i].pos = p.slice();
+        arr[i].posOrigen = p.slice();
+      }
+    };
+    patch(this.datos.enemigos);
+    patch(this.publicado.enemigos);
+    const e = typeof Enemigos !== 'undefined'
+      ? Enemigos.lista.find(x => x.id === id) : null;
+    if (e && typeof Enemigos.fijarPosicion === 'function') {
+      Enemigos.fijarPosicion(e, p);
+    }
+    this.guardar();
+    if (publicar !== false) this._publicarParaTodos(true);
+  },
+
   eliminado(id) {
     if ((this.publicado.eliminados || []).includes(id)) return true;
     return this.esAdminJugador() && (this.datos.eliminados || []).includes(id);
@@ -990,7 +1015,7 @@ const Admin = {
     }
 
     if (typeof Cofres !== 'undefined') Cofres._pintarTodos();
-    if (typeof Enemigos !== 'undefined') Enemigos._recargar();
+    if (typeof Enemigos !== 'undefined' && this.modo !== 'organizar') Enemigos._recargar();
     if (typeof Tiendas !== 'undefined' && Tiendas.refrescarAdmin) Tiendas.refrescarAdmin();
     if (typeof Usuarios !== 'undefined') Usuarios.verificarSesionRemota();
     if (this.publicado.adminPinClaves) {
@@ -2281,7 +2306,7 @@ const Admin = {
     cesto.classList.toggle('cesto-hover', this._sobreCesto(ev, marcador));
   },
 
-  _arrastreOrganizarMarcador(marcador, punto, alMoverPos) {
+  _arrastreOrganizarMarcador(marcador, punto, alMoverPos, alArrastrar) {
     if (!marcador) return;
     const fin = (ev) => {
       const cesto = document.getElementById('admin-cesto-borrar');
@@ -2294,7 +2319,10 @@ const Admin = {
     };
     if (punto._movOrg) marcador.off('drag', punto._movOrg);
     if (punto._finOrg) marcador.off('dragend', punto._finOrg);
-    punto._movOrg = (ev) => this._actualizarHoverCesto(ev, marcador);
+    punto._movOrg = (ev) => {
+      this._actualizarHoverCesto(ev, marcador);
+      if (alArrastrar) alArrastrar(marcador, ev);
+    };
     punto._finOrg = fin;
     marcador.on('drag', punto._movOrg);
     this._habilitarArrastreMarcador(marcador, fin);
@@ -2417,7 +2445,8 @@ const Admin = {
         this.datos.eliminados.push(punto.id);
       }
     } else {
-      // Pines base del juego: se marcan como eliminados
+      this.datos.enemigos = (this.datos.enemigos || []).filter(x => x.id !== punto.id);
+      this.datos.tiendasAdmin = (this.datos.tiendasAdmin || []).filter(x => x.id !== punto.id);
       if (!this.datos.eliminados.includes(punto.id)) this.datos.eliminados.push(punto.id);
     }
     this.guardar();
@@ -2467,10 +2496,8 @@ const Admin = {
     }
     this.modo = null;
     document.getElementById('admin-controles').classList.add('oculto');
+    if (typeof Enemigos !== 'undefined' && Enemigos._recargar) Enemigos._recargar();
     if (typeof GPS !== 'undefined') GPS._actualizarArrastre();
-    else if (typeof Enemigos !== 'undefined' && Enemigos._actualizarPrioridadAdmin) {
-      Enemigos._actualizarPrioridadAdmin(false);
-    }
   },
 
   _mostrarControles(texto, conConfirmar) {
@@ -3792,7 +3819,7 @@ const Admin = {
       if (!item) return item;
       const pos = this._posItem(item);
       if (!pos) return Object.assign({}, item);
-      return Object.assign({}, item, { pos: pos.slice() });
+      return Object.assign({}, item, { pos: pos.slice(), posOrigen: pos.slice() });
     }).filter(item => item && item.pos && item.pos.length >= 2);
   },
 

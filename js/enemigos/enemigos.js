@@ -127,6 +127,8 @@ const Enemigos = {
       if (Admin.eliminado && Admin.eliminado(e.id)) continue;
       const pos = (typeof Admin._posItem === 'function') ? Admin._posItem(e) : Admin.pos(e.id, e.pos);
       if (!pos || pos.length < 2) continue;
+      e.pos = pos.slice();
+      e.posOrigen = pos.slice();
       const st = this._estadoGlobal()[e.id];
       if (st && st.ocultoHasta && Date.now() < st.ocultoHasta) {
         this._quitarMarcador(e.id);
@@ -140,7 +142,7 @@ const Enemigos = {
       }
       this._aplicarEstadoRemoto(e);
       if (!this._marcadores[e.id]) this._crearEnMapa(e);
-      else       this._actualizarMarcador(e);
+      else if (!this._adminOrganizando()) this._actualizarMarcador(e);
     }
     this._actualizarPrioridadAdmin();
   },
@@ -312,11 +314,15 @@ const Enemigos = {
       e = this.lista.find(x => x.id === origenId);
     }
     if (!e) return;
+    if (e._adminMovidoEn && Date.now() - e._adminMovidoEn < 10000) return;
     e.pos = [lat, lng];
     e._ultimoMovServidor = Date.now();
     if (typeof Admin !== 'undefined') {
       Admin.publicado.posiciones = Admin.publicado.posiciones || {};
       Admin.publicado.posiciones[origenId] = [lat, lng];
+      if (data?.origenX != null && data?.origenY != null) {
+        e.posOrigen = [data.origenX, data.origenY];
+      }
       if (data?.hp != null) {
         Admin.publicado.enemigosEstado = Admin.publicado.enemigosEstado || {};
         Admin.publicado.enemigosEstado[origenId] = Object.assign(
@@ -376,13 +382,34 @@ const Enemigos = {
     }
   },
 
+  fijarPosicion(e, pos, opts) {
+    if (!e || !pos || pos.length < 2) return;
+    const p = [+pos[0], +pos[1]];
+    e.pos = p.slice();
+    e.posOrigen = p.slice();
+    delete e._ultimoMovServidor;
+    e.facingDeg = null;
+    e._enZona = false;
+    e._avisoZona = false;
+    if (!opts?.silencioso) e._adminMovidoEn = Date.now();
+    this._moverEnemigo(e, p[0], p[1]);
+    this._refrescarIconoMarcador(e);
+  },
+
   _moverEnemigo(e, nlat, nlng) {
     const m = this._marcadores[e.id];
     if (!m) return;
     m.setLatLng([nlat, nlng]);
-    e.pos[0] = nlat; e.pos[1] = nlng;
+    e.pos[0] = nlat;
+    e.pos[1] = nlng;
     if (this._zonas[e.id]) this._zonas[e.id].setLatLng([nlat, nlng]);
     if (this._zonasAtaque[e.id]) this._zonasAtaque[e.id].setLatLng([nlat, nlng]);
+    const pi = typeof Mapa !== 'undefined'
+      ? Mapa.puntosInteractivos.find(x => x.id === e.id) : null;
+    if (pi && pi.posicion) {
+      pi.posicion[0] = nlat;
+      pi.posicion[1] = nlng;
+    }
   },
 
   _golpeAutomatico(e) {
@@ -441,7 +468,7 @@ const Enemigos = {
           this._moverEnemigo(e, nlat, nlng);
         } else if (e.posOrigen) {
           const o = e.posOrigen;
-          const distOrigen = Utilidades.distanciaMetros(e.pos, o);
+          const distOrigen = Utilidades.distanciaMetros([e.pos[0], e.pos[1]], o);
           if (distOrigen > 2) {
             const m = this._marcadores[e.id];
             const ll = m.getLatLng();

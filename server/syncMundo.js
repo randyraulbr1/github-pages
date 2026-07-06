@@ -464,8 +464,8 @@ function syncMundoFromJson(mundo, io) {
       respawnMin: e.respawnMin,
       radioZona: e.radioZona || 40,
       radioAtaque: e.radioAtaque || e.radioPersecucion || 18,
-      origenX: pos[0],
-      origenY: pos[1]
+      origenX: (e.posOrigen && e.posOrigen.length >= 2) ? e.posOrigen[0] : pos[0],
+      origenY: (e.posOrigen && e.posOrigen.length >= 2) ? e.posOrigen[1] : pos[1]
     }, io, true);
     objetos++;
   }
