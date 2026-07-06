@@ -11,10 +11,11 @@
   <link rel="stylesheet" href="lib/leaflet/leaflet.css">
   <link rel="stylesheet" href="css/estilos.css">
   <link rel="stylesheet" href="css/chat.css">
+  <link rel="stylesheet" href="css/amigos.css">
   <script>
     // Aviso temprano en móvil (antes de cargar 20+ archivos JS)
     (function () {
-      var V = '100';
+      var V = '102';
       var texto = document.getElementById('carga-texto');
       if (texto) texto.textContent = 'Conectando…';
       var prev = localStorage.getItem('mariel_app_version');
@@ -220,16 +221,55 @@
 
   <!-- ============ VENTANA: AMIGOS ============ -->
   <div id="ventana-amigos" class="ventana oculto">
-    <div class="ventana-caja panel-social-caja">
-      <div class="ventana-titulo">👥 Amigos <button class="btn-cerrar" data-cierra="ventana-amigos">✕</button></div>
-      <p class="panel-social-ayuda">Marca el pin 📍 de un amigo para ver una línea hacia su posición en el mapa.</p>
-      <div class="amigos-buscar-fila">
-        <input id="amigos-buscar" maxlength="20" placeholder="Nombre del jugador">
-        <button id="btn-amigos-agregar" type="button" class="btn-amigo-mini">Agregar</button>
+    <div class="friends-panel" role="dialog" aria-label="Panel de amigos">
+      <div class="panel-header">
+        <div class="panel-title"><span>👥</span> AMIGOS</div>
+        <button type="button" class="amigos-close" id="cerrar-amigos" aria-label="Cerrar">×</button>
       </div>
-      <div id="amigos-lista" class="amigos-lista"></div>
+
+      <div class="panel-content">
+        <section class="add-section">
+          <div>
+            <div class="section-head">AGREGAR AMIGO</div>
+            <div class="hint">
+              Marca el pin <b>📍</b> de un amigo para ver una línea hacia su posición en el mapa.
+            </div>
+            <div class="add-row">
+              <label class="input-wrap">
+                <span>👤</span>
+                <input id="amigos-buscar" type="text" maxlength="20" placeholder="Nombre del jugador" autocomplete="off">
+              </label>
+              <button type="button" class="add-btn" id="btn-amigos-agregar">👥 AGREGAR</button>
+            </div>
+          </div>
+          <div class="preview-map" aria-hidden="true">
+            <div class="pulse"></div>
+          </div>
+        </section>
+
+        <section>
+          <div class="friends-top">
+            <div class="section-head" id="amigos-count" style="margin-bottom:0">MIS AMIGOS (0)</div>
+            <label class="search-box">
+              <span>🔎</span>
+              <input id="amigos-buscar-filtro" type="text" placeholder="Buscar amigo..." autocomplete="off">
+            </label>
+          </div>
+
+          <div id="amigos-pendientes" class="amigos-pendientes oculto"></div>
+          <div id="amigos-lista" class="friends-list"></div>
+          <div id="amigos-bloqueados" class="amigos-bloqueados oculto"></div>
+
+          <div class="amigos-info">
+            <span>i</span>
+            Los pines marcados se muestran en el mapa con una línea hacia su posición.
+          </div>
+        </section>
+      </div>
     </div>
   </div>
+
+  <div id="amigos-toast" class="oculto" aria-live="polite"></div>
 
   <!-- ============ CHAT JUGADORES ============ -->
   <section class="chat-panel" id="chatPanel">
@@ -789,45 +829,45 @@
   </div>
 
   <!-- LIBRERÍAS -->
-  <script src="lib/leaflet/leaflet.js?v=101"></script>
+  <script src="lib/leaflet/leaflet.js?v=102"></script>
 
   <!-- MÓDULOS DEL JUEGO (orden importante) -->
-  <script src="js/config/config.js?v=101"></script>
-  <script src="js/nucleo/utilidades.js?v=101"></script>
-  <script src="js/mundo/mundo_publico.js?v=101"></script>
-  <script src="js/notificaciones/notificaciones.js?v=101"></script>
-  <script src="js/usuarios/usuarios.js?v=101"></script>
-  <script src="js/guardado/guardado.js?v=101"></script>
-  <script src="js/historial/historial.js?v=101"></script>
-  <script src="js/dinero/dinero.js?v=101"></script>
-  <script src="js/vida/vida.js?v=101"></script>
-  <script src="js/items/items.js?v=101"></script>
-  <script src="js/mochila/mochila.js?v=101"></script>
-  <script src="js/mapa/mapa.js?v=101"></script>
-  <script src="js/gps/gps.js?v=101"></script>
-  <script src="js/tiendas/datos_tiendas.js?v=101"></script>
-  <script src="js/tiendas/tiendas.js?v=101"></script>
-  <script src="js/pesca/pesca.js?v=101"></script>
-  <script src="js/tesoros/datos_tesoros.js?v=101"></script>
-  <script src="js/tesoros/tesoros.js?v=101"></script>
-  <script src="js/misiones/datos_misiones.js?v=101"></script>
-  <script src="js/misiones/misiones.js?v=101"></script>
-  <script src="js/cofres/cofres.js?v=101"></script>
-  <script src="js/correo/correo.js?v=101"></script>
-  <script src="js/enemigos/enemigos.js?v=101"></script>
-  <script src="js/online/sync_servidor.js?v=101"></script>
-  <script src="js/admin/admin.js?v=101"></script>
-  <script src="js/opciones/opciones.js?v=101"></script>
-  <script src="js/online/mundo_online.js?v=101"></script>
-  <script src="js/online/amigos.js?v=101"></script>
-  <script src="js/chat/chat.js?v=101"></script>
-  <script src="js/online/multijugador.js?v=101"></script>
-  <script src="js/principal.js?v=101"></script>
+  <script src="js/config/config.js?v=102"></script>
+  <script src="js/nucleo/utilidades.js?v=102"></script>
+  <script src="js/mundo/mundo_publico.js?v=102"></script>
+  <script src="js/notificaciones/notificaciones.js?v=102"></script>
+  <script src="js/usuarios/usuarios.js?v=102"></script>
+  <script src="js/guardado/guardado.js?v=102"></script>
+  <script src="js/historial/historial.js?v=102"></script>
+  <script src="js/dinero/dinero.js?v=102"></script>
+  <script src="js/vida/vida.js?v=102"></script>
+  <script src="js/items/items.js?v=102"></script>
+  <script src="js/mochila/mochila.js?v=102"></script>
+  <script src="js/mapa/mapa.js?v=102"></script>
+  <script src="js/gps/gps.js?v=102"></script>
+  <script src="js/tiendas/datos_tiendas.js?v=102"></script>
+  <script src="js/tiendas/tiendas.js?v=102"></script>
+  <script src="js/pesca/pesca.js?v=102"></script>
+  <script src="js/tesoros/datos_tesoros.js?v=102"></script>
+  <script src="js/tesoros/tesoros.js?v=102"></script>
+  <script src="js/misiones/datos_misiones.js?v=102"></script>
+  <script src="js/misiones/misiones.js?v=102"></script>
+  <script src="js/cofres/cofres.js?v=102"></script>
+  <script src="js/correo/correo.js?v=102"></script>
+  <script src="js/enemigos/enemigos.js?v=102"></script>
+  <script src="js/online/sync_servidor.js?v=102"></script>
+  <script src="js/admin/admin.js?v=102"></script>
+  <script src="js/opciones/opciones.js?v=102"></script>
+  <script src="js/online/mundo_online.js?v=102"></script>
+  <script src="js/online/amigos.js?v=102"></script>
+  <script src="js/chat/chat.js?v=102"></script>
+  <script src="js/online/multijugador.js?v=102"></script>
+  <script src="js/principal.js?v=102"></script>
   <script>
     // Registrar la app instalable (PWA)
     if ('serviceWorker' in navigator) {
       const yaTeniaVersion = !!navigator.serviceWorker.controller;
-      navigator.serviceWorker.register('sw.js?v=101', { updateViaCache: 'none' })
+      navigator.serviceWorker.register('sw.js?v=102', { updateViaCache: 'none' })
         .then(function (reg) { reg.update(); })
         .catch(function () {});
       // Cuando llega una versión nueva del juego: avisar y recargar solo

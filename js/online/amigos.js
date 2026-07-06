@@ -10,6 +10,8 @@ const Amigos = {
   blockedIds: new Set(),
   _marcadosKey: 'mariel_amigos_pin',
   _marcados: new Set(),
+  _filtro: '',
+  _toastTimer: null,
 
   _cargarMarcados() {
     try {
@@ -29,6 +31,38 @@ const Amigos = {
   obtenerMarcados() { return this._marcados; },
 
   esMarcado(playerId) { return this._marcados.has(Number(playerId)); },
+
+  _avatarEmoji(name) {
+    const emojis = ['🧔', '🧢', '🐺', '🥷', '🧍', '👤', '🎮', '🦊', '🐉'];
+    let h = 0;
+    const n = String(name || '?');
+    for (let i = 0; i < n.length; i++) h = (h + n.charCodeAt(i)) % emojis.length;
+    return emojis[h];
+  },
+
+  _esc(text) {
+    return String(text)
+      .replaceAll('&', '&amp;')
+      .replaceAll('<', '&lt;')
+      .replaceAll('>', '&gt;')
+      .replaceAll('"', '&quot;');
+  },
+
+  _toast(text) {
+    const t = document.getElementById('amigos-toast');
+    if (!t) {
+      Notificaciones.mostrar(text, 'info', 1800);
+      return;
+    }
+    t.textContent = text;
+    t.classList.remove('oculto');
+    t.classList.add('show');
+    clearTimeout(this._toastTimer);
+    this._toastTimer = setTimeout(() => {
+      t.classList.remove('show');
+      t.classList.add('oculto');
+    }, 1800);
+  },
 
   _estaMuertoEnMapa(f) {
     const pid = Number(f.playerId);
@@ -51,12 +85,21 @@ const Amigos = {
 
   _estadoAmigo(f) {
     if (this._estaMuertoEnMapa(f)) {
-      return { texto: '💀 Muerto · ataúd en mapa', enMapa: true, muerto: true };
+      return { texto: '💀 Muerto · ataúd en mapa', enMapa: true, muerto: true, online: true };
     }
     const enMapa = this._estaEnMapa(f);
-    if (enMapa) return { texto: '🟢 En el mapa', enMapa: true };
-    if (f.online) return { texto: '🟢 En línea', enMapa: false };
-    return { texto: '⚫ Desconectado', enMapa: false };
+    if (enMapa) return { texto: 'En el mapa', enMapa: true, online: true };
+    if (f.online) return { texto: 'En línea', enMapa: false, online: true };
+    return { texto: 'Desconectado', enMapa: false, online: false };
+  },
+
+  _puedePin(f) {
+    const e = this._estadoAmigo(f);
+    return e.enMapa || e.online;
+  },
+
+  _puedeChat(f) {
+    return this._estadoAmigo(f).online || this._estaEnMapa(f);
   },
 
   toggleMarcar(playerId) {
@@ -73,14 +116,26 @@ const Amigos = {
       Multijugador._actualizarLineasAmigo();
       Multijugador._redibujar(false);
     }
-    Notificaciones.mostrar(
-      this._marcados.has(id)
-        ? (this._estaMuertoEnMapa({ playerId: id })
-          ? '📍 Pin hacia ataúd de ' + (this.friends.find(f => Number(f.playerId) === id)?.name || 'amigo')
-          : '📍 Pin de ' + (this.friends.find(f => Number(f.playerId) === id)?.name || 'amigo') + ' marcado')
-        : 'Pin desmarcado',
-      'info', 2800
-    );
+    const nombre = this.friends.find(f => Number(f.playerId) === id)?.name || 'amigo';
+    if (this._marcados.has(id)) {
+      this._toast(this._estaMuertoEnMapa({ playerId: id })
+        ? 'Pin hacia ataúd de ' + nombre
+        : 'Pin de ' + nombre + ' marcado en el mapa');
+    } else {
+      this._toast('Pin desmarcado');
+    }
+  },
+
+  abrirChat(playerId) {
+    const id = Number(playerId);
+    this.cerrar();
+    if (typeof Chat === 'undefined') return;
+    if (!Chat._online()) {
+      Notificaciones.mostrar('📡 Conéctate al servidor para chatear', 'alerta', 3000);
+      return;
+    }
+    Chat.openConversation(id);
+    this._toast('Chat con ' + (this.friends.find(f => Number(f.playerId) === id)?.name || 'jugador'));
   },
 
   _token() {
@@ -121,19 +176,37 @@ const Amigos = {
     return this.blockedIds.has(Number(playerId));
   },
 
+  abrir() {
+    document.getElementById('ventana-amigos')?.classList.remove('oculto');
+    this.refrescar();
+  },
+
+  cerrar() {
+    document.getElementById('ventana-amigos')?.classList.add('oculto');
+  },
+
   iniciarUI() {
     this._cargarMarcados();
     const btn = document.getElementById('btn-amigos');
-    if (btn) {
-      btn.addEventListener('click', () => {
-        document.getElementById('ventana-amigos').classList.remove('oculto');
-        this.refrescar();
-      });
-    }
+    if (btn) btn.addEventListener('click', () => this.abrir());
+
+    document.getElementById('cerrar-amigos')?.addEventListener('click', () => this.cerrar());
+
     const enviar = document.getElementById('btn-amigos-agregar');
-    if (enviar) {
-      enviar.addEventListener('click', () => this.solicitarPorNombre());
-    }
+    if (enviar) enviar.addEventListener('click', () => this.solicitarPorNombre());
+
+    document.getElementById('amigos-buscar')?.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') this.solicitarPorNombre();
+    });
+
+    document.getElementById('amigos-buscar-filtro')?.addEventListener('input', (e) => {
+      this._filtro = (e.target.value || '').trim().toLowerCase();
+      this._pintar();
+    });
+
+    const panel = document.querySelector('#ventana-amigos .friends-panel');
+    panel?.addEventListener('click', (e) => e.stopPropagation());
+
     this._pintar();
   },
 
@@ -151,7 +224,14 @@ const Amigos = {
     const input = document.getElementById('amigos-buscar');
     const nombre = (input?.value || '').trim();
     if (nombre.length < 2) {
-      Notificaciones.mostrar('Escribe el nombre del jugador', 'alerta', 2500);
+      this._toast('Escribe el nombre del jugador');
+      return;
+    }
+    const existe = this.friends.some(f =>
+      (f.name || '').trim().toLowerCase() === nombre.toLowerCase()
+    );
+    if (existe) {
+      this._toast('Ese jugador ya está en amigos');
       return;
     }
     await this.solicitar(null, nombre);
@@ -173,7 +253,7 @@ const Amigos = {
         Notificaciones.mostrar(data.error || 'No se pudo enviar', 'alerta', 3000);
         return;
       }
-      Notificaciones.mostrar('📨 Solicitud enviada', 'exito', 2500);
+      this._toast('📨 Solicitud enviada');
       await this.refrescar();
     } catch (e) {
       Notificaciones.mostrar('Sin conexión al servidor', 'alerta', 3000);
@@ -182,14 +262,17 @@ const Amigos = {
 
   async aceptar(requestId) {
     await this._post('/api/friends/accept', { requestId }, '✅ Amigo agregado');
+    this._toast('Amigo agregado');
   },
 
   async rechazar(requestId) {
     await this._post('/api/friends/reject', { requestId }, 'Solicitud rechazada');
+    this._toast('Solicitud rechazada');
   },
 
   async eliminar(playerId) {
     const id = Number(playerId);
+    const nombre = this.friends.find(f => Number(f.playerId) === id)?.name || 'Jugador';
     if (this._marcados.has(id)) {
       this._marcados.delete(id);
       this._guardarMarcados();
@@ -204,7 +287,7 @@ const Amigos = {
       });
       const data = await r.json();
       if (data.ok) {
-        Notificaciones.mostrar('Amigo eliminado de tu lista', 'info', 2500);
+        this._toast(nombre + ' eliminado');
         await this.refrescar();
       }
     } catch (e) { /* */ }
@@ -222,7 +305,7 @@ const Amigos = {
         method: 'DELETE',
         headers: this._headers()
       });
-      Notificaciones.mostrar('Bloqueo quitado', 'info', 2500);
+      this._toast('Bloqueo quitado');
       await this.refrescar();
     } catch (e) { /* */ }
   },
@@ -280,72 +363,131 @@ const Amigos = {
     else if (acc === 'desbloquear') this.desbloquear(id);
   },
 
-  _pintar() {
-    const lista = document.getElementById('amigos-lista');
-    if (!lista) return;
+  _pintarTarjetaAmigo(f) {
+    const id = Number(f.playerId);
+    const estado = this._estadoAmigo(f);
+    const marcado = this.esMarcado(id);
+    const puedePin = this._puedePin(f);
+    const puedeChat = this._puedeChat(f);
+    const clases = ['friend-card'];
+    if (estado.online) clases.push('online');
+    if (marcado) clases.push('pin-activo');
 
-    let html = '';
+    return '<div class="' + clases.join(' ') + '" data-amigo-id="' + id + '">' +
+      '<div class="avatar">' + this._avatarEmoji(f.name) +
+        '<span class="status-dot"></span></div>' +
+      '<div>' +
+        '<div class="friend-name">' + this._esc(f.name) + '</div>' +
+        '<div class="friend-status">' + this._esc(estado.texto) +
+          (marcado ? ' · 📍 Marcado' : '') + '</div>' +
+      '</div>' +
+      '<div class="actions">' +
+        '<button type="button" class="friend-action pin' + (marcado ? ' activo' : '') + '"' +
+          (puedePin ? '' : ' disabled') + ' data-amigo-pin="' + id + '" title="Ver pin">📍</button>' +
+        '<button type="button" class="friend-action chat"' +
+          (puedeChat ? '' : ' disabled') + ' data-amigo-chat="' + id + '" title="Chat">💬</button>' +
+        '<button type="button" class="friend-action delete" data-amigo-quitar="' + id + '" title="Eliminar">🗑️</button>' +
+      '</div></div>';
+  },
 
-    if (this.pendingIn.length) {
-      html += '<div class="amigos-seccion-titulo">Solicitudes pendientes</div>';
-      for (const r of this.pendingIn) {
-        html += '<div class="amigos-fila">' +
-          '<span>' + r.fromName + ' quiere ser tu amigo</span>' +
-          '<span class="amigos-fila-btns">' +
-          '<button type="button" class="btn-amigo-mini" data-amigo-aceptar="' + r.id + '">Aceptar</button>' +
-          '<button type="button" class="btn-amigo-mini btn-amigo-peligro" data-amigo-rechazar="' + r.id + '">Rechazar</button>' +
-          '</span></div>';
-      }
-    }
-
-    html += '<div class="amigos-seccion-titulo">Mis amigos</div>';
-    if (!this.friends.length) {
-      html += '<p class="amigos-vacio">Aún no tienes amigos. Agrégalos desde el mapa o por nombre.</p>';
-    }
-    for (const f of this.friends) {
-      const estado = this._estadoAmigo(f);
-      const marcado = this.esMarcado(f.playerId);
-      html += '<div class="amigos-fila">' +
-        '<div class="amigos-fila-info"><b>' + f.name + '</b>' +
-        '<div class="amigos-fila-meta">' + estado.texto + (marcado ? ' · 📍 Marcado' : '') + '</div></div>' +
-        '<span class="amigos-fila-btns">' +
-        '<button type="button" class="btn-amigo-mini btn-amigo-marcar' + (marcado ? ' activo' : '') +
-        '" data-amigo-marcar="' + f.playerId + '" title="Marcar pin en el mapa">📍</button>' +
-        '<button type="button" class="btn-amigo-mini btn-amigo-peligro" data-amigo-quitar="' + f.playerId + '">Quitar</button>' +
-        '<button type="button" class="btn-amigo-mini btn-amigo-peligro" data-amigo-bloquear="' + f.playerId + '">Bloquear</button>' +
-        '</span></div>';
-    }
-
-    if (this.blocked.length) {
-      html += '<div class="amigos-seccion-titulo">Bloqueados</div>';
-      for (const b of this.blocked) {
-        html += '<div class="amigos-fila">' +
-          '<span>' + b.name + '</span>' +
-          '<button type="button" class="btn-amigo-mini" data-amigo-desbloquear="' + b.playerId + '">Desbloquear</button>' +
-          '</div>';
-      }
-    }
-
-    lista.innerHTML = html;
-
-    lista.querySelectorAll('[data-amigo-aceptar]').forEach(el => {
-      el.onclick = () => this.aceptar(Number(el.dataset.amigoAceptar));
+  _enlazarTarjetas(contenedor) {
+    if (!contenedor) return;
+    contenedor.querySelectorAll('[data-amigo-pin]').forEach(el => {
+      el.onclick = () => {
+        if (el.disabled) return;
+        this.toggleMarcar(Number(el.dataset.amigoPin));
+      };
     });
-    lista.querySelectorAll('[data-amigo-rechazar]').forEach(el => {
-      el.onclick = () => this.rechazar(Number(el.dataset.amigoRechazar));
+    contenedor.querySelectorAll('[data-amigo-chat]').forEach(el => {
+      el.onclick = () => {
+        if (el.disabled) return;
+        this.abrirChat(Number(el.dataset.amigoChat));
+      };
     });
-    lista.querySelectorAll('[data-amigo-marcar]').forEach(el => {
-      el.onclick = () => this.toggleMarcar(Number(el.dataset.amigoMarcar));
-    });
-    lista.querySelectorAll('[data-amigo-quitar]').forEach(el => {
+    contenedor.querySelectorAll('[data-amigo-quitar]').forEach(el => {
       el.onclick = () => this.eliminar(Number(el.dataset.amigoQuitar));
     });
-    lista.querySelectorAll('[data-amigo-bloquear]').forEach(el => {
-      el.onclick = () => this.bloquear(Number(el.dataset.amigoBloquear));
+    contenedor.querySelectorAll('[data-amigo-aceptar]').forEach(el => {
+      el.onclick = () => this.aceptar(Number(el.dataset.amigoAceptar));
     });
-    lista.querySelectorAll('[data-amigo-desbloquear]').forEach(el => {
+    contenedor.querySelectorAll('[data-amigo-rechazar]').forEach(el => {
+      el.onclick = () => this.rechazar(Number(el.dataset.amigoRechazar));
+    });
+    contenedor.querySelectorAll('[data-amigo-desbloquear]').forEach(el => {
       el.onclick = () => this.desbloquear(Number(el.dataset.amigoDesbloquear));
     });
+  },
+
+  _pintar() {
+    const lista = document.getElementById('amigos-lista');
+    const pendientes = document.getElementById('amigos-pendientes');
+    const bloqueados = document.getElementById('amigos-bloqueados');
+    const contador = document.getElementById('amigos-count');
+    if (!lista) return;
+
+    if (contador) {
+      contador.textContent = 'MIS AMIGOS (' + this.friends.length + ')';
+    }
+
+    if (pendientes) {
+      if (this.pendingIn.length) {
+        pendientes.classList.remove('oculto');
+        let html = '<div class="amigos-pendientes-titulo">SOLICITUDES PENDIENTES (' + this.pendingIn.length + ')</div>';
+        for (const r of this.pendingIn) {
+          html += '<div class="friend-card pendiente">' +
+            '<div><div class="friend-name">' + this._esc(r.fromName) + '</div>' +
+            '<div class="friend-status">Quiere ser tu amigo</div></div>' +
+            '<div class="actions">' +
+            '<button type="button" class="friend-action aceptar" data-amigo-aceptar="' + r.id + '">Aceptar</button>' +
+            '<button type="button" class="friend-action rechazar" data-amigo-rechazar="' + r.id + '">Rechazar</button>' +
+            '</div></div>';
+        }
+        pendientes.innerHTML = html;
+        this._enlazarTarjetas(pendientes);
+      } else {
+        pendientes.classList.add('oculto');
+        pendientes.innerHTML = '';
+      }
+    }
+
+    const filtro = this._filtro;
+    const amigosFiltrados = this.friends.filter(f =>
+      !filtro || (f.name || '').toLowerCase().includes(filtro)
+    );
+
+    lista.innerHTML = '';
+    if (!amigosFiltrados.length) {
+      lista.innerHTML = '<div class="friend-card">' +
+        '<div class="avatar">?</div>' +
+        '<div><div class="friend-name">' +
+          (filtro ? 'Sin resultados' : 'Sin amigos todavía') +
+        '</div><div class="friend-status">' +
+          (filtro ? 'No encontré ningún amigo con ese nombre.' : 'Agrégalos por nombre o desde el mapa.') +
+        '</div></div></div>';
+    } else {
+      for (const f of amigosFiltrados) {
+        lista.insertAdjacentHTML('beforeend', this._pintarTarjetaAmigo(f));
+      }
+      this._enlazarTarjetas(lista);
+    }
+
+    if (bloqueados) {
+      if (this.blocked.length) {
+        bloqueados.classList.remove('oculto');
+        let html = '<div class="amigos-bloqueados-titulo">BLOQUEADOS</div>';
+        for (const b of this.blocked) {
+          html += '<div class="amigos-bloqueado-fila">' +
+            '<span>' + this._esc(b.name) + '</span>' +
+            '<button type="button" class="friend-action aceptar" data-amigo-desbloquear="' + b.playerId + '">Desbloquear</button>' +
+            '</div>';
+        }
+        bloqueados.innerHTML = html;
+        this._enlazarTarjetas(bloqueados);
+      } else {
+        bloqueados.classList.add('oculto');
+        bloqueados.innerHTML = '';
+      }
+    }
 
     const badge = document.getElementById('badge-amigos');
     if (badge) {
