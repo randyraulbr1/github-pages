@@ -501,7 +501,7 @@ const Admin = {
   },
 
   // Sube el mapa para que TODOS los jugadores lo vean (servidor en vivo)
-  async _publicarParaTodos(silencioso) {
+  async _publicarParaTodos(silencioso, opts) {
     if (!this._mundoCargado) return false;
     if (!this.esAdminJugador()) return false;
     const puedeServidor = typeof SyncServidor !== 'undefined' && SyncServidor.puedePublicar();
@@ -515,7 +515,7 @@ const Admin = {
       return false;
     }
     clearTimeout(this._tempPublicar);
-    return this.publicarMundo(silencioso !== false);
+    return this.publicarMundo(silencioso !== false, opts);
   },
 
   _tokenPublicacion() {
@@ -2969,7 +2969,7 @@ const Admin = {
     delete (this.publicado.partidas || {})[j.id];
     delete (this.datos.partidasExtra || {})[j.id];
     this.guardar();
-    await this._publicarParaTodos(false);
+    await this._publicarParaTodos(false, { confiarLocal: true });
     Notificaciones.mostrar('🗑️ ' + j.nombre + ' eliminado', 'alerta', 5000);
     this._listarCuentasAsync({ soloRefrescar: true });
   },
@@ -3869,19 +3869,21 @@ const Admin = {
     Notificaciones.mostrar(texto, 'exito', 4000);
   },
 
-  async publicarMundo(silencioso) {
+  async publicarMundo(silencioso, opts) {
     if (!this._mundoCargado) return false;
     if (!this.esAdminJugador()) return false;
-    try {
-      await this.actualizarJugadoresGlobales();
-      const { indice } = await MundoPublico.refrescarCuentasServidor();
-      if (indice?.length) {
-        const porId = new Map();
-        for (const j of this._jugadoresParaPublicar()) porId.set(j.id, j);
-        for (const j of indice) porId.set(j.id, Object.assign({}, porId.get(j.id), j));
-        this.publicado.jugadores = [...porId.values()];
-      }
-    } catch (e) { /* seguir con jugadores locales */ }
+    if (!opts?.confiarLocal) {
+      try {
+        await this.actualizarJugadoresGlobales();
+        const { indice } = await MundoPublico.refrescarCuentasServidor();
+        if (indice?.length) {
+          const porId = new Map();
+          for (const j of this._jugadoresParaPublicar()) porId.set(j.id, j);
+          for (const j of indice) porId.set(j.id, Object.assign({}, porId.get(j.id), j));
+          this.publicado.jugadores = [...porId.values()];
+        }
+      } catch (e) { /* seguir con jugadores locales */ }
+    }
     let adminLocal;
     try {
       adminLocal = JSON.parse(this._jsonMundo());

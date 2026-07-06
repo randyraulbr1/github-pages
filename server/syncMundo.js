@@ -444,7 +444,19 @@ function syncMundoFromJson(mundo, io) {
   }
 
   const prev = getWorldSnapshot();
-  mergeJugadoresPartidas(mundo, [prev, mundo]);
+  if (Array.isArray(mundo.jugadores)) {
+    // Publicación completa del admin: la lista de jugadores del JSON manda.
+    const ids = new Set(mundo.jugadores.map(j => j?.id).filter(Boolean));
+    const partidasPrev = {};
+    if (prev?.partidas) {
+      for (const [id, p] of Object.entries(prev.partidas)) {
+        if (ids.has(id)) partidasPrev[id] = p;
+      }
+    }
+    mergeJugadoresPartidas(mundo, [{ partidas: partidasPrev }]);
+  } else {
+    mergeJugadoresPartidas(mundo, [prev, mundo]);
+  }
   if (prev?.cuerposMuertos) {
     mundo.cuerposMuertos = mundo.cuerposMuertos || prev.cuerposMuertos;
     limpiarCuerposExpirados(mundo);
@@ -561,8 +573,12 @@ function syncMundoFromJson(mundo, io) {
   }
 
   try {
-    const { reconciliarCuentasEnSnapshot } = require('./syncCuentas');
-    reconciliarCuentasEnSnapshot(mundo);
+    const { reconciliarCuentasEnSnapshot, purgarCuentasFueraDeSnapshot } = require('./syncCuentas');
+    if (Array.isArray(mundo.jugadores)) {
+      purgarCuentasFueraDeSnapshot(mundo);
+    } else {
+      reconciliarCuentasEnSnapshot(mundo);
+    }
   } catch (e) { /* */ }
 
   saveWorldSnapshot(mundo);

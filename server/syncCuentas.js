@@ -101,6 +101,24 @@ function getJugadoresPublicos() {
   );
 }
 
+/** Borra de SQLite usuarios que ya no están en la lista publicada por el admin. */
+function purgarCuentasFueraDeSnapshot(mundo) {
+  if (!Array.isArray(mundo?.jugadores)) return { ok: true, removed: 0 };
+  const nombres = new Set(
+    mundo.jugadores.map(j => String(j.nombre || '').toLowerCase()).filter(Boolean)
+  );
+  const rows = listUsersWithPlayers();
+  const del = db.prepare('DELETE FROM users WHERE id = ?');
+  let removed = 0;
+  for (const r of rows) {
+    const nombre = String(r.name || r.username || '').toLowerCase();
+    if (!nombre || nombres.has(nombre)) continue;
+    del.run(r.user_id);
+    removed++;
+  }
+  return { ok: true, removed };
+}
+
 async function respaldarCuentasEnGitHub() {
   const snap = getWorldSnapshot();
   if (!snap) return { ok: false, reason: 'sin snapshot' };
@@ -116,6 +134,7 @@ module.exports = {
   countUsers,
   listUsersWithPlayers,
   reconciliarCuentasEnSnapshot,
+  purgarCuentasFueraDeSnapshot,
   getJugadoresPublicos,
   respaldarCuentasEnGitHub
 };
