@@ -279,6 +279,7 @@ const Enemigos = {
   },
 
   _refrescarIconoMarcador(e) {
+    if (this._adminOrganizando()) return;
     const m = this._marcadores[e.id];
     if (!m) return;
     m.setIcon(this._iconoMarcador(e));
@@ -528,8 +529,10 @@ const Enemigos = {
     e._avisoZona = false;
     if (!opts?.silencioso) e._adminMovidoEn = Date.now();
     this._moverEnemigo(e, p[0], p[1]);
-    this._sincronizarZonas(e);
-    this._refrescarIconoMarcador(e);
+    if (!this._adminOrganizando() && !opts?.silencioso) {
+      this._sincronizarZonas(e);
+      this._refrescarIconoMarcador(e);
+    }
   },
 
   _moverEnemigo(e, nlat, nlng) {
