@@ -62,7 +62,8 @@
       <div class="auth-titulo">💀 Has muerto</div>
       <p class="auth-aviso auth-muerte-destacado">📱 Mantén el teléfono encendido y <b>no cierres esta pantalla</b> para que tus amigos puedan encontrarte en el mapa.</p>
       <p class="auth-aviso">Pide ayuda a un amigo para que te reviva con un 🩹 botiquín ($300 en la farmacia).</p>
-      <p class="auth-aviso">Tu pin ⚰️ queda en el mapa <b>1 hora</b> donde caíste (aunque te desconectes).</p>
+      <p class="auth-aviso auth-muerte-expira" id="muerte-expira-texto"></p>
+      <p class="auth-aviso">Tu pin ⚰️ queda en el mapa donde caíste (aunque te desconectes).</p>
     </div>
   </div>
 
@@ -728,44 +729,44 @@
   </div>
 
   <!-- LIBRERÍAS -->
-  <script src="lib/leaflet/leaflet.js?v=88"></script>
+  <script src="lib/leaflet/leaflet.js?v=90"></script>
 
   <!-- MÓDULOS DEL JUEGO (orden importante) -->
-  <script src="js/config/config.js?v=88"></script>
-  <script src="js/nucleo/utilidades.js?v=88"></script>
-  <script src="js/mundo/mundo_publico.js?v=88"></script>
-  <script src="js/notificaciones/notificaciones.js?v=88"></script>
-  <script src="js/usuarios/usuarios.js?v=88"></script>
-  <script src="js/guardado/guardado.js?v=88"></script>
-  <script src="js/historial/historial.js?v=88"></script>
-  <script src="js/dinero/dinero.js?v=88"></script>
-  <script src="js/vida/vida.js?v=88"></script>
-  <script src="js/items/items.js?v=88"></script>
-  <script src="js/mochila/mochila.js?v=88"></script>
-  <script src="js/mapa/mapa.js?v=88"></script>
-  <script src="js/gps/gps.js?v=88"></script>
-  <script src="js/tiendas/datos_tiendas.js?v=88"></script>
-  <script src="js/tiendas/tiendas.js?v=88"></script>
-  <script src="js/pesca/pesca.js?v=88"></script>
-  <script src="js/tesoros/datos_tesoros.js?v=88"></script>
-  <script src="js/tesoros/tesoros.js?v=88"></script>
-  <script src="js/misiones/datos_misiones.js?v=88"></script>
-  <script src="js/misiones/misiones.js?v=88"></script>
-  <script src="js/cofres/cofres.js?v=88"></script>
-  <script src="js/correo/correo.js?v=88"></script>
-  <script src="js/enemigos/enemigos.js?v=88"></script>
-  <script src="js/online/sync_servidor.js?v=88"></script>
-  <script src="js/admin/admin.js?v=88"></script>
-  <script src="js/opciones/opciones.js?v=88"></script>
-  <script src="js/online/mundo_online.js?v=88"></script>
-  <script src="js/online/amigos.js?v=88"></script>
-  <script src="js/online/multijugador.js?v=88"></script>
-  <script src="js/principal.js?v=88"></script>
+  <script src="js/config/config.js?v=90"></script>
+  <script src="js/nucleo/utilidades.js?v=90"></script>
+  <script src="js/mundo/mundo_publico.js?v=90"></script>
+  <script src="js/notificaciones/notificaciones.js?v=90"></script>
+  <script src="js/usuarios/usuarios.js?v=90"></script>
+  <script src="js/guardado/guardado.js?v=90"></script>
+  <script src="js/historial/historial.js?v=90"></script>
+  <script src="js/dinero/dinero.js?v=90"></script>
+  <script src="js/vida/vida.js?v=90"></script>
+  <script src="js/items/items.js?v=90"></script>
+  <script src="js/mochila/mochila.js?v=90"></script>
+  <script src="js/mapa/mapa.js?v=90"></script>
+  <script src="js/gps/gps.js?v=90"></script>
+  <script src="js/tiendas/datos_tiendas.js?v=90"></script>
+  <script src="js/tiendas/tiendas.js?v=90"></script>
+  <script src="js/pesca/pesca.js?v=90"></script>
+  <script src="js/tesoros/datos_tesoros.js?v=90"></script>
+  <script src="js/tesoros/tesoros.js?v=90"></script>
+  <script src="js/misiones/datos_misiones.js?v=90"></script>
+  <script src="js/misiones/misiones.js?v=90"></script>
+  <script src="js/cofres/cofres.js?v=90"></script>
+  <script src="js/correo/correo.js?v=90"></script>
+  <script src="js/enemigos/enemigos.js?v=90"></script>
+  <script src="js/online/sync_servidor.js?v=90"></script>
+  <script src="js/admin/admin.js?v=90"></script>
+  <script src="js/opciones/opciones.js?v=90"></script>
+  <script src="js/online/mundo_online.js?v=90"></script>
+  <script src="js/online/amigos.js?v=90"></script>
+  <script src="js/online/multijugador.js?v=90"></script>
+  <script src="js/principal.js?v=90"></script>
   <script>
     // Registrar la app instalable (PWA)
     if ('serviceWorker' in navigator) {
       const yaTeniaVersion = !!navigator.serviceWorker.controller;
-      navigator.serviceWorker.register('sw.js?v=88', { updateViaCache: 'none' })
+      navigator.serviceWorker.register('sw.js?v=90', { updateViaCache: 'none' })
         .then(function (reg) { reg.update(); })
         .catch(function () {});
       // Cuando llega una versión nueva del juego: avisar y recargar solo

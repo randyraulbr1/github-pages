@@ -198,6 +198,7 @@ const Vida = {
     if (typeof GPS !== 'undefined' && GPS.posicion) {
       Guardado.datos.muertePos = GPS.posicion.slice();
     }
+    Guardado.datos.muertoAt = Date.now();
     Guardado.datos.muerteInventario = (Guardado.datos.mochila || [])
       .filter(Boolean)
       .map(s => ({ id: s.id, cantidad: s.cantidad || 1 }));
@@ -214,6 +215,32 @@ const Vida = {
     const pantalla = document.getElementById('pantalla-muerte');
     if (pantalla) pantalla.classList.remove('oculto');
     document.body.classList.add('jugador-muerto');
+    this._actualizarTextoExpiraMuerte();
+  },
+
+  _muertoAtMs() {
+    if (Guardado.datos.muertoAt) return Guardado.datos.muertoAt;
+    if (typeof Multijugador !== 'undefined' && Multijugador.activo) {
+      const c = Multijugador.cuerpos?.[String(Multijugador._miPlayerId())];
+      if (c?.muertoAt) return c.muertoAt;
+    }
+    return null;
+  },
+
+  _actualizarTextoExpiraMuerte() {
+    const el = document.getElementById('muerte-expira-texto');
+    if (!el) return;
+    const horas = CONFIG.cuerpoMuertoHoras || 1;
+    const muertoAt = this._muertoAtMs();
+    if (!muertoAt) {
+      el.innerHTML = 'Tu ataúd ⚰️ permanece <b>' + horas + ' hora</b> en el mapa. Después desaparece y no podrás ser revivido.';
+      return;
+    }
+    const expira = muertoAt + horas * 3600000;
+    const f = new Date(expira);
+    const fecha = f.toLocaleDateString('es-ES');
+    const hora = f.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' });
+    el.innerHTML = 'Tu ataúd ⚰️ desaparece el <b>' + fecha + ' a las ' + hora + '</b>. Después no podrás ser revivido.';
   },
 
   revivir(vida, motivo) {
@@ -221,6 +248,7 @@ const Vida = {
     Guardado.datos.muerto = false;
     Guardado.datos.muertePos = null;
     Guardado.datos.muerteInventario = null;
+    Guardado.datos.muertoAt = null;
     const max = this.vidaMaxima();
     this.actual = Math.max(1, Math.min(max, vida || max));
     Guardado.datos.vida = this.actual;

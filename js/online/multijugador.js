@@ -626,6 +626,14 @@ const Multijugador = {
 
   _aplicarCuerpos(cuerpos) {
     this.cuerpos = cuerpos || {};
+    const miId = this._miPlayerId();
+    const miCuerpo = miId > 0 ? this.cuerpos[String(miId)] : null;
+    if (miCuerpo?.muertoAt && typeof Guardado !== 'undefined' && Guardado.datos) {
+      Guardado.datos.muertoAt = miCuerpo.muertoAt;
+      if (typeof Vida !== 'undefined' && Vida._actualizarTextoExpiraMuerte) {
+        Vida._actualizarTextoExpiraMuerte();
+      }
+    }
     this._redibujarCuerpos();
   },
 
@@ -640,6 +648,7 @@ const Multijugador = {
       if (idsOnlineDead.has(id)) continue;
       this._actualizarMarcadorCuerpo(c);
     }
+    this._actualizarLineasAmigo();
   },
 
   _jugadorMuertoParaPopup(p) {
@@ -810,6 +819,24 @@ const Multijugador = {
     this._actualizarLineasAmigo();
   },
 
+  _destinoAmigoMarcado(pid) {
+    const id = Number(pid);
+    const jugador = this.online.find(p => Number(p.playerId) === id);
+    if (jugador && this._estaMuerto(jugador)) {
+      const pos = this._posMarcador(jugador);
+      return { x: pos.x, y: pos.y, muerto: true };
+    }
+    const cuerpo = this.cuerpos[String(id)];
+    if (cuerpo && cuerpo.deathX != null && cuerpo.deathY != null) {
+      return { x: cuerpo.deathX, y: cuerpo.deathY, muerto: true };
+    }
+    if (jugador && !this._estaMuerto(jugador)) {
+      const pos = this._posMarcador(jugador);
+      return { x: pos.x, y: pos.y, muerto: false };
+    }
+    return null;
+  },
+
   _actualizarLineasAmigo() {
     if (!Mapa.mapa || typeof Amigos === 'undefined') return;
     const marcados = Amigos.obtenerMarcados();
@@ -818,24 +845,25 @@ const Multijugador = {
 
     if (miPos && marcados.size) {
       for (const pid of marcados) {
-        const jugador = this.online.find(p => Number(p.playerId) === Number(pid));
-        if (!jugador || this._estaMuerto(jugador)) continue;
+        const dest = this._destinoAmigoMarcado(pid);
+        if (!dest) continue;
         activos.add(String(pid));
-        const dest = this._posMarcador(jugador);
         const coords = [[miPos[0], miPos[1]], [dest.x, dest.y]];
+        const color = dest.muerto ? '#f59e0b' : '#5ce883';
         let linea = this._lineasAmigo[pid];
         if (!linea) {
           linea = L.polyline(coords, {
-            color: '#5ce883',
-            weight: 3,
-            opacity: 0.8,
-            dashArray: '10, 12',
+            color,
+            weight: dest.muerto ? 4 : 3,
+            opacity: 0.85,
+            dashArray: dest.muerto ? '8, 10' : '10, 12',
             lineCap: 'round',
-            className: 'linea-amigo-mapa'
+            className: 'linea-amigo-mapa' + (dest.muerto ? ' linea-amigo-ataud' : '')
           }).addTo(Mapa.mapa);
           this._lineasAmigo[pid] = linea;
         } else {
           linea.setLatLngs(coords);
+          linea.setStyle({ color, weight: dest.muerto ? 4 : 3, dashArray: dest.muerto ? '8, 10' : '10, 12' });
         }
       }
     }

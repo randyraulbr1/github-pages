@@ -224,6 +224,7 @@ button { font-family: inherit; }
   background: rgba(255,214,10,.12); border: 1px solid rgba(255,214,10,.35);
   border-radius: 10px; padding: 10px 12px;
 }
+.auth-muerte-expira b { color: #ff9f4a; }
 .popup-muerto-amigo {
   margin-top: 6px; width: 100%; padding: 7px; border-radius: 10px;
   border: none; background: rgba(61,139,253,.22); color: #7eb8ff;

@@ -30,7 +30,16 @@ const Amigos = {
 
   esMarcado(playerId) { return this._marcados.has(Number(playerId)); },
 
+  _estaMuertoEnMapa(f) {
+    const pid = Number(f.playerId);
+    if (typeof Multijugador === 'undefined') return false;
+    const online = Multijugador.online?.find(p => Number(p.playerId) === pid);
+    if (online && Multijugador._estaMuerto(online)) return true;
+    return !!(Multijugador.cuerpos && Multijugador.cuerpos[String(pid)]);
+  },
+
   _estaEnMapa(f) {
+    if (this._estaMuertoEnMapa(f)) return true;
     if (typeof Multijugador === 'undefined' || !Multijugador.online?.length) return false;
     const pid = Number(f.playerId);
     const nombre = (f.name || '').trim().toLowerCase();
@@ -41,6 +50,9 @@ const Amigos = {
   },
 
   _estadoAmigo(f) {
+    if (this._estaMuertoEnMapa(f)) {
+      return { texto: '💀 Muerto · ataúd en mapa', enMapa: true, muerto: true };
+    }
     const enMapa = this._estaEnMapa(f);
     if (enMapa) return { texto: '🟢 En el mapa', enMapa: true };
     if (f.online) return { texto: '🟢 En línea', enMapa: false };
@@ -62,7 +74,11 @@ const Amigos = {
       Multijugador._redibujar(false);
     }
     Notificaciones.mostrar(
-      this._marcados.has(id) ? '📍 Pin de ' + (this.friends.find(f => Number(f.playerId) === id)?.name || 'amigo') + ' marcado' : 'Pin desmarcado',
+      this._marcados.has(id)
+        ? (this._estaMuertoEnMapa({ playerId: id })
+          ? '📍 Pin hacia ataúd de ' + (this.friends.find(f => Number(f.playerId) === id)?.name || 'amigo')
+          : '📍 Pin de ' + (this.friends.find(f => Number(f.playerId) === id)?.name || 'amigo') + ' marcado')
+        : 'Pin desmarcado',
       'info', 2800
     );
   },
@@ -91,7 +107,10 @@ const Amigos = {
     this.friendIds = new Set((data.friendIds || this.friends.map(f => f.playerId)).map(Number));
     this.blockedIds = new Set((data.blockedIds || this.blocked.map(b => b.playerId)).map(Number));
     this._pintar();
-    if (typeof Multijugador !== 'undefined') Multijugador._redibujar();
+    if (typeof Multijugador !== 'undefined') {
+      Multijugador._actualizarLineasAmigo();
+      Multijugador._redibujar(false);
+    }
   },
 
   esAmigo(playerId) {
