@@ -4,6 +4,7 @@
 // El resto queda en el historial de avisos (campana).
 // ============================================================
 const Notificaciones = {
+  _toastTimer: null,
 
   _esImportante(texto, tipo) {
     if (tipo === 'admin' || tipo === 'error') return true;
@@ -27,13 +28,19 @@ const Notificaciones = {
     return true;
   },
 
-  _guardarHistorial(texto, tipo) {
+  _guardarHistorial(texto, tipo, categoria) {
     if (typeof Guardado === 'undefined' || !Guardado.datos) return;
     if (!Guardado.datos.notificaciones) Guardado.datos.notificaciones = [];
-    Guardado.datos.notificaciones.unshift({ texto, tipo, t: Date.now() });
+    Guardado.datos.notificaciones.unshift({
+      texto,
+      tipo,
+      categoria: categoria || null,
+      t: Date.now(),
+      leido: false
+    });
     Guardado.datos.notificaciones = Guardado.datos.notificaciones.slice(0, 20);
     Guardado.guardar();
-    if (tipo === 'admin') this._actualizarBadge();
+    this._actualizarBadge();
   },
 
   mostrar(texto, tipo = 'info', duracionMs = 3200) {
@@ -44,7 +51,7 @@ const Notificaciones = {
   },
 
   mostrarSocial(texto, tipo = 'info', categoria = 'chat', duracionMs = 3500) {
-    this._guardarHistorial(texto, tipo);
+    this._guardarHistorial(texto, tipo, categoria);
     if (!this._puedeMostrarToast()) return;
     const prefs = (typeof Guardado !== 'undefined' && Guardado.datos?.preferencias) || {};
     if (categoria === 'chat' && prefs.notifChat === false) return;
@@ -71,7 +78,7 @@ const Notificaciones = {
   _actualizarBadge() {
     const badge = document.getElementById('badge-avisos');
     if (!badge || !Guardado.datos) return;
-    const sinLeer = (Guardado.datos.notificaciones || []).some(n => n.tipo === 'admin' && !n.leido);
+    const sinLeer = (Guardado.datos.notificaciones || []).some(n => !n.leido);
     badge.classList.toggle('oculto', !sinLeer);
   },
 
@@ -80,26 +87,132 @@ const Notificaciones = {
   },
 
   iniciarVisor() {
-    document.getElementById('btn-notific').addEventListener('click', () => this.abrirVisor());
+    document.getElementById('btn-notific')?.addEventListener('click', (e) => {
+      e.stopPropagation();
+      this.abrirVisor();
+    });
+    document.getElementById('cerrar-notific')?.addEventListener('click', () => this.cerrarVisor());
+    document.getElementById('avisos-marcar-leidos')?.addEventListener('click', () => this._marcarTodosLeidos());
+    document.getElementById('avisos-limpiar')?.addEventListener('click', () => this._limpiarTodos());
+
+    const ventana = document.getElementById('ventana-notific');
+    const panel = ventana?.querySelector('.avisos-panel');
+    panel?.addEventListener('click', (e) => e.stopPropagation());
+    ventana?.addEventListener('click', (e) => {
+      if (e.target === ventana) this.cerrarVisor();
+    });
+
+    if (!this._clickFueraOk) {
+      this._clickFueraOk = true;
+      const cerrarSiFuera = (e) => {
+        const v = document.getElementById('ventana-notific');
+        if (!v || v.classList.contains('oculto')) return;
+        if (e.target.closest('#btn-notific')) return;
+        const caja = v.querySelector('.avisos-panel');
+        if (caja?.contains(e.target)) return;
+        this.cerrarVisor();
+      };
+      document.addEventListener('click', cerrarSiFuera);
+    }
+  },
+
+  _claseAviso(aviso) {
+    if (aviso.categoria === 'chat') return 'chat';
+    if (aviso.categoria === 'amigos') return 'chat';
+    const texto = aviso.texto || '';
+    if (aviso.tipo === 'admin') return 'admin';
+    if (/📍|pin|ubicación/i.test(texto)) return 'pin';
+    if (/💬|chat/i.test(texto)) return 'chat';
+    if (aviso.tipo === 'alerta' || aviso.tipo === 'error') return 'warning';
+    if (aviso.tipo === 'exito') return 'pin';
+    return 'admin';
+  },
+
+  _iconoAviso(aviso, clase) {
+    const texto = aviso.texto || '';
+    const match = texto.match(/^(\p{Extended_Pictographic})/u);
+    if (match) return match[1];
+    if (clase === 'pin') return '📍';
+    if (clase === 'chat') return '💬';
+    if (clase === 'warning') return '⚠️';
+    return '🌴';
+  },
+
+  _esc(texto) {
+    return String(texto)
+      .replaceAll('&', '&amp;')
+      .replaceAll('<', '&lt;')
+      .replaceAll('>', '&gt;')
+      .replaceAll('"', '&quot;');
+  },
+
+  _toastAvisos(texto) {
+    const el = document.getElementById('avisos-toast');
+    if (!el) return;
+    el.textContent = texto;
+    el.classList.add('show');
+    clearTimeout(this._toastTimer);
+    this._toastTimer = setTimeout(() => el.classList.remove('show'), 1700);
+  },
+
+  _pintarVisor() {
+    const cont = document.getElementById('lista-notificaciones');
+    if (!cont) return;
+    const lista = (Guardado.datos && Guardado.datos.notificaciones) || [];
+    cont.innerHTML = '';
+
+    if (!lista.length) {
+      cont.innerHTML = '<div class="avisos-empty show">No tienes avisos nuevos 🔕</div>';
+      return;
+    }
+
+    lista.forEach((aviso, index) => {
+      const clase = this._claseAviso(aviso);
+      const icono = this._iconoAviso(aviso, clase);
+      const fila = document.createElement('div');
+      fila.className = 'avisos-notice ' + clase + (aviso.leido ? '' : ' new');
+      fila.innerHTML =
+        '<div class="avisos-notice-title">' + icono + ' ' + this._esc(aviso.texto) + '</div>' +
+        '<div class="avisos-notice-time">' + this._esc(Utilidades.fechaLegible(aviso.t)) + '</div>';
+      fila.addEventListener('click', () => {
+        aviso.leido = true;
+        Guardado.guardar();
+        this._actualizarBadge();
+        this._toastAvisos('Aviso abierto');
+        this._pintarVisor();
+      });
+      cont.appendChild(fila);
+    });
+  },
+
+  _marcarTodosLeidos() {
+    const lista = Guardado.datos?.notificaciones || [];
+    lista.forEach(n => { n.leido = true; });
+    Guardado.guardar();
+    this._actualizarBadge();
+    this._toastAvisos('Avisos marcados como leídos');
+    this._pintarVisor();
+  },
+
+  _limpiarTodos() {
+    if (!Guardado.datos) return;
+    Guardado.datos.notificaciones = [];
+    Guardado.guardar();
+    this._actualizarBadge();
+    this._toastAvisos('Avisos limpiados');
+    this._pintarVisor();
   },
 
   abrirVisor() {
-    const cont = document.getElementById('lista-notificaciones');
-    cont.innerHTML = '';
-    const lista = (Guardado.datos && Guardado.datos.notificaciones) || [];
-    if (!lista.length) {
-      cont.innerHTML = '<div class="panel-vacio">Todavía no tienes avisos.<br>Aparecerán aquí misiones, alertas y mensajes del admin.</div>';
-    }
-    for (const aviso of lista) {
-      if (aviso.tipo === 'admin') aviso.leido = true;
-      const fila = document.createElement('div');
-      fila.className = 'fila-aviso ' + (aviso.tipo || 'info');
-      fila.innerHTML = '<div>' + aviso.texto + '</div>' +
-        '<div class="fecha">' + Utilidades.fechaLegible(aviso.t) + '</div>';
-      cont.appendChild(fila);
-    }
-    Guardado.guardar();
-    this._actualizarBadge();
-    document.getElementById('ventana-notific').classList.remove('oculto');
+    this._pintarVisor();
+    const v = document.getElementById('ventana-notific');
+    v?.classList.remove('oculto');
+    v?.classList.add('show');
+  },
+
+  cerrarVisor() {
+    const v = document.getElementById('ventana-notific');
+    v?.classList.add('oculto');
+    v?.classList.remove('show');
   }
 };

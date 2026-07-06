@@ -13,10 +13,11 @@
   <link rel="stylesheet" href="css/chat.css?v=115">
   <link rel="stylesheet" href="css/amigos.css">
   <link rel="stylesheet" href="css/opciones.css?v=116">
+  <link rel="stylesheet" href="css/notificaciones.css?v=117">
   <script>
     // Aviso temprano en móvil (antes de cargar 20+ archivos JS)
     (function () {
-      var V = '116';
+      var V = '117';
       var texto = document.getElementById('carga-texto');
       if (texto) texto.textContent = 'Conectando…';
       var prev = localStorage.getItem('mariel_app_version');
@@ -421,14 +422,23 @@
     </div>
   </div>
 
-  <!-- ============ VENTANA: AVISOS (últimas 10 notificaciones) ============ -->
-  <div id="ventana-notific" class="ventana oculto">
-    <div class="ventana-caja panel-social-caja">
-      <div class="ventana-titulo">🔔 Últimos avisos <button class="btn-cerrar" data-cierra="ventana-notific">✕</button></div>
-      <p class="panel-social-ayuda">Misiones, alertas del admin y eventos importantes del juego.</p>
-      <div id="lista-notificaciones" class="panel-lista-scroll"></div>
+  <!-- ============ VENTANA: AVISOS (últimas notificaciones) ============ -->
+  <div id="ventana-notific" class="avisos-ventana oculto" aria-label="Últimos avisos">
+    <div class="avisos-panel">
+      <div class="avisos-header">
+        <div class="avisos-title">🔔 Últimos avisos</div>
+        <button type="button" class="avisos-close" id="cerrar-notific" aria-label="Cerrar">✕</button>
+      </div>
+      <div class="avisos-info">Misiones, alertas del admin y eventos importantes del juego.</div>
+      <div class="avisos-list" id="lista-notificaciones"></div>
+      <div class="avisos-footer">
+        <button type="button" class="avisos-clear-btn" id="avisos-marcar-leidos">Marcar leídos</button>
+        <button type="button" class="avisos-clear-btn blue" id="avisos-limpiar">Limpiar</button>
+      </div>
     </div>
   </div>
+
+  <div id="avisos-toast" aria-live="polite"></div>
 
   <!-- ============ VENTANA: CORREO ============ -->
   <div id="ventana-correo" class="ventana oculto">
@@ -870,7 +880,7 @@
   <script src="js/config/config.js?v=104"></script>
   <script src="js/nucleo/utilidades.js?v=104"></script>
   <script src="js/mundo/mundo_publico.js?v=104"></script>
-  <script src="js/notificaciones/notificaciones.js?v=104"></script>
+  <script src="js/notificaciones/notificaciones.js?v=117"></script>
   <script src="js/usuarios/usuarios.js?v=104"></script>
   <script src="js/guardado/guardado.js?v=104"></script>
   <script src="js/historial/historial.js?v=104"></script>
@@ -902,7 +912,7 @@
     // Registrar la app instalable (PWA)
     if ('serviceWorker' in navigator) {
       const yaTeniaVersion = !!navigator.serviceWorker.controller;
-      navigator.serviceWorker.register('sw.js?v=116', { updateViaCache: 'none' })
+      navigator.serviceWorker.register('sw.js?v=117', { updateViaCache: 'none' })
         .then(function (reg) { reg.update(); })
         .catch(function () {});
       // Cuando llega una versión nueva del juego: avisar y recargar solo
