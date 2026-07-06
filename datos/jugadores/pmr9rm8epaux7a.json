@@ -1,0 +1,77 @@
+{
+  "id": "pmr9rm8epaux7a",
+  "nombre": "33",
+  "telefono": "91192994",
+  "pinHash": "4bdc96ffc0926b62d55708e3c1755ca3f04b8c28bec6fd85777117da67497f11",
+  "creado": 1783375315730,
+  "actualizadoEn": 1783375337337,
+  "partida": {
+    "datos": {
+      "mochila": [
+        {
+          "id": "agua",
+          "cantidad": 2
+        },
+        {
+          "id": "pan",
+          "cantidad": 1
+        },
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null
+      ],
+      "dinero": {
+        "saldo": 100,
+        "control": "68e382a3687042dcd0420432d9bf210eada6d12606b6ecd367d18c724c2f4b38"
+      },
+      "vida": 100,
+      "hambre": 50,
+      "xp": 0,
+      "nivel": 1,
+      "posicionJugador": null,
+      "tesorosRecogidos": [],
+      "misiones": {},
+      "misionesEstado": {},
+      "correoEnviados": [],
+      "correoRecibidos": [],
+      "correoTiendaLocal": [],
+      "historialDinero": [
+        {
+          "t": 1783375317463,
+          "detalle": "Dinero inicial",
+          "monto": 100,
+          "saldo": 100,
+          "lugar": "sin posición",
+          "pos": null,
+          "hashAnterior": "GENESIS",
+          "hash": "99237b6b79dae2ada835b6a34af49a8bed72824c35f8baf9d9d5f246a202593b"
+        }
+      ],
+      "historialObjetos": [],
+      "mensajesVistos": [],
+      "muerto": false,
+      "armaEquipada": null
+    },
+    "t": 1783375334894
+  }
+}
