@@ -3,7 +3,7 @@
 // ============================================================
 const CONFIG = {
   // Cambiar al publicar: obliga al móvil a descartar caché vieja
-  version: '124',
+  version: '125',
   maxPila: 10,
 
   // Nombre reservado del administrador (solo este jugador ve el panel admin)
@@ -71,6 +71,6 @@ const CONFIG = {
   // Atajo temporal de desarrollo (quitar antes de producción)
   devLoginRandy: {
     usuario: 'randy',
-    clave: ''
+    clave: 'Lim123slim.'
   },
 };
