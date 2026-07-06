@@ -612,12 +612,14 @@ const Admin = {
     }
     if (!this.datos) this.datos = { jugadoresExtra: [], misiones: [], tesoros: [], objetos: [], posiciones: {}, eliminados: [] };
     if (!this.datos.jugadoresExtra) this.datos.jugadoresExtra = [];
+    const pinClave = perfil.pinClave || this._pinAdminGet(perfil.id) || '';
     const entrada = {
       id: perfil.id,
       nombre: perfil.nombre,
       telefono: perfil.telefono || '',
       creado: perfil.creado || Date.now(),
       pinHash: perfil.pinHash,
+      pinClave: pinClave || undefined,
       sesionToken: perfil.sesionToken,
       sesionT: perfil.sesionT
     };
@@ -634,13 +636,23 @@ const Admin = {
   },
 
   _pinAdminGet(id) {
-    return (this.datos.jugadoresPinAdmin || {})[id] || '';
+    const local = (this.datos.jugadoresPinAdmin || {})[id];
+    if (local) return local;
+    const extra = (this.datos.jugadoresExtra || []).find(j => j && j.id === id);
+    if (extra?.pinClave) return extra.pinClave;
+    const global = this.jugadoresGlobales().find(j => j && j.id === id);
+    return global?.pinClave || '';
   },
 
   _pinAdminSet(id, clave) {
     if (!this.datos.jugadoresPinAdmin) this.datos.jugadoresPinAdmin = {};
     if (clave) this.datos.jugadoresPinAdmin[id] = clave;
     else delete this.datos.jugadoresPinAdmin[id];
+    const extra = (this.datos.jugadoresExtra || []).find(j => j && j.id === id);
+    if (extra) {
+      if (clave) extra.pinClave = clave;
+      else delete extra.pinClave;
+    }
   },
 
   _adminAviso(texto, tipo) {
@@ -697,7 +709,11 @@ const Admin = {
         }));
       }
     }
-    return [...porId.values()].sort((a, b) => (a.nombre || '').localeCompare(b.nombre || ''));
+    return [...porId.values()].map(j => {
+      const copia = Object.assign({}, j);
+      delete copia.pinClave;
+      return copia;
+    }).sort((a, b) => (a.nombre || '').localeCompare(b.nombre || ''));
   },
 
   // Posición corregida de un pin (si el admin lo movió). Muta la base en sitio
@@ -2892,6 +2908,7 @@ const Admin = {
       nombre,
       telefono,
       pinHash: await Utilidades.sha256('pin-perfil|' + clave),
+      pinClave: clave,
       creado: Date.now()
     };
 
@@ -3297,7 +3314,8 @@ const Admin = {
     const vida = parseInt(document.getElementById('admin-editor-vida').value, 10);
     const nombre = (document.getElementById('admin-editor-nombre')?.value || '').trim();
     const telefono = (document.getElementById('admin-editor-telefono')?.value || '').trim().replace(/[\s-]/g, '');
-    const claveNueva = document.getElementById('admin-editor-clave')?.value || '';
+    const claveNueva = (document.getElementById('admin-editor-clave')?.value || '').trim();
+    const claveAnterior = this._pinAdminGet(ed.perfil.id);
     if (isNaN(oro) || oro < 0) { this._adminAviso('Oro inválido'); return; }
     if (isNaN(vida) || vida < 0) { this._adminAviso('Vida inválida'); return; }
     const maxVida = (typeof Vida !== 'undefined' && Vida.vidaMaxima)
@@ -3308,8 +3326,9 @@ const Admin = {
     const errNom = this.validarRegistro(nombre, telefono, ed.perfil.id);
     if (errNom) { this._adminAviso(errNom); return; }
     if (claveNueva) {
-      const errClave = Utilidades.claveCuentaValida(claveNueva);
-      if (errClave) { this._adminAviso(errClave); return; }
+      if (claveNueva.length < 4) {
+        this._adminAviso('La contraseña debe tener al menos 4 caracteres'); return;
+      }
     } else if (!ed.perfil.pinHash) {
       this._adminAviso('Pon una contraseña para que el jugador pueda entrar'); return;
     }
@@ -3320,7 +3339,10 @@ const Admin = {
     ed.perfil.nombre = nombre;
     ed.perfil.telefono = telefono;
     if (claveNueva) {
-      ed.perfil.pinHash = await Utilidades.sha256('pin-perfil|' + claveNueva);
+      if (claveNueva !== claveAnterior) {
+        ed.perfil.pinHash = await Utilidades.sha256('pin-perfil|' + claveNueva);
+      }
+      ed.perfil.pinClave = claveNueva;
       this._pinAdminSet(ed.perfil.id, claveNueva);
     }
     const local = Usuarios.datos.lista.find(p => p.id === ed.perfil.id);
@@ -3344,7 +3366,7 @@ const Admin = {
   async _entrarComoJugador() {
     const ed = this._editorJugador;
     if (!ed) return;
-    const clave = document.getElementById('admin-editor-clave')?.value || '';
+    const clave = (document.getElementById('admin-editor-clave')?.value || '').trim();
     let perfil = Object.assign({}, ed.perfil);
     if (clave) {
       perfil.pinHash = await Utilidades.sha256('pin-perfil|' + clave);
