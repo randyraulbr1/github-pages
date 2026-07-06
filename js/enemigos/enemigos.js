@@ -156,9 +156,7 @@ const Enemigos = {
 
   _htmlMarcador(e) {
     const nv = this._nivelEnemigo(e);
-    const letal = this._esLetal(e);
-    return '<div class="enemigo-pin' + (letal ? ' enemigo-letal' : '') + '">' +
-      (letal ? '<span class="enemigo-calavera" title="Nv ' + nv + ' · 10× tu nivel">💀</span>' : '') +
+    return '<div class="enemigo-pin' + (this._esLetal(e) ? ' enemigo-letal' : '') + '">' +
       '<span class="enemigo-emoji">' + (e.icono || '👹') + '</span>' +
       '<span class="enemigo-nivel-tag">Nv ' + nv + '</span></div>';
   },
@@ -274,21 +272,28 @@ const Enemigos = {
     const m = this._marcadores[e.id];
     if (!m) return;
     let bar = this._barraVida[e.id];
-    const html = '<div class="enemigo-barra-vida"><div class="enemigo-barra-relleno" style="width:' + pct + '%"></div></div>';
+    const letal = this._esLetal(e);
+    const nv = this._nivelEnemigo(e);
+    const calavera = letal
+      ? '<span class="enemigo-calavera" title="Nv ' + nv + ' · 10× tu nivel">💀</span>' : '';
+    const html = calavera +
+      '<div class="enemigo-barra-vida"><div class="enemigo-barra-relleno" style="width:' + pct + '%"></div></div>';
+    const alto = letal ? 22 : 6;
+    const anclaY = letal ? 44 : 38;
     if (!bar) {
       bar = L.divIcon({
-        className: 'enemigo-barra-contenedor',
+        className: 'enemigo-barra-contenedor' + (letal ? ' enemigo-barra-letal' : ''),
         html: html,
-        iconSize: [40, 6],
-        iconAnchor: [20, 38]
+        iconSize: [40, alto],
+        iconAnchor: [20, anclaY]
       });
       this._barraVida[e.id] = L.marker(e.pos, { icon: bar, interactive: false, zIndexOffset: 500 }).addTo(Mapa.mapa);
     } else {
       bar.setIcon(L.divIcon({
-        className: 'enemigo-barra-contenedor',
+        className: 'enemigo-barra-contenedor' + (letal ? ' enemigo-barra-letal' : ''),
         html: html,
-        iconSize: [40, 6],
-        iconAnchor: [20, 38]
+        iconSize: [40, alto],
+        iconAnchor: [20, anclaY]
       }));
       bar.setLatLng(m.getLatLng());
     }
@@ -330,18 +335,22 @@ const Enemigos = {
 
   _tick() {
     if (!GPS.posicion || Vida.estaMuerto()) return;
+    const online = typeof Multijugador !== 'undefined' && Multijugador.activo;
     for (const e of this.lista) {
       if (!this._marcadores[e.id]) continue;
       this._aplicarEstadoRemoto(e);
       const d = Utilidades.distanciaMetros(GPS.posicion, e.pos);
+      this._actualizarVisibilidadZonas(e, d);
+      if (online) {
+        this._actualizarBarra(e);
+        continue;
+      }
       const radioExt = this._radioExterior(e);
       const radioZona = this._radioZona(e);
       const radioAtaque = this._radioAtaque(e);
       const enExterior = d <= radioExt;
       const enZona = d <= radioZona;
       const enAtaque = d <= radioAtaque;
-
-      this._actualizarVisibilidadZonas(e, d);
 
       if (enZona && d > 3) {
         const m = this._marcadores[e.id];

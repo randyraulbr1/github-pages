@@ -779,11 +779,69 @@ const Admin = {
     this.mostrarMensajes();
     if (typeof Notificaciones !== 'undefined') Notificaciones._actualizarBadge();
     this._aplicarRevivirDesdeNube();
+    const vistaJug = document.getElementById('admin-vista-jugadores');
+    if (vistaJug && !vistaJug.classList.contains('oculto')) this._listarCuentasAsync();
   },
 
   _jugadorEstaMuerto(pd, vida) {
     if (pd && pd.muerto) return true;
     return vida != null && vida <= 0;
+  },
+
+  _estadoOnlinePorNombre(nombre) {
+    if (typeof Multijugador === 'undefined' || !Multijugador.online) return null;
+    const n = (nombre || '').trim().toLowerCase();
+    return Multijugador.online.find(p => (p.name || '').trim().toLowerCase() === n) || null;
+  },
+
+  _vidaJugadorLista(j, pd) {
+    let vida = pd?.vida ?? CONFIG.vidaMaxima;
+    let muerto = this._jugadorEstaMuerto(pd, vida);
+    const online = this._estadoOnlinePorNombre(j.nombre);
+    if (online && typeof Multijugador !== 'undefined') {
+      muerto = Multijugador._estaMuerto(online);
+      vida = muerto ? 0 : (online.hp ?? vida);
+    }
+    const remota = (this.publicado.partidas || {})[j.id];
+    if (remota?.datos) {
+      const rd = remota.datos;
+      const localT = (this.datos.partidasExtra || {})[j.id]?.t || 0;
+      if ((remota.t || 0) >= localT) {
+        muerto = this._jugadorEstaMuerto(rd, rd.vida);
+        vida = muerto ? 0 : (rd.vida ?? vida);
+      }
+    }
+    return { vida, muerto, nivel: pd?.nivel ?? remota?.datos?.nivel ?? 1 };
+  },
+
+  async _actualizarPartidasDesdeServidor() {
+    if (!CONFIG.servidorOnline || typeof Multijugador === 'undefined') return;
+    const token = localStorage.getItem(Multijugador.TOKEN_KEY);
+    if (!token) return;
+    try {
+      const base = CONFIG.servidorOnline.replace(/\/$/, '');
+      const r = await fetch(base + '/api/player/mundo', {
+        headers: { Authorization: 'Bearer ' + token }
+      });
+      const data = await r.json().catch(() => ({}));
+      if (!data.ok || !data.mundo?.partidas) return;
+      if (!this.publicado.partidas) this.publicado.partidas = {};
+      for (const [id, p] of Object.entries(data.mundo.partidas)) {
+        const prev = this.publicado.partidas[id];
+        if (!prev || (p.t || 0) >= (prev.t || 0)) this.publicado.partidas[id] = p;
+      }
+    } catch (e) { /* sin conexión */ }
+  },
+
+  _revivirJugadorOnline(perfil, hp) {
+    if (typeof Multijugador === 'undefined' || !Multijugador.socket || !Multijugador.activo) return;
+    const online = this._estadoOnlinePorNombre(perfil.nombre);
+    if (!online) return;
+    Multijugador.socket.emit('admin:revivePlayer', {
+      targetPlayerId: online.playerId,
+      reviveHp: hp || CONFIG.vidaAlRevivir || 40,
+      perfilId: perfil.id
+    }, () => {});
   },
 
   _vidaMaximaJugador(partida) {
@@ -830,7 +888,42 @@ const Admin = {
     }
 
     await this._guardarPartidaJugador(j, partida);
+    this._revivirJugadorOnline(j, partida.vida);
     Notificaciones.mostrar('❤️ ' + j.nombre + ' revivido', 'exito', 5000);
+    this._listarCuentasAsync();
+  },
+
+  async _eliminarJugadorMuerto(perfil) {
+    const j = typeof perfil === 'string'
+      ? this.jugadoresGlobales().find(x => x.id === perfil)
+      : perfil;
+    if (!j) return;
+    if (j.id === Usuarios.perfilActivo?.id) {
+      this._adminAviso('No puedes eliminar al jugador activo');
+      return;
+    }
+    const partida = await this._obtenerPartidaJugador(j);
+    if (!this._jugadorEstaMuerto(partida, partida.vida)) {
+      this._adminAviso(j.nombre + ' no está muerto');
+      return;
+    }
+    if (!confirm('¿Eliminar a ' + j.nombre + ' y su partida del servidor?')) return;
+
+    Usuarios.datos.lista = Usuarios.datos.lista.filter(p => p.id !== j.id);
+    Usuarios._guardarLista();
+    localStorage.removeItem(CONFIG.claveGuardado + '::' + j.id);
+
+    if (this.publicado.jugadores) {
+      this.publicado.jugadores = this.publicado.jugadores.filter(x => x.id !== j.id);
+    }
+    if (this.datos.jugadoresExtra) {
+      this.datos.jugadoresExtra = this.datos.jugadoresExtra.filter(x => x.id !== j.id);
+    }
+    delete (this.publicado.partidas || {})[j.id];
+    delete (this.datos.partidasExtra || {})[j.id];
+    this.guardar();
+    await this._publicarParaTodos(false);
+    Notificaciones.mostrar('🗑️ ' + j.nombre + ' eliminado', 'alerta', 5000);
     this._listarCuentasAsync();
   },
 
@@ -2337,6 +2430,7 @@ const Admin = {
 
   async _listarCuentasAsync() {
     await this.actualizarJugadoresGlobales();
+    await this._actualizarPartidasDesdeServidor();
     const cont = document.getElementById('admin-lista-jugadores');
     const contMuertos = document.getElementById('admin-lista-muertos');
     const seccionMuertos = document.getElementById('admin-seccion-muertos');
@@ -2357,11 +2451,12 @@ const Admin = {
         };
       }
       const oro = pd?.dinero?.saldo;
-      const nivel = pd?.nivel ?? 1;
+      const estado = this._vidaJugadorLista(j, pd);
+      const nivel = estado.nivel;
       const maxVida = (typeof Vida !== 'undefined' && Vida.vidaMaxima)
         ? Vida.vidaMaxima(nivel) : CONFIG.vidaMaxima;
-      const vida = pd?.vida ?? maxVida;
-      const muerto = this._jugadorEstaMuerto(pd, vida);
+      const vida = estado.vida;
+      const muerto = estado.muerto;
       const ban = [...(this.publicado.baneados || []), ...(this.datos.baneados || [])]
         .find(b => b.id === j.id || b.id === j.telefono);
       const pctV = muerto ? 0 : Math.max(0, Math.min(100, Math.round((vida / maxVida) * 100)));
@@ -2393,7 +2488,10 @@ const Admin = {
         b.addEventListener('click', fn);
         acciones.appendChild(b);
       };
-      if (muerto) mk('❤️', () => this._revivirJugador(j), 'Revivir jugador', 'btn-revivir-jugador');
+      if (muerto) {
+        mk('❤️', () => this._revivirJugador(j), 'Revivir jugador', 'btn-revivir-jugador');
+        mk('🗑️', () => this._eliminarJugadorMuerto(j), 'Eliminar jugador muerto', 'btn-eliminar-jugador');
+      }
       mk('✏️', () => this._abrirEditorJugador(local || j, !local), 'Editar cuenta e inventario');
       mk('✉️', () => this.abrirMensaje(j.id), 'Enviar mensaje');
       mk('🚫', () => this._abrirBanJugador(j), 'Banear');
@@ -2417,12 +2515,14 @@ const Admin = {
         const partida = (this.publicado.partidas || {})[j.id] || (this.datos.partidasExtra || {})[j.id];
         let pd = partida ? (partida.datos || partida) : null;
         if (Usuarios.perfilActivo && j.id === Usuarios.perfilActivo.id && typeof Guardado !== 'undefined') {
-          pd = { vida: Guardado.datos.vida, muerto: Guardado.datos.muerto, nivel: Guardado.datos.nivel };
+          pd = {
+            vida: Guardado.datos.vida,
+            muerto: Guardado.datos.muerto,
+            nivel: Guardado.datos.nivel
+          };
         }
-        const maxV = (typeof Vida !== 'undefined' && Vida.vidaMaxima)
-          ? Vida.vidaMaxima(pd?.nivel ?? 1) : CONFIG.vidaMaxima;
-        const muerto = this._jugadorEstaMuerto(pd, pd?.vida ?? maxV);
-        if (muerto) muertos.push(j); else vivos.push(j);
+        const estado = this._vidaJugadorLista(j, pd);
+        if (estado.muerto) muertos.push(j); else vivos.push(j);
       }
       if (seccionMuertos) seccionMuertos.classList.toggle('oculto', !muertos.length);
       for (const j of muertos) pintarFila(j, contMuertos || cont);
@@ -2617,6 +2717,7 @@ const Admin = {
     partida.dinero.control = await Utilidades.sha256(Guardado.SAL + '|saldo|' + partida.dinero.saldo);
     if (partida.vida == null) partida.vida = CONFIG.vidaMaxima;
     partida.muerto = partida.vida <= 0;
+    if (!partida.muerto) partida.muertePos = null;
 
     if (perfil.id === Usuarios.perfilActivo?.id) {
       Guardado.datos.mochila = partida.mochila;
@@ -2669,6 +2770,7 @@ const Admin = {
         vida: partida.vida,
         hambre: partida.hambre ?? CONFIG.hambreInicial,
         muerto: partida.muerto,
+        muertePos: partida.muerto ? (partida.muertePos || null) : null,
         xp: partida.xp,
         nivel: partida.nivel,
         armaEquipada: partida.armaEquipada || null

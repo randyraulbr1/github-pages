@@ -21,7 +21,7 @@ const {
 } = require('./db');
 const { verifyToken } = require('./auth');
 const { startEnemyAI } = require('./enemyAI');
-const { registrarRecogidaObjeto, registrarRecogidaTesoro, registrarCuerpoMuerto, quitarCuerpoMuerto, getCuerpoMuerto, actualizarInventarioCuerpo } = require('./syncMundo');
+const { registrarRecogidaObjeto, registrarRecogidaTesoro, registrarCuerpoMuerto, quitarCuerpoMuerto, getCuerpoMuerto, actualizarInventarioCuerpo, actualizarPartidaEnSnapshot, revivirPartidaEnSnapshot } = require('./syncMundo');
 
 /** playerId -> { socketId, playerId, name, x, y, hp, hpMax, level } */
 const onlinePlayers = new Map();
@@ -33,6 +33,7 @@ const MAX_GPS_DELTA = 0.004;
 const INTERACT_DISTANCE = 0.0005;
 const REVIVE_DISTANCE = 0.00045;
 const SYNC_INTERVAL_MS = 8000;
+const GAME_ADMIN_NAME = (process.env.GAME_ADMIN_NAME || 'SoyCaos').toLowerCase();
 
 let enemyAIStarted = false;
 
@@ -255,7 +256,70 @@ function setupSockets(io) {
           level: data.level
         }, io);
       }
+
+      if (payload?.perfilId && payload?.partida) {
+        actualizarPartidaEnSnapshot(payload.perfilId, payload.partida, io);
+      } else if (payload?.perfilId && payload?.partidaMin) {
+        const snap = getWorldSnapshot();
+        const prevDatos = snap?.partidas?.[payload.perfilId]?.datos || {};
+        actualizarPartidaEnSnapshot(payload.perfilId, {
+          datos: Object.assign({}, prevDatos, payload.partidaMin),
+          t: Date.now()
+        }, io);
+      }
+
       ack?.({ ok: true, player: data });
+    });
+
+    socket.on('admin:revivePlayer', (payload, ack) => {
+      const adminPl = findPlayerById(socket.playerId);
+      if (!adminPl || adminPl.name.trim().toLowerCase() !== GAME_ADMIN_NAME) {
+        return ack?.({ ok: false, error: 'Solo el administrador del juego' });
+      }
+
+      const targetId = parseInt(payload?.targetPlayerId, 10);
+      const targetOnline = onlinePlayers.get(targetId);
+      const targetDb = findPlayerById(targetId);
+      const cuerpo = getCuerpoMuerto(targetId);
+      if (!targetDb) return ack?.({ ok: false, error: 'Jugador no encontrado' });
+
+      const isDead = targetOnline?.dead || targetDb.hp <= 0 || !!cuerpo;
+      if (!isDead) return ack?.({ ok: false, error: 'Ese jugador no está muerto' });
+
+      const hpMax = Math.max(1, Math.round(payload?.hpMax || targetOnline?.hpMax || 100));
+      const cura = Math.max(1, Math.min(hpMax, Math.round(payload?.reviveHp || 40)));
+      updatePlayer(targetId, { hp: cura });
+      if (targetOnline) {
+        targetOnline.hp = cura;
+        targetOnline.dead = false;
+        targetOnline.deathX = null;
+        targetOnline.deathY = null;
+        targetOnline.deadInventory = [];
+        targetOnline.deadLevel = null;
+      }
+      quitarCuerpoMuerto(targetId, io);
+
+      if (payload?.perfilId) {
+        revivirPartidaEnSnapshot(payload.perfilId, cura, io);
+      }
+
+      io.emit('player:revived', {
+        playerId: targetId,
+        hp: cura,
+        hpMax,
+        reviverId: socket.playerId,
+        reviverName: adminPl.name
+      });
+      io.emit('player:updateStats', {
+        playerId: targetId,
+        hp: cura,
+        hpMax,
+        level: targetDb.level,
+        dead: false,
+        deathX: null,
+        deathY: null
+      });
+      ack?.({ ok: true, hp: cura });
     });
 
     socket.on('player:revive', (payload, ack) => {

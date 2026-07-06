@@ -170,6 +170,30 @@ const Guardado = {
   async sincronizarNube(silencioso) {
     if (this._syncEnCurso) return false;
     if (typeof Usuarios === 'undefined' || !Usuarios.perfilActivo) return false;
+
+    const snapshot = this._snapshotNube();
+    if (CONFIG.servidorOnline && typeof SyncServidor !== 'undefined' &&
+        localStorage.getItem(Multijugador.TOKEN_KEY)) {
+      this._syncEnCurso = true;
+      try {
+        const ok = await SyncServidor.subirPartida(Usuarios.perfilActivo.id, snapshot);
+        if (ok) {
+          this._syncFallos = 0;
+          this.datos.nubeT = snapshot.t;
+          const firma = await Utilidades.sha256(JSON.stringify(this.datos) + this.SAL);
+          localStorage.setItem(this._clave(), JSON.stringify({ datos: this.datos, firma }));
+        } else {
+          this._syncFallos++;
+        }
+        return ok;
+      } catch (e) {
+        this._syncFallos++;
+        return false;
+      } finally {
+        this._syncEnCurso = false;
+      }
+    }
+
     if (!MundoPublico.puedeEscribir()) {
       if (Usuarios.esAdministrador()) this._avisarSinSyncNube();
       return false;

@@ -9,7 +9,7 @@ const {
   getWorldSnapshot
 } = require('../db');
 const { authMiddleware, gameAdminMiddleware } = require('../auth');
-const { syncMundoFromJson } = require('../syncMundo');
+const { syncMundoFromJson, actualizarPartidaEnSnapshot } = require('../syncMundo');
 
 const router = express.Router();
 
@@ -44,6 +44,17 @@ router.get('/mundo', authMiddleware, (req, res) => {
     mundo: snapshot,
     actualizadoEn: snapshot.actualizadoEn || 0
   });
+});
+
+/** Sincroniza vida/muerto de la partida del jugador al snapshot del servidor */
+router.post('/sync-partida', authMiddleware, (req, res) => {
+  const { perfilId, partida } = req.body;
+  if (!perfilId || !partida) {
+    return res.status(400).json({ ok: false, error: 'perfilId y partida requeridos' });
+  }
+  const io = req.app.get('io');
+  const ok = actualizarPartidaEnSnapshot(perfilId, partida, io);
+  res.json({ ok });
 });
 
 module.exports = router;

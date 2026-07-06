@@ -227,13 +227,22 @@ button { font-family: inherit; }
   white-space: nowrap;
 }
 .enemigo-calavera {
-  position: absolute;
-  top: -10px;
-  right: -8px;
-  font-size: 16px;
+  display: block;
+  font-size: 14px;
+  line-height: 1;
+  text-align: center;
+  margin-bottom: 2px;
   filter: drop-shadow(0 0 6px rgba(255,69,58,.9));
   animation: misionIconoBrillo 1.2s ease-in-out infinite;
 }
+.enemigo-barra-contenedor {
+  background: transparent !important;
+  border: none !important;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+.enemigo-barra-letal { text-align: center; }
 .enemigo-letal .enemigo-emoji {
   filter: drop-shadow(0 0 8px rgba(255,69,58,.75));
 }
@@ -1249,6 +1258,10 @@ body.sesion-cerrada .ventana { display: none !important; }
   background: rgba(48,209,88,.22); color: #7dffb0; font-weight: 700;
 }
 .fila-jugador-admin .acciones .btn-revivir-jugador:active { background: rgba(48,209,88,.4); }
+.fila-jugador-admin .acciones .btn-eliminar-jugador {
+  background: rgba(255,69,58,.2); color: #ff8a80; font-weight: 700;
+}
+.fila-jugador-admin .acciones .btn-eliminar-jugador:active { background: rgba(255,69,58,.38); }
 .admin-seccion-titulo {
   font-size: 13px; font-weight: 700; color: #8e8e93;
   margin: 12px 0 8px; padding: 0 4px;
@@ -1397,7 +1410,6 @@ body.jugador-muerto #admin-controles { pointer-events: none; opacity: .35; }
 }
 .btn-combate-atacar { background: #ff453a; color: #fff; }
 .btn-combate-huir { background: rgba(255,255,255,.12); color: #fff; }
-.enemigo-barra-contenedor { background: transparent !important; border: none !important; }
 .enemigo-barra-vida {
   width: 40px; height: 6px; border-radius: 4px; background: rgba(0,0,0,.55);
   overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,.4);

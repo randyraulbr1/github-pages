@@ -200,6 +200,7 @@ const Vida = {
       Guardado.datos.muertePos = GPS.posicion.slice();
     }
     Guardado.guardar();
+    if (typeof Guardado !== 'undefined') Guardado.sincronizarNube(true).catch(() => {});
     this._mostrarPantallaMuerte();
     if (typeof Multijugador !== 'undefined') Multijugador.enviarStats(true);
   },
@@ -227,6 +228,7 @@ const Vida = {
       'exito', 6000
     );
     if (typeof Multijugador !== 'undefined') Multijugador.enviarStats(true);
+    if (typeof Guardado !== 'undefined') Guardado.sincronizarNube(true).catch(() => {});
   },
 
   pintar() {

@@ -603,6 +603,20 @@ const Multijugador = {
         .map(s => ({ id: s.id, cantidad: s.cantidad || 1 }));
       payload.deadLevel = Vida.nivel;
     }
+    if (typeof Usuarios !== 'undefined' && Usuarios.perfilActivo) {
+      payload.perfilId = Usuarios.perfilActivo.id;
+      const cambioMuerte = muerto !== this._ultimoMuertoSync;
+      if (forzar || cambioMuerte) {
+        payload.partidaMin = {
+          vida: payload.hp,
+          muerto,
+          nivel: Vida.nivel,
+          hambre: Vida.hambre,
+          xp: Vida.xp
+        };
+        this._ultimoMuertoSync = muerto;
+      }
+    }
     this.socket.emit('player:updateStats', payload, () => {});
   },
 

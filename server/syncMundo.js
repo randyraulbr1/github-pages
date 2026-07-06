@@ -79,6 +79,57 @@ function quitarCuerpoMuerto(playerId, io) {
   if (io) io.emit('cuerpos:sync', { cuerpos: snapshot.cuerposMuertos || {} });
 }
 
+/** Guarda partida de un jugador (vida/muerto) en el snapshot del mundo. */
+function actualizarPartidaEnSnapshot(perfilId, partidaSnap, io) {
+  if (!perfilId || !partidaSnap) return false;
+  const snapshot = getWorldSnapshot() || { actualizadoEn: Date.now(), partidas: {}, jugadores: [] };
+  if (!snapshot.partidas) snapshot.partidas = {};
+  const actual = snapshot.partidas[perfilId];
+  const tNew = partidaSnap.t || Date.now();
+  const tOld = actual?.t || 0;
+  if (actual && tOld > tNew) return false;
+  snapshot.partidas[perfilId] = partidaSnap;
+  snapshot.actualizadoEn = Date.now();
+  saveWorldSnapshot(snapshot);
+  if (io) {
+    io.emit('mundo:sync', { actualizadoEn: snapshot.actualizadoEn, mundo: snapshot });
+  }
+  return true;
+}
+
+/** Admin revive: actualiza partida en snapshot por perfilId del juego PWA. */
+function revivirPartidaEnSnapshot(perfilId, hp, io) {
+  if (!perfilId) return false;
+  const snapshot = getWorldSnapshot();
+  if (!snapshot?.partidas?.[perfilId]) return false;
+  const snap = snapshot.partidas[perfilId];
+  const datos = snap.datos || snap;
+  datos.vida = hp;
+  datos.muerto = false;
+  snap.datos = datos;
+  snap.t = Date.now();
+  snapshot.partidas[perfilId] = snap;
+  snapshot.actualizadoEn = Date.now();
+  saveWorldSnapshot(snapshot);
+  if (io) io.emit('mundo:sync', { actualizadoEn: snapshot.actualizadoEn, mundo: snapshot });
+  return true;
+}
+
+/** Elimina jugador y su partida del snapshot (solo admin). */
+function eliminarJugadorDeSnapshot(perfilId, io) {
+  if (!perfilId) return false;
+  const snapshot = getWorldSnapshot();
+  if (!snapshot) return false;
+  if (snapshot.jugadores) {
+    snapshot.jugadores = snapshot.jugadores.filter(j => j && j.id !== perfilId);
+  }
+  if (snapshot.partidas) delete snapshot.partidas[perfilId];
+  snapshot.actualizadoEn = Date.now();
+  saveWorldSnapshot(snapshot);
+  if (io) io.emit('mundo:sync', { actualizadoEn: snapshot.actualizadoEn, mundo: snapshot });
+  return true;
+}
+
 function actualizarInventarioCuerpo(playerId, inv, io) {
   const snapshot = getWorldSnapshot();
   if (!snapshot?.cuerposMuertos?.[String(playerId)]) return;
@@ -361,5 +412,8 @@ module.exports = {
   quitarCuerpoMuerto,
   getCuerpoMuerto,
   actualizarInventarioCuerpo,
-  limpiarCuerposExpirados
+  limpiarCuerposExpirados,
+  actualizarPartidaEnSnapshot,
+  revivirPartidaEnSnapshot,
+  eliminarJugadorDeSnapshot
 };
