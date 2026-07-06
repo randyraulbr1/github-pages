@@ -259,13 +259,15 @@ const Enemigos = {
       ? '<div class="enemigo-cono-wrap" style="transform:rotate(' + e.facingDeg + 'deg)">' +
         '<div class="enemigo-cono"></div></div>' : '';
     const calavera = letal
-      ? '<div class="enemigo-calavera" title="Nv ' + nv + ' · 10× tu nivel">💀</div>' : '';
-    return '<div class="enemigo-pin' + (letal ? ' enemigo-letal' : '') + '">' +
+      ? '<span class="mjo-calavera" title="Nv ' + nv + ' · 10× tu nivel">💀</span>' : '';
+    return '<div class="marcador-enemigo-map enemigo-pin' + (letal ? ' enemigo-letal' : '') + '">' +
       cono +
+      '<div class="mjo-etiqueta">' +
       calavera +
-      '<div class="enemigo-etiqueta"><span class="enemigo-nivel">Nv ' + nv + '</span></div>' +
+      '<span class="mjo-nivel">Nv ' + nv + '</span>' +
+      '</div>' +
+      '<div class="mjo-barra mjo-barra-enemigo"><div class="mjo-barra-fill" style="width:' + pct + '%"></div></div>' +
       '<span class="enemigo-emoji">' + (e.icono || '👹') + '</span>' +
-      '<div class="enemigo-barra-vida"><div class="enemigo-barra-relleno" style="width:' + pct + '%"></div></div>' +
       '</div>';
   },
 
@@ -273,8 +275,8 @@ const Enemigos = {
     return L.divIcon({
       className: '',
       html: this._htmlMarcador(e),
-      iconSize: [120, 72],
-      iconAnchor: [60, 58]
+      iconSize: [88, 62],
+      iconAnchor: [44, 58]
     });
   },
 

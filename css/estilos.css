@@ -292,18 +292,22 @@ button { font-family: inherit; }
   flex-direction: column;
   align-items: center;
   text-align: center;
-  gap: 1px;
 }
-.enemigo-etiqueta {
-  display: flex; flex-direction: column; align-items: center;
-  line-height: 1.1; position: relative; z-index: 2;
+.marcador-enemigo-map {
+  pointer-events: none;
+  filter: drop-shadow(0 2px 4px rgba(0,0,0,.35));
 }
-.enemigo-nivel {
-  font-size: 9px; font-weight: 700; color: #aeaeb2;
-  background: rgba(20,26,42,.88);
-  padding: 1px 6px; border-radius: 8px;
-  border: 1px solid rgba(255,255,255,.2);
-  white-space: nowrap;
+.marcador-enemigo-map .mjo-etiqueta {
+  margin-bottom: 2px;
+  position: relative;
+  z-index: 2;
+}
+.marcador-enemigo-map .mjo-calavera {
+  font-size: 12px;
+  line-height: 1;
+  margin-bottom: 1px;
+  filter: drop-shadow(0 0 4px rgba(255,69,58,.85));
+  animation: misionIconoBrillo 1.2s ease-in-out infinite;
 }
 .enemigo-cono-wrap {
   position: absolute;
@@ -322,14 +326,7 @@ button { font-family: inherit; }
   filter: drop-shadow(0 0 10px rgba(255,40,30,.95)) drop-shadow(0 0 4px rgba(255,0,0,.7));
   border: none;
 }
-.enemigo-emoji { font-size: 28px; line-height: 1; text-shadow: 0 2px 6px rgba(0,0,0,.55); position: relative; z-index: 2; }
-.enemigo-calavera {
-  font-size: 14px;
-  line-height: 1;
-  z-index: 3;
-  filter: drop-shadow(0 0 6px rgba(255,69,58,.9));
-  animation: misionIconoBrillo 1.2s ease-in-out infinite;
-}
+.enemigo-emoji { font-size: 26px; line-height: 1; text-shadow: 0 2px 6px rgba(0,0,0,.55); position: relative; z-index: 2; }
 .enemigo-letal .enemigo-emoji {
   filter: drop-shadow(0 0 8px rgba(255,69,58,.75));
 }
@@ -1265,8 +1262,14 @@ button { font-family: inherit; }
   background: rgba(0,0,0,.25); overflow: hidden; margin-bottom: 3px;
 }
 .mjo-barra-fill {
-  height: 100%; background: linear-gradient(90deg, #ff6b6b, #ff3b30);
+  height: 100%; background: linear-gradient(90deg, #1e8a3e, #30d158);
   border-radius: 3px; transition: width .3s ease;
+}
+.marcador-jugador-online.es-amigo .mjo-barra-fill {
+  background: linear-gradient(90deg, #1e8a3e, #30d158);
+}
+.mjo-barra-enemigo .mjo-barra-fill {
+  background: linear-gradient(90deg, #c11031, #ff453a);
 }
 .marcador-jugador-online.es-amigo .mjo-punto {
   background: #30d158; box-shadow: 0 0 0 4px rgba(48,209,88,.35);
