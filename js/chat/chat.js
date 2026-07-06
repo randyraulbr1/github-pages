@@ -318,6 +318,7 @@ const Chat = {
     const sub = document.getElementById('chatSub');
     if (sub) sub.textContent = 'Selecciona un jugador';
     document.getElementById('emojiPanelChat')?.classList.remove('show');
+    document.getElementById('friendBtnChat')?.classList.add('oculto');
     this._estadoLinea('');
     this.renderChatList();
   },
@@ -371,7 +372,7 @@ const Chat = {
 
   renderChatList() {
     const lista = document.getElementById('chatList');
-    if (!lista) return;
+    if (!lista || this.activePlayer) return;
     const jugadores = this._jugadoresDisponibles();
     lista.innerHTML = '';
 
@@ -534,9 +535,13 @@ const Chat = {
     const btn = document.getElementById('friendBtnChat');
     if (!btn || !this.activePlayer) return;
     const esAmigo = typeof Amigos !== 'undefined' && Amigos.esAmigo(this.activePlayer);
-    btn.textContent = esAmigo ? '✓' : '👥';
-    btn.classList.toggle('friend-added', esAmigo);
-    btn.title = esAmigo ? 'Ya es amigo' : 'Agregar amigo';
+    if (esAmigo) {
+      btn.classList.add('oculto');
+      return;
+    }
+    btn.classList.remove('oculto', 'friend-added');
+    btn.textContent = '👥';
+    btn.title = 'Agregar amigo';
   },
 
   openMapToSend() {
@@ -608,17 +613,21 @@ const Chat = {
     };
   },
 
+  _iconoPinMapa(activo) {
+    return L.divIcon({
+      className: '',
+      html: '<div class="pin-chat-mapa' + (activo ? ' pin-chat-activo' : ' pin-chat-guardado') + '">📍</div>',
+      iconSize: [32, 32],
+      iconAnchor: [16, 28]
+    });
+  },
+
   agregarPinMapa(lat, lng, etiqueta) {
     if (!Mapa.mapa || !Number.isFinite(lat) || !Number.isFinite(lng)) return;
     const key = lat.toFixed(5) + ',' + lng.toFixed(5);
     if (!this._pinsMapa[key]) {
       const marcador = L.marker([lat, lng], {
-        icon: L.divIcon({
-          className: '',
-          html: '<div class="pin-chat-mapa">📍</div>',
-          iconSize: [32, 32],
-          iconAnchor: [16, 28]
-        })
+        icon: this._iconoPinMapa(false)
       }).addTo(Mapa.mapa);
       marcador.on('click', () => this._activarPinMapa(key));
       this._pinsMapa[key] = { marcador, lat, lng, etiqueta: etiqueta || 'Ubicación' };
@@ -629,14 +638,32 @@ const Chat = {
   },
 
   _activarPinMapa(key) {
+    const prev = this._pinActivo;
+    if (prev && this._pinsMapa[prev]) {
+      this._pinsMapa[prev].marcador.setIcon(this._iconoPinMapa(false));
+    }
     this._pinActivo = key;
+    const pin = this._pinsMapa[key];
+    if (pin) pin.marcador.setIcon(this._iconoPinMapa(true));
     this._actualizarLineaPin();
     this._pintarLetreroPin();
   },
 
-  dejarDeSeguirPin() {
+  dejarDeSeguirPin(opciones) {
+    const silencioso = opciones && opciones.silencioso;
+    const pinKey = this._pinActivo;
+    const pin = pinKey ? this._pinsMapa[pinKey] : null;
     this._pinActivo = null;
     this._actualizarLineaPin();
+    if (pin) {
+      pin.marcador.setIcon(this._iconoPinMapa(false));
+      if (!silencioso) {
+        Notificaciones.mostrar(
+          '📍 Dejaste de seguir el pin de ' + (pin.etiqueta || 'ubicación') + '. El pin sigue en el mapa.',
+          'info', 4500
+        );
+      }
+    }
     this._pintarLetreroPin();
   },
 
@@ -661,6 +688,7 @@ const Chat = {
         '<div class="datos-letrero">' +
           '<div class="titulo-letrero">📍 Pin de ' + this._esc(pin.etiqueta) + ' ➜</div>' +
           distTxt +
+          '<div class="estado-letrero">Toca ✕ para dejar de seguir</div>' +
         '</div>' +
         '<button type="button" class="btn-letrero-pin" data-dejar-pin title="Dejar de seguir">✕</button>' +
       '</div>';
@@ -673,7 +701,7 @@ const Chat = {
     const dist = Utilidades.distanciaMetros(GPS.posicion, [pin.lat, pin.lng]);
     if (dist <= CONFIG.distanciaInteraccion) {
       const etiqueta = pin.etiqueta;
-      this.dejarDeSeguirPin();
+      this.dejarDeSeguirPin({ silencioso: true });
       Notificaciones.mostrar('📍 Llegaste al pin de ' + etiqueta, 'exito', 4500);
     } else {
       this._pintarLetreroPin();
