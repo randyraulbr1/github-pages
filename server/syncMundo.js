@@ -31,6 +31,34 @@ function findObjectByOrigenId(origenId) {
   return null;
 }
 
+function registrarRecogidaObjeto(origenId, playerId, io) {
+  const snapshot = getWorldSnapshot() || { actualizadoEn: Date.now() };
+  if (!snapshot.objetosEstado) snapshot.objetosEstado = {};
+
+  const recogidoAt = Date.now();
+  snapshot.objetosEstado[origenId] = { recogidoAt, playerId };
+  snapshot.actualizadoEn = Date.now();
+
+  const row = findObjectByOrigenId(origenId);
+  let reaparece = 0;
+  if (row) {
+    const d = parseData(row);
+    reaparece = d.reaparece || 0;
+    if (!reaparece) {
+      deleteWorldObject(row.id);
+      if (io) io.emit('world:removeObject', { id: row.id, origenId });
+    }
+  }
+
+  saveWorldSnapshot(snapshot);
+
+  if (io) {
+    io.emit('world:objetoRecogido', { origenId, recogidoAt, reaparece });
+  }
+
+  return { ok: true, recogidoAt, reaparece };
+}
+
 function findMissionByOrigenId(origenId) {
   if (!origenId) return null;
   for (const row of getAllMissions()) {
@@ -246,4 +274,4 @@ function syncMundoFromJson(mundo, io) {
   return { ok: true, objetos, misiones, actualizadoEn: mundo.actualizadoEn };
 }
 
-module.exports = { syncMundoFromJson, getWorldSnapshot };
+module.exports = { syncMundoFromJson, getWorldSnapshot, registrarRecogidaObjeto };

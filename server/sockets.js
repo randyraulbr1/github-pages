@@ -21,6 +21,7 @@ const {
 } = require('./db');
 const { verifyToken } = require('./auth');
 const { startEnemyAI } = require('./enemyAI');
+const { registrarRecogidaObjeto } = require('./syncMundo');
 
 /** playerId -> { socketId, playerId, name, x, y, hp, hpMax, level } */
 const onlinePlayers = new Map();
@@ -174,8 +175,8 @@ function setupSockets(io) {
       if (!Number.isFinite(targetX) || !Number.isFinite(targetY)) {
         return ack?.({ ok: false, error: 'Coordenadas inválidas' });
       }
-      const max = (payload?.gps || payload?.force) ? MAX_GPS_DELTA : MAX_MOVE_DELTA;
-      const res = applyMove(targetX, targetY, max);
+      const max = payload?.force ? MAX_GPS_DELTA : (payload?.gps ? MAX_GPS_DELTA : MAX_MOVE_DELTA);
+      const res = applyMove(targetX, targetY, max, !!payload?.force);
       ack?.(res);
     });
 
@@ -242,6 +243,13 @@ function setupSockets(io) {
       const updated = updateWorldObject(objectId, { data_json: JSON.stringify(data) });
       io.emit('world:updateObject', formatWorldObject(updated));
       ack?.({ ok: true, object: formatWorldObject(updated) });
+    });
+
+    socket.on('world:pickupShared', (payload, ack) => {
+      const origenId = (payload?.origenId || '').trim();
+      if (!origenId) return ack?.({ ok: false, error: 'origenId requerido' });
+      const result = registrarRecogidaObjeto(origenId, socket.playerId, io);
+      ack?.(result);
     });
 
     socket.on('world:pickup', (payload, ack) => {

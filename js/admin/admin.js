@@ -265,7 +265,9 @@ const Admin = {
     this._pubSilencioso = silencioso;
     this._pubPendiente = true;
     clearTimeout(this._tempPublicar);
-    this._tempPublicar = setTimeout(() => this._procesarColaPublicacion(), silencioso ? 2000 : 400);
+    const rapido = typeof SyncServidor !== 'undefined' && SyncServidor.puedePublicar();
+    const espera = silencioso ? (rapido ? 500 : 2000) : 400;
+    this._tempPublicar = setTimeout(() => this._procesarColaPublicacion(), espera);
   },
 
   async _procesarColaPublicacion() {
@@ -688,7 +690,8 @@ const Admin = {
   iniciarVigilancia() {
     if (this._vigilanciaActiva) return;
     this._vigilanciaActiva = true;
-    setInterval(() => this._revisarActualizacion(), 8000);
+    const intervalo = (CONFIG.servidorOnline ? 3500 : 8000);
+    setInterval(() => this._revisarActualizacion(), intervalo);
     document.addEventListener('visibilitychange', () => {
       if (!document.hidden) this._revisarActualizacion();
     });
@@ -736,6 +739,7 @@ const Admin = {
         partidas: {},
         enemigos: [],
         enemigosEstado: {},
+        objetosEstado: {},
         tiendasAdmin: [],
         mantenimiento: { activo: false, mensaje: '' }
       }, JSON.parse(texto));
@@ -750,6 +754,7 @@ const Admin = {
     if (!this.publicado.tiendasStock) this.publicado.tiendasStock = {};
     if (!this.publicado.enemigos) this.publicado.enemigos = [];
     if (!this.publicado.enemigosEstado) this.publicado.enemigosEstado = {};
+    if (!this.publicado.objetosEstado) this.publicado.objetosEstado = {};
     if (!this.publicado.tiendasAdmin) this.publicado.tiendasAdmin = [];
 
     const nuevosPorId = new Map();
@@ -884,6 +889,20 @@ const Admin = {
         if (o._marcador) o._marcador.setLatLng(o.pos);
         this._revisarObjeto(o);
       }
+    }
+
+    if (typeof Tiendas !== 'undefined') {
+      for (const t of this.tiendasAdminTodas()) {
+        if (this.eliminado(t.id)) continue;
+        const pos = this._posItem(t) || t.pos || t.posicion;
+        if (!pos) continue;
+        this.pos(t.id, pos);
+        if (Tiendas._marcadoresAdmin[t.id]) {
+          Tiendas._marcadoresAdmin[t.id].setLatLng(pos);
+        }
+        this._actualizarPuntoEnMapa(t.id, pos);
+      }
+      if (Tiendas.refrescarAdmin) Tiendas.refrescarAdmin();
     }
   },
 
@@ -1723,9 +1742,31 @@ const Admin = {
   },
 
   _objetoDisponible(o) {
+    const global = (this.publicado.objetosEstado || {})[o.id];
+    if (global && global.recogidoAt) {
+      if ((o.reaparece || 0) > 0 && Date.now() - global.recogidoAt > o.reaparece * 60000) {
+        return true;
+      }
+      return false;
+    }
     const t = this._objetosRecogidos()[o.id];
     if (!t) return true;
     return (o.reaparece || 0) > 0 && Date.now() - t > o.reaparece * 60000;
+  },
+
+  /** Recogida compartida vía servidor (todos ven el objeto desaparecer). */
+  aplicarRecogidaCompartida(origenId, recogidoAt, playerId) {
+    if (!origenId) return;
+    if (!this.publicado.objetosEstado) this.publicado.objetosEstado = {};
+    this.publicado.objetosEstado[origenId] = {
+      recogidoAt: recogidoAt || Date.now(),
+      playerId: playerId != null ? playerId : null
+    };
+    for (const o of this.objetosTodos()) {
+      if (o.id !== origenId) continue;
+      this._revisarObjeto(o);
+      break;
+    }
   },
 
   _itemsDeObjeto(o) {
@@ -1773,7 +1814,7 @@ const Admin = {
     }
   },
 
-  _recogerObjeto(o) {
+  async _recogerObjeto(o) {
     if (!this._objetoDisponible(o)) return;
     const d = Utilidades.distanciaMetros(GPS.posicion, o.pos);
     if (d > CONFIG.distanciaInteraccion) {
@@ -1787,7 +1828,12 @@ const Admin = {
         return;
       }
     }
-    this._objetosRecogidos()[o.id] = Date.now();
+    if (typeof Multijugador !== 'undefined' && Multijugador.activo && CONFIG.servidorOnline) {
+      const ok = await Multijugador.recogerObjetoCompartido(o.id);
+      if (!ok) this._objetosRecogidos()[o.id] = Date.now();
+    } else {
+      this._objetosRecogidos()[o.id] = Date.now();
+    }
     Guardado.guardar();
     const principal = Items.obtener(items[0].id);
     const punto = Mapa.mapa.latLngToContainerPoint(o.pos);
@@ -3373,6 +3419,7 @@ const Admin = {
       })(),
       enemigos: this._itemsConPosicion(this.enemigosTodos()),
       enemigosEstado: Object.assign({}, this.publicado.enemigosEstado || {}),
+      objetosEstado: Object.assign({}, this.publicado.objetosEstado || {}),
       tiendasAdmin: this._itemsConPosicion(this.tiendasAdminTodas()),
       tiendasStock: Object.assign({}, this.publicado.tiendasStock || {}),
       tesorosEstado: Object.assign({}, this.publicado.tesorosEstado || {}),

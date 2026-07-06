@@ -72,17 +72,24 @@ const Tiendas = {
       const pos = t.posicion || t.pos;
       if (!pos) continue;
       Admin.pos(t.id, pos);
-      if (!this._marcadoresAdmin[t.id]) {
-        const marcador = Mapa.crearMarcadorEmoji(pos, t.icono || '🏪');
-        this._marcadoresAdmin[t.id] = marcador;
-        Mapa.registrarPunto({
-          id: t.id,
-          posicion: pos,
-          radio: CONFIG.distanciaInteraccion,
-          marcador,
-          alTocar: () => this.abrir(t)
-        });
+      if (this._marcadoresAdmin[t.id]) {
+        this._marcadoresAdmin[t.id].setLatLng(pos);
+        const p = Mapa.puntosInteractivos.find(x => x.id === t.id);
+        if (p) {
+          p.posicion[0] = pos[0];
+          p.posicion[1] = pos[1];
+        }
+        continue;
       }
+      const marcador = Mapa.crearMarcadorEmoji(pos, t.icono || '🏪');
+      this._marcadoresAdmin[t.id] = marcador;
+      Mapa.registrarPunto({
+        id: t.id,
+        posicion: pos,
+        radio: CONFIG.distanciaInteraccion,
+        marcador,
+        alTocar: () => this.abrir(t)
+      });
     }
   },
 

@@ -12,6 +12,8 @@ const Multijugador = {
   _ultimoStats: 0,
   mundoServidorTs: 0,
   _animaciones: {},
+  _pollMundo: null,
+  _ultimoPullMundo: 0,
 
   urlServidor() {
     return (CONFIG.servidorOnline || '').replace(/\/$/, '');
@@ -118,10 +120,16 @@ const Multijugador = {
         this.enviarPosicion(GPS.posicion[0], GPS.posicion[1], true);
       }
       this.enviarStats(true);
+      this._iniciarPollingMundo();
+      this._pullMundoServidor();
     });
 
     this.socket.on('disconnect', () => {
       this.activo = false;
+      if (this._pollMundo) {
+        clearInterval(this._pollMundo);
+        this._pollMundo = null;
+      }
     });
 
     this.socket.on('game:init', (data) => {
@@ -177,21 +185,12 @@ const Multijugador = {
     this.socket.on('world:removeObject', () => { /* el mundo completo llega por mundo:sync */ });
 
     this.socket.on('mundo:sync', (data) => {
-      if (!data?.mundo || typeof Admin === 'undefined') return;
-      const m = data.mundo;
-      const tieneMapa = (m.misiones?.length || 0) + (m.objetos?.length || 0) +
-        (m.enemigos?.length || 0) + (m.tesoros?.length || 0) +
-        (m.tiendasAdmin?.length || 0) + Object.keys(m.posiciones || {}).length;
-      if (!tieneMapa) return;
-      this.mundoServidorTs = data.actualizadoEn || Date.now();
-      const json = JSON.stringify(m);
-      Admin._crudoPublicado = json;
-      Admin._ultimoFirmaPublicada = Admin._firmaMundo(json);
-      Admin._aplicarMundoRemoto(json);
-      if (typeof Usuarios !== 'undefined' && !Usuarios.esAdministrador() &&
-          typeof Notificaciones !== 'undefined') {
-        Notificaciones.mostrar('🌍 El admin actualizó el mapa', 'info', 4000);
-      }
+      this._aplicarMundoServidor(data, true);
+    });
+
+    this.socket.on('world:objetoRecogido', (data) => {
+      if (!data?.origenId || typeof Admin === 'undefined') return;
+      Admin.aplicarRecogidaCompartida(data.origenId, data.recogidoAt, data.playerId);
     });
 
     this.socket.on('enemy:attack', (data) => {
@@ -246,6 +245,61 @@ const Multijugador = {
     if (id === this._miPlayerId()) return false;
     if (typeof Amigos !== 'undefined' && Amigos.estaBloqueado(id)) return false;
     return true;
+  },
+
+  _iniciarPollingMundo() {
+    if (this._pollMundo) clearInterval(this._pollMundo);
+    this._pollMundo = setInterval(() => this._pullMundoServidor(), 4000);
+  },
+
+  _aplicarMundoServidor(data, avisar) {
+    if (!data?.mundo || typeof Admin === 'undefined') return false;
+    const m = data.mundo;
+    const tieneMapa = (m.misiones?.length || 0) + (m.objetos?.length || 0) +
+      (m.enemigos?.length || 0) + (m.tesoros?.length || 0) +
+      (m.tiendasAdmin?.length || 0) + Object.keys(m.posiciones || {}).length;
+    if (!tieneMapa) return false;
+    const ts = data.actualizadoEn || m.actualizadoEn || Date.now();
+    if (ts <= this.mundoServidorTs) return false;
+    this.mundoServidorTs = ts;
+    const json = JSON.stringify(m);
+    Admin._crudoPublicado = json;
+    Admin._ultimoFirmaPublicada = Admin._firmaMundo(json);
+    Admin._aplicarMundoRemoto(json);
+    if (avisar && typeof Usuarios !== 'undefined' && !Usuarios.esAdministrador() &&
+        typeof Notificaciones !== 'undefined') {
+      Notificaciones.mostrar('🌍 El admin actualizó el mapa', 'info', 4000);
+    }
+    return true;
+  },
+
+  async _pullMundoServidor() {
+    const base = this.urlServidor();
+    const token = localStorage.getItem(this.TOKEN_KEY);
+    if (!base || !token || !this.activo) return;
+    const ahora = Date.now();
+    if (ahora - this._ultimoPullMundo < 2500) return;
+    this._ultimoPullMundo = ahora;
+    try {
+      const r = await fetch(base + '/api/player/mundo', {
+        headers: { Authorization: 'Bearer ' + token }
+      });
+      const data = await r.json().catch(() => ({}));
+      if (!data.ok || !data.mundo) return;
+      this._aplicarMundoServidor(data, false);
+    } catch (e) { /* servidor dormido */ }
+  },
+
+  recogerObjetoCompartido(origenId) {
+    return new Promise((resolve) => {
+      if (!this.socket || !this.activo || !origenId) return resolve(false);
+      this.socket.emit('world:pickupShared', { origenId }, (res) => {
+        if (res?.ok && typeof Admin !== 'undefined') {
+          Admin.aplicarRecogidaCompartida(origenId, res.recogidoAt, this._miPlayerId());
+        }
+        resolve(!!res?.ok);
+      });
+    });
   },
 
   enviarPosicion(lat, lng, forzar) {
