@@ -401,22 +401,42 @@ const Amigos = {
 
   popupHtml(p) {
     const id = Number(p.playerId);
-    let btns = '';
+    const nombre = this._esc(p.name || '?');
+    const nivel = p.level || 1;
+    const hp = p.hp != null ? Math.round(p.hp) : null;
+    const hpMax = Math.max(1, p.hpMax || 100);
+    let principal = '';
+    let secundario = '';
+
     if (this.esAmigo(id)) {
       const marcado = this.esMarcado(id);
-      btns += '<button type="button" class="btn-amigo-mini btn-amigo-marcar' + (marcado ? ' activo' : '') +
-        '" data-accion="marcar" data-id="' + id + '">' + (marcado ? '📍 Desmarcar' : '📍 Marcar pin') + '</button>';
-      btns += '<button type="button" class="btn-amigo-mini" data-accion="quitar" data-id="' + id + '">Quitar amigo</button>';
-    } else if (!this.pendingOut.some(r => Number(r.toPlayerId) === id)) {
-      btns += '<button type="button" class="btn-amigo-mini" data-accion="agregar" data-id="' + id + '">Agregar amigo</button>';
-    }
-    if (this.estaBloqueado(id)) {
-      btns += '<button type="button" class="btn-amigo-mini" data-accion="desbloquear" data-id="' + id + '">Desbloquear</button>';
+      principal =
+        '<button type="button" class="popup-jugador-amigo-btn' + (marcado ? ' activo' : '') +
+        '" data-accion="marcar" data-id="' + id + '">' +
+        (marcado ? '📍 Pin en mapa' : '📍 Marcar en mapa') + '</button>';
+      secundario =
+        '<button type="button" class="popup-jugador-link" data-accion="quitar" data-id="' + id + '">Quitar amigo</button>';
+    } else if (this.pendingOut.some(r => Number(r.toPlayerId) === id)) {
+      principal = '<div class="popup-jugador-pendiente">⏳ Solicitud enviada</div>';
+    } else if (this.estaBloqueado(id)) {
+      principal =
+        '<button type="button" class="popup-jugador-amigo-btn secundario" data-accion="desbloquear" data-id="' + id + '">' +
+        'Desbloquear jugador</button>';
     } else {
-      btns += '<button type="button" class="btn-amigo-mini btn-amigo-peligro" data-accion="bloquear" data-id="' + id + '">Bloquear</button>';
+      principal =
+        '<button type="button" class="popup-jugador-amigo-btn" data-accion="agregar" data-id="' + id + '">' +
+        '👥 Agregar amigo</button>';
     }
-    return '<div class="popup-jugador"><b>' + (p.name || '?') + '</b><br>Nv ' + (p.level || 1) +
-      '<div class="popup-jugador-btns">' + btns + '</div></div>';
+
+    const vidaTxt = hp != null
+      ? '<span class="popup-jugador-vida">❤️ ' + hp + '/' + hpMax + '</span>'
+      : '';
+
+    return '<div class="popup-jugador">' +
+      '<div class="popup-jugador-nombre">' + nombre + '</div>' +
+      '<div class="popup-jugador-meta"><span>Nv ' + nivel + '</span>' + vidaTxt + '</div>' +
+      '<div class="popup-jugador-acciones">' + principal + secundario + '</div>' +
+      '</div>';
   },
 
   manejarPopupClick(ev) {

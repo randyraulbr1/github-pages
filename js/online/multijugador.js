@@ -1192,14 +1192,20 @@ const Multijugador = {
         interactive: true,
         zIndexOffset: 900
       }).addTo(Mapa.mapa);
-      m.bindPopup(() => typeof Amigos !== 'undefined' ? Amigos.popupHtml(p) : p.name);
+      m.bindPopup(
+        () => typeof Amigos !== 'undefined' ? Amigos.popupHtml(p) : p.name,
+        { maxWidth: 300, className: 'popup-jugador-wrap', closeButton: true }
+      );
       this.marcadores[id] = m;
     } else {
       this._animarMarcador(id, pos.x, pos.y);
       m.setIcon(icon);
       m.off('click');
       if (m.unbindPopup) m.unbindPopup();
-      m.bindPopup(() => typeof Amigos !== 'undefined' ? Amigos.popupHtml(p) : p.name);
+      m.bindPopup(
+        () => typeof Amigos !== 'undefined' ? Amigos.popupHtml(p) : p.name,
+        { maxWidth: 300, className: 'popup-jugador-wrap', closeButton: true }
+      );
     }
   },
 
