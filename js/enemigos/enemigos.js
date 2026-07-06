@@ -1,6 +1,6 @@
 // ============================================================
 // ENEMIGOS — combate en el mapa (compartido vía mundo.json)
-// 3 zonas: exterior (invisible) → roja → amarilla (ataque)
+// 3 zonas: exterior (aviso 75m, sin dibujo) → roja (aggro) → amarilla (ataque)
 // ============================================================
 const Enemigos = {
   NOMBRES: [
@@ -330,10 +330,25 @@ const Enemigos = {
       if (organizando) {
         if (Mapa.mapa.hasLayer(z)) Mapa.mapa.removeLayer(z);
         if (za && Mapa.mapa.hasLayer(za)) Mapa.mapa.removeLayer(za);
-      } else if (this._marcadores[id]) {
-        if (!Mapa.mapa.hasLayer(z)) z.addTo(Mapa.mapa);
-        if (za && !Mapa.mapa.hasLayer(za)) za.addTo(Mapa.mapa);
+      } else {
+        const e = this.lista.find(x => x.id === id);
+        if (!e || !this._marcadores[id]) continue;
+        const centro = this._centroZona(e) || e.pos;
+        const d = (typeof GPS !== 'undefined' && GPS.posicion && centro?.length >= 2)
+          ? Utilidades.distanciaMetros(GPS.posicion, centro)
+          : Infinity;
+        this._actualizarVisibilidadZonas(e, d);
       }
+    }
+  },
+
+  _ocultarTodasLasZonas() {
+    if (!Mapa.mapa) return;
+    for (const id of Object.keys(this._zonas)) {
+      const z = this._zonas[id];
+      const za = this._zonasAtaque[id];
+      if (z && Mapa.mapa.hasLayer(z)) Mapa.mapa.removeLayer(z);
+      if (za && Mapa.mapa.hasLayer(za)) Mapa.mapa.removeLayer(za);
     }
   },
 
@@ -451,7 +466,11 @@ const Enemigos = {
           e._enZona = Utilidades.distanciaMetros(GPS.posicion, e.pos) <= this._radioZona(e);
         }
       } else if (data?.targetPlayerId) {
-        e._enZona = true;
+        if (typeof GPS !== 'undefined' && GPS.posicion && e.pos?.length >= 2) {
+          e._enZona = Utilidades.distanciaMetros(GPS.posicion, e.pos) <= this._radioZona(e);
+        } else {
+          e._enZona = false;
+        }
       }
     }
 
@@ -488,17 +507,17 @@ const Enemigos = {
 
   _actualizarVisibilidadZonas(e, d) {
     if (!Mapa.mapa) return;
-    const enExterior = d <= this._radioExterior(e);
     const enZona = d <= this._radioZona(e);
+    const enAtaque = d <= this._radioAtaque(e);
     const zR = this._zonas[e.id];
     const zA = this._zonasAtaque[e.id];
     if (zR) {
-      if (enExterior && !Mapa.mapa.hasLayer(zR)) zR.addTo(Mapa.mapa);
-      else if (!enExterior && Mapa.mapa.hasLayer(zR)) Mapa.mapa.removeLayer(zR);
+      if (enZona && !Mapa.mapa.hasLayer(zR)) zR.addTo(Mapa.mapa);
+      else if (!enZona && Mapa.mapa.hasLayer(zR)) Mapa.mapa.removeLayer(zR);
     }
     if (zA) {
-      if (enExterior && enZona && !Mapa.mapa.hasLayer(zA)) zA.addTo(Mapa.mapa);
-      else if ((!enExterior || !enZona) && Mapa.mapa.hasLayer(zA)) Mapa.mapa.removeLayer(zA);
+      if (enZona && enAtaque && !Mapa.mapa.hasLayer(zA)) zA.addTo(Mapa.mapa);
+      else if ((!enZona || !enAtaque) && Mapa.mapa.hasLayer(zA)) Mapa.mapa.removeLayer(zA);
     }
   },
 
@@ -569,6 +588,7 @@ const Enemigos = {
     const muerto = typeof Vida !== 'undefined' && Vida.estaMuerto();
     if (muerto) {
       this._limpiarVisionHaciaJugador();
+      this._ocultarTodasLasZonas();
       return;
     }
 
