@@ -21,7 +21,7 @@ const {
 } = require('./db');
 const { verifyToken, isGameAdminName } = require('./auth');
 const { startEnemyAI } = require('./enemyAI');
-const { registrarRecogidaObjeto, registrarRecogidaTesoro, registrarCuerpoMuerto, quitarCuerpoMuerto, getCuerpoMuerto, actualizarInventarioCuerpo, actualizarPartidaEnSnapshot, revivirPartidaEnSnapshot, buscarPerfilIdPorNombre } = require('./syncMundo');
+const { registrarRecogidaObjeto, registrarRecogidaTesoro, registrarCuerpoMuerto, quitarCuerpoMuerto, getCuerpoMuerto, actualizarInventarioCuerpo, registrarLootMuerto, actualizarPartidaEnSnapshot, revivirPartidaEnSnapshot, buscarPerfilIdPorNombre } = require('./syncMundo');
 
 /** playerId -> { socketId, playerId, name, x, y, hp, hpMax, level } */
 const onlinePlayers = new Map();
@@ -317,6 +317,7 @@ function setupSockets(io) {
 
       const hpMax = Math.max(1, Math.round(payload?.hpMax || targetOnline?.hpMax || 100));
       const cura = Math.max(1, Math.min(hpMax, Math.round(payload?.reviveHp || 40)));
+      const invRestante = (targetOnline?.deadInventory || cuerpo?.deadInventory || []).map(x => ({ ...x }));
       updatePlayer(targetId, { hp: cura });
       if (targetOnline) {
         targetOnline.hp = cura;
@@ -328,16 +329,16 @@ function setupSockets(io) {
       }
       quitarCuerpoMuerto(targetId, io);
 
-      if (payload?.perfilId) {
-        revivirPartidaEnSnapshot(payload.perfilId, cura, io);
-      }
+      const perfilId = payload?.perfilId || buscarPerfilIdPorNombre(targetDb.name, targetId);
+      if (perfilId) revivirPartidaEnSnapshot(perfilId, cura, io, invRestante);
 
       io.emit('player:revived', {
         playerId: targetId,
         hp: cura,
         hpMax,
         reviverId: socket.playerId,
-        reviverName: adminPl.name
+        reviverName: adminPl.name,
+        deadInventory: invRestante
       });
       io.emit('player:updateStats', {
         playerId: targetId,
@@ -371,6 +372,7 @@ function setupSockets(io) {
 
       const hpMax = Math.max(1, Math.round(payload?.hpMax || targetOnline?.hpMax || 100));
       const cura = Math.max(1, Math.min(hpMax, Math.round(payload?.reviveHp || 40)));
+      const invRestante = (targetOnline?.deadInventory || cuerpo?.deadInventory || []).map(x => ({ ...x }));
       updatePlayer(targetId, { hp: cura });
       if (targetOnline) {
         targetOnline.hp = cura;
@@ -383,14 +385,15 @@ function setupSockets(io) {
       quitarCuerpoMuerto(targetId, io);
 
       const perfilId = buscarPerfilIdPorNombre(targetDb.name, targetId);
-      if (perfilId) revivirPartidaEnSnapshot(perfilId, cura, io);
+      if (perfilId) revivirPartidaEnSnapshot(perfilId, cura, io, invRestante);
 
       io.emit('player:revived', {
         playerId: targetId,
         hp: cura,
         hpMax,
         reviverId: socket.playerId,
-        reviverName: reviver.name
+        reviverName: reviver.name,
+        deadInventory: invRestante
       });
       io.emit('player:updateStats', {
         playerId: targetId,
@@ -485,12 +488,10 @@ function setupSockets(io) {
       const tomar = Math.min(cantidad, inv[idx].cantidad || 1);
       inv[idx].cantidad -= tomar;
       if (inv[idx].cantidad <= 0) inv.splice(idx, 1);
-      if (targetOnline) {
-        targetOnline.deadInventory = inv;
-      } else {
-        actualizarInventarioCuerpo(targetId, inv, io);
-      }
-      io.emit('player:lootUpdate', { playerId: targetId, deadInventory: inv });
+      if (targetOnline) targetOnline.deadInventory = inv;
+      const targetDbPl = findPlayerById(targetId);
+      const perfilId = targetDbPl ? buscarPerfilIdPorNombre(targetDbPl.name, targetId) : null;
+      registrarLootMuerto(targetId, perfilId, inv, io);
       ack?.({ ok: true, item: { id: itemId, cantidad: tomar }, deadInventory: inv });
     });
 

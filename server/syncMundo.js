@@ -167,16 +167,59 @@ function buscarPerfilIdPorNombre(nombre, playerId) {
   return null;
 }
 
+/** Convierte [{id,cantidad}] a slots de mochila (25 casillas). */
+function inventarioAMochilaSlots(inv) {
+  const slots = new Array(25).fill(null);
+  let i = 0;
+  for (const it of (inv || [])) {
+    if (!it?.id || i >= 25) break;
+    slots[i++] = { id: it.id, cantidad: it.cantidad || 1 };
+  }
+  return slots;
+}
+
+/** Actualiza mochila del muerto en snapshot (tras saqueo). */
+function actualizarMochilaMuertoEnSnapshot(perfilId, inv, io) {
+  if (!perfilId) return false;
+  const snapshot = getWorldSnapshot() || { actualizadoEn: Date.now(), partidas: {} };
+  if (!snapshot.partidas) snapshot.partidas = {};
+  const prev = snapshot.partidas[perfilId] || { t: Date.now() };
+  const snap = { ...prev };
+  const datos = Object.assign({}, snap.datos || snap);
+  datos.muerteInventario = inv || [];
+  datos.mochila = inventarioAMochilaSlots(inv);
+  datos.muerto = true;
+  snap.datos = datos;
+  snap.t = Date.now();
+  snapshot.partidas[perfilId] = snap;
+  snapshot.actualizadoEn = Date.now();
+  saveWorldSnapshot(snapshot);
+  if (io) {
+    io.emit('partida:sync', {
+      perfilId,
+      partida: snap,
+      actualizadoEn: snapshot.actualizadoEn
+    });
+  }
+  return true;
+}
+
 /** Admin revive: actualiza partida en snapshot por perfilId del juego PWA. */
-function revivirPartidaEnSnapshot(perfilId, hp, io) {
+function revivirPartidaEnSnapshot(perfilId, hp, io, inventarioRestante) {
   if (!perfilId) return false;
   const snapshot = getWorldSnapshot() || { actualizadoEn: Date.now(), partidas: {} };
   if (!snapshot.partidas) snapshot.partidas = {};
   const prev = snapshot.partidas[perfilId];
   const snap = prev ? { ...prev } : { t: Date.now() };
   const datos = Object.assign({}, snap.datos || snap);
+  const inv = inventarioRestante != null
+    ? inventarioRestante
+    : (datos.muerteInventario || []);
   datos.vida = hp;
   datos.muerto = false;
+  datos.muerteInventario = null;
+  datos.muertePos = null;
+  datos.mochila = inventarioAMochilaSlots(inv);
   snap.datos = datos;
   snap.t = Date.now();
   snapshot.partidas[perfilId] = snap;
@@ -217,7 +260,20 @@ function actualizarInventarioCuerpo(playerId, inv, io) {
   const snapshot = getWorldSnapshot();
   if (!snapshot?.cuerposMuertos?.[String(playerId)]) return;
   snapshot.cuerposMuertos[String(playerId)].deadInventory = inv;
+  snapshot.actualizadoEn = Date.now();
   saveWorldSnapshot(snapshot);
+  if (io) io.emit('player:lootUpdate', { playerId, deadInventory: inv });
+}
+
+/** Saqueo: cuerpo en mapa + partida guardada del muerto. */
+function registrarLootMuerto(playerId, perfilId, inv, io) {
+  const snapshot = getWorldSnapshot();
+  if (snapshot?.cuerposMuertos?.[String(playerId)]) {
+    snapshot.cuerposMuertos[String(playerId)].deadInventory = inv;
+    snapshot.actualizadoEn = Date.now();
+    saveWorldSnapshot(snapshot);
+  }
+  if (perfilId) actualizarMochilaMuertoEnSnapshot(perfilId, inv, io);
   if (io) io.emit('player:lootUpdate', { playerId, deadInventory: inv });
 }
 
@@ -503,6 +559,9 @@ module.exports = {
   quitarCuerpoMuerto,
   getCuerpoMuerto,
   actualizarInventarioCuerpo,
+  registrarLootMuerto,
+  actualizarMochilaMuertoEnSnapshot,
+  inventarioAMochilaSlots,
   limpiarCuerposExpirados,
   actualizarPartidaEnSnapshot,
   revivirPartidaEnSnapshot,

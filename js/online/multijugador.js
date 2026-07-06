@@ -195,7 +195,9 @@ const Multijugador = {
 
     this.socket.on('player:revived', (data) => {
       if (!data?.playerId) return;
-      if (Number(data.playerId) === this._miPlayerId()) {
+      const pid = Number(data.playerId);
+      if (pid === this._miPlayerId()) {
+        if (data.deadInventory) this._aplicarInventarioMuerto(data.deadInventory);
         if (typeof Vida !== 'undefined') {
           const nombre = (data.reviverName || 'Un jugador').replace(/</g, '');
           Vida.revivir(
@@ -204,7 +206,7 @@ const Multijugador = {
           );
         }
       }
-      const i = this.online.findIndex(x => Number(x.playerId) === Number(data.playerId));
+      const i = this.online.findIndex(x => Number(x.playerId) === pid);
       if (i >= 0) {
         this.online[i].hp = data.hp;
         this.online[i].dead = false;
@@ -214,8 +216,8 @@ const Multijugador = {
         this.online[i].deadLevel = null;
         this._actualizarMarcador(this.online[i]);
       }
-      delete this.cuerpos[String(data.playerId)];
-      this._quitarMarcadorCuerpo(String(data.playerId));
+      delete this.cuerpos[String(pid)];
+      this._quitarMarcadorCuerpo(String(pid));
     });
 
     this.socket.on('world:updateObject', (obj) => {
@@ -274,6 +276,9 @@ const Multijugador = {
 
     this.socket.on('player:lootUpdate', (data) => {
       if (!data?.playerId) return;
+      if (Number(data.playerId) === this._miPlayerId()) {
+        this._aplicarInventarioMuerto(data.deadInventory || []);
+      }
       this._aplicarLootLocal(data.playerId, data.deadInventory || []);
     });
 
@@ -363,6 +368,10 @@ const Multijugador = {
       }
     }
     Admin._aplicarRevivirDesdeNube();
+    if (typeof Usuarios !== 'undefined' && Usuarios.perfilActivo?.id === data.perfilId &&
+        data.partida?.datos?.muerto && Array.isArray(data.partida.datos.muerteInventario)) {
+      this._aplicarInventarioMuerto(data.partida.datos.muerteInventario);
+    }
     const vistaJug = document.getElementById('admin-vista-jugadores');
     if (vistaJug && !vistaJug.classList.contains('oculto') && Admin._adminAbierto?.()) {
       Admin._listarCuentasAsync({ soloRefrescar: true });
@@ -531,6 +540,30 @@ const Multijugador = {
       this._actualizarMarcadorCuerpo(this.cuerpos[cid]);
     }
     this._refrescarPopupsMuertos(pid);
+  },
+
+  /** Si me saquean estando muerto: quita ítems de mi mochila local. */
+  _aplicarInventarioMuerto(deadInventory) {
+    if (typeof Guardado === 'undefined' || !Guardado.datos) return;
+    const inv = (deadInventory || []).map(x => ({
+      id: x.id,
+      cantidad: x.cantidad || 1
+    }));
+    const total = typeof Mochila !== 'undefined' && Mochila.TOTAL_SLOTS
+      ? Mochila.TOTAL_SLOTS : 25;
+    const slots = new Array(total).fill(null);
+    let i = 0;
+    for (const it of inv) {
+      if (!it.id || i >= total) break;
+      slots[i++] = { id: it.id, cantidad: it.cantidad };
+    }
+    Guardado.datos.mochila = slots;
+    Guardado.datos.muerteInventario = inv;
+    if (typeof Mochila !== 'undefined') {
+      Mochila.slots = slots;
+      if (typeof Mochila.pintar === 'function') Mochila.pintar();
+    }
+    Guardado.guardar();
   },
 
   _refrescarPopupsMuertos(playerId) {

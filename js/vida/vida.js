@@ -198,6 +198,9 @@ const Vida = {
     if (typeof GPS !== 'undefined' && GPS.posicion) {
       Guardado.datos.muertePos = GPS.posicion.slice();
     }
+    Guardado.datos.muerteInventario = (Guardado.datos.mochila || [])
+      .filter(Boolean)
+      .map(s => ({ id: s.id, cantidad: s.cantidad || 1 }));
     Guardado.guardar();
     if (typeof Guardado !== 'undefined') Guardado.sincronizarNube(true).catch(() => {});
     this._mostrarPantallaMuerte();
@@ -214,6 +217,7 @@ const Vida = {
     this._muerto = false;
     Guardado.datos.muerto = false;
     Guardado.datos.muertePos = null;
+    Guardado.datos.muerteInventario = null;
     const max = this.vidaMaxima();
     this.actual = Math.max(1, Math.min(max, vida || max));
     Guardado.datos.vida = this.actual;
