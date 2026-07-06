@@ -75,7 +75,7 @@ const Notificaciones = {
     cont.innerHTML = '';
     const lista = (Guardado.datos && Guardado.datos.notificaciones) || [];
     if (!lista.length) {
-      cont.innerHTML = '<div class="tienda-vacia">Todavía no tienes avisos</div>';
+      cont.innerHTML = '<div class="panel-vacio">Todavía no tienes avisos.<br>Aparecerán aquí misiones, alertas y mensajes del admin.</div>';
     }
     for (const aviso of lista) {
       if (aviso.tipo === 'admin') aviso.leido = true;

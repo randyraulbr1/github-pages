@@ -37,17 +37,23 @@ const Opciones = {
     const perfil = Usuarios.perfilActivo;
     if (!perfil) return;
     const nom = document.getElementById('opciones-nombre');
-    const det = document.getElementById('opciones-stats');
+    const grid = document.getElementById('opciones-stats-grid');
     const idEl = document.getElementById('opciones-id');
     const av = document.getElementById('opciones-avatar');
     if (nom) nom.textContent = perfil.nombre || 'Jugador';
     if (av) av.textContent = (perfil.nombre || '?').charAt(0).toUpperCase();
     const nivel = (typeof Vida !== 'undefined') ? Vida.nivel : 1;
     const vida = (typeof Vida !== 'undefined') ? Vida.actual : CONFIG.vidaMaxima;
+    const maxVida = (typeof Vida !== 'undefined') ? Vida.vidaMaxima() : CONFIG.vidaMaxima;
     const hambre = (typeof Vida !== 'undefined') ? Vida.hambre : CONFIG.hambreInicial;
     const oro = (typeof Dinero !== 'undefined') ? Dinero.saldo : 0;
-    if (det) det.textContent = 'Nv ' + nivel + ' · ❤️ ' + vida + '/' + CONFIG.vidaMaxima +
-      ' · 🍽️ ' + hambre + '/' + CONFIG.hambreMaxima + ' · $' + oro;
+    if (grid) {
+      grid.innerHTML =
+        '<div class="perfil-stat-chip">Nivel<b>Nv ' + nivel + '</b></div>' +
+        '<div class="perfil-stat-chip">Vida<b>❤️ ' + vida + '/' + maxVida + '</b></div>' +
+        '<div class="perfil-stat-chip">Hambre<b>🍽️ ' + hambre + '/' + CONFIG.hambreMaxima + '</b></div>' +
+        '<div class="perfil-stat-chip">Oro<b>💰 $' + oro + '</b></div>';
+    }
     if (idEl) {
       idEl.textContent = (perfil.telefono ? '📱 ' + perfil.telefono + ' · ' : '') + perfil.id;
     }

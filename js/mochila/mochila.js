@@ -112,14 +112,14 @@ const Mochila = {
       return false;
     }
     Guardado.datos.armaEquipada = id;
-    Guardado.guardar();
+    this.guardar();
     this.pintar();
     return true;
   },
 
   desequiparArma() {
     Guardado.datos.armaEquipada = null;
-    Guardado.guardar();
+    this.guardar();
     this.pintar();
   },
 
@@ -302,8 +302,11 @@ const Mochila = {
       clearTimeout(holdTimer);
       window.removeEventListener('pointermove', onMove);
       if (!dragStarted) {
+        if (origen === 'equip') {
+          if (this.armaEquipadaId()) this.desequiparArma();
+          return;
+        }
         if (origen !== 'equip') this.mostrarDetalle(origen);
-        else if (idxReal >= 0) this.mostrarDetalle(idxReal);
         return;
       }
       this._finalizarArrastre(e, idxReal, ghost, deleteZone);
@@ -348,7 +351,11 @@ const Mochila = {
     const targetSlot = el?.closest('.slot');
     if (!targetSlot) return;
     if (targetSlot.classList.contains('inv-equip-slot') || targetSlot.dataset.type === 'weapon') {
-      const sl = this.slots[origen];
+      const sl = origen === 'equip' ? null : this.slots[origen];
+      if (origen === 'equip' && this.armaEquipadaId()) {
+        this.desequiparArma();
+        return;
+      }
       if (sl && Items.seguro(sl.id).tipo === 'arma') this.equiparArma(sl.id);
       return;
     }
@@ -387,6 +394,7 @@ const Mochila = {
     const item = Items.seguro(sl.id);
     if (!confirm('¿Eliminar ' + item.nombre + ' x' + sl.cantidad + '?')) { this.pintar(); return; }
     this.slots[indice] = null;
+    if (this.armaEquipadaId() === sl.id) this.desequiparArma();
     this.guardar();
     this.pintar();
     this.ocultarDetalle();

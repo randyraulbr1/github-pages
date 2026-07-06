@@ -8,6 +8,39 @@ const Amigos = {
   blocked: [],
   friendIds: new Set(),
   blockedIds: new Set(),
+  _marcadosKey: 'mariel_amigos_pin',
+  _marcados: new Set(),
+
+  _cargarMarcados() {
+    try {
+      const raw = localStorage.getItem(this._marcadosKey);
+      if (raw) this._marcados = new Set(JSON.parse(raw).map(Number));
+    } catch (e) { this._marcados = new Set(); }
+  },
+
+  _guardarMarcados() {
+    localStorage.setItem(this._marcadosKey, JSON.stringify([...this._marcados]));
+  },
+
+  obtenerMarcados() { return this._marcados; },
+
+  esMarcado(playerId) { return this._marcados.has(Number(playerId)); },
+
+  toggleMarcar(playerId) {
+    const id = Number(playerId);
+    if (this._marcados.has(id)) this._marcados.delete(id);
+    else this._marcados.add(id);
+    this._guardarMarcados();
+    this._pintar();
+    if (typeof Multijugador !== 'undefined') {
+      Multijugador._actualizarLineasAmigo();
+      Multijugador._redibujar(false);
+    }
+    Notificaciones.mostrar(
+      this._marcados.has(id) ? '📍 Pin de ' + (this.friends.find(f => Number(f.playerId) === id)?.name || 'amigo') + ' marcado' : 'Pin desmarcado',
+      'info', 2800
+    );
+  },
 
   _token() {
     return localStorage.getItem(Multijugador.TOKEN_KEY);
@@ -45,6 +78,7 @@ const Amigos = {
   },
 
   iniciarUI() {
+    this._cargarMarcados();
     const btn = document.getElementById('btn-amigos');
     if (btn) {
       btn.addEventListener('click', () => {
@@ -111,6 +145,12 @@ const Amigos = {
   },
 
   async eliminar(playerId) {
+    const id = Number(playerId);
+    if (this._marcados.has(id)) {
+      this._marcados.delete(id);
+      this._guardarMarcados();
+      if (typeof Multijugador !== 'undefined') Multijugador._actualizarLineasAmigo();
+    }
     const base = this._base();
     if (!base || !this._token()) return;
     try {
@@ -168,6 +208,9 @@ const Amigos = {
     const id = Number(p.playerId);
     let btns = '';
     if (this.esAmigo(id)) {
+      const marcado = this.esMarcado(id);
+      btns += '<button type="button" class="btn-amigo-mini btn-amigo-marcar' + (marcado ? ' activo' : '') +
+        '" data-accion="marcar" data-id="' + id + '">' + (marcado ? '📍 Desmarcar' : '📍 Marcar pin') + '</button>';
       btns += '<button type="button" class="btn-amigo-mini" data-accion="quitar" data-id="' + id + '">Quitar amigo</button>';
     } else if (!this.pendingOut.some(r => Number(r.toPlayerId) === id)) {
       btns += '<button type="button" class="btn-amigo-mini" data-accion="agregar" data-id="' + id + '">Agregar amigo</button>';
@@ -187,6 +230,7 @@ const Amigos = {
     const id = Number(btn.dataset.id);
     const acc = btn.dataset.accion;
     if (acc === 'agregar') this.solicitar(id);
+    else if (acc === 'marcar') this.toggleMarcar(id);
     else if (acc === 'quitar') this.eliminar(id);
     else if (acc === 'bloquear') this.bloquear(id);
     else if (acc === 'desbloquear') this.desbloquear(id);
@@ -216,9 +260,13 @@ const Amigos = {
     }
     for (const f of this.friends) {
       const on = f.online ? '🟢 En línea' : '⚫ Desconectado';
+      const marcado = this.esMarcado(f.playerId);
       html += '<div class="amigos-fila">' +
-        '<span><b>' + f.name + '</b> · Nv ? · ' + on + '</span>' +
+        '<div class="amigos-fila-info"><b>' + f.name + '</b>' +
+        '<div class="amigos-fila-meta">' + on + (marcado ? ' · 📍 Marcado' : '') + '</div></div>' +
         '<span class="amigos-fila-btns">' +
+        '<button type="button" class="btn-amigo-mini btn-amigo-marcar' + (marcado ? ' activo' : '') +
+        '" data-amigo-marcar="' + f.playerId + '" title="Marcar pin en el mapa">📍</button>' +
         '<button type="button" class="btn-amigo-mini btn-amigo-peligro" data-amigo-quitar="' + f.playerId + '">Quitar</button>' +
         '<button type="button" class="btn-amigo-mini btn-amigo-peligro" data-amigo-bloquear="' + f.playerId + '">Bloquear</button>' +
         '</span></div>';
@@ -241,6 +289,9 @@ const Amigos = {
     });
     lista.querySelectorAll('[data-amigo-rechazar]').forEach(el => {
       el.onclick = () => this.rechazar(Number(el.dataset.amigoRechazar));
+    });
+    lista.querySelectorAll('[data-amigo-marcar]').forEach(el => {
+      el.onclick = () => this.toggleMarcar(Number(el.dataset.amigoMarcar));
     });
     lista.querySelectorAll('[data-amigo-quitar]').forEach(el => {
       el.onclick = () => this.eliminar(Number(el.dataset.amigoQuitar));

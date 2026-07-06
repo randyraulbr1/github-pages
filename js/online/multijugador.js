@@ -14,6 +14,7 @@ const Multijugador = {
   _ultimoStats: 0,
   mundoServidorTs: 0,
   _animaciones: {},
+  _lineasAmigo: {},
   _pollMundo: null,
   _ultimoPullMundo: 0,
   _mundoPendiente: null,
@@ -806,6 +807,45 @@ const Multijugador = {
   refrescarMarcadoresDistancia() {
     if (!this.activo) return;
     for (const p of this.online) this._actualizarMarcador(p);
+    this._actualizarLineasAmigo();
+  },
+
+  _actualizarLineasAmigo() {
+    if (!Mapa.mapa || typeof Amigos === 'undefined') return;
+    const marcados = Amigos.obtenerMarcados();
+    const miPos = typeof GPS !== 'undefined' && GPS.posicion ? GPS.posicion : null;
+    const activos = new Set();
+
+    if (miPos && marcados.size) {
+      for (const pid of marcados) {
+        const jugador = this.online.find(p => Number(p.playerId) === Number(pid));
+        if (!jugador || this._estaMuerto(jugador)) continue;
+        activos.add(String(pid));
+        const dest = this._posMarcador(jugador);
+        const coords = [[miPos[0], miPos[1]], [dest.x, dest.y]];
+        let linea = this._lineasAmigo[pid];
+        if (!linea) {
+          linea = L.polyline(coords, {
+            color: '#5ce883',
+            weight: 3,
+            opacity: 0.8,
+            dashArray: '10, 12',
+            lineCap: 'round',
+            className: 'linea-amigo-mapa'
+          }).addTo(Mapa.mapa);
+          this._lineasAmigo[pid] = linea;
+        } else {
+          linea.setLatLngs(coords);
+        }
+      }
+    }
+
+    for (const id of Object.keys(this._lineasAmigo)) {
+      if (!activos.has(id)) {
+        Mapa.mapa.removeLayer(this._lineasAmigo[id]);
+        delete this._lineasAmigo[id];
+      }
+    }
   },
 
   revivirJugador(p, btn) {
@@ -937,12 +977,16 @@ const Multijugador = {
       });
     }
     const amigo = typeof Amigos !== 'undefined' && Amigos.esAmigo(p.playerId);
+    const marcado = typeof Amigos !== 'undefined' && Amigos.esMarcado(p.playerId);
     const pct = this._pctVida(p);
     const nombre = this._nombreMarcador(p);
     const nv = p.level || 1;
+    let clases = 'marcador-jugador-online';
+    if (amigo) clases += ' es-amigo';
+    if (marcado) clases += ' pin-marcado';
     return L.divIcon({
       className: '',
-      html: '<div class="marcador-jugador-online' + (amigo ? ' es-amigo' : '') + '">' +
+      html: '<div class="' + clases + '">' +
         '<div class="mjo-etiqueta">' +
         '<span class="mjo-nombre">' + nombre + '</span>' +
         '<span class="mjo-nivel">Nv ' + nv + '</span>' +
@@ -1031,6 +1075,7 @@ const Multijugador = {
       this._actualizarMarcador(p);
     }
     this._redibujarCuerpos();
+    this._actualizarLineasAmigo();
     if (mostrarAviso !== false && this.online.length && typeof Notificaciones !== 'undefined') {
       Notificaciones.mostrar('👥 ' + this.online.length + ' jugador(es) en vivo', 'info', 3000);
     }

@@ -114,7 +114,7 @@ const Guardado = {
       if (k === 'posicionJugador') {
         if (!snap[k] || !Array.isArray(snap[k]) || snap[k].length < 2) continue;
       }
-      if (snap[k] !== null) {
+      if (k === 'armaEquipada' || snap[k] !== null) {
         this.datos[k] = JSON.parse(JSON.stringify(snap[k]));
       }
     }
@@ -132,6 +132,7 @@ const Guardado = {
     this._aplicarSnapshot(nube.datos);
     this.datos.nubeT = nube.t;
     this.datos.nubeFusionada = true;
+    if (typeof Mochila !== 'undefined') Mochila.pintar();
   },
 
   guardar() {

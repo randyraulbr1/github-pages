@@ -3,7 +3,7 @@
 // ============================================================
 const CONFIG = {
   // Cambiar al publicar: obliga al móvil a descartar caché vieja
-  version: '85',
+  version: '86',
   maxPila: 10,
 
   // Nombre reservado del administrador (solo este jugador ve el panel admin)
