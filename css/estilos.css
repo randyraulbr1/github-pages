@@ -174,14 +174,14 @@ button { font-family: inherit; }
 #hud-acciones-mini .btn-hud-accion {
   border: none;
   border-radius: 10px;
-  background: rgba(255, 255, 255, 0.58);
-  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.28), 0 1px 2px rgba(0, 0, 0, 0.16);
+  background: transparent;
+  box-shadow: none;
   color: #1a1a1a;
   text-shadow: none;
 }
 #hud-acciones-mini .btn-hud-accion:active {
   transform: scale(.92);
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.22);
+  box-shadow: none;
 }
 #hud-acciones-mini .btn-hud-accion .hud-mini-icono {
   display: inline-block;
