@@ -330,6 +330,17 @@ button { font-family: inherit; }
 .btn-hud-accion .badge-avisos.oculto,
 #btn-chat .badge-chat.oculto { display: none; }
 
+#btn-notific .badge-avisos,
+#btn-amigos .badge-avisos {
+  top: -7px;
+  right: -7px;
+  min-width: 17px;
+  height: 17px;
+  font-size: 9px;
+  line-height: 17px;
+  z-index: 2;
+}
+
 #btn-chat { position: relative; }
 
 #hud-dinero-mini {
