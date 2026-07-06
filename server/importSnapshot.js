@@ -114,8 +114,9 @@ async function restaurarMundoAlArranque() {
   const sqliteVacio = countUsers() === 0;
   const sinSnapshot = !prev;
   const sinJugadores = !prev?.jugadores?.length;
+  const githubTieneMas = (remoto?.jugadores?.length || 0) > (prev?.jugadores?.length || 0);
 
-  if (!sqliteVacio && !sinSnapshot && !sinJugadores) {
+  if (!sqliteVacio && !sinSnapshot && !sinJugadores && !githubTieneMas) {
     return { ok: true, skipped: true, jugadores: prev.jugadores.length };
   }
 
@@ -210,9 +211,40 @@ function forzarImportJugadores() {
   return { ok: true, jugadores: (mundo.jugadores || []).length };
 }
 
+/** Recupera jugadores desde GitHub / datos/jugadores si el snapshot perdió cuentas. */
+async function recuperarJugadoresPerdidos() {
+  const prev = getWorldSnapshot() || _mundoVacio();
+  const carpeta = leerJugadoresDesdeCarpeta();
+  let remoto = null;
+  try {
+    const { fetchMundoFromGitHub } = require('./githubMundo');
+    remoto = await fetchMundoFromGitHub();
+  } catch (e) { /* */ }
+
+  const antes = (prev.jugadores || []).length;
+  const mundo = Object.assign({}, prev);
+  mergeJugadoresPartidas(mundo, [remoto, { jugadores: carpeta.jugadores }, prev]);
+  _fusionarPartidas(mundo, [remoto, { partidas: carpeta.partidas }, prev]);
+  reconciliarCuentasEnSnapshot(mundo);
+
+  const despues = (mundo.jugadores || []).length;
+  if (despues > antes) {
+    mundo.actualizadoEn = Date.now();
+    saveWorldSnapshot(mundo);
+    try {
+      const { respaldarJugadoresEnGitHubAsync } = require('./jugadoresBackup');
+      respaldarJugadoresEnGitHubAsync(mundo);
+    } catch (e) { /* */ }
+    console.log('[mundo] Cuentas recuperadas:', despues - antes, '— total:', despues);
+    return { ok: true, antes, despues, recuperados: despues - antes };
+  }
+  return { ok: true, antes, despues, recuperados: 0 };
+}
+
 module.exports = {
   importarSnapshotSiFalta,
   restaurarMundoAlArranque,
   forzarImportJugadores,
+  recuperarJugadoresPerdidos,
   leerMundoJson
 };

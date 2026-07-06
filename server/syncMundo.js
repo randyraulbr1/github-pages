@@ -44,6 +44,53 @@ function mergeJugadoresPartidas(destino, fuentes) {
   return destino;
 }
 
+/**
+ * Fusiona jugadores al publicar sin borrar cuentas por accidente.
+ * Solo elimina del snapshot si mundo.purgarJugadores === true (admin borró jugador).
+ */
+function fusionarJugadoresPublicacion(mundo, prev) {
+  const incoming = Array.isArray(mundo.jugadores) ? mundo.jugadores : null;
+  const prevJ = prev?.jugadores || [];
+
+  if (!incoming) {
+    mergeJugadoresPartidas(mundo, [prev, mundo]);
+    return;
+  }
+
+  if (incoming.length === 0 && prevJ.length > 0) {
+    console.warn('[mundo] jugadores[] vacío — se conservan', prevJ.length, 'cuenta(s) del servidor');
+    mergeJugadoresPartidas(mundo, [prev, mundo]);
+    return;
+  }
+
+  const porId = new Map();
+  const purgar = !!mundo.purgarJugadores;
+
+  if (purgar) {
+    for (const j of incoming) {
+      if (j?.id) porId.set(j.id, Object.assign({}, j));
+    }
+  } else {
+    for (const j of prevJ) {
+      if (j?.id) porId.set(j.id, Object.assign({}, j));
+    }
+    for (const j of incoming) {
+      if (j?.id) porId.set(j.id, Object.assign({}, porId.get(j.id), j));
+    }
+  }
+
+  const idsActivos = new Set([...porId.keys()]);
+  const partidasPrev = {};
+  if (prev?.partidas) {
+    for (const [id, p] of Object.entries(prev.partidas)) {
+      if (idsActivos.has(id)) partidasPrev[id] = p;
+    }
+  }
+
+  mundo.jugadores = [...porId.values()];
+  mergeJugadoresPartidas(mundo, [{ partidas: partidasPrev }]);
+}
+
 function registrarCuentaEnSnapshot(perfil, partida) {
   if (!perfil?.id) return false;
   const prev = getWorldSnapshot() || {
@@ -444,19 +491,7 @@ function syncMundoFromJson(mundo, io) {
   }
 
   const prev = getWorldSnapshot();
-  if (Array.isArray(mundo.jugadores)) {
-    // Publicación completa del admin: la lista de jugadores del JSON manda.
-    const ids = new Set(mundo.jugadores.map(j => j?.id).filter(Boolean));
-    const partidasPrev = {};
-    if (prev?.partidas) {
-      for (const [id, p] of Object.entries(prev.partidas)) {
-        if (ids.has(id)) partidasPrev[id] = p;
-      }
-    }
-    mergeJugadoresPartidas(mundo, [{ partidas: partidasPrev }]);
-  } else {
-    mergeJugadoresPartidas(mundo, [prev, mundo]);
-  }
+  fusionarJugadoresPublicacion(mundo, prev);
   if (prev?.cuerposMuertos) {
     mundo.cuerposMuertos = mundo.cuerposMuertos || prev.cuerposMuertos;
     limpiarCuerposExpirados(mundo);
@@ -579,7 +614,13 @@ function syncMundoFromJson(mundo, io) {
       deduplicarJugadoresPorNombre
     } = require('./syncCuentas');
     if (Array.isArray(mundo.jugadores)) {
-      purgarCuentasFueraDeSnapshot(mundo);
+      if (mundo.purgarJugadores) {
+        const r = purgarCuentasFueraDeSnapshot(mundo);
+        if (r.removed > 0) {
+          console.log('[mundo] Cuentas purgadas (admin):', r.removed);
+        }
+      }
+      delete mundo.purgarJugadores;
       const dedupe = deduplicarJugadoresPorNombre(mundo.jugadores);
       mundo.jugadores = dedupe.jugadores;
       if (dedupe.aliasIds.size) {

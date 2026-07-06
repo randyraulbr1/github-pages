@@ -182,6 +182,10 @@ function getJugadoresPublicos() {
 /** Borra de SQLite usuarios que ya no están en la lista publicada por el admin. */
 function purgarCuentasFueraDeSnapshot(mundo) {
   if (!Array.isArray(mundo?.jugadores)) return { ok: true, removed: 0 };
+  if (!mundo.jugadores.length) {
+    console.warn('[mundo] purgar omitido: lista de jugadores vacía');
+    return { ok: true, removed: 0, skipped: true };
+  }
   const nombres = new Set(
     mundo.jugadores.map(j => String(j.nombre || '').toLowerCase()).filter(Boolean)
   );

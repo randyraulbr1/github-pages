@@ -3195,7 +3195,7 @@ const Admin = {
     delete (this.publicado.partidas || {})[j.id];
     delete (this.datos.partidasExtra || {})[j.id];
     this.guardar();
-    await this._publicarParaTodos(false, { confiarLocal: true });
+    await this._publicarParaTodos(false, { confiarLocal: true, purgarJugadores: true });
     Notificaciones.mostrar('🗑️ ' + j.nombre + ' eliminado', 'alerta', 5000);
     this._listarCuentasAsync({ soloRefrescar: true });
   },
@@ -4120,6 +4120,7 @@ const Admin = {
     if (firma === this._ultimoFirmaPublicada && !this._pubPendiente) return true;
 
     adminLocal.actualizadoEn = Date.now();
+    if (opts?.purgarJugadores) adminLocal.purgarJugadores = true;
     const json = JSON.stringify(adminLocal, (clave, valor) =>
       clave.startsWith('_') ? undefined : valor, 2);
 

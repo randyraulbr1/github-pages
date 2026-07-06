@@ -94,8 +94,9 @@ setupSockets(io);
 
 async function arrancar() {
   try {
-    const { restaurarMundoAlArranque } = require('./importSnapshot');
+    const { restaurarMundoAlArranque, recuperarJugadoresPerdidos } = require('./importSnapshot');
     await restaurarMundoAlArranque();
+    await recuperarJugadoresPerdidos();
   } catch (e) {
     console.warn('   restaurarMundoAlArranque:', e.message);
   }
