@@ -21,6 +21,7 @@ const Mochila = {
       Guardado.datos.mochila[1] = { id: 'pan', cantidad: 1 };
     }
     this.slots = Guardado.datos.mochila;
+    this._sincronizarArmaEquipada();
 
     document.getElementById('btn-mochila').addEventListener('click', () => this.abrir());
     document.getElementById('btn-usar-item').addEventListener('click', () => this.usarSeleccionado());
@@ -51,10 +52,28 @@ const Mochila = {
 
   // ---------- CONSULTAS ----------
   contar(id) {
-    return this.slots.reduce((s, sl) => s + (sl && sl.id === id ? sl.cantidad : 0), 0);
+    let total = this.slots.reduce((s, sl) => s + (sl && sl.id === id ? sl.cantidad : 0), 0);
+    if (this.armaEquipadaId() === id) total += 1;
+    return total;
   },
   tieneItem(id) { return this.contar(id) > 0; },
   slotsLibres() { return this.slots.filter(s => !s).length; },
+
+  _primerSlotLibre() {
+    return this.slots.findIndex(s => !s);
+  },
+
+  _indiceEnMochila(id) {
+    return this.slots.findIndex(s => s && s.id === id);
+  },
+
+  /** Si el arma equipada sigue en la rejilla (partida antigua), la saca del slot. */
+  _sincronizarArmaEquipada() {
+    const id = this.armaEquipadaId();
+    if (!id) return;
+    const idx = this._indiceEnMochila(id);
+    if (idx >= 0) this.slots[idx] = null;
+  },
 
   /** Simula si caben todos los ítems de una recompensa sin modificar la mochila */
   puedeRecibirRecompensa(items) {
@@ -95,39 +114,71 @@ const Mochila = {
 
   danoArmaEquipada() {
     const id = this.armaEquipadaId();
-    if (!id || !this.tieneItem(id)) return 0;
+    if (!id) return 0;
     const item = Items.obtener(id);
     if (!item || item.tipo !== 'arma') return 0;
     if (!Items.armaAptaParaNivel(id, Vida.nivel)) return 0;
     return item.dano || 0;
   },
 
-  equiparArma(id) {
+  equiparArma(id, slotOrigen) {
     const item = Items.obtener(id);
     if (!item || item.tipo !== 'arma') return false;
-    if (!this.tieneItem(id)) return false;
     if (!Items.armaAptaParaNivel(id, Vida.nivel)) {
       Notificaciones.mostrar('Nivel ' + (item.nivelMin || 1) + '–' + (item.nivelMax || 100) + ' para esta arma', 'alerta');
       return false;
     }
+
+    let idx = typeof slotOrigen === 'number' ? slotOrigen : this._indiceEnMochila(id);
+    if (idx < 0 || !this.slots[idx] || this.slots[idx].id !== id) return false;
+
+    const prev = this.armaEquipadaId();
+    if (prev && prev !== id) this.desequiparArma();
+
+    this.slots[idx] = null;
     Guardado.datos.armaEquipada = id;
     this.guardar();
     this.pintar();
     return true;
   },
 
-  desequiparArma() {
+  desequiparArma(slotDestino) {
+    const id = this.armaEquipadaId();
+    if (!id) return false;
+
+    let dest = typeof slotDestino === 'number' ? slotDestino : this._primerSlotLibre();
+    if (dest < 0) {
+      Notificaciones.mostrar('🎒 No hay espacio en la mochila para guardar el arma', 'alerta');
+      return false;
+    }
+
+    const anterior = this.slots[dest];
+    this.slots[dest] = { id, cantidad: 1 };
     Guardado.datos.armaEquipada = null;
+
+    if (anterior) {
+      const libre = this._primerSlotLibre();
+      if (libre < 0 || libre === dest) {
+        this.slots[dest] = anterior;
+        Guardado.datos.armaEquipada = id;
+        Notificaciones.mostrar('🎒 No hay espacio en la mochila', 'alerta');
+        return false;
+      }
+      this.slots[libre] = anterior;
+    }
+
     this.guardar();
     this.pintar();
+    return true;
   },
 
   equiparSeleccionado() {
     const sl = this.slots[this.slotSeleccionado];
     if (!sl) return;
     if (this.armaEquipadaId() === sl.id) this.desequiparArma();
-    else this.equiparArma(sl.id);
-    this.mostrarDetalle(this.slotSeleccionado);
+    else this.equiparArma(sl.id, this.slotSeleccionado);
+    if (this.slots[this.slotSeleccionado]) this.mostrarDetalle(this.slotSeleccionado);
+    else this.ocultarDetalle();
   },
 
   // ---------- AGREGAR / QUITAR ----------
@@ -189,7 +240,11 @@ const Mochila = {
         if (sl.cantidad <= 0) this.slots[i] = null;
       }
     }
-    if (this.armaEquipadaId() === id && !this.tieneItem(id)) this.desequiparArma();
+    if (restante > 0 && this.armaEquipadaId() === id) {
+      Guardado.datos.armaEquipada = null;
+      restante -= 1;
+    }
+    if (restante > 0) return false;
     this.guardar();
     this.pintar();
     const item = Items.seguro(id);
@@ -200,8 +255,8 @@ const Mochila = {
   // ---------- PINTADO ----------
   pintarArmaHud() {
     const id = this.armaEquipadaId();
-    const tiene = id && this.tieneItem(id);
-    const item = tiene ? Items.seguro(id) : null;
+    const item = id ? Items.seguro(id) : null;
+    const tiene = !!item;
     const icon = item ? (item.icono || '🗡️') : null;
     const nombre = item ? item.nombre : 'Sin arma';
     const dano = item ? (item.dano || 0) : 0;
@@ -249,10 +304,9 @@ const Mochila = {
       const celda = document.createElement('div');
       celda.className = 'slot';
       celda.dataset.indice = i;
-      if (sl) {
+      if (sl && sl.id !== this.armaEquipadaId()) {
         const item = Items.seguro(sl.id);
         celda.innerHTML = this._htmlItemDrag(item.icono, sl.cantidad, true);
-        if (this.armaEquipadaId() === sl.id) celda.classList.add('slot-equipado');
         const dragEl = celda.querySelector('.inv-item-drag');
         if (dragEl) this._enlazarItemDrag(dragEl, i);
       }
@@ -269,13 +323,12 @@ const Mochila = {
 
   _prepararArrastre(ev, origen) {
     ev.preventDefault();
-    const idxReal = origen === 'equip'
-      ? this.slots.findIndex(s => s && s.id === this.armaEquipadaId())
-      : origen;
-    const sl = origen === 'equip'
+    const desdeEquip = origen === 'equip';
+    const idxReal = desdeEquip ? -1 : origen;
+    const sl = desdeEquip
       ? (this.armaEquipadaId() ? { id: this.armaEquipadaId(), cantidad: 1 } : null)
       : this.slots[idxReal];
-    if (!sl || (origen !== 'equip' && idxReal < 0)) return;
+    if (!sl || (!desdeEquip && idxReal < 0)) return;
     const item = Items.seguro(sl.id);
     const deleteZone = document.getElementById('inv-delete-zone');
     let dragStarted = false;
@@ -285,7 +338,7 @@ const Mochila = {
       if (dragStarted) return;
       dragStarted = true;
       this._eliminarActivo = false;
-      this._arrastre = { activo: true, origen: idxReal, desdeEquip: origen === 'equip', item: sl };
+      this._arrastre = { activo: true, origen: idxReal, desdeEquip, item: sl };
       ghost = document.createElement('div');
       ghost.className = 'inv-ghost-item';
       ghost.textContent = item.icono;
@@ -340,7 +393,7 @@ const Mochila = {
     document.querySelectorAll('.slot.drag-over, .inv-equip-slot.drag-over')
       .forEach(s => s.classList.remove('drag-over'));
     const el = document.elementFromPoint(ev.clientX, ev.clientY);
-    const slot = el?.closest?.('.slot');
+    const slot = el?.closest?.('.slot, .inv-equip-slot');
     if (slot) slot.classList.add('drag-over');
     const sobreEliminar = this._sobreZonaEliminar(ev, deleteZone);
     this._eliminarActivo = sobreEliminar;
@@ -358,18 +411,14 @@ const Mochila = {
     this._arrastre = null;
 
     if (eliminar) {
-      if (desdeEquip) {
-        if (origen >= 0 && this.slots[origen]) this._eliminarSlot(origen);
-        else this.desequiparArma();
-      } else if (origen >= 0) {
-        this._eliminarSlot(origen);
-      }
+      if (desdeEquip) this._eliminarEquipada();
+      else if (origen >= 0) this._eliminarSlot(origen);
       this.pintar();
       return;
     }
 
     const el = document.elementFromPoint(ev.clientX, ev.clientY);
-    const targetSlot = el?.closest('.slot');
+    const targetSlot = el?.closest('.slot, .inv-equip-slot');
     if (!targetSlot) {
       this.pintar();
       return;
@@ -380,12 +429,16 @@ const Mochila = {
         return;
       }
       const sl = this.slots[origen];
-      if (sl && Items.seguro(sl.id).tipo === 'arma') this.equiparArma(sl.id);
+      if (sl && Items.seguro(sl.id).tipo === 'arma') this.equiparArma(sl.id, origen);
       else this.pintar();
       return;
     }
     const destino = parseInt(targetSlot.dataset.indice, 10);
-    if (!isNaN(destino) && destino !== origen) this.moverSlot(origen, destino);
+    if (desdeEquip && !isNaN(destino)) {
+      this.desequiparArma(destino);
+      return;
+    }
+    if (!isNaN(destino) && destino !== origen && origen >= 0) this.moverSlot(origen, destino);
     else this.pintar();
   },
 
@@ -420,11 +473,24 @@ const Mochila = {
     const item = Items.seguro(sl.id);
     if (!confirm('¿Eliminar ' + item.nombre + ' x' + sl.cantidad + '?')) { this.pintar(); return; }
     this.slots[indice] = null;
-    if (this.armaEquipadaId() === sl.id) this.desequiparArma();
+    if (this.armaEquipadaId() === sl.id) Guardado.datos.armaEquipada = null;
     this.guardar();
     this.pintar();
     this.ocultarDetalle();
     Historial.registrar('objetos', { detalle: 'Eliminado: ' + item.nombre, monto: -sl.cantidad });
+    Notificaciones.mostrar('🗑️ ' + item.nombre + ' eliminado', 'alerta');
+  },
+
+  _eliminarEquipada() {
+    const id = this.armaEquipadaId();
+    if (!id) return;
+    const item = Items.seguro(id);
+    if (!confirm('¿Eliminar ' + item.nombre + '?')) { this.pintar(); return; }
+    Guardado.datos.armaEquipada = null;
+    this.guardar();
+    this.pintar();
+    this.ocultarDetalle();
+    Historial.registrar('objetos', { detalle: 'Eliminado: ' + item.nombre, monto: -1 });
     Notificaciones.mostrar('🗑️ ' + item.nombre + ' eliminado', 'alerta');
   },
 
