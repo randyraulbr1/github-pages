@@ -773,6 +773,7 @@ const Admin = {
       Object.assign({}, this.publicado.precios, this.datos.precios));
 
     this._sincronizarMapaRemoto(idsObjetosAntes, idsTesorosAntes, idsMisionesAntes, eliminadosAntes);
+    this._refrescarObjetosMapa();
 
     if (typeof Cofres !== 'undefined') Cofres._pintarTodos();
     if (typeof Enemigos !== 'undefined') Enemigos._recargar();
@@ -1810,6 +1811,19 @@ const Admin = {
     if (!GPS.posicion) return;
     for (const t of this.tesorosTodos()) {
       this._revisarTesoro(t, Utilidades.distanciaMetros(GPS.posicion, t.pos));
+    }
+    this._refrescarObjetosMapa();
+  },
+
+  _refrescarObjetosMapa() {
+    for (const o of this.objetosTodos()) {
+      if (!o || !o.pos || this.eliminado(o.id)) continue;
+      this.pos(o.id, o.pos);
+      if (!o._marcador) this._crearMarcadorObjeto(o);
+      else {
+        o._marcador.setLatLng(o.pos);
+        this._revisarObjeto(o);
+      }
     }
   },
 

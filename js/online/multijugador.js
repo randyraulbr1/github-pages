@@ -210,11 +210,24 @@ const Multijugador = {
     });
 
     this.socket.on('world:updateObject', (obj) => {
-      if (obj.type === 'enemy' && obj.data?.origenId && typeof Enemigos !== 'undefined') {
+      if (!obj?.data?.origenId) return;
+      if (obj.type === 'enemy' && typeof Enemigos !== 'undefined') {
         Enemigos.actualizarDesdeServidor(obj.data.origenId, obj.x, obj.y, obj.data);
-      } else if (obj.data?.origenId && typeof Admin !== 'undefined') {
-        Admin.publicado.posiciones = Admin.publicado.posiciones || {};
-        Admin.publicado.posiciones[obj.data.origenId] = [obj.x, obj.y];
+        return;
+      }
+      if (typeof Admin === 'undefined') return;
+      Admin.publicado.posiciones = Admin.publicado.posiciones || {};
+      Admin.publicado.posiciones[obj.data.origenId] = [obj.x, obj.y];
+      if (obj.type === 'item') {
+        const o = Admin.objetosTodos().find(x => x.id === obj.data.origenId);
+        if (o) {
+          o.pos = [obj.x, obj.y];
+          if (!o._marcador) Admin._crearMarcadorObjeto(o);
+          else {
+            o._marcador.setLatLng(o.pos);
+            Admin._revisarObjeto(o);
+          }
+        }
       }
     });
 
@@ -349,10 +362,12 @@ const Multijugador = {
     const ts = data.actualizadoEn || m.actualizadoEn || Date.now();
     const json = JSON.stringify(m);
     const firma = Admin._firmaMundo(json);
-    if (ts <= this.mundoServidorTs && firma === Admin._ultimoFirmaPublicada) return false;
+    if (ts <= this.mundoServidorTs) {
+      if (firma === Admin._ultimoFirmaPublicada) return false;
+    }
     this.mundoServidorTs = Math.max(this.mundoServidorTs, ts);
     Admin._crudoPublicado = json;
-    Admin._ultimoFirmaPublicada = Admin._firmaMundo(json);
+    Admin._ultimoFirmaPublicada = firma;
     Admin._aplicarMundoRemoto(json);
     if (m.cuerposMuertos && typeof Multijugador !== 'undefined') {
       Multijugador._aplicarCuerpos(m.cuerposMuertos);

@@ -103,8 +103,13 @@ const Enemigos = {
   },
 
   _recargar() {
-    this.lista = (typeof Admin !== 'undefined' && Admin.enemigosTodos)
+    const todos = (typeof Admin !== 'undefined' && Admin.enemigosTodos)
       ? Admin.enemigosTodos() : [];
+    const porId = new Map();
+    for (const e of todos) {
+      if (e?.id && !porId.has(e.id)) porId.set(e.id, e);
+    }
+    this.lista = [...porId.values()];
     const ids = new Set(this.lista.map(e => e.id));
     for (const id of Object.keys(this._marcadores)) {
       if (!ids.has(id)) this._quitarMarcador(id);
@@ -215,14 +220,22 @@ const Enemigos = {
       fillColor: '#ffd60a', fillOpacity: 0.14, dashArray: '2 4', interactive: false
     });
 
-    Mapa.registrarPunto({
-      id: e.id,
-      posicion: e.pos,
-      radio: CONFIG.distanciaInteraccion,
-      marcador,
-      alTocar: () => this._abrirCombate(e),
-      alCambiarDistancia: d => this._alCambiarDistancia(e, d)
-    });
+    const puntoExistente = Mapa.puntosInteractivos.find(x => x.id === e.id);
+    if (puntoExistente) {
+      puntoExistente.marcador = marcador;
+      puntoExistente.posicion = e.pos;
+      puntoExistente.alTocar = () => this._abrirCombate(e);
+      puntoExistente.alCambiarDistancia = d => this._alCambiarDistancia(e, d);
+    } else {
+      Mapa.registrarPunto({
+        id: e.id,
+        posicion: e.pos,
+        radio: CONFIG.distanciaInteraccion,
+        marcador,
+        alTocar: () => this._abrirCombate(e),
+        alCambiarDistancia: d => this._alCambiarDistancia(e, d)
+      });
+    }
     this._actualizarBarra(e);
     if (GPS.posicion) this._actualizarVisibilidadZonas(e, Utilidades.distanciaMetros(GPS.posicion, e.pos));
   },
@@ -237,6 +250,8 @@ const Enemigos = {
       if (Mapa.mapa && Mapa.mapa.hasLayer(this._zonasAtaque[id])) Mapa.mapa.removeLayer(this._zonasAtaque[id]);
       delete this._zonasAtaque[id];
     }
+    const pi = Mapa.puntosInteractivos.findIndex(p => p.id === id);
+    if (pi >= 0) Mapa.puntosInteractivos.splice(pi, 1);
     delete this._ultimoGolpeAuto[id];
   },
 
@@ -249,6 +264,7 @@ const Enemigos = {
     }
     if (!e) return;
     e.pos = [lat, lng];
+    e._ultimoMovServidor = Date.now();
     if (typeof Admin !== 'undefined') {
       Admin.publicado.posiciones = Admin.publicado.posiciones || {};
       Admin.publicado.posiciones[origenId] = [lat, lng];
@@ -265,12 +281,8 @@ const Enemigos = {
         e._enZona = true;
       }
     }
-    const m = this._marcadores[origenId];
-    if (m) {
-      m.setLatLng([lat, lng]);
-      this._refrescarIconoMarcador(e);
-      this._actualizarBarra(e);
-    }
+    if (!this._marcadores[origenId]) this._crearEnMapa(e);
+    else this._actualizarMarcador(e);
   },
 
   _actualizarMarcador(e) {
@@ -344,17 +356,15 @@ const Enemigos = {
       if (!this._marcadores[e.id]) continue;
       this._aplicarEstadoRemoto(e);
       const d = Utilidades.distanciaMetros(GPS.posicion, e.pos);
-      const enZona = d <= this._radioZona(e);
-      e._enZona = enZona;
-      this._actualizarVisibilidadZonas(e, d);
-      if (online) {
-        this._actualizarBarra(e);
-        continue;
-      }
-      const radioExt = this._radioExterior(e);
       const radioZona = this._radioZona(e);
       const radioAtaque = this._radioAtaque(e);
-      const enExterior = d <= radioExt;
+      const enZona = d <= radioZona;
+      const enAtaque = d <= radioAtaque;
+      e._enZona = enZona;
+      this._actualizarVisibilidadZonas(e, d);
+
+      const serverDrive = online && e._ultimoMovServidor &&
+        Date.now() - e._ultimoMovServidor < 1400;
 
       if (enZona && GPS.posicion) {
         e.facingDeg = this._bearingDeg(e.pos[0], e.pos[1], GPS.posicion[0], GPS.posicion[1]);
@@ -364,29 +374,29 @@ const Enemigos = {
         this._refrescarIconoMarcador(e);
       }
 
-      const enAtaque = d <= radioAtaque;
-
-      if (enZona && d > 3) {
-        const m = this._marcadores[e.id];
-        const ll = m.getLatLng();
-        const t = enAtaque ? 0.18 : 0.12;
-        const nlat = ll.lat + (GPS.posicion[0] - ll.lat) * t;
-        const nlng = ll.lng + (GPS.posicion[1] - ll.lng) * t;
-        this._moverEnemigo(e, nlat, nlng);
-      } else if (e.posOrigen) {
-        const o = e.posOrigen;
-        const distOrigen = Utilidades.distanciaMetros(e.pos, o);
-        if (distOrigen > 2) {
+      if (!serverDrive) {
+        if (enZona && d > 3) {
           const m = this._marcadores[e.id];
           const ll = m.getLatLng();
-          const t = 0.08;
-          const nlat = ll.lat + (o[0] - ll.lat) * t;
-          const nlng = ll.lng + (o[1] - ll.lng) * t;
+          const t = enAtaque ? 0.18 : 0.12;
+          const nlat = ll.lat + (GPS.posicion[0] - ll.lat) * t;
+          const nlng = ll.lng + (GPS.posicion[1] - ll.lng) * t;
           this._moverEnemigo(e, nlat, nlng);
+        } else if (e.posOrigen) {
+          const o = e.posOrigen;
+          const distOrigen = Utilidades.distanciaMetros(e.pos, o);
+          if (distOrigen > 2) {
+            const m = this._marcadores[e.id];
+            const ll = m.getLatLng();
+            const t = 0.08;
+            const nlat = ll.lat + (o[0] - ll.lat) * t;
+            const nlng = ll.lng + (o[1] - ll.lng) * t;
+            this._moverEnemigo(e, nlat, nlng);
+          }
         }
       }
 
-      if (enAtaque && enZona && !this._enCombate) this._golpeAutomatico(e);
+      if (enAtaque && enZona && !this._enCombate && !online) this._golpeAutomatico(e);
       this._actualizarBarra(e);
     }
   },
