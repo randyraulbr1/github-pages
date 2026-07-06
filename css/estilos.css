@@ -446,18 +446,27 @@ button { font-family: inherit; }
 }
 .btn-burbuja { position: relative; }
 
-/* ============ VENTANAS (hojas estilo iOS) ============ */
+/* ============ VENTANAS (centradas en móvil, margen a los lados) ============ */
 .ventana {
-  position: fixed; inset: 0; z-index: 1500; background: rgba(0,0,0,.5);
-  display: flex; align-items: flex-end; justify-content: center;
+  position: fixed; inset: 0; z-index: 1500; background: rgba(0,0,0,.52);
+  display: flex; align-items: center; justify-content: center;
+  padding: 14px 16px;
+  padding-top: max(14px, env(safe-area-inset-top));
+  padding-bottom: max(14px, env(safe-area-inset-bottom));
+  box-sizing: border-box;
 }
 .ventana-caja {
-  background: rgba(24,30,47,.96); color: #eef2f8; width: 100%; max-width: 480px;
-  max-height: 88vh; border-radius: 22px 22px 0 0; overflow: hidden auto;
+  background: rgba(24,30,47,.96); color: #eef2f8;
+  width: 100%;
+  max-width: min(380px, calc(100vw - 32px));
+  max-height: min(86vh, calc(100dvh - 28px - env(safe-area-inset-top) - env(safe-area-inset-bottom)));
+  border-radius: 20px;
+  overflow: hidden auto;
   border: 1px solid rgba(255,255,255,.1);
   backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
   display: flex; flex-direction: column;
-  padding-bottom: env(safe-area-inset-bottom);
+  margin: 0 auto;
+  box-shadow: 0 12px 40px rgba(0,0,0,.45);
 }
 .ventana-titulo {
   padding: 16px 18px; font-size: 17px; font-weight: 700;
@@ -484,7 +493,7 @@ button { font-family: inherit; }
 .inventario-caja {
   background: linear-gradient(180deg, rgba(18,24,42,.98), rgba(12,16,28,.98));
   border: 1px solid rgba(255,214,10,.15);
-  max-width: 420px;
+  max-width: min(360px, calc(100vw - 32px));
 }
 .inv-header {
   display: flex; align-items: center; justify-content: space-between;
@@ -586,10 +595,18 @@ button { font-family: inherit; }
   display: flex; justify-content: center; align-items: center;
 }
 .inv-delete-zone {
-  width: 145px; min-height: 54px; border-radius: 12px;
+  position: fixed;
+  left: 50%;
+  bottom: max(18px, env(safe-area-inset-bottom));
+  transform: translateX(-50%);
+  z-index: 2000;
+  width: 132px; min-height: 48px; border-radius: 12px;
   border: 2px dashed #ff4545; color: #ff5959;
   display: none; justify-content: center; align-items: center;
-  font-weight: 900; background: rgba(255,0,0,.05); flex-shrink: 0;
+  font-weight: 900; font-size: 12px;
+  background: rgba(20,8,8,.92); flex-shrink: 0;
+  box-shadow: 0 8px 24px rgba(0,0,0,.5);
+  pointer-events: auto;
 }
 .inv-delete-zone.show { display: flex; }
 .inv-delete-zone.active {
@@ -618,12 +635,13 @@ button { font-family: inherit; }
   box-shadow: inset 0 0 8px rgba(255,214,10,.15);
 }
 .inv-pie {
-  display: flex; align-items: center; justify-content: space-between; gap: 10px;
-  padding: 12px 16px 16px; margin-top: 8px;
+  padding: 10px 16px 14px; margin-top: 4px;
   border-top: 1px solid rgba(255,255,255,.06);
+  text-align: center;
 }
 .inv-ayuda {
-  margin: 0; font-size: 11px; line-height: 1.35; color: #8e99b0; flex: 1;
+  margin: 0 auto; font-size: 11px; line-height: 1.4; color: #8e99b0;
+  max-width: 280px;
 }
 .inv-info-i {
   display: inline-flex; align-items: center; justify-content: center;
@@ -782,7 +800,16 @@ button { font-family: inherit; }
 }
 
 /* ============ AVISOS (últimas notificaciones) ============ */
-.panel-social-caja { display: flex; flex-direction: column; max-height: 82vh; }
+.panel-social-caja {
+  display: flex; flex-direction: column;
+  max-width: min(380px, calc(100vw - 32px));
+  max-height: min(86vh, calc(100dvh - 28px));
+}
+.panel-social-caja .panel-lista-scroll,
+.panel-social-caja #lista-notificaciones,
+.panel-social-caja .amigos-lista {
+  max-height: min(52vh, 360px);
+}
 .panel-social-ayuda {
   margin: 0; padding: 0 16px 10px;
   font-size: 12px; line-height: 1.45; color: #9aa5bd;
@@ -1228,8 +1255,8 @@ button { font-family: inherit; }
 
 /* ============ TABLETS Y PANTALLAS GRANDES ============ */
 @media (min-width: 700px) {
-  .ventana { align-items: center; padding: 24px; }
-  .ventana-caja { border-radius: 22px; max-height: 82vh; }
+  .ventana { padding: 24px; }
+  .ventana-caja { max-width: 440px; border-radius: 22px; max-height: 82vh; }
   #rejilla-mochila { gap: 10px; padding: 18px; }
   .slot { font-size: 34px; border-radius: 16px; }
   #grupo-barras { max-width: 280px; }

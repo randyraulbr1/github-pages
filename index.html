@@ -13,7 +13,7 @@
   <script>
     // Aviso temprano en móvil (antes de cargar 20+ archivos JS)
     (function () {
-      var V = '87';
+      var V = '88';
       var texto = document.getElementById('carga-texto');
       if (texto) texto.textContent = 'Conectando…';
       var prev = localStorage.getItem('mariel_app_version');
@@ -728,44 +728,44 @@
   </div>
 
   <!-- LIBRERÍAS -->
-  <script src="lib/leaflet/leaflet.js?v=87"></script>
+  <script src="lib/leaflet/leaflet.js?v=88"></script>
 
   <!-- MÓDULOS DEL JUEGO (orden importante) -->
-  <script src="js/config/config.js?v=87"></script>
-  <script src="js/nucleo/utilidades.js?v=87"></script>
-  <script src="js/mundo/mundo_publico.js?v=87"></script>
-  <script src="js/notificaciones/notificaciones.js?v=87"></script>
-  <script src="js/usuarios/usuarios.js?v=87"></script>
-  <script src="js/guardado/guardado.js?v=87"></script>
-  <script src="js/historial/historial.js?v=87"></script>
-  <script src="js/dinero/dinero.js?v=87"></script>
-  <script src="js/vida/vida.js?v=87"></script>
-  <script src="js/items/items.js?v=87"></script>
-  <script src="js/mochila/mochila.js?v=87"></script>
-  <script src="js/mapa/mapa.js?v=87"></script>
-  <script src="js/gps/gps.js?v=87"></script>
-  <script src="js/tiendas/datos_tiendas.js?v=87"></script>
-  <script src="js/tiendas/tiendas.js?v=87"></script>
-  <script src="js/pesca/pesca.js?v=87"></script>
-  <script src="js/tesoros/datos_tesoros.js?v=87"></script>
-  <script src="js/tesoros/tesoros.js?v=87"></script>
-  <script src="js/misiones/datos_misiones.js?v=87"></script>
-  <script src="js/misiones/misiones.js?v=87"></script>
-  <script src="js/cofres/cofres.js?v=87"></script>
-  <script src="js/correo/correo.js?v=87"></script>
-  <script src="js/enemigos/enemigos.js?v=87"></script>
-  <script src="js/online/sync_servidor.js?v=87"></script>
-  <script src="js/admin/admin.js?v=87"></script>
-  <script src="js/opciones/opciones.js?v=87"></script>
-  <script src="js/online/mundo_online.js?v=87"></script>
-  <script src="js/online/amigos.js?v=87"></script>
-  <script src="js/online/multijugador.js?v=87"></script>
-  <script src="js/principal.js?v=87"></script>
+  <script src="js/config/config.js?v=88"></script>
+  <script src="js/nucleo/utilidades.js?v=88"></script>
+  <script src="js/mundo/mundo_publico.js?v=88"></script>
+  <script src="js/notificaciones/notificaciones.js?v=88"></script>
+  <script src="js/usuarios/usuarios.js?v=88"></script>
+  <script src="js/guardado/guardado.js?v=88"></script>
+  <script src="js/historial/historial.js?v=88"></script>
+  <script src="js/dinero/dinero.js?v=88"></script>
+  <script src="js/vida/vida.js?v=88"></script>
+  <script src="js/items/items.js?v=88"></script>
+  <script src="js/mochila/mochila.js?v=88"></script>
+  <script src="js/mapa/mapa.js?v=88"></script>
+  <script src="js/gps/gps.js?v=88"></script>
+  <script src="js/tiendas/datos_tiendas.js?v=88"></script>
+  <script src="js/tiendas/tiendas.js?v=88"></script>
+  <script src="js/pesca/pesca.js?v=88"></script>
+  <script src="js/tesoros/datos_tesoros.js?v=88"></script>
+  <script src="js/tesoros/tesoros.js?v=88"></script>
+  <script src="js/misiones/datos_misiones.js?v=88"></script>
+  <script src="js/misiones/misiones.js?v=88"></script>
+  <script src="js/cofres/cofres.js?v=88"></script>
+  <script src="js/correo/correo.js?v=88"></script>
+  <script src="js/enemigos/enemigos.js?v=88"></script>
+  <script src="js/online/sync_servidor.js?v=88"></script>
+  <script src="js/admin/admin.js?v=88"></script>
+  <script src="js/opciones/opciones.js?v=88"></script>
+  <script src="js/online/mundo_online.js?v=88"></script>
+  <script src="js/online/amigos.js?v=88"></script>
+  <script src="js/online/multijugador.js?v=88"></script>
+  <script src="js/principal.js?v=88"></script>
   <script>
     // Registrar la app instalable (PWA)
     if ('serviceWorker' in navigator) {
       const yaTeniaVersion = !!navigator.serviceWorker.controller;
-      navigator.serviceWorker.register('sw.js?v=87', { updateViaCache: 'none' })
+      navigator.serviceWorker.register('sw.js?v=88', { updateViaCache: 'none' })
         .then(function (reg) { reg.update(); })
         .catch(function () {});
       // Cuando llega una versión nueva del juego: avisar y recargar solo
