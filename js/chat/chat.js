@@ -407,7 +407,7 @@ const Chat = {
         '<div class="chat-row-meta">' +
           '<div class="chat-time">' + last.time + '</div>' +
           ((this.unread[j.id] || 0) > 0
-            ? '<div class="unread">' + Utilidades.contadorBadge(this.unread[j.id]) + '</div>'
+            ? '<div class="unread">' + this._contadorGlobo(this.unread[j.id]) + '</div>'
             : '') +
         '</div>';
       row.addEventListener('click', () => this.openConversation(j.id));
@@ -750,11 +750,21 @@ const Chat = {
     this.verificarLlegadaPin();
   },
 
+  _contadorGlobo(cantidad) {
+    if (typeof Utilidades !== 'undefined' && typeof Utilidades.contadorBadge === 'function') {
+      return Utilidades.contadorBadge(cantidad);
+    }
+    const n = Math.max(0, Math.floor(Number(cantidad) || 0));
+    if (n <= 0) return '';
+    if (n > 10) return '+10';
+    return String(n);
+  },
+
   _actualizarBadge() {
     const badge = document.getElementById('badge-chat');
     if (!badge) return;
     const total = Object.values(this.unread).reduce((a, b) => a + (b || 0), 0);
-    badge.textContent = Utilidades.contadorBadge(total);
+    badge.textContent = this._contadorGlobo(total);
     badge.classList.toggle('oculto', total <= 0);
   },
 

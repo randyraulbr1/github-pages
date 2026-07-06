@@ -240,6 +240,28 @@ const Amigos = {
     this._pintar();
   },
 
+  _contadorGlobo(cantidad) {
+    if (typeof Utilidades !== 'undefined' && typeof Utilidades.contadorBadge === 'function') {
+      return Utilidades.contadorBadge(cantidad);
+    }
+    const n = Math.max(0, Math.floor(Number(cantidad) || 0));
+    if (n <= 0) return '';
+    if (n > 10) return '+10';
+    return String(n);
+  },
+
+  _actualizarBadgeAmigos() {
+    const badge = document.getElementById('badge-amigos');
+    if (!badge) return;
+    const n = this.pendingIn.length;
+    if (n > 0) {
+      badge.textContent = this._contadorGlobo(n);
+      badge.classList.remove('oculto');
+    } else {
+      badge.classList.add('oculto');
+    }
+  },
+
   _cerrarMenus() {
     document.querySelectorAll('#ventana-amigos .pop-menu.show').forEach(m => m.classList.remove('show'));
   },
@@ -627,16 +649,7 @@ const Amigos = {
       }
     }
 
-    const badge = document.getElementById('badge-amigos');
-    if (badge) {
-      const n = this.pendingIn.length;
-      if (n > 0) {
-        badge.textContent = Utilidades.contadorBadge(n);
-        badge.classList.remove('oculto');
-      } else {
-        badge.classList.add('oculto');
-      }
-    }
+    this._actualizarBadgeAmigos();
   },
 
   _pintarSiAbierto() {
