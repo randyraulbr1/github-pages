@@ -20,11 +20,38 @@ const Enemigos = {
   _tickId: null,
   _ultimoGolpeAuto: {},
   _interp: {},
+  /** Posición en vivo del servidor (no confundir con spawn en mundo.json) */
+  _posViva: {},
+
+  _online() {
+    return typeof Multijugador !== 'undefined' && Multijugador.activo;
+  },
+
+  _spawnEnemigo(e, posAdmin) {
+    if (e.posOrigen?.length >= 2) return e.posOrigen.slice();
+    if (e.origenX != null && e.origenY != null) return [e.origenX, e.origenY];
+    if (posAdmin?.length >= 2) return posAdmin.slice();
+    return null;
+  },
+
+  _posDesdeMarcador(e) {
+    const m = this._marcadores[e?.id];
+    if (!m) return null;
+    const ll = m.getLatLng();
+    return [ll.lat, ll.lng];
+  },
+
+  _sincronizarZonas(e) {
+    const centro = this._centroZona(e);
+    if (!centro) return;
+    if (this._zonas[e.id]) this._zonas[e.id].setLatLng(centro);
+    if (this._zonasAtaque[e.id]) this._zonasAtaque[e.id].setLatLng(centro);
+  },
 
   iniciar() {
     this._recargar();
     if (this._tickId) clearInterval(this._tickId);
-    this._tickId = setInterval(() => this._tick(), 800);
+    this._tickId = setInterval(() => this._tick(), 500);
     const enlazar = (id, fn) => {
       const el = document.getElementById(id);
       if (el) el.addEventListener('click', fn);
@@ -120,10 +147,10 @@ const Enemigos = {
     const vivos = new Map();
     for (const e of this.lista) {
       if (!e?.id) continue;
+      const desdeMarcador = this._posDesdeMarcador(e);
       vivos.set(e.id, {
-        pos: e.pos?.slice(),
+        pos: desdeMarcador || this._posViva[e.id]?.slice() || e.pos?.slice(),
         posOrigen: e.posOrigen?.slice(),
-        _ultimoMovServidor: e._ultimoMovServidor,
         facingDeg: e.facingDeg,
         _enZona: e._enZona
       });
@@ -139,27 +166,32 @@ const Enemigos = {
     for (const id of Object.keys(this._marcadores)) {
       if (!ids.has(id)) this._quitarMarcador(id);
     }
+    const online = this._online();
     for (const e of this.lista) {
       if (Admin.eliminado && Admin.eliminado(e.id)) continue;
-      const pos = (typeof Admin._posItem === 'function') ? Admin._posItem(e) : Admin.pos(e.id, e.pos);
-      if (!pos || pos.length < 2) continue;
+      const posAdmin = (typeof Admin._posItem === 'function')
+        ? Admin._posItem(e) : Admin.pos(e.id, e.pos);
+      const spawn = this._spawnEnemigo(e, posAdmin);
+      if (!spawn) continue;
+
       const prev = vivos.get(e.id);
-      const servidorReciente = prev?._ultimoMovServidor &&
-        Date.now() - prev._ultimoMovServidor < 15000;
-      if (e.posOrigen?.length >= 2) {
-        /* conservar punto de origen del enemigo */
-      } else if (e.origenX != null && e.origenY != null) {
-        e.posOrigen = [e.origenX, e.origenY];
-      } else {
-        e.posOrigen = pos.slice();
-      }
-      if (servidorReciente && prev?.pos?.length >= 2) {
+      if (!e.posOrigen?.length) e.posOrigen = spawn.slice();
+
+      const viva = this._posViva[e.id] || prev?.pos;
+      const desdeMarcador = this._posDesdeMarcador(e);
+      if (online && (viva?.length >= 2 || desdeMarcador)) {
+        e.pos = (desdeMarcador || viva).slice();
+      } else if (desdeMarcador) {
+        e.pos = desdeMarcador.slice();
+      } else if (prev?.pos?.length >= 2) {
         e.pos = prev.pos.slice();
-        e._ultimoMovServidor = prev._ultimoMovServidor;
+      } else {
+        e.pos = spawn.slice();
+      }
+
+      if (prev) {
         e.facingDeg = prev.facingDeg;
         e._enZona = prev._enZona;
-      } else {
-        e.pos = pos.slice();
       }
       const st = this._estadoGlobal()[e.id];
       if (st && st.ocultoHasta && Date.now() < st.ocultoHasta) {
@@ -174,7 +206,10 @@ const Enemigos = {
       }
       this._aplicarEstadoRemoto(e);
       if (!this._marcadores[e.id]) this._crearEnMapa(e);
-      else if (!this._adminOrganizando()) this._actualizarMarcador(e);
+      else if (!this._adminOrganizando()) {
+        this._sincronizarZonas(e);
+        this._actualizarMarcador(e);
+      }
     }
     this._actualizarPrioridadAdmin();
   },
@@ -339,30 +374,41 @@ const Enemigos = {
     const pi = Mapa.puntosInteractivos.findIndex(p => p.id === id);
     if (pi >= 0) Mapa.puntosInteractivos.splice(pi, 1);
     delete this._ultimoGolpeAuto[id];
+    delete this._posViva[id];
+    delete this._interp[id];
   },
 
   /** Posición/vida sincronizada desde el servidor (enemigo compartido en vivo). */
   actualizarDesdeServidor(origenId, lat, lng, data) {
     if (this._adminOrganizando()) return;
+
     let e = this.lista.find(x => x.id === origenId);
-    if (!e) {
-      this._recargar();
-      e = this.lista.find(x => x.id === origenId);
+    if (!e && typeof Admin !== 'undefined' && Admin.enemigosTodos) {
+      const def = Admin.enemigosTodos().find(x => x.id === origenId);
+      if (def) {
+        e = Object.assign({}, def);
+        if (!e.posOrigen?.length) {
+          const sp = this._spawnEnemigo(e, e.pos);
+          if (sp) e.posOrigen = sp.slice();
+        }
+        e.pos = e.posOrigen?.slice() || [lat, lng];
+        this.lista.push(e);
+      }
     }
     if (!e) return;
     if (e._adminMovidoEn && Date.now() - e._adminMovidoEn < 10000) return;
 
-    const desde = e.pos?.length >= 2 ? e.pos.slice() : [lat, lng];
+    this._posViva[origenId] = [lat, lng];
+    const desde = this._posDesdeMarcador(e) || e.pos?.slice() || [lat, lng];
     const hasta = [lat, lng];
-    this._interp[origenId] = { desde, hasta, inicio: Date.now(), duracion: 480 };
+    const saltoM = Utilidades.distanciaMetros(desde, hasta);
+    const duracion = saltoM > 25 ? Math.min(900, 400 + saltoM * 8) : 520;
+    this._interp[origenId] = { desde: desde.slice(), hasta: hasta.slice(), inicio: Date.now(), duracion };
 
-    e._ultimoMovServidor = Date.now();
-    e.pos = desde.slice();
     if (typeof Admin !== 'undefined') {
-      Admin.publicado.posiciones = Admin.publicado.posiciones || {};
-      Admin.publicado.posiciones[origenId] = [lat, lng];
       if (data?.origenX != null && data?.origenY != null) {
         e.posOrigen = [data.origenX, data.origenY];
+        this._sincronizarZonas(e);
       }
       if (data?.hp != null) {
         Admin.publicado.enemigosEstado = Admin.publicado.enemigosEstado || {};
@@ -374,22 +420,33 @@ const Enemigos = {
       }
       if (data?.facingDeg != null) {
         e.facingDeg = data.facingDeg;
+        const centro = this._centroZona(e);
+        if (centro && typeof GPS !== 'undefined' && GPS.posicion) {
+          e._enZona = Utilidades.distanciaMetros(GPS.posicion, centro) <= this._radioZona(e);
+        }
+      } else if (data?.targetPlayerId) {
         e._enZona = true;
       }
     }
+
     if (!this._marcadores[origenId]) this._crearEnMapa(e);
-    else this._actualizarMarcador(e);
+    else this._refrescarIconoMarcador(e);
   },
 
   _aplicarInterp(e) {
     const it = this._interp[e.id];
     if (!it) return false;
-    const t = Math.min(1, (Date.now() - it.inicio) / (it.duracion || 480));
-    const lat = it.desde[0] + (it.hasta[0] - it.desde[0]) * t;
-    const lng = it.desde[1] + (it.hasta[1] - it.desde[1]) * t;
+    const t = Math.min(1, (Date.now() - it.inicio) / (it.duracion || 520));
+    const ease = t * (2 - t);
+    const lat = it.desde[0] + (it.hasta[0] - it.desde[0]) * ease;
+    const lng = it.desde[1] + (it.hasta[1] - it.desde[1]) * ease;
     e.pos = [lat, lng];
     this._moverEnemigo(e, lat, lng);
-    if (t >= 1) delete this._interp[e.id];
+    if (t >= 1) {
+      e.pos = it.hasta.slice();
+      this._moverEnemigo(e, it.hasta[0], it.hasta[1]);
+      delete this._interp[e.id];
+    }
     return true;
   },
 
@@ -422,9 +479,12 @@ const Enemigos = {
     this._refrescarIconoMarcador(e);
   },
 
-  _alCambiarDistancia(e, d) {
-    this._actualizarVisibilidadZonas(e, d);
-    const enExterior = d <= this._radioExterior(e);
+  _alCambiarDistancia(e, dMarcador) {
+    const centro = this._centroZona(e);
+    const dZona = (centro && typeof GPS !== 'undefined' && GPS.posicion)
+      ? Utilidades.distanciaMetros(GPS.posicion, centro) : dMarcador;
+    this._actualizarVisibilidadZonas(e, dZona);
+    const enExterior = dZona <= this._radioExterior(e);
     if (enExterior && !e._avisoZona) {
       e._avisoZona = true;
       Notificaciones.mostrar('⚠️ Zona de ' + (e.nombre || 'enemigo') + ' — ¡cuidado!', 'alerta', 3500);
@@ -438,15 +498,14 @@ const Enemigos = {
     const p = [+pos[0], +pos[1]];
     e.pos = p.slice();
     e.posOrigen = p.slice();
-    delete e._ultimoMovServidor;
+    delete this._posViva[e.id];
+    delete this._interp[e.id];
     e.facingDeg = null;
     e._enZona = false;
     e._avisoZona = false;
     if (!opts?.silencioso) e._adminMovidoEn = Date.now();
     this._moverEnemigo(e, p[0], p[1]);
-    const centro = this._centroZona(e);
-    if (this._zonas[e.id]) this._zonas[e.id].setLatLng(centro);
-    if (this._zonasAtaque[e.id]) this._zonasAtaque[e.id].setLatLng(centro);
+    this._sincronizarZonas(e);
     this._refrescarIconoMarcador(e);
   },
 
@@ -487,14 +546,10 @@ const Enemigos = {
     }
 
     if (!GPS.posicion) return;
-    const online = typeof Multijugador !== 'undefined' && Multijugador.activo;
+    const online = this._online();
     for (const e of this.lista) {
       if (!this._marcadores[e.id]) continue;
       this._aplicarEstadoRemoto(e);
-
-      if (online && this._interp[e.id]) {
-        this._aplicarInterp(e);
-      }
 
       const centro = this._centroZona(e);
       const dZona = Utilidades.distanciaMetros(GPS.posicion, centro);
@@ -506,42 +561,41 @@ const Enemigos = {
       e._enZona = enZona;
       this._actualizarVisibilidadZonas(e, dZona);
 
-      const serverDrive = online && (
-        this._interp[e.id] ||
-        (e._ultimoMovServidor && Date.now() - e._ultimoMovServidor < 3000)
-      );
+      if (online) {
+        if (this._interp[e.id]) this._aplicarInterp(e);
+        this._actualizarBarra(e);
+        continue;
+      }
 
-      if (enZona && GPS.posicion && !online) {
+      if (enZona && GPS.posicion) {
         e.facingDeg = this._bearingDeg(e.pos[0], e.pos[1], GPS.posicion[0], GPS.posicion[1]);
         this._refrescarIconoMarcador(e);
-      } else if (!enZona && !online) {
+      } else if (!enZona) {
         e.facingDeg = null;
         this._refrescarIconoMarcador(e);
       }
 
-      if (!serverDrive) {
-        if (enZona && dEnemigo > 3) {
+      if (enZona && dEnemigo > 3) {
+        const m = this._marcadores[e.id];
+        const ll = m.getLatLng();
+        const t = enAtaque ? 0.18 : 0.12;
+        const nlat = ll.lat + (GPS.posicion[0] - ll.lat) * t;
+        const nlng = ll.lng + (GPS.posicion[1] - ll.lng) * t;
+        this._moverEnemigo(e, nlat, nlng);
+      } else if (!enZona && e.posOrigen) {
+        const o = e.posOrigen;
+        const distOrigen = Utilidades.distanciaMetros([e.pos[0], e.pos[1]], o);
+        if (distOrigen > 2) {
           const m = this._marcadores[e.id];
           const ll = m.getLatLng();
-          const t = enAtaque ? 0.18 : 0.12;
-          const nlat = ll.lat + (GPS.posicion[0] - ll.lat) * t;
-          const nlng = ll.lng + (GPS.posicion[1] - ll.lng) * t;
+          const t = 0.08;
+          const nlat = ll.lat + (o[0] - ll.lat) * t;
+          const nlng = ll.lng + (o[1] - ll.lng) * t;
           this._moverEnemigo(e, nlat, nlng);
-        } else if (!enZona && e.posOrigen) {
-          const o = e.posOrigen;
-          const distOrigen = Utilidades.distanciaMetros([e.pos[0], e.pos[1]], o);
-          if (distOrigen > 2) {
-            const m = this._marcadores[e.id];
-            const ll = m.getLatLng();
-            const t = 0.08;
-            const nlat = ll.lat + (o[0] - ll.lat) * t;
-            const nlng = ll.lng + (o[1] - ll.lng) * t;
-            this._moverEnemigo(e, nlat, nlng);
-          }
         }
       }
 
-      if (enAtaque && enZona && !this._enCombate && !online) this._golpeAutomatico(e);
+      if (enAtaque && enZona && !this._enCombate) this._golpeAutomatico(e);
       this._actualizarBarra(e);
     }
   },

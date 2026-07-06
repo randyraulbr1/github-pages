@@ -1016,6 +1016,14 @@ const Admin = {
     if (!this.publicado.objetosEstado) this.publicado.objetosEstado = {};
     if (!this.publicado.tiendasAdmin) this.publicado.tiendasAdmin = [];
 
+    for (const en of (this.publicado.enemigos || [])) {
+      if (!en?.id) continue;
+      const sp = (en.posOrigen && en.posOrigen.length >= 2) ? en.posOrigen : en.pos;
+      if (!sp || sp.length < 2) continue;
+      if (!this.publicado.posiciones) this.publicado.posiciones = {};
+      this.publicado.posiciones[en.id] = [Number(sp[0]), Number(sp[1])];
+    }
+
     this._aplicarPosicionesMundo();
 
     const nuevosPorId = new Map();

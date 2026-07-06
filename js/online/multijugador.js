@@ -149,6 +149,12 @@ const Multijugador = {
       this.online = (data.onlinePlayers || []).filter(p => this._visible(p.playerId));
       this._redibujar(false);
       if (data.cuerposMuertos) this._aplicarCuerpos(data.cuerposMuertos);
+      if (data.worldObjects && typeof Enemigos !== 'undefined') {
+        for (const obj of data.worldObjects) {
+          if (obj?.type !== 'enemy' || !obj.data?.origenId) continue;
+          Enemigos.actualizarDesdeServidor(obj.data.origenId, obj.x, obj.y, obj.data);
+        }
+      }
       if (data.mundoSnapshot) {
         this._aplicarMundoServidor({
           mundo: data.mundoSnapshot,

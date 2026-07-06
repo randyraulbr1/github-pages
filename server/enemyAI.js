@@ -198,7 +198,7 @@ function startEnemyAI(io, onlinePlayers) {
         try { return JSON.parse(obj.data_json || '{}').facingDeg; } catch (e) { return null; }
       })();
 
-      if (moved || facingChanged || targetPlayerId) {
+      if (moved || facingChanged || targetPlayerId != null) {
         const updated = updateWorldObject(obj.id, {
           x: newX,
           y: newY,
