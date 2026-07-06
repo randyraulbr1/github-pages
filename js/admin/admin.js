@@ -2291,6 +2291,7 @@ const Admin = {
     if (modo === 'organizar') {
       this._reaplicarArrastreOrganizar();
     }
+    if (typeof GPS !== 'undefined') GPS._actualizarArrastre();
   },
 
   // Interceptor de toques sobre pines cuando hay un modo admin activo.
@@ -2384,6 +2385,7 @@ const Admin = {
     }
     this.modo = null;
     document.getElementById('admin-controles').classList.add('oculto');
+    if (typeof GPS !== 'undefined') GPS._actualizarArrastre();
   },
 
   _mostrarControles(texto, conConfirmar) {

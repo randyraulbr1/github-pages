@@ -153,13 +153,28 @@ function actualizarPartidaEnSnapshot(perfilId, partidaSnap, io) {
   return true;
 }
 
+/** Busca perfilId PWA por nombre de jugador online o id srv_N. */
+function buscarPerfilIdPorNombre(nombre, playerId) {
+  const snapshot = getWorldSnapshot();
+  if (!snapshot) return null;
+  const u = (nombre || '').trim().toLowerCase();
+  if (u && snapshot.jugadores?.length) {
+    const j = snapshot.jugadores.find(x => x.nombre && x.nombre.toLowerCase() === u);
+    if (j?.id) return j.id;
+  }
+  const srvId = 'srv_' + playerId;
+  if (snapshot.partidas?.[srvId]) return srvId;
+  return null;
+}
+
 /** Admin revive: actualiza partida en snapshot por perfilId del juego PWA. */
 function revivirPartidaEnSnapshot(perfilId, hp, io) {
   if (!perfilId) return false;
-  const snapshot = getWorldSnapshot();
-  if (!snapshot?.partidas?.[perfilId]) return false;
-  const snap = snapshot.partidas[perfilId];
-  const datos = snap.datos || snap;
+  const snapshot = getWorldSnapshot() || { actualizadoEn: Date.now(), partidas: {} };
+  if (!snapshot.partidas) snapshot.partidas = {};
+  const prev = snapshot.partidas[perfilId];
+  const snap = prev ? { ...prev } : { t: Date.now() };
+  const datos = Object.assign({}, snap.datos || snap);
   datos.vida = hp;
   datos.muerto = false;
   snap.datos = datos;
@@ -491,5 +506,6 @@ module.exports = {
   limpiarCuerposExpirados,
   actualizarPartidaEnSnapshot,
   revivirPartidaEnSnapshot,
+  buscarPerfilIdPorNombre,
   eliminarJugadorDeSnapshot
 };

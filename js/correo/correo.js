@@ -12,23 +12,27 @@ const Correo = {
     if (!Guardado.datos.correoEnviados) Guardado.datos.correoEnviados = [];
     if (!Guardado.datos.correoRecibidos) Guardado.datos.correoRecibidos = [];
     this._procesarExpirados();
-
-    if (!Admin.eliminado('correo_central')) {
-      Admin.pos('correo_central', this.POSICION);
-      const marcador = Mapa.crearMarcadorEmoji(this.POSICION, '📮');
-      Mapa.registrarPunto({
-        id: 'correo_central',
-        posicion: this.POSICION,
-        radio: CONFIG.distanciaInteraccion,
-        marcador,
-        alTocar: () => this.abrir()
-      });
-    }
+    this._quitarPinFijoLegacy();
 
     document.getElementById('pestana-correo-enviar').addEventListener('click', () => this.cambiarPestana('enviar'));
     document.getElementById('pestana-correo-recibir').addEventListener('click', () => this.cambiarPestana('recibir'));
     document.getElementById('pestana-correo-pendientes').addEventListener('click', () => this.cambiarPestana('pendientes'));
     document.getElementById('pestana-correo-tienda').addEventListener('click', () => this.cambiarPestana('tienda'));
+  },
+
+  _quitarPinFijoLegacy() {
+    if (typeof Admin !== 'undefined' && Admin.datos) {
+      Admin.datos.eliminados = Admin.datos.eliminados || [];
+      if (!Admin.datos.eliminados.includes('correo_central')) {
+        Admin.datos.eliminados.push('correo_central');
+      }
+    }
+    if (typeof Mapa === 'undefined' || !Mapa.puntosInteractivos) return;
+    const idx = Mapa.puntosInteractivos.findIndex(p => p.id === 'correo_central');
+    if (idx < 0) return;
+    const punto = Mapa.puntosInteractivos[idx];
+    if (punto.marcador && Mapa.mapa) Mapa.mapa.removeLayer(punto.marcador);
+    Mapa.puntosInteractivos.splice(idx, 1);
   },
 
   abrir() {

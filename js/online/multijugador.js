@@ -274,16 +274,7 @@ const Multijugador = {
 
     this.socket.on('player:lootUpdate', (data) => {
       if (!data?.playerId) return;
-      const i = this.online.findIndex(x => Number(x.playerId) === Number(data.playerId));
-      if (i >= 0) {
-        this.online[i].deadInventory = data.deadInventory || [];
-        this._actualizarMarcador(this.online[i]);
-      }
-      const cid = String(data.playerId);
-      if (this.cuerpos[cid]) {
-        this.cuerpos[cid].deadInventory = data.deadInventory || [];
-        this._actualizarMarcadorCuerpo(this.cuerpos[cid]);
-      }
+      this._aplicarLootLocal(data.playerId, data.deadInventory || []);
     });
 
     this.socket.on('cuerpos:sync', (data) => {
@@ -473,20 +464,68 @@ const Multijugador = {
     });
   },
 
-  saquearMuerto(playerId, itemId, cantidad) {
+  saquearMuerto(playerId, itemId, cantidad, btn) {
     if (!this.socket || !this.activo) return;
-    this.socket.emit('player:lootBody', { targetPlayerId: playerId, itemId, cantidad: cantidad || 1 }, (res) => {
+    if (btn) {
+      btn.disabled = true;
+      btn.classList.add('cargando');
+      btn.textContent = '⏳';
+    }
+    const payload = {
+      targetPlayerId: playerId,
+      itemId,
+      cantidad: cantidad || 1
+    };
+    if (typeof GPS !== 'undefined' && GPS.posicion) {
+      payload.reviverX = GPS.posicion[0];
+      payload.reviverY = GPS.posicion[1];
+    }
+    this.socket.emit('player:lootBody', payload, (res) => {
+      if (btn) {
+        btn.disabled = false;
+        btn.classList.remove('cargando');
+        btn.textContent = 'Saquear';
+      }
       if (res?.ok) {
         if (typeof Mochila !== 'undefined' && res.item) {
           Mochila.agregar(res.item.id, res.item.cantidad, { silencioso: true });
         }
         Notificaciones.mostrar('🎒 Saqueaste del cuerpo', 'exito', 3000);
-        const i = this.online.findIndex(x => Number(x.playerId) === Number(playerId));
-        if (i >= 0 && res.deadInventory) this.online[i].deadInventory = res.deadInventory;
+        this._aplicarLootLocal(playerId, res.deadInventory);
       } else if (res?.error) {
         Notificaciones.mostrar('❌ ' + res.error, 'error', 3500);
       }
     });
+  },
+
+  _aplicarLootLocal(playerId, deadInventory) {
+    const pid = Number(playerId);
+    const inv = deadInventory || [];
+    const i = this.online.findIndex(x => Number(x.playerId) === pid);
+    if (i >= 0) {
+      this.online[i].deadInventory = inv;
+      this._actualizarMarcador(this.online[i]);
+    }
+    const cid = String(playerId);
+    if (this.cuerpos[cid]) {
+      this.cuerpos[cid].deadInventory = inv;
+      this._actualizarMarcadorCuerpo(this.cuerpos[cid]);
+    }
+    this._refrescarPopupsMuertos(pid);
+  },
+
+  _refrescarPopupsMuertos(playerId) {
+    const marcadores = [
+      this.marcadores[playerId],
+      this.cuerposMarcadores[String(playerId)]
+    ].filter(Boolean);
+    for (const m of marcadores) {
+      const popup = m.getPopup();
+      if (popup?.isOpen()) {
+        m.closePopup();
+        m.openPopup();
+      }
+    }
   },
 
   _esAdminMarcador(p) {
@@ -602,9 +641,10 @@ const Multijugador = {
     m.off('popupopen').on('popupopen', () => {
       const el = m.getPopup()?.getElement();
       if (!el) return;
-      el.querySelector('.popup-muerto-revivir')?.addEventListener('click', () => {
-        m.closePopup();
-        this.revivirJugador(p);
+      const btnRevivir = el.querySelector('.popup-muerto-revivir');
+      btnRevivir?.addEventListener('click', () => {
+        if (btnRevivir.disabled || btnRevivir.classList.contains('cargando')) return;
+        this.revivirJugador(p, btnRevivir);
       });
       el.querySelector('.popup-muerto-amigo')?.addEventListener('click', () => {
         m.closePopup();
@@ -612,10 +652,12 @@ const Multijugador = {
       });
       el.querySelectorAll('[data-loot-id]').forEach(btn => {
         btn.addEventListener('click', () => {
+          if (btn.disabled || btn.classList.contains('cargando')) return;
           this.saquearMuerto(
             Number(btn.getAttribute('data-loot-pid')),
             btn.getAttribute('data-loot-id'),
-            Number(btn.getAttribute('data-loot-q') || 1)
+            Number(btn.getAttribute('data-loot-q') || 1),
+            btn
           );
         });
       });
@@ -660,7 +702,7 @@ const Multijugador = {
     for (const p of this.online) this._actualizarMarcador(p);
   },
 
-  revivirJugador(p) {
+  revivirJugador(p, btn) {
     if (!this.socket || !this.activo || !p) return;
     if (!this._estaMuerto(p)) return;
     const d = this._distanciaMarcador(p);
@@ -675,14 +717,31 @@ const Multijugador = {
     }
     const cura = CONFIG.vidaAlRevivir || 40;
     const hpMax = typeof Vida !== 'undefined' ? Vida.vidaMaxima() : 100;
-    this.socket.emit('player:revive', {
+    if (btn) {
+      btn.disabled = true;
+      btn.classList.add('cargando');
+      btn.textContent = '⏳ Reviviendo…';
+    }
+    const payload = {
       targetPlayerId: p.playerId,
       reviveHp: cura,
       hpMax
-    }, (res) => {
+    };
+    if (typeof GPS !== 'undefined' && GPS.posicion) {
+      payload.reviverX = GPS.posicion[0];
+      payload.reviverY = GPS.posicion[1];
+    }
+    this.socket.emit('player:revive', payload, (res) => {
+      if (btn) {
+        btn.disabled = false;
+        btn.classList.remove('cargando');
+        btn.textContent = '🩹 Revivir (botiquín)';
+      }
       if (res?.ok) {
         Mochila.quitar('botiquin', 1, 'Revivió a ' + (p.name || 'jugador'));
         Notificaciones.mostrar('🩹 Reviviste a ' + (p.name || 'jugador'), 'exito', 5000);
+        const marcador = this.marcadores[p.playerId] || this.cuerposMarcadores[String(p.playerId)];
+        if (marcador?.getPopup()?.isOpen()) marcador.closePopup();
       } else {
         Notificaciones.mostrar('❌ ' + (res?.error || 'No se pudo revivir'), 'error', 4000);
       }

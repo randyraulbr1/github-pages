@@ -131,8 +131,9 @@ const Enemigos = {
       }
       this._aplicarEstadoRemoto(e);
       if (!this._marcadores[e.id]) this._crearEnMapa(e);
-      else this._actualizarMarcador(e);
+      else       this._actualizarMarcador(e);
     }
+    this._actualizarPrioridadAdmin();
   },
 
   _estadoGlobal() {
@@ -201,6 +202,21 @@ const Enemigos = {
     const m = this._marcadores[e.id];
     if (!m) return;
     m.setIcon(this._iconoMarcador(e));
+  },
+
+  _adminPrioridadPin() {
+    return (typeof Admin !== 'undefined' && Admin.puedeMoverPinJugador && Admin.puedeMoverPinJugador()) ||
+      (typeof Admin !== 'undefined' && Admin.modo === 'organizar');
+  },
+
+  _actualizarPrioridadAdmin(activo) {
+    const bloquear = activo != null ? activo : this._adminPrioridadPin();
+    for (const m of Object.values(this._marcadores)) {
+      if (!m) continue;
+      m.options.interactive = !bloquear;
+      const el = m.getElement();
+      if (el) el.style.pointerEvents = bloquear ? 'none' : '';
+    }
   },
 
   _crearEnMapa(e) {

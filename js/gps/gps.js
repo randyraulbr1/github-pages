@@ -48,10 +48,16 @@ const GPS = {
   _actualizarArrastre() {
     if (!this.marcador) return;
     const puede = this.puedeArrastrar();
+    const organizando = typeof Admin !== 'undefined' && Admin.modo === 'organizar';
+    const prioridad = puede || organizando;
     this.marcador.options.draggable = puede;
+    this.marcador.setZIndexOffset(prioridad ? 15000 : 1000);
     if (this.marcador.dragging) {
       if (puede) this.marcador.dragging.enable();
       else this.marcador.dragging.disable();
+    }
+    if (typeof Enemigos !== 'undefined' && Enemigos._actualizarPrioridadAdmin) {
+      Enemigos._actualizarPrioridadAdmin(prioridad);
     }
   },
 

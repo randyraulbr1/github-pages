@@ -21,7 +21,7 @@ const {
 } = require('./db');
 const { verifyToken, isGameAdminName } = require('./auth');
 const { startEnemyAI } = require('./enemyAI');
-const { registrarRecogidaObjeto, registrarRecogidaTesoro, registrarCuerpoMuerto, quitarCuerpoMuerto, getCuerpoMuerto, actualizarInventarioCuerpo, actualizarPartidaEnSnapshot, revivirPartidaEnSnapshot } = require('./syncMundo');
+const { registrarRecogidaObjeto, registrarRecogidaTesoro, registrarCuerpoMuerto, quitarCuerpoMuerto, getCuerpoMuerto, actualizarInventarioCuerpo, actualizarPartidaEnSnapshot, revivirPartidaEnSnapshot, buscarPerfilIdPorNombre } = require('./syncMundo');
 
 /** playerId -> { socketId, playerId, name, x, y, hp, hpMax, level } */
 const onlinePlayers = new Map();
@@ -31,7 +31,7 @@ const socketToPlayer = new Map();
 const MAX_MOVE_DELTA = 0.00035;
 const MAX_GPS_DELTA = 0.004;
 const INTERACT_DISTANCE = 0.0005;
-const REVIVE_DISTANCE = 0.00045;
+const REVIVE_DISTANCE_METERS = 55;
 const SYNC_INTERVAL_MS = 8000;
 
 let enemyAIStarted = false;
@@ -40,6 +40,36 @@ function distance(aX, aY, bX, bY) {
   const dx = aX - bX;
   const dy = aY - bY;
   return Math.sqrt(dx * dx + dy * dy);
+}
+
+function distanciaMetros(lat1, lon1, lat2, lon2) {
+  const R = 6371000;
+  const rad = Math.PI / 180;
+  const dLat = (lat2 - lat1) * rad;
+  const dLon = (lon2 - lon1) * rad;
+  const s = Math.sin(dLat / 2) ** 2 +
+    Math.cos(lat1 * rad) * Math.cos(lat2 * rad) * Math.sin(dLon / 2) ** 2;
+  return 2 * R * Math.asin(Math.sqrt(s));
+}
+
+function posicionJugadorOnline(playerId, payload, onlineMap) {
+  const rx = Number(payload?.reviverX ?? payload?.x);
+  const ry = Number(payload?.reviverY ?? payload?.y);
+  if (Number.isFinite(rx) && Number.isFinite(ry)) return { x: rx, y: ry };
+  const online = onlineMap.get(playerId);
+  if (online && Number.isFinite(online.x) && Number.isFinite(online.y)) {
+    return { x: online.x, y: online.y };
+  }
+  const db = findPlayerById(playerId);
+  if (db && Number.isFinite(db.x) && Number.isFinite(db.y)) {
+    return { x: db.x, y: db.y };
+  }
+  return null;
+}
+
+function cercaDeCuerpo(actorPos, deathX, deathY) {
+  if (!actorPos || deathX == null || deathY == null) return false;
+  return distanciaMetros(actorPos.x, actorPos.y, deathX, deathY) <= REVIVE_DISTANCE_METERS;
 }
 
 function playerSnapshot(p) {
@@ -334,7 +364,8 @@ function setupSockets(io) {
 
       const tx = targetOnline?.deathX ?? cuerpo?.deathX ?? targetDb.x;
       const ty = targetOnline?.deathY ?? cuerpo?.deathY ?? targetDb.y;
-      if (distance(reviver.x, reviver.y, tx, ty) > REVIVE_DISTANCE) {
+      const actorPos = posicionJugadorOnline(socket.playerId, payload, onlinePlayers);
+      if (!cercaDeCuerpo(actorPos, tx, ty)) {
         return ack?.({ ok: false, error: 'Demasiado lejos (máx. 50 m)' });
       }
 
@@ -350,6 +381,9 @@ function setupSockets(io) {
         targetOnline.deadLevel = null;
       }
       quitarCuerpoMuerto(targetId, io);
+
+      const perfilId = buscarPerfilIdPorNombre(targetDb.name, targetId);
+      if (perfilId) revivirPartidaEnSnapshot(perfilId, cura, io);
 
       io.emit('player:revived', {
         playerId: targetId,
@@ -442,7 +476,8 @@ function setupSockets(io) {
         return ack?.({ ok: false, error: 'No está muerto' });
       }
 
-      if (distance(reviver.x, reviver.y, tx, ty) > REVIVE_DISTANCE) {
+      const actorPos = posicionJugadorOnline(socket.playerId, payload, onlinePlayers);
+      if (!cercaDeCuerpo(actorPos, tx, ty)) {
         return ack?.({ ok: false, error: 'Demasiado lejos (máx. 50 m)' });
       }
       const idx = inv.findIndex(x => x.id === itemId);

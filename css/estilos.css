@@ -992,6 +992,17 @@ button { font-family: inherit; }
   margin-top: 8px; width: 100%; padding: 8px; border-radius: 10px;
   border: none; background: rgba(48,209,88,.25); color: #7dffb0;
   font-weight: 700; cursor: pointer;
+  transition: background .15s, transform .1s;
+}
+.popup-muerto-revivir:active:not(:disabled) {
+  background: rgba(48,209,88,.45); transform: scale(0.97);
+}
+.popup-muerto-revivir.cargando,
+.popup-muerto-item button.cargando {
+  opacity: 0.65; cursor: wait;
+}
+.popup-muerto-item button:active:not(:disabled) {
+  background: rgba(255,214,10,.45); transform: scale(0.96);
 }
 .mjo-punto {
   width: 18px; height: 18px; border-radius: 50%;
