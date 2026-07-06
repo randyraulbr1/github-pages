@@ -94,6 +94,7 @@ function startEnemyAI(io, onlinePlayers) {
 
       const inZone = players.filter(p => {
         if (p.dead || (p.hp != null && p.hp <= 0)) return false;
+        if (p.invisibleUntil && Date.now() < p.invisibleUntil) return false;
         return distanceMeters(obj.x, obj.y, p.x, p.y) <= data.radioZona;
       });
 

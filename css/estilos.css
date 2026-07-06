@@ -302,6 +302,15 @@ button { font-family: inherit; }
   position: relative;
   z-index: 2;
 }
+.marcador-enemigo-map .mjo-nombre-enemigo {
+  font-size: 11px;
+  font-weight: 700;
+  color: #ff6b6b;
+  max-width: 88px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
 .marcador-enemigo-map .mjo-calavera {
   font-size: 12px;
   line-height: 1;
@@ -482,6 +491,65 @@ button { font-family: inherit; }
   z-index: 6000; background: rgba(16,20,31,.95); color: #fff; padding: 16px 26px;
   border-radius: 16px; font-size: 15px; font-weight: 700;
   border: 1px solid rgba(255,255,255,.2);
+}
+
+/* HUD combate en zona roja */
+.hud-combate-flotante {
+  position: fixed;
+  top: calc(118px + env(safe-area-inset-top));
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 1001;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 6px;
+  width: min(88vw, 260px);
+  pointer-events: none;
+}
+.hud-combate-flotante > * { pointer-events: auto; }
+.banner-huida {
+  padding: 7px 12px;
+  border-radius: 12px;
+  background: rgba(16, 20, 31, .9);
+  color: #b8d4ff;
+  font-size: 12px;
+  font-weight: 700;
+  text-align: center;
+  border: 1px solid rgba(138, 180, 255, .35);
+}
+.hud-ataque-cooldown {
+  width: 100%;
+  height: 5px;
+  border-radius: 3px;
+  background: rgba(0, 0, 0, .28);
+  overflow: hidden;
+}
+#hud-ataque-cooldown-relleno {
+  height: 100%;
+  width: 0%;
+  background: linear-gradient(90deg, #c8860a, #ffb020);
+  transition: width .15s linear;
+}
+.btn-hud-combate {
+  width: 100%;
+  padding: 11px 14px;
+  border: none;
+  border-radius: 14px;
+  font-size: 15px;
+  font-weight: 800;
+  background: linear-gradient(180deg, #ff6961, #ff453a);
+  color: #fff;
+  box-shadow: 0 3px 10px rgba(0, 0, 0, .32);
+  cursor: pointer;
+}
+.btn-hud-combate:disabled {
+  opacity: .55;
+  cursor: wait;
+}
+.btn-hud-combate-huir {
+  background: linear-gradient(180deg, #5ce883, #30a858);
+  color: #05310f;
 }
 
 /* ============ LETRERO DE MISIONES (debajo del HUD) ============ */
@@ -1513,6 +1581,7 @@ body.en-auth #botones-inferiores,
 body.en-auth #letrero-misiones,
 body.en-auth #letrero-pin-chat,
 body.en-auth #banner-tesoro,
+body.en-auth #hud-combate-flotante,
 body.en-auth #admin-controles,
 body.en-auth #zona-notificaciones { display: none !important; }
 
@@ -1660,6 +1729,7 @@ body.sesion-cerrada #botones-inferiores,
 body.sesion-cerrada #letrero-misiones,
 body.sesion-cerrada #letrero-pin-chat,
 body.sesion-cerrada #banner-tesoro,
+body.sesion-cerrada #hud-combate-flotante,
 body.sesion-cerrada #admin-controles,
 body.sesion-cerrada #zona-notificaciones,
 body.sesion-cerrada .ventana { display: none !important; }

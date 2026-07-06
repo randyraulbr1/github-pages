@@ -242,6 +242,9 @@ function setupSockets(io) {
       if (online) {
         online.hp = data.hp;
         online.level = data.level;
+        if (payload?.invisibleUntil !== undefined) {
+          online.invisibleUntil = payload.invisibleUntil > 0 ? payload.invisibleUntil : 0;
+        }
         if (payload?.hpMax !== undefined) {
           online.hpMax = Math.max(1, Math.round(payload.hpMax));
         }

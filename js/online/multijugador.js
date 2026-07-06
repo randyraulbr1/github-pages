@@ -1073,6 +1073,11 @@ const Multijugador = {
         .map(s => ({ id: s.id, cantidad: s.cantidad || 1 }));
       payload.deadLevel = Vida.nivel;
     }
+    if (typeof Guardado !== 'undefined' && Guardado.datos.invisibleHasta > Date.now()) {
+      payload.invisibleUntil = Guardado.datos.invisibleHasta;
+    } else {
+      payload.invisibleUntil = 0;
+    }
     if (typeof Usuarios !== 'undefined' && Usuarios.perfilActivo) {
       payload.perfilId = Usuarios.perfilActivo.id;
       const cambioMuerte = muerto !== this._ultimoMuertoSync;

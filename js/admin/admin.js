@@ -463,10 +463,14 @@ const Admin = {
     }, this.publicado.combateEnemigos || {}, this.datos.combateEnemigos || {});
   },
   objetosTodos() {
+    let lista;
     if (this.esAdminJugador()) {
-      return this._combinar(this.publicado.objetos || [], this.datos.objetos || []);
+      lista = this._combinar(this.publicado.objetos || [], this.datos.objetos || []);
+    } else {
+      lista = (this.publicado.objetos || []).filter(e => !this.eliminado(e.id));
     }
-    return (this.publicado.objetos || []).filter(e => !this.eliminado(e.id));
+    const sueltos = (typeof Guardado !== 'undefined' && Guardado.datos?.objetosSuelto) || [];
+    return this._combinar(lista, sueltos);
   },
 
   guardar() {
