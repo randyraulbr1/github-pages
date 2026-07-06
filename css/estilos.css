@@ -166,6 +166,7 @@ button { font-family: inherit; }
 }
 .hud-btn-mochila { background: linear-gradient(145deg, rgba(245,158,11,.45), rgba(12,16,28,.75)); }
 .hud-btn-gps { background: linear-gradient(145deg, rgba(14,165,233,.45), rgba(12,16,28,.75)); }
+.hud-btn-chat { background: linear-gradient(145deg, rgba(61,139,253,.45), rgba(12,16,28,.75)); }
 .hud-btn-admin { background: linear-gradient(145deg, rgba(61,139,253,.45), rgba(12,16,28,.75)); }
 .hud-btn-arma { background: linear-gradient(145deg, rgba(191,90,242,.4), rgba(12,16,28,.75)); }
 #btn-gps.activo {
@@ -1856,30 +1857,60 @@ body.jugador-muerto #admin-controles { pointer-events: none; opacity: .35; }
 #btn-cofre-pin-confirmar, #btn-admin-confirmar { background: #30d158; color: #05310f; }
 #btn-cofre-pin-cancelar, #btn-admin-salir-modo { background: rgba(255,255,255,.12); color: #fff; }
 #admin-cesto-borrar {
-  position: fixed;
-  top: calc(48px + env(safe-area-inset-top));
-  right: 10px;
-  bottom: auto;
-  z-index: 2480;
-  width: 44px;
-  height: 44px;
-  border-radius: 12px;
+  display: none !important;
+}
+.admin-pin-organizar {
+  cursor: grab;
+  touch-action: none;
+}
+.admin-pin-organizar .enemigo-pin,
+.admin-pin-organizar .enemigo-pin * {
+  pointer-events: none;
+}
+.admin-pin-organizar .admin-pin-x {
+  pointer-events: auto;
+}
+.admin-pin-armado {
+  filter: drop-shadow(0 0 8px rgba(56,198,255,.85));
+}
+.admin-pin-x {
+  position: absolute;
+  top: -10px;
+  right: -6px;
+  z-index: 50;
+  width: 26px;
+  height: 26px;
+  border-radius: 8px;
+  border: 2px solid #ff453a;
+  background: rgba(20, 10, 12, .92);
+  color: #ff6961;
+  font-size: 15px;
+  font-weight: 900;
+  line-height: 1;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 22px;
-  background: rgba(255,69,58,.2);
-  border: 2px dashed #ff453a;
-  box-shadow: 0 2px 10px rgba(0,0,0,.35);
-  pointer-events: none;
+  box-shadow: 0 2px 8px rgba(0,0,0,.45);
+  cursor: pointer;
+  padding: 0;
 }
-#admin-cesto-borrar.activo { pointer-events: auto; animation: pulso-cesto 1.2s ease infinite; }
-#admin-cesto-borrar.cesto-hover {
-  background: rgba(255,69,58,.45);
-  border-color: #ff6961;
-  transform: scale(1.08);
+.admin-pin-x.oculto { display: none !important; }
+.admin-pin-moviendo .admin-pin-x { display: none !important; }
+body.admin-organizar .leaflet-marker-icon {
+  pointer-events: auto !important;
 }
-@keyframes pulso-cesto { 50% { transform: scale(1.05); border-color: #ff6961; } }
+#btn-chat .burbuja-icono { background: radial-gradient(circle at 32% 26%, #9ec5ff, #3d8bfd 55%, #1d4ed8 100%); }
+#btn-chat.activo .burbuja-icono {
+  box-shadow: 0 0 14px rgba(61,139,253,.85), 0 4px 8px rgba(0,0,0,.4),
+              inset 0 4px 6px rgba(255,255,255,.45),
+              inset 0 -6px 8px rgba(0,0,0,.28);
+}
+.pin-chat-mapa {
+  font-size: 28px;
+  filter: drop-shadow(0 3px 5px rgba(0,0,0,.55));
+  animation: parpadear 1.4s ease infinite;
+}
+.linea-pin-chat { stroke-linecap: round; }
 .admin-cofre-horizontal { margin: 8px 0; }
 .tienda-admin-fila {
   display: grid; grid-template-columns: 28px 1fr auto auto 28px; gap: 6px; align-items: center;

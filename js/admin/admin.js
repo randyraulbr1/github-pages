@@ -2330,30 +2330,103 @@ const Admin = {
     cesto.classList.toggle('cesto-hover', this._sobreCesto(ev, marcador));
   },
 
-  _arrastreOrganizarMarcador(marcador, punto, alMoverPos, alArrastrar) {
-    if (!marcador) return;
-    const fin = (ev) => {
-      const cesto = document.getElementById('admin-cesto-borrar');
-      if (cesto) cesto.classList.remove('cesto-hover');
-      if (this._sobreCesto(ev, marcador)) {
-        this._eliminarPin(punto, true);
-        return;
-      }
-      if (alMoverPos) alMoverPos(marcador);
-    };
+  _limpiarPinOrganizar(marcador, punto) {
+    if (!marcador || !punto) return;
+    if (punto._orgArm) marcador.off('click', punto._orgArm);
+    if (punto._orgDragStart) marcador.off('dragstart', punto._orgDragStart);
     if (punto._movOrg) marcador.off('drag', punto._movOrg);
     if (punto._finOrg) marcador.off('dragend', punto._finOrg);
-    punto._movOrg = (ev) => {
-      this._actualizarHoverCesto(ev, marcador);
-      if (alArrastrar) alArrastrar(marcador, ev);
+    punto._orgArm = punto._orgDragStart = punto._movOrg = punto._finOrg = null;
+    marcador.options.draggable = false;
+    if (marcador.dragging) marcador.dragging.disable();
+    const el = marcador.getElement?.();
+    if (el) {
+      el.classList.remove('admin-pin-armado', 'admin-pin-moviendo');
+      const btn = el.querySelector('.admin-pin-x');
+      if (btn) btn.remove();
+    }
+  },
+
+  _arrastreOrganizarMarcador(marcador, punto, alMoverPos, alArrastrar) {
+    if (!marcador) return;
+    this._limpiarPinOrganizar(marcador, punto);
+
+    marcador.options.draggable = false;
+    if (marcador.dragging) marcador.dragging.disable();
+    marcador.setZIndexOffset(13000);
+
+    const asegurarBotonX = () => {
+      const el = marcador.getElement?.();
+      if (!el) return null;
+      el.classList.add('admin-pin-organizar');
+      let btn = el.querySelector('.admin-pin-x');
+      if (!btn) {
+        btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'admin-pin-x';
+        btn.title = 'Eliminar pin';
+        btn.textContent = '✕';
+        btn.addEventListener('click', (ev) => {
+          L.DomEvent.stopPropagation(ev);
+          ev.preventDefault();
+          this._eliminarPin(punto, true);
+        });
+        el.appendChild(btn);
+      }
+      return btn;
     };
-    punto._finOrg = fin;
+
+    const desarmar = () => {
+      const el = marcador.getElement?.();
+      if (el) el.classList.remove('admin-pin-armado', 'admin-pin-moviendo');
+      marcador.options.draggable = false;
+      if (marcador.dragging) marcador.dragging.disable();
+      asegurarBotonX();
+    };
+
+    punto._orgArm = () => {
+      if (this.modo !== 'organizar') return;
+      const el = marcador.getElement?.();
+      if (el) el.classList.add('admin-pin-armado');
+      const btn = el?.querySelector('.admin-pin-x');
+      if (btn) btn.classList.add('oculto');
+      marcador.options.draggable = true;
+      if (marcador.dragging) marcador.dragging.enable();
+    };
+
+    punto._orgDragStart = () => {
+      const el = marcador.getElement?.();
+      if (el) {
+        el.classList.add('admin-pin-moviendo');
+        el.classList.remove('admin-pin-armado');
+      }
+      const btn = marcador.getElement?.()?.querySelector('.admin-pin-x');
+      if (btn) btn.classList.add('oculto');
+    };
+
+    punto._movOrg = () => {
+      if (alArrastrar) alArrastrar(marcador);
+    };
+
+    punto._finOrg = () => {
+      if (alMoverPos) alMoverPos(marcador);
+      desarmar();
+    };
+
+    marcador.on('click', punto._orgArm);
+    marcador.on('dragstart', punto._orgDragStart);
     marcador.on('drag', punto._movOrg);
-    this._habilitarArrastreMarcador(marcador, fin);
+    marcador.on('dragend', punto._finOrg);
+
+    requestAnimationFrame(() => asegurarBotonX());
   },
 
   _habilitarArrastreMarcador(marcador, alSoltar) {
     if (!marcador || marcador === GPS.marcador) return;
+    if (this.modo === 'organizar') {
+      this._arrastreOrganizarMarcador(marcador, { marcador, id: marcador._adminPinId || 'jugador' }, alSoltar);
+      return;
+    }
     marcador.options.draggable = true;
     if (marcador.dragging) marcador.dragging.enable();
     if (alSoltar) {
@@ -2367,15 +2440,19 @@ const Admin = {
     this._ocultarPanelDerecho();
     document.getElementById('ventana-admin').classList.add('oculto');
     this.modo = modo;
+    document.body.classList.add('admin-organizar');
     const cesto = document.getElementById('admin-cesto-borrar');
     if (cesto) {
-      cesto.classList.remove('oculto');
-      cesto.classList.add('activo');
+      cesto.classList.add('oculto');
+      cesto.classList.remove('activo', 'cesto-hover');
     }
     this._mostrarControles(
-      '✋ Arrastra un pin y suéltalo en 🗑️ para borrarlo',
+      '✋ Toca un pin para moverlo · Pulsa ✕ arriba para borrarlo',
       false
     );
+    if (typeof Enemigos !== 'undefined' && Enemigos._actualizarZonasOrganizar) {
+      Enemigos._actualizarZonasOrganizar();
+    }
 
     // Mostrar pines fantasma de los tesoros base (normalmente invisibles)
     for (const t of DATOS_TESOROS) {
@@ -2385,18 +2462,13 @@ const Admin = {
         opacity: 0.75,
         icon: L.divIcon({ className: '', html: '<div class="icono-tesoro">✨</div>', iconSize: [30, 30], iconAnchor: [15, 15] })
       }).addTo(Mapa.mapa);
-      fantasma.on('dragend', (ev) => {
-        if (this._sobreCesto(ev, fantasma)) {
-          this._eliminarPin({ id: t.id, marcador: fantasma, nombre: 'Tesoro oculto' }, true);
-          return;
-        }
-        const p = fantasma.getLatLng();
+      this._arrastreOrganizarMarcador(fantasma, { id: t.id, marcador: fantasma, nombre: 'Tesoro oculto' }, (m) => {
+        const p = m.getLatLng();
         t.posicion[0] = +p.lat.toFixed(6);
         t.posicion[1] = +p.lng.toFixed(6);
         this.datos.posiciones[t.id] = [t.posicion[0], t.posicion[1]];
         this.guardar();
       });
-      fantasma.on('drag', (ev) => this._actualizarHoverCesto(ev, fantasma));
       this._fantasmas.push(fantasma);
     }
 
@@ -2408,17 +2480,12 @@ const Admin = {
         opacity: 0.75,
         icon: L.divIcon({ className: '', html: '<div class="icono-tesoro">🎁</div>', iconSize: [30, 30], iconAnchor: [15, 15] })
       }).addTo(Mapa.mapa);
-      fantasma.on('dragend', (ev) => {
-        if (this._sobreCesto(ev, fantasma)) {
-          this._eliminarPin({ id: t.id, marcador: fantasma, nombre: 'Tesoro del admin' }, true);
-          return;
-        }
-        const p = fantasma.getLatLng();
+      this._arrastreOrganizarMarcador(fantasma, { id: t.id, marcador: fantasma, nombre: 'Tesoro del admin' }, (m) => {
+        const p = m.getLatLng();
         t.pos[0] = +p.lat.toFixed(6); t.pos[1] = +p.lng.toFixed(6);
         this.datos.posiciones[t.id] = [t.pos[0], t.pos[1]];
         this.guardar();
       });
-      fantasma.on('drag', (ev) => this._actualizarHoverCesto(ev, fantasma));
       this._fantasmas.push(fantasma);
     }
 
@@ -2502,8 +2569,12 @@ const Admin = {
     this._colocacion = null;
 
     // Quitar fantasmas y desactivar arrastres
-    for (const f of this._fantasmas) f.remove();
+    for (const f of this._fantasmas) {
+      this._limpiarPinOrganizar(f, { marcador: f });
+      f.remove();
+    }
     this._fantasmas = [];
+    document.body.classList.remove('admin-organizar');
     const cesto = document.getElementById('admin-cesto-borrar');
     if (cesto) {
       cesto.classList.add('oculto');
@@ -2511,12 +2582,32 @@ const Admin = {
     }
     if (typeof Cofres !== 'undefined') Cofres.cancelarPin(true);
     for (const p of Mapa.puntosInteractivos) {
-      if (p.marcador && p.marcador.dragging) {
-        p.marcador.dragging.disable();
-        if (p._movOrg) { p.marcador.off('drag', p._movOrg); p._movOrg = null; }
-        if (p._finOrg) { p.marcador.off('dragend', p._finOrg); p._finOrg = null; }
-        if (p._alSoltar) { p.marcador.off('dragend', p._alSoltar); p._alSoltar = null; }
+      if (p.marcador) this._limpiarPinOrganizar(p.marcador, p);
+    }
+    if (typeof Enemigos !== 'undefined') {
+      for (const e of Enemigos.lista) {
+        const m = Enemigos._marcadores[e.id];
+        if (m) this._limpiarPinOrganizar(m, { id: e.id, marcador: m });
       }
+      if (Enemigos._actualizarZonasOrganizar) Enemigos._actualizarZonasOrganizar();
+    }
+    if (typeof Misiones !== 'undefined' && Misiones._marcadores) {
+      for (const [id, m] of Object.entries(Misiones._marcadores)) {
+        this._limpiarPinOrganizar(m, { id, marcador: m });
+      }
+    }
+    if (typeof Cofres !== 'undefined' && Cofres._marcadores) {
+      for (const [id, m] of Object.entries(Cofres._marcadores)) {
+        this._limpiarPinOrganizar(m, { id, marcador: m });
+      }
+    }
+    if (typeof Tiendas !== 'undefined' && Tiendas._marcadoresAdmin) {
+      for (const [id, m] of Object.entries(Tiendas._marcadoresAdmin)) {
+        this._limpiarPinOrganizar(m, { id, marcador: m });
+      }
+    }
+    for (const o of this.objetosTodos()) {
+      if (o._marcador) this._limpiarPinOrganizar(o._marcador, { id: o.id, marcador: o._marcador });
     }
     this.modo = null;
     document.getElementById('admin-controles').classList.add('oculto');

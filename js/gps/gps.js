@@ -79,6 +79,7 @@ const GPS = {
       Multijugador.enviarPosicion(nuevaPosicion[0], nuevaPosicion[1], cambioGrande);
       Multijugador.refrescarMarcadoresDistancia();
     }
+    if (typeof Chat !== 'undefined') Chat.actualizarLineaSiActiva();
   },
 
   alternarGpsReal() {

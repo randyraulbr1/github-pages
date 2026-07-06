@@ -17,7 +17,10 @@ const {
   getWorldSnapshot,
   formatPlayer,
   formatWorldObject,
-  formatMission
+  formatMission,
+  insertChatMessage,
+  getChatHistory,
+  canChatBetween
 } = require('./db');
 const { verifyToken, isGameAdminName } = require('./auth');
 const { startEnemyAI } = require('./enemyAI');
@@ -547,6 +550,45 @@ function setupSockets(io) {
       const social = getSocialData(socket.playerId, onlineIds);
       socket.emit('friends:data', social);
       ack?.({ ok: true });
+    });
+
+    socket.on('chat:history', (payload, ack) => {
+      const otherId = parseInt(payload?.playerId, 10);
+      if (!Number.isFinite(otherId) || otherId === socket.playerId) {
+        return ack?.({ ok: false, error: 'Jugador inválido' });
+      }
+      if (!canChatBetween(socket.playerId, otherId)) {
+        return ack?.({ ok: false, error: 'Chat bloqueado' });
+      }
+      const messages = getChatHistory(socket.playerId, otherId);
+      ack?.({ ok: true, messages });
+    });
+
+    socket.on('chat:send', (payload, ack) => {
+      const toId = parseInt(payload?.toPlayerId, 10);
+      const type = String(payload?.type || 'text');
+      const text = String(payload?.text || '').trim().slice(0, 500);
+      if (!Number.isFinite(toId) || toId === socket.playerId) {
+        return ack?.({ ok: false, error: 'Destinatario inválido' });
+      }
+      if (!canChatBetween(socket.playerId, toId)) {
+        return ack?.({ ok: false, error: 'No puedes enviar mensajes' });
+      }
+      let lat = null;
+      let lng = null;
+      if (type === 'location') {
+        lat = Number(payload?.lat);
+        lng = Number(payload?.lng);
+        if (!Number.isFinite(lat) || !Number.isFinite(lng)) {
+          return ack?.({ ok: false, error: 'Ubicación inválida' });
+        }
+      } else if (!text) {
+        return ack?.({ ok: false, error: 'Mensaje vacío' });
+      }
+      const msg = insertChatMessage(socket.playerId, toId, type, text, lat, lng);
+      io.to('player:' + toId).emit('chat:message', msg);
+      io.to('player:' + socket.playerId).emit('chat:message', msg);
+      ack?.({ ok: true, message: msg });
     });
 
     socket.on('disconnect', () => {

@@ -98,6 +98,21 @@ function initDb() {
       json TEXT NOT NULL,
       updated_at TEXT NOT NULL DEFAULT (datetime('now'))
     );
+
+    CREATE TABLE IF NOT EXISTS chat_messages (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      from_player_id INTEGER NOT NULL,
+      to_player_id INTEGER NOT NULL,
+      type TEXT NOT NULL DEFAULT 'text',
+      text TEXT NOT NULL DEFAULT '',
+      location_lat REAL,
+      location_lng REAL,
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      FOREIGN KEY (from_player_id) REFERENCES players(id) ON DELETE CASCADE,
+      FOREIGN KEY (to_player_id) REFERENCES players(id) ON DELETE CASCADE
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_chat_pair ON chat_messages(from_player_id, to_player_id, created_at);
   `);
 
   // Solo si la BD está vacía: semilla mínima; importMundo trae datos reales de mundo.json
@@ -560,6 +575,91 @@ function getWorldSnapshot() {
   try { return JSON.parse(row.json); } catch (e) { return null; }
 }
 
+function parseChatTime(value) {
+  if (!value) return Date.now();
+  const t = Date.parse(String(value).replace(' ', 'T') + 'Z');
+  return Number.isFinite(t) ? t : Date.now();
+}
+
+function formatChatMessage(row) {
+  if (!row) return null;
+  return {
+    id: row.id,
+    fromPlayerId: row.from_player_id,
+    toPlayerId: row.to_player_id,
+    fromName: row.from_name || row.fromName || '?',
+    toName: row.to_name || row.toName || '?',
+    type: row.type || 'text',
+    text: row.text || '',
+    location: row.location_lat != null && row.location_lng != null
+      ? { lat: row.location_lat, lng: row.location_lng, playerId: 'JG-' + row.from_player_id }
+      : null,
+    createdAt: parseChatTime(row.created_at)
+  };
+}
+
+function getChatMessageById(id) {
+  const row = db.prepare(`
+    SELECT cm.*, fp.name AS from_name, tp.name AS to_name
+    FROM chat_messages cm
+    JOIN players fp ON fp.id = cm.from_player_id
+    JOIN players tp ON tp.id = cm.to_player_id
+    WHERE cm.id = ?
+  `).get(id);
+  return formatChatMessage(row);
+}
+
+function insertChatMessage(fromId, toId, type, text, lat, lng) {
+  const info = db.prepare(`
+    INSERT INTO chat_messages (from_player_id, to_player_id, type, text, location_lat, location_lng)
+    VALUES (?, ?, ?, ?, ?, ?)
+  `).run(fromId, toId, type || 'text', text || '', lat ?? null, lng ?? null);
+  return getChatMessageById(info.lastInsertRowid);
+}
+
+function getChatHistory(playerId, otherId, limit = 120) {
+  const rows = db.prepare(`
+    SELECT cm.*, fp.name AS from_name, tp.name AS to_name
+    FROM chat_messages cm
+    JOIN players fp ON fp.id = cm.from_player_id
+    JOIN players tp ON tp.id = cm.to_player_id
+    WHERE (cm.from_player_id = ? AND cm.to_player_id = ?)
+       OR (cm.from_player_id = ? AND cm.to_player_id = ?)
+    ORDER BY cm.id DESC
+    LIMIT ?
+  `).all(playerId, otherId, otherId, playerId, limit);
+  return rows.reverse().map(formatChatMessage).filter(Boolean);
+}
+
+function getChatConversations(playerId) {
+  const rows = db.prepare(`
+    SELECT cm.*, fp.name AS from_name, tp.name AS to_name
+    FROM chat_messages cm
+    JOIN players fp ON fp.id = cm.from_player_id
+    JOIN players tp ON tp.id = cm.to_player_id
+    WHERE cm.from_player_id = ? OR cm.to_player_id = ?
+    ORDER BY cm.id DESC
+  `).all(playerId, playerId);
+
+  const seen = new Set();
+  const list = [];
+  for (const row of rows) {
+    const otherId = row.from_player_id === playerId ? row.to_player_id : row.from_player_id;
+    const key = String(otherId);
+    if (seen.has(key)) continue;
+    seen.add(key);
+    const msg = formatChatMessage(row);
+    if (msg) list.push({ playerId: otherId, lastMessage: msg });
+  }
+  return list;
+}
+
+function canChatBetween(playerA, playerB) {
+  if (playerA === playerB) return false;
+  if (isBlocked(playerA, playerB) || isBlocked(playerB, playerA)) return false;
+  return true;
+}
+
 module.exports = {
   db,
   initDb,
@@ -600,5 +700,11 @@ module.exports = {
   formatWorldObject,
   formatMission,
   saveWorldSnapshot,
-  getWorldSnapshot
+  getWorldSnapshot,
+  insertChatMessage,
+  getChatMessageById,
+  getChatHistory,
+  getChatConversations,
+  formatChatMessage,
+  canChatBetween
 };

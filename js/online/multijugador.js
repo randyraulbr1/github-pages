@@ -110,6 +110,10 @@ const Multijugador = {
     this._enlazarEventos();
 
     if (typeof Amigos !== 'undefined') Amigos.iniciarUI();
+    if (typeof Chat !== 'undefined') {
+      Chat.iniciarUI();
+      Chat.enlazarSocket(this.socket);
+    }
   },
 
   _enlazarEventos() {
@@ -129,6 +133,7 @@ const Multijugador = {
       this.enviarStats(true);
       this._iniciarPollingMundo();
       this.loadWorld();
+      if (typeof Chat !== 'undefined') Chat.refrescarConversaciones();
       if (typeof Usuarios !== 'undefined' && Usuarios.perfilActivo &&
           typeof SyncServidor !== 'undefined' && SyncServidor.registrarCuenta) {
         SyncServidor.registrarCuenta(Usuarios.perfilActivo, null).catch(() => {});

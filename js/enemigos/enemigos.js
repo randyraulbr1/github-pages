@@ -301,14 +301,37 @@ const Enemigos = {
       if (!m) continue;
       if (organizando) {
         m.options.interactive = true;
-        m.setZIndexOffset(12000);
+        m.setZIndexOffset(14000);
         const el = m.getElement();
-        if (el) el.style.pointerEvents = '';
+        if (el) {
+          el.style.pointerEvents = 'auto';
+          el.classList.add('admin-pin-organizar');
+        }
       } else {
         m.options.interactive = !bloquearClics;
         m.setZIndexOffset(0);
         const el = m.getElement();
-        if (el) el.style.pointerEvents = bloquearClics ? 'none' : '';
+        if (el) {
+          el.style.pointerEvents = bloquearClics ? 'none' : '';
+          el.classList.remove('admin-pin-organizar', 'admin-pin-armado', 'admin-pin-moviendo');
+        }
+      }
+    }
+    this._actualizarZonasOrganizar();
+  },
+
+  _actualizarZonasOrganizar() {
+    const organizando = this._adminOrganizando();
+    for (const id of Object.keys(this._zonas)) {
+      const z = this._zonas[id];
+      const za = this._zonasAtaque[id];
+      if (!z || !Mapa.mapa) continue;
+      if (organizando) {
+        if (Mapa.mapa.hasLayer(z)) Mapa.mapa.removeLayer(z);
+        if (za && Mapa.mapa.hasLayer(za)) Mapa.mapa.removeLayer(za);
+      } else if (this._marcadores[id]) {
+        if (!Mapa.mapa.hasLayer(z)) z.addTo(Mapa.mapa);
+        if (za && !Mapa.mapa.hasLayer(za)) za.addTo(Mapa.mapa);
       }
     }
   },
@@ -324,7 +347,9 @@ const Enemigos = {
 
   _crearEnMapa(e) {
     const marcador = L.marker(e.pos, {
-      icon: this._iconoMarcador(e)
+      icon: this._iconoMarcador(e),
+      draggable: false,
+      autoPan: true
     }).addTo(Mapa.mapa);
     this._marcadores[e.id] = marcador;
 
