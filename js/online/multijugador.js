@@ -201,7 +201,9 @@ const Multijugador = {
       const i = this.online.findIndex(x => Number(x.playerId) === Number(p.playerId));
       if (i >= 0) {
         Object.assign(this.online[i], p);
+        if (this._estaMuerto(this.online[i])) this._asegurarCuerpoLocal(this.online[i]);
         this._actualizarMarcador(this.online[i]);
+        this._redibujarCuerpos();
       }
     });
 
@@ -230,6 +232,7 @@ const Multijugador = {
       }
       delete this.cuerpos[String(pid)];
       this._quitarMarcadorCuerpo(String(pid));
+      this._redibujarCuerpos();
     });
 
     this.socket.on('world:updateObject', (obj) => {
@@ -663,7 +666,7 @@ const Multijugador = {
     html += '<div class="popup-muerto-ayuda">' +
       (cerca ? '📍 Estás cerca (' + Math.round(dist) + ' m)' : '📍 Acércate a menos de ' + maxDist + ' m (ahora ' + Math.round(dist) + ' m)') +
       '<br>🎒 Cualquier jugador puede <b>saquear</b>.<br>🩹 <b>Revivir</b> requiere botiquín en tu mochila.</div>';
-    const items = p.deadInventory || [];
+    const items = datos.deadInventory || [];
     if (items.length) {
       html += '<div class="popup-muerto-items">';
       for (const it of items) {
@@ -705,17 +708,34 @@ const Multijugador = {
     this._redibujarCuerpos();
   },
 
+  _asegurarCuerpoLocal(p) {
+    if (!p || !this._estaMuerto(p)) return;
+    const id = String(p.playerId);
+    const pos = this._posMarcador(p);
+    if (pos.x == null || pos.y == null) return;
+    const prev = this.cuerpos[id];
+    this.cuerpos[id] = {
+      playerId: Number(p.playerId),
+      name: p.name || prev?.name || 'Jugador',
+      deathX: pos.x,
+      deathY: pos.y,
+      deadLevel: p.deadLevel || p.level || prev?.deadLevel || 1,
+      deadInventory: Array.isArray(p.deadInventory) ? p.deadInventory : (prev?.deadInventory || []),
+      muertoAt: prev?.muertoAt || Date.now()
+    };
+  },
+
   _redibujarCuerpos() {
-    const idsOnlineDead = new Set(
-      this.online.filter(p => this._estaMuerto(p)).map(p => String(p.playerId))
-    );
+    for (const p of this.online) {
+      if (this._estaMuerto(p)) this._asegurarCuerpoLocal(p);
+    }
     for (const id of Object.keys(this.cuerposMarcadores)) {
-      if (!this.cuerpos[id] || !this._cuerpoVigente(this.cuerpos[id]) || idsOnlineDead.has(id)) {
+      if (!this.cuerpos[id] || !this._cuerpoVigente(this.cuerpos[id])) {
         this._quitarMarcadorCuerpo(id);
       }
     }
     for (const [id, c] of Object.entries(this.cuerpos)) {
-      if (!this._cuerpoVigente(c) || idsOnlineDead.has(id)) continue;
+      if (!this._cuerpoVigente(c)) continue;
       this._actualizarMarcadorCuerpo(c);
     }
     this._actualizarLineasAmigo();
@@ -755,6 +775,9 @@ const Multijugador = {
 
   _bindPopupMuerto(m, playerId) {
     m._muertoPlayerId = playerId;
+    if (m.unbindPopup) m.unbindPopup();
+    m.options.interactive = true;
+    if (typeof m.setInteractive === 'function') m.setInteractive(true);
     m.bindPopup(
       () => this._popupMuertoHtml(this._datosPopupMuerto(playerId)),
       { maxWidth: 260, className: 'popup-muerto-wrap' }
@@ -781,7 +804,7 @@ const Multijugador = {
       m = L.marker([pos.x, pos.y], {
         icon,
         interactive: true,
-        zIndexOffset: 9999
+        zIndexOffset: 10050
       }).addTo(Mapa.mapa);
       m.on('click', () => m.openPopup());
       this._bindPopupMuerto(m, c.playerId);
@@ -789,6 +812,10 @@ const Multijugador = {
     } else {
       m.setLatLng([pos.x, pos.y]);
       m.setIcon(icon);
+      m.options.interactive = true;
+      if (typeof m.setInteractive === 'function') m.setInteractive(true);
+      m.off('click');
+      m.on('click', () => m.openPopup());
       this._bindPopupMuerto(m, c.playerId);
     }
   },
@@ -1129,32 +1156,30 @@ const Multijugador = {
     if (!Mapa.mapa || !p) return;
     const id = p.playerId;
     const muerto = this._estaMuerto(p);
+    if (muerto) {
+      this._asegurarCuerpoLocal(p);
+      this._quitarMarcador(id);
+      const c = this.cuerpos[String(id)];
+      if (c) this._actualizarMarcadorCuerpo(c);
+      return;
+    }
     const pos = this._posMarcador(p);
     let m = this.marcadores[id];
-    const icon = muerto ? this._iconoJugadorMuerto(p) : this._iconoJugador(p);
+    const icon = this._iconoJugador(p);
     if (!m) {
       m = L.marker([pos.x, pos.y], {
         icon,
         interactive: true,
-        zIndexOffset: muerto ? 9999 : 900
+        zIndexOffset: 900
       }).addTo(Mapa.mapa);
-      if (muerto) {
-        m.on('click', () => m.openPopup());
-        this._bindPopupMuerto(m, id);
-      } else {
-        m.bindPopup(() => typeof Amigos !== 'undefined' ? Amigos.popupHtml(p) : p.name);
-      }
+      m.bindPopup(() => typeof Amigos !== 'undefined' ? Amigos.popupHtml(p) : p.name);
       this.marcadores[id] = m;
     } else {
       this._animarMarcador(id, pos.x, pos.y);
       m.setIcon(icon);
       m.off('click');
-      if (muerto) {
-        m.on('click', () => m.openPopup());
-        this._bindPopupMuerto(m, id);
-      } else {
-        m.bindPopup(() => typeof Amigos !== 'undefined' ? Amigos.popupHtml(p) : p.name);
-      }
+      if (m.unbindPopup) m.unbindPopup();
+      m.bindPopup(() => typeof Amigos !== 'undefined' ? Amigos.popupHtml(p) : p.name);
     }
   },
 
