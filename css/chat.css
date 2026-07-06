@@ -135,15 +135,14 @@
   overflow: hidden;
 }
 
-.chat-view.show { display: flex; }
+.chat-view.show { display: flex; flex-direction: column; }
 
-/* Lista de chats */
+/* Lista de chats — sin display aquí (lo controla .chat-view.show) */
 .chat-list {
   padding: 14px 16px;
   overflow-y: auto;
   flex: 1;
   min-height: 0;
-  display: flex;
   flex-direction: column;
   gap: 10px;
 }
@@ -345,6 +344,8 @@
 }
 
 .chat-icon-btn:active { transform: scale(.94); }
+
+.chat-friend-btn.oculto { display: none !important; }
 
 .chat-friend-btn.friend-added {
   border-color: #4cd964;

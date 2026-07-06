@@ -2054,7 +2054,13 @@ body.admin-organizar .leaflet-marker-icon {
 .pin-chat-mapa {
   font-size: 28px;
   filter: drop-shadow(0 3px 5px rgba(0,0,0,.55));
+}
+.pin-chat-activo {
   animation: parpadear 1.4s ease infinite;
+}
+.pin-chat-guardado {
+  opacity: 0.92;
+  transform: scale(0.92);
 }
 .linea-pin-chat { stroke-linecap: round; }
 .admin-cofre-horizontal { margin: 8px 0; }
