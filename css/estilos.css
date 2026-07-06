@@ -138,11 +138,11 @@ button { font-family: inherit; }
   display: flex; gap: 8px; justify-content: flex-end;
   margin-top: 4px;
   overflow: visible;
-  padding: 4px 6px;
-  border-radius: 10px;
-  background: rgba(12, 16, 28, .48);
-  border: 1px solid rgba(255, 255, 255, .12);
-  box-shadow: 0 2px 8px rgba(0, 0, 0, .28);
+  padding: 0;
+  border-radius: 0;
+  background: transparent;
+  border: none;
+  box-shadow: none;
   width: fit-content;
   margin-left: auto;
 }
@@ -167,6 +167,9 @@ button { font-family: inherit; }
   height: clamp(22px, 6vw, 26px);
   font-size: clamp(11px, 3vw, 14px);
   border-radius: 8px;
+  background: transparent;
+  border: none;
+  box-shadow: none;
 }
 .btn-hud-principal {
   width: clamp(32px, 9vw, 40px);
