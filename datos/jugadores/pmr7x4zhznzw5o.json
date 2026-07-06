@@ -4,7 +4,7 @@
   "telefono": "7709908375",
   "pinHash": "4bdc96ffc0926b62d55708e3c1755ca3f04b8c28bec6fd85777117da67497f11",
   "creado": 1783263656375,
-  "actualizadoEn": 1783381504843,
+  "actualizadoEn": 1783381528904,
   "partida": {
     "datos": {
       "mochila": [
@@ -78,6 +78,6 @@
       "muerto": false,
       "armaEquipada": null
     },
-    "t": 1783381501569
+    "t": 1783381525585
   }
 }
