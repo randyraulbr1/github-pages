@@ -11,6 +11,7 @@ const Mochila = {
   slots: [],            // cada slot: null o { id: 'sardina', cantidad: 3 }
   slotSeleccionado: -1,
   _arrastre: null,
+  _eliminarActivo: false,
 
   iniciar() {
     if (!Guardado.datos.mochila) {
@@ -216,12 +217,11 @@ const Mochila = {
     }
     if (slot) {
       slot.classList.toggle('equipada', !!tiene);
-      if (!this._arrastre?.activo) {
-        slot.innerHTML = tiene
-          ? this._htmlItemDrag(item.icono, 1, false)
-          : '<span class="inv-arma-placeholder">🗡️</span>';
-        if (tiene) this._enlazarItemDrag(slot.querySelector('.inv-item-drag'), 'equip');
-      }
+      slot.innerHTML = tiene
+        ? this._htmlItemDrag(item.icono, 1, false)
+        : '<span class="inv-arma-placeholder">🗡️</span>';
+      const dragEl = slot.querySelector('.inv-item-drag');
+      if (dragEl) this._enlazarItemDrag(dragEl, 'equip');
       slot.title = titulo;
     }
   },
@@ -281,6 +281,7 @@ const Mochila = {
     const holdTimer = setTimeout(() => {
       if (dragStarted) return;
       dragStarted = true;
+      this._eliminarActivo = false;
       this._arrastre = { activo: true, origen: idxReal, desdeEquip: origen === 'equip', item: sl };
       ghost = document.createElement('div');
       ghost.className = 'inv-ghost-item';
@@ -330,37 +331,51 @@ const Mochila = {
     const el = document.elementFromPoint(ev.clientX, ev.clientY);
     const slot = el?.closest?.('.slot');
     if (slot) slot.classList.add('drag-over');
-    if (deleteZone) {
-      deleteZone.classList.toggle('active', !!(el && el.closest('#inv-delete-zone')));
-    }
+    const sobreEliminar = !!(el && el.closest('#inv-delete-zone'));
+    this._eliminarActivo = sobreEliminar;
+    if (deleteZone) deleteZone.classList.toggle('active', sobreEliminar);
   },
 
   _finalizarArrastre(ev, origen, ghost, deleteZone) {
+    const desdeEquip = this._arrastre?.desdeEquip;
     if (ghost) ghost.remove();
     if (deleteZone) deleteZone.classList.remove('show', 'active');
     document.querySelectorAll('.slot.drag-over, .inv-equip-slot.drag-over')
       .forEach(s => s.classList.remove('drag-over'));
+    const eliminar = this._eliminarActivo || deleteZone?.classList.contains('active');
+    this._eliminarActivo = false;
     this._arrastre = null;
 
-    const el = document.elementFromPoint(ev.clientX, ev.clientY);
-    if (el?.closest('#inv-delete-zone')) {
-      if (origen === 'equip') this.desequiparArma();
-      else this._eliminarSlot(origen);
+    if (eliminar) {
+      if (desdeEquip) {
+        if (origen >= 0 && this.slots[origen]) this._eliminarSlot(origen);
+        else this.desequiparArma();
+      } else if (origen >= 0) {
+        this._eliminarSlot(origen);
+      }
+      this.pintar();
       return;
     }
+
+    const el = document.elementFromPoint(ev.clientX, ev.clientY);
     const targetSlot = el?.closest('.slot');
-    if (!targetSlot) return;
+    if (!targetSlot) {
+      this.pintar();
+      return;
+    }
     if (targetSlot.classList.contains('inv-equip-slot') || targetSlot.dataset.type === 'weapon') {
-      const sl = origen === 'equip' ? null : this.slots[origen];
-      if (origen === 'equip' && this.armaEquipadaId()) {
-        this.desequiparArma();
+      if (desdeEquip) {
+        this.pintar();
         return;
       }
+      const sl = this.slots[origen];
       if (sl && Items.seguro(sl.id).tipo === 'arma') this.equiparArma(sl.id);
+      else this.pintar();
       return;
     }
     const destino = parseInt(targetSlot.dataset.indice, 10);
     if (!isNaN(destino) && destino !== origen) this.moverSlot(origen, destino);
+    else this.pintar();
   },
 
   // Mover / intercambiar / apilar entre dos casillas

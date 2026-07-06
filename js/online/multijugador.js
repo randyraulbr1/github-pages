@@ -393,7 +393,9 @@ const Multijugador = {
     const tieneMapa = (m.misiones?.length || 0) + (m.objetos?.length || 0) +
       (m.enemigos?.length || 0) + (m.tesoros?.length || 0) +
       (m.tiendasAdmin?.length || 0) + Object.keys(m.posiciones || {}).length;
-    if (!tieneMapa && !(m.jugadores?.length)) return false;
+    const tieneContenido = typeof MundoPublico !== 'undefined' && MundoPublico.mundoTieneContenido
+      ? MundoPublico.mundoTieneContenido(m) : tieneMapa > 0;
+    if (!tieneContenido && !(m.jugadores?.length)) return false;
 
     if (typeof Admin === 'undefined' || typeof Admin._aplicarMundoRemoto !== 'function') {
       this._mundoPendiente = data;
@@ -446,6 +448,17 @@ const Multijugador = {
       const r = await fetch(base + '/api/public/mundo', { cache: 'no-store' });
       const data = await r.json().catch(() => ({}));
       if (!data.ok || !data.mundo) return false;
+      if (typeof MundoPublico !== 'undefined' && MundoPublico.mundoTieneContenido &&
+          !MundoPublico.mundoTieneContenido(data.mundo)) {
+        const gh = await MundoPublico._descargarDesdeGitHub?.();
+        if (gh?.texto) {
+          return this._aplicarMundoServidor({
+            mundo: JSON.parse(gh.texto),
+            actualizadoEn: gh.actualizadoEn || 0
+          }, false);
+        }
+        return false;
+      }
       return this._aplicarMundoServidor({
         mundo: data.mundo,
         actualizadoEn: data.actualizadoEn || data.mundo.actualizadoEn || 0

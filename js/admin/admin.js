@@ -189,6 +189,10 @@ const Admin = {
         data = await SyncServidor.obtenerMundo();
       }
       if (!data?.mundo) return false;
+      if (typeof MundoPublico !== 'undefined' && MundoPublico.mundoTieneContenido &&
+          !MundoPublico.mundoTieneContenido(data.mundo)) {
+        return false;
+      }
       const tsRemoto = data.actualizadoEn || data.mundo.actualizadoEn || 0;
       const tsLocal = this.publicado?.actualizadoEn || 0;
       if (tsRemoto < tsLocal) return false;

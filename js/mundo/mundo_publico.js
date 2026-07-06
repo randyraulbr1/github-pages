@@ -154,16 +154,44 @@ const MundoPublico = {
     } catch (e) { return false; }
   },
 
-  // Fuente única: servidor Render (SQLite). GitHub solo respaldo en servidor.
+  // Fuente principal: servidor Render. Respaldo: datos/mundo.json en GitHub Pages.
   urlsLectura() {
     return [];
   },
 
+  mundoTieneContenido(m) {
+    if (!m || typeof m !== 'object') return false;
+    return (m.misiones?.length || 0) + (m.objetos?.length || 0) +
+      (m.enemigos?.length || 0) + (m.tesoros?.length || 0) +
+      (m.tiendasAdmin?.length || 0) + Object.keys(m.posiciones || {}).length > 0;
+  },
+
+  async _descargarDesdeGitHub() {
+    const urls = [];
+    if (CONFIG.repoPublicacion && CONFIG.ramaPublicacion) {
+      urls.push('https://raw.githubusercontent.com/' + CONFIG.repoPublicacion + '/' +
+        CONFIG.ramaPublicacion + '/datos/mundo.json');
+    }
+    urls.push('datos/mundo.json');
+    for (const base of urls) {
+      try {
+        const r = await Utilidades.fetchConTimeout(base + '?t=' + Date.now(), { cache: 'no-store' }, 8000);
+        if (!r.ok) continue;
+        const texto = await r.text();
+        const m = JSON.parse(texto);
+        if (this.mundoTieneContenido(m)) {
+          return { texto, actualizadoEn: m.actualizadoEn || 0 };
+        }
+      } catch (e) { /* siguiente URL */ }
+    }
+    return null;
+  },
+
   async _descargarDesdeServidor() {
-    if (!CONFIG.servidorOnline) return null;
+    if (!CONFIG.servidorOnline) return this._descargarDesdeGitHub();
     if (typeof SyncServidor !== 'undefined' && SyncServidor.obtenerMundo) {
       const data = await SyncServidor.obtenerMundo();
-      if (data?.mundo) {
+      if (data?.mundo && this.mundoTieneContenido(data.mundo)) {
         return {
           texto: JSON.stringify(data.mundo),
           actualizadoEn: data.actualizadoEn || data.mundo.actualizadoEn || 0
@@ -174,14 +202,14 @@ const MundoPublico = {
       const base = CONFIG.servidorOnline.replace(/\/$/, '');
       const r = await Utilidades.fetchConTimeout(base + '/api/public/mundo', { cache: 'no-store' }, 8000);
       const data = await r.json().catch(() => ({}));
-      if (data.ok && data.mundo) {
+      if (data.ok && data.mundo && this.mundoTieneContenido(data.mundo)) {
         return {
           texto: JSON.stringify(data.mundo),
           actualizadoEn: data.actualizadoEn || data.mundo.actualizadoEn || 0
         };
       }
     } catch (e) { /* */ }
-    return null;
+    return this._descargarDesdeGitHub();
   },
 
   _aplicarTokenDesdeTexto(texto) {

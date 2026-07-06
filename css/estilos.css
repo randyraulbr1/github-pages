@@ -579,10 +579,13 @@ button { font-family: inherit; }
   border: 2px solid #ffc928 !important;
   background: radial-gradient(circle, #202a3b, #111822) !important;
   box-shadow: 0 0 14px rgba(255,201,40,.35);
+  overflow: visible;
 }
 .inv-equip-slot .inv-item-drag {
-  width: 70%; height: 70%; font-size: clamp(25px, 8vw, 34px);
+  width: 92%; height: 92%;
+  font-size: clamp(30px, 9vw, 40px);
 }
+.inv-equip-slot.equipada .inv-arma-placeholder { display: none; }
 .inv-item-drag {
   width: 70%; height: 70%;
   display: flex; justify-content: center; align-items: center;
@@ -612,13 +615,15 @@ button { font-family: inherit; }
 }
 .inv-delete-zone.show { display: flex; }
 .inv-delete-zone.active {
-  background: rgba(255,0,0,.25);
-  box-shadow: 0 0 18px rgba(255,0,0,.55);
+  background: rgba(80,12,12,.96); border-style: solid;
+  transform: translateX(-50%) scale(1.06);
+  box-shadow: 0 0 18px rgba(255,60,60,.55);
 }
 .inv-ghost-item {
-  position: fixed; z-index: 9999; pointer-events: none;
+  position: fixed; z-index: 2500; pointer-events: none;
+  font-size: 38px; line-height: 1;
   transform: translate(-50%, -50%);
-  font-size: 38px; filter: drop-shadow(0 6px 8px #000);
+  filter: drop-shadow(0 4px 10px rgba(0,0,0,.65));
 }
 .admin-jugadores-tabs {
   display: flex; gap: 8px; padding: 0 14px 10px;
