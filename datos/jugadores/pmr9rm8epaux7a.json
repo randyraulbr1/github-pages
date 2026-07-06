@@ -4,7 +4,7 @@
   "telefono": "91192994",
   "pinHash": "4bdc96ffc0926b62d55708e3c1755ca3f04b8c28bec6fd85777117da67497f11",
   "creado": 1783375315730,
-  "actualizadoEn": 1783375349526,
+  "actualizadoEn": 1783375399772,
   "partida": {
     "datos": {
       "mochila": [
@@ -16,7 +16,10 @@
           "id": "pan",
           "cantidad": 1
         },
-        null,
+        {
+          "id": "arroz_congri",
+          "cantidad": 1
+        },
         null,
         null,
         null,
@@ -67,11 +70,25 @@
           "hash": "99237b6b79dae2ada835b6a34af49a8bed72824c35f8baf9d9d5f246a202593b"
         }
       ],
-      "historialObjetos": [],
+      "historialObjetos": [
+        {
+          "t": 1783375348454,
+          "detalle": "Obtenido: Arroz congrí",
+          "monto": 1,
+          "saldo": null,
+          "lugar": "campo abierto",
+          "pos": [
+            22.9936,
+            -82.7539
+          ],
+          "hashAnterior": "GENESIS",
+          "hash": "8544e9a62b526872603895139e5027f4b61d799775af5ae0c724277d638a2df8"
+        }
+      ],
       "mensajesVistos": [],
       "muerto": false,
       "armaEquipada": null
     },
-    "t": 1783375346828
+    "t": 1783375398829
   }
 }
