@@ -429,6 +429,24 @@ button { font-family: inherit; }
 .mision-letrero .titulo-letrero { font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .mision-letrero .estado-letrero { color: #ffd60a; font-size: 10px; }
 
+#letrero-pin-chat { display: flex; flex-direction: column; gap: 5px; max-width: 100%; pointer-events: auto; }
+.pin-chat-letrero { position: relative; padding-right: 34px; }
+.pin-chat-letrero .btn-letrero-pin {
+  position: absolute; right: 6px; top: 50%; transform: translateY(-50%);
+  width: 26px; height: 26px; border-radius: 8px; border: 1px solid rgba(255,255,255,.2);
+  background: rgba(255,69,58,.25); color: #fff; font-weight: 900; cursor: pointer; font-size: 12px;
+}
+.pin-chat-colocar { font-size: 32px; filter: drop-shadow(0 4px 6px #000); cursor: grab; }
+#btn-chat-pin-confirmar { background: #38c6ff; color: #042030; }
+
+.fila-opcion-toggle {
+  display: flex; align-items: center; gap: 10px; cursor: pointer;
+}
+.fila-opcion-toggle .opcion-toggle-texto { flex: 1; text-align: left; }
+.opcion-toggle-check {
+  width: 20px; height: 20px; accent-color: #38c6ff; flex-shrink: 0;
+}
+
 /* ============ NOTIFICACIONES ============ */
 #zona-notificaciones {
   position: fixed; top: calc(110px + env(safe-area-inset-top)); right: 0; z-index: 2000;
@@ -1320,6 +1338,7 @@ body.en-auth #mapa,
 body.en-auth #panel-hud-izq,
 body.en-auth #botones-inferiores,
 body.en-auth #letrero-misiones,
+body.en-auth #letrero-pin-chat,
 body.en-auth #banner-tesoro,
 body.en-auth #admin-controles,
 body.en-auth #zona-notificaciones { display: none !important; }
@@ -1460,6 +1479,7 @@ body.sesion-cerrada #panel-hud-izq,
 body.sesion-cerrada #contenedor-dinero,
 body.sesion-cerrada #botones-inferiores,
 body.sesion-cerrada #letrero-misiones,
+body.sesion-cerrada #letrero-pin-chat,
 body.sesion-cerrada #banner-tesoro,
 body.sesion-cerrada #admin-controles,
 body.sesion-cerrada #zona-notificaciones,
@@ -1775,6 +1795,7 @@ body.jugador-muerto #panel-hud-izq,
 body.jugador-muerto #contenedor-dinero,
 body.jugador-muerto #botones-inferiores,
 body.jugador-muerto #letrero-misiones,
+body.jugador-muerto #letrero-pin-chat,
 body.jugador-muerto #banner-tesoro,
 body.jugador-muerto #admin-controles { pointer-events: none; opacity: .35; }
 #pantalla-muerte { z-index: 5500; }

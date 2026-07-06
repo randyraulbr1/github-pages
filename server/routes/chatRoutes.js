@@ -7,6 +7,7 @@ const {
   getChatHistory,
   getChatConversations,
   insertChatMessage,
+  markChatRead,
   canChatBetween,
   getBlockedIds
 } = require('../db');
@@ -82,6 +83,28 @@ router.post('/send', authMiddleware, (req, res) => {
     io.to('player:' + me).emit('chat:message', msg);
   }
   res.json({ ok: true, message: msg });
+});
+
+router.post('/read', authMiddleware, (req, res) => {
+  const me = req.auth.playerId;
+  const otherId = parseInt(req.body.playerId, 10);
+  const messageId = parseInt(req.body.messageId, 10);
+  if (!Number.isFinite(otherId) || otherId === me) {
+    return res.status(400).json({ ok: false, error: 'Jugador inválido' });
+  }
+  if (!canChatBetween(me, otherId)) {
+    return res.status(403).json({ ok: false, error: 'Chat bloqueado' });
+  }
+  const result = markChatRead(me, otherId, messageId);
+  if (!result) return res.status(400).json({ ok: false, error: 'Mensaje inválido' });
+  const io = req.app.get('io');
+  if (io) {
+    io.to('player:' + otherId).emit('chat:read', {
+      fromPlayerId: me,
+      lastReadMessageId: result.lastReadMessageId
+    });
+  }
+  res.json({ ok: true, lastReadMessageId: result.lastReadMessageId });
 });
 
 module.exports = router;

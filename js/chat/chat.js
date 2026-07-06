@@ -1,17 +1,16 @@
 /**
  * Chat entre jugadores — conectado al servidor en vivo.
- * Compartir ubicación como pin en el mapa local.
+ * Pins en el mapa del juego (arrastrables) y seguimiento tipo misiones.
  */
 const Chat = {
   activePlayer: null,
   chats: {},
   unread: {},
-  pinPosition: { lat: null, lng: null },
-  mapMode: 'send',
+  _colocandoPin: null,
   _pinsMapa: {},
   _pinActivo: null,
   _lineaPin: null,
-  _draggingPin: false,
+  _clickFueraOk: false,
 
   _miId() {
     if (typeof Multijugador !== 'undefined' && Multijugador._miPlayerId) {
@@ -43,7 +42,10 @@ const Chat = {
     const btn = document.getElementById('btn-chat');
     if (!btn) return;
     btn.classList.remove('oculto');
-    btn.addEventListener('click', () => this.togglePanel());
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      this.togglePanel();
+    });
 
     document.getElementById('closeChat')?.addEventListener('click', () => this.cerrarPanel());
     document.getElementById('backBtnChat')?.addEventListener('click', () => this.showList());
@@ -53,9 +55,11 @@ const Chat = {
     });
     document.getElementById('locationBtnChat')?.addEventListener('click', () => this.openMapToSend());
     document.getElementById('friendBtnChat')?.addEventListener('click', () => this.toggleFriend());
-    document.getElementById('closeMapChat')?.addEventListener('click', () => this.cerrarMapa());
-    document.getElementById('centerPinChat')?.addEventListener('click', () => this.centrarPin());
-    document.getElementById('sendLocationChat')?.addEventListener('click', () => this.enviarUbicacion());
+    document.getElementById('btn-chat-pin-confirmar')?.addEventListener('click', () => this.confirmarColocacionPin());
+    document.getElementById('btn-chat-pin-cancelar')?.addEventListener('click', () => this.cancelarColocacionPin());
+
+    const panel = document.getElementById('chatPanel');
+    panel?.addEventListener('click', (e) => e.stopPropagation());
 
     const input = document.getElementById('chatInput');
     input?.addEventListener('keydown', (e) => {
@@ -89,7 +93,21 @@ const Chat = {
       }
     });
 
-    this._initPinDrag();
+    document.getElementById('letrero-pin-chat')?.addEventListener('click', (e) => {
+      const btn = e.target.closest('[data-dejar-pin]');
+      if (btn) this.dejarDeSeguirPin();
+    });
+
+    if (!this._clickFueraOk) {
+      this._clickFueraOk = true;
+      document.addEventListener('click', (e) => {
+        const p = document.getElementById('chatPanel');
+        if (!p?.classList.contains('show')) return;
+        if (p.contains(e.target) || e.target.closest('#btn-chat')) return;
+        this.cerrarPanel();
+      });
+    }
+
     this.showList();
   },
 
@@ -97,6 +115,7 @@ const Chat = {
     if (!socket || socket._chatOk) return;
     socket._chatOk = true;
     socket.on('chat:message', (msg) => this._recibirMensaje(msg));
+    socket.on('chat:read', (data) => this._aplicarLectura(data));
   },
 
   togglePanel() {
@@ -188,7 +207,8 @@ const Chat = {
       text: msg.text || '',
       type: msg.type || 'text',
       location: msg.location || null,
-      createdAt: msg.createdAt || Date.now()
+      createdAt: msg.createdAt || Date.now(),
+      readAt: msg.readAt || null
     };
   },
 
@@ -204,12 +224,57 @@ const Chat = {
     if (this.activePlayer !== other && msg.fromPlayerId !== yo) {
       this.unread[other] = (this.unread[other] || 0) + 1;
     }
-    if (this.activePlayer === other) this.renderMessages();
+    if (this.activePlayer === other) {
+      this.renderMessages();
+      this._marcarLeido(other);
+    }
     this.renderChatList();
     this._actualizarBadge();
     if (msg.fromPlayerId !== yo) {
-      Notificaciones.mostrar('💬 ' + (msg.fromName || 'Jugador'), 'info', 2200);
+      const preview = msg.type === 'location' ? '📍 Ubicación' : (msg.text || '').slice(0, 60);
+      Notificaciones.mostrarSocial(
+        '💬 ' + (msg.fromName || 'Jugador') + ': ' + preview,
+        'info', 'chat', 3500
+      );
     }
+  },
+
+  _aplicarLectura(data) {
+    if (!data?.fromPlayerId) return;
+    const other = Number(data.fromPlayerId);
+    const lastId = Number(data.lastReadMessageId);
+    const list = this.chats[other];
+    if (!list) return;
+    let cambio = false;
+    for (const m of list) {
+      if (m.from === 'me' && m.id && m.id <= lastId && !m.readAt) {
+        m.readAt = Date.now();
+        cambio = true;
+      }
+    }
+    if (cambio && this.activePlayer === other) this.renderMessages();
+  },
+
+  async _marcarLeido(otherId) {
+    const list = this.chats[otherId] || [];
+    const yo = this._miId();
+    const recibidos = list.filter(m => m.fromPlayerId !== yo && m.id);
+    if (!recibidos.length) return;
+    const lastId = Math.max(...recibidos.map(m => m.id));
+    const socket = Multijugador.socket;
+    if (socket?.connected) {
+      socket.emit('chat:markRead', { playerId: otherId, messageId: lastId });
+      return;
+    }
+    const base = this._base();
+    if (!base || !this._token()) return;
+    try {
+      await fetch(base + '/api/chat/read', {
+        method: 'POST',
+        headers: this._headers(),
+        body: JSON.stringify({ playerId: otherId, messageId: lastId })
+      });
+    } catch (e) { /* sin red */ }
   },
 
   showList() {
@@ -238,7 +303,14 @@ const Chat = {
     await this._cargarHistorial(this.activePlayer);
     this.updateFriendButton();
     this.renderMessages();
+    this._marcarLeido(this.activePlayer);
     this._actualizarBadge();
+
+    const panel = document.getElementById('chatPanel');
+    if (panel && !panel.classList.contains('show')) {
+      panel.classList.add('show');
+      document.getElementById('btn-chat')?.classList.add('activo');
+    }
   },
 
   async _cargarHistorial(playerId) {
@@ -303,6 +375,12 @@ const Chat = {
     return { text, time: this._timeAgo(last.createdAt) };
   },
 
+  _textoLectura(msg) {
+    if (msg.from !== 'me') return '';
+    if (msg.readAt) return '<span class="msg-leido" title="Leído">✓✓ Leído</span>';
+    return '<span class="msg-enviado" title="Enviado">✓</span>';
+  },
+
   renderMessages() {
     const cont = document.getElementById('messagesChat');
     if (!cont || !this.activePlayer) return;
@@ -337,7 +415,10 @@ const Chat = {
           '</div>';
       }
 
-      html += '<div class="message-time">' + this._timeAgo(msg.createdAt) + '</div>';
+      html += '<div class="message-meta">' +
+        '<span class="message-time">' + this._timeAgo(msg.createdAt) + '</span>' +
+        this._textoLectura(msg) +
+      '</div>';
       div.innerHTML = html;
       cont.appendChild(div);
     });
@@ -423,95 +504,62 @@ const Chat = {
   },
 
   openMapToSend() {
-    if (!this.activePlayer) return;
-    this.mapMode = 'send';
-    document.getElementById('mapTitleChat').textContent = '📍 Enviar ubicación';
-    document.getElementById('mapSubChat').textContent = 'Arrastra el pin y envíalo al jugador.';
-    document.getElementById('sendLocationChat').textContent = 'Enviar pin';
-    const base = typeof GPS !== 'undefined' && GPS.posicion
+    if (!this.activePlayer || !Mapa.mapa) return;
+    if (this._colocandoPin) return;
+    const centro = typeof GPS !== 'undefined' && GPS.posicion
       ? GPS.posicion.slice()
       : CONFIG.centro.slice();
-    this.pinPosition = { lat: base[0], lng: base[1] };
-    this._actualizarPinModal();
-    document.getElementById('mapModalChat')?.classList.add('show');
+    const playerId = this.activePlayer;
+    this.cerrarPanel();
+
+    const marcador = L.marker(centro, {
+      draggable: true,
+      zIndexOffset: 2100,
+      icon: L.divIcon({
+        className: '',
+        html: '<div class="pin-chat-mapa pin-chat-colocar">📍</div>',
+        iconSize: [36, 36],
+        iconAnchor: [18, 32]
+      })
+    }).addTo(Mapa.mapa);
+
+    this._colocandoPin = { marcador, playerId };
+    const ctrl = document.getElementById('chat-pin-controles');
+    if (ctrl) ctrl.classList.remove('oculto');
+    Mapa.mapa.panTo(centro);
   },
 
-  openReceivedPin(msg) {
-    this.mapMode = 'reply';
-    document.getElementById('mapTitleChat').textContent = '📍 Pin recibido';
-    document.getElementById('mapSubChat').textContent = 'Puedes moverlo y reenviarlo.';
-    document.getElementById('sendLocationChat').textContent = 'Reenviar pin';
-    this.pinPosition = { lat: msg.location.lat, lng: msg.location.lng };
-    this._actualizarPinModal();
-    document.getElementById('mapModalChat')?.classList.add('show');
-  },
-
-  cerrarMapa() {
-    document.getElementById('mapModalChat')?.classList.remove('show');
-  },
-
-  centrarPin() {
-    const base = typeof GPS !== 'undefined' && GPS.posicion
-      ? GPS.posicion.slice()
-      : CONFIG.centro.slice();
-    this.pinPosition = { lat: base[0], lng: base[1] };
-    this._actualizarPinModal();
-  },
-
-  async enviarUbicacion() {
-    if (!this.activePlayer || !this.pinPosition.lat) return;
+  async confirmarColocacionPin() {
+    if (!this._colocandoPin?.marcador) return;
+    const p = this._colocandoPin.marcador.getLatLng();
+    const playerId = this._colocandoPin.playerId;
+    this._limpiarColocacionPin();
+    await this.openConversation(playerId);
     const ok = await this._enviar({
-      toPlayerId: this.activePlayer,
+      toPlayerId: playerId,
       type: 'location',
-      text: this.mapMode === 'reply' ? 'Te envié una nueva ubicación.' : 'Te envié una ubicación.',
-      lat: +this.pinPosition.lat.toFixed(6),
-      lng: +this.pinPosition.lng.toFixed(6)
+      text: 'Te envié una ubicación.',
+      lat: +p.lat.toFixed(6),
+      lng: +p.lng.toFixed(6)
     });
     if (ok) {
-      this.cerrarMapa();
       this.renderMessages();
       this.renderChatList();
     }
   },
 
-  _initPinDrag() {
-    const pin = document.getElementById('pinChatDrag');
-    const map = document.getElementById('dragMapChat');
-    if (!pin || !map) return;
-
-    const mover = (clientX, clientY) => {
-      const rect = map.getBoundingClientRect();
-      const x = Math.max(0.03, Math.min(0.97, (clientX - rect.left) / rect.width));
-      const y = Math.max(0.08, Math.min(0.97, (clientY - rect.top) / rect.height));
-      const [so, ne] = CONFIG.limites;
-      const lat = ne[0] - y * (ne[0] - so[0]);
-      const lng = so[1] + x * (ne[1] - so[1]);
-      this.pinPosition = { lat: +lat.toFixed(6), lng: +lng.toFixed(6) };
-      this._actualizarPinModal();
-    };
-
-    pin.addEventListener('pointerdown', (e) => {
-      e.preventDefault();
-      this._draggingPin = true;
-      pin.setPointerCapture(e.pointerId);
-    });
-    pin.addEventListener('pointermove', (e) => {
-      if (!this._draggingPin) return;
-      mover(e.clientX, e.clientY);
-    });
-    pin.addEventListener('pointerup', () => { this._draggingPin = false; });
-    map.addEventListener('pointerdown', (e) => {
-      if (e.target === pin) return;
-      mover(e.clientX, e.clientY);
-    });
+  cancelarColocacionPin() {
+    const playerId = this._colocandoPin?.playerId;
+    this._limpiarColocacionPin();
+    if (playerId) this.openConversation(playerId);
   },
 
-  _actualizarPinModal() {
-    const pin = document.getElementById('pinChatDrag');
-    if (!pin || this.pinPosition.lat == null) return;
-    const pct = this._latLngAPorcentaje(this.pinPosition.lat, this.pinPosition.lng);
-    pin.style.left = pct.x + '%';
-    pin.style.top = pct.y + '%';
+  _limpiarColocacionPin() {
+    if (this._colocandoPin?.marcador) {
+      this._colocandoPin.marcador.remove();
+    }
+    this._colocandoPin = null;
+    document.getElementById('chat-pin-controles')?.classList.add('oculto');
   },
 
   _latLngAPorcentaje(lat, lng) {
@@ -541,12 +589,59 @@ const Chat = {
     }
     this._activarPinMapa(key);
     this.cerrarPanel();
-    Notificaciones.mostrar('📍 Pin agregado al mapa — sigue la línea azul', 'exito', 3500);
+    Notificaciones.mostrar('📍 Sigue la línea azul hasta el pin', 'exito', 3500);
   },
 
   _activarPinMapa(key) {
     this._pinActivo = key;
     this._actualizarLineaPin();
+    this._pintarLetreroPin();
+  },
+
+  dejarDeSeguirPin() {
+    this._pinActivo = null;
+    this._actualizarLineaPin();
+    this._pintarLetreroPin();
+  },
+
+  _pintarLetreroPin() {
+    const cont = document.getElementById('letrero-pin-chat');
+    if (!cont) return;
+    if (!this._pinActivo || !this._pinsMapa[this._pinActivo]) {
+      cont.classList.add('oculto');
+      cont.innerHTML = '';
+      return;
+    }
+    const pin = this._pinsMapa[this._pinActivo];
+    let distTxt = '';
+    if (typeof GPS !== 'undefined' && GPS.posicion) {
+      const d = Math.round(Utilidades.distanciaMetros(GPS.posicion, [pin.lat, pin.lng]));
+      distTxt = '<div class="estado-letrero">' + d + ' m · sigue la línea azul</div>';
+    }
+    cont.classList.remove('oculto');
+    cont.innerHTML =
+      '<div class="mision-letrero lista pin-chat-letrero">' +
+        '<span class="punto-color premio" style="background:#38c6ff"></span>' +
+        '<div class="datos-letrero">' +
+          '<div class="titulo-letrero">📍 Pin de ' + this._esc(pin.etiqueta) + ' ➜</div>' +
+          distTxt +
+        '</div>' +
+        '<button type="button" class="btn-letrero-pin" data-dejar-pin title="Dejar de seguir">✕</button>' +
+      '</div>';
+  },
+
+  verificarLlegadaPin() {
+    if (!this._pinActivo || !GPS.posicion) return;
+    const pin = this._pinsMapa[this._pinActivo];
+    if (!pin) return;
+    const dist = Utilidades.distanciaMetros(GPS.posicion, [pin.lat, pin.lng]);
+    if (dist <= CONFIG.distanciaInteraccion) {
+      const etiqueta = pin.etiqueta;
+      this.dejarDeSeguirPin();
+      Notificaciones.mostrar('📍 Llegaste al pin de ' + etiqueta, 'exito', 4500);
+    } else {
+      this._pintarLetreroPin();
+    }
   },
 
   _actualizarLineaPin() {
@@ -576,6 +671,7 @@ const Chat = {
 
   actualizarLineaSiActiva() {
     this._actualizarLineaPin();
+    this.verificarLlegadaPin();
   },
 
   _actualizarBadge() {

@@ -20,6 +20,7 @@ const {
   formatMission,
   insertChatMessage,
   getChatHistory,
+  markChatRead,
   canChatBetween
 } = require('./db');
 const { verifyToken, isGameAdminName } = require('./auth');
@@ -591,6 +592,24 @@ function setupSockets(io) {
       io.to('player:' + toId).emit('chat:message', msg);
       io.to('player:' + socket.playerId).emit('chat:message', msg);
       ack?.({ ok: true, message: msg });
+    });
+
+    socket.on('chat:markRead', (payload, ack) => {
+      const otherId = parseInt(payload?.playerId, 10);
+      const messageId = parseInt(payload?.messageId, 10);
+      if (!Number.isFinite(otherId) || otherId === socket.playerId) {
+        return ack?.({ ok: false, error: 'Jugador inválido' });
+      }
+      if (!canChatBetween(socket.playerId, otherId)) {
+        return ack?.({ ok: false, error: 'Chat bloqueado' });
+      }
+      const result = markChatRead(socket.playerId, otherId, messageId);
+      if (!result) return ack?.({ ok: false, error: 'Mensaje inválido' });
+      io.to('player:' + otherId).emit('chat:read', {
+        fromPlayerId: socket.playerId,
+        lastReadMessageId: result.lastReadMessageId
+      });
+      ack?.({ ok: true, lastReadMessageId: result.lastReadMessageId });
     });
 
     socket.on('disconnect', () => {

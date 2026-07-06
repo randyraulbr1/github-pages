@@ -310,10 +310,11 @@ const Multijugador = {
       }
     });
 
-    this.socket.on('friends:request', () => {
+    this.socket.on('friends:request', (data) => {
       if (typeof Amigos !== 'undefined') {
         Amigos.refrescar();
-        Notificaciones.mostrar('📨 Nueva solicitud de amistad', 'info', 4000);
+        const nombre = data?.fromName || 'Un jugador';
+        Notificaciones.mostrarSocial('📨 ' + nombre + ' quiere ser tu amigo', 'info', 'amigos', 4500);
       }
     });
 

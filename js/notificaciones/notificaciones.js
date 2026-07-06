@@ -40,8 +40,21 @@ const Notificaciones = {
     this._guardarHistorial(texto, tipo);
     if (!this._puedeMostrarToast()) return;
     if (!this._esImportante(texto, tipo)) return;
+    this._mostrarToast(texto, tipo, duracionMs);
+  },
 
+  mostrarSocial(texto, tipo = 'info', categoria = 'chat', duracionMs = 3500) {
+    this._guardarHistorial(texto, tipo);
+    if (!this._puedeMostrarToast()) return;
+    const prefs = (typeof Guardado !== 'undefined' && Guardado.datos?.preferencias) || {};
+    if (categoria === 'chat' && prefs.notifChat === false) return;
+    if (categoria === 'amigos' && prefs.notifAmigos === false) return;
+    this._mostrarToast(texto, tipo, duracionMs);
+  },
+
+  _mostrarToast(texto, tipo, duracionMs) {
     const zona = document.getElementById('zona-notificaciones');
+    if (!zona) return;
     const n = document.createElement('div');
     n.className = 'notificacion ' + tipo;
     n.textContent = texto;

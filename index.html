@@ -124,6 +124,7 @@
       </button>
     </div>
     <div id="letrero-misiones" class="oculto"></div>
+    <div id="letrero-pin-chat" class="oculto"></div>
   </div>
 
   <!-- BANNER DEL BUSCADOR DE TESOROS -->
@@ -143,6 +144,13 @@
     <span id="cofre-pin-texto">Arrastra el pin 🧰 y confirma</span>
     <button type="button" id="btn-cofre-pin-confirmar">Confirmar</button>
     <button type="button" id="btn-cofre-pin-cancelar">Cancelar</button>
+  </div>
+
+  <!-- CHAT: pin móvil al enviar ubicación -->
+  <div id="chat-pin-controles" class="colocacion-controles oculto">
+    <span id="chat-pin-texto">Arrastra el pin 📍 en el mapa y confirma</span>
+    <button type="button" id="btn-chat-pin-confirmar">Enviar pin</button>
+    <button type="button" id="btn-chat-pin-cancelar">Cancelar</button>
   </div>
 
   <!-- ADMIN: cesto legacy (oculto; borrar con ✕ en el pin) -->
@@ -255,25 +263,6 @@
       </div>
     </div>
   </section>
-
-  <div class="map-modal-chat" id="mapModalChat">
-    <div class="map-box-chat">
-      <div class="map-head-chat">
-        <div>
-          <div class="map-title-chat" id="mapTitleChat">📍 Enviar ubicación</div>
-          <div class="map-sub-chat" id="mapSubChat">Arrastra el pin y envíalo al jugador.</div>
-        </div>
-        <button type="button" class="close-chat" id="closeMapChat">×</button>
-      </div>
-      <div class="drag-map-chat" id="dragMapChat">
-        <div class="pin-chat-drag" id="pinChatDrag">📍</div>
-      </div>
-      <div class="map-controls-chat">
-        <button type="button" class="map-btn-chat" id="centerPinChat">Centrar</button>
-        <button type="button" class="map-btn-chat send-location" id="sendLocationChat">Enviar pin</button>
-      </div>
-    </div>
-  </div>
 
   <!-- ============ VENTANA: MOCHILA / INVENTARIO ============ -->
   <div id="ventana-mochila" class="ventana oculto">
@@ -437,6 +426,17 @@
         </div>
       </div>
       <div class="perfil-stats-grid" id="opciones-stats-grid"></div>
+      <div class="panel-seccion-titulo">Notificaciones</div>
+      <label class="fila-opcion fila-opcion-toggle" for="opcion-notif-chat">
+        <span class="icono-opcion">💬</span>
+        <span class="opcion-toggle-texto">Aviso de mensajes de chat</span>
+        <input type="checkbox" id="opcion-notif-chat" class="opcion-toggle-check" checked>
+      </label>
+      <label class="fila-opcion fila-opcion-toggle" for="opcion-notif-amigos">
+        <span class="icono-opcion">👥</span>
+        <span class="opcion-toggle-texto">Aviso de solicitudes de amistad</span>
+        <input type="checkbox" id="opcion-notif-amigos" class="opcion-toggle-check" checked>
+      </label>
       <div class="panel-seccion-titulo">Acciones</div>
       <div id="lista-opciones">
         <button class="fila-opcion fila-opcion-compacta" id="opcion-centrar"><span class="icono-opcion">🎯</span> Centrar mapa</button>
@@ -789,45 +789,45 @@
   </div>
 
   <!-- LIBRERÍAS -->
-  <script src="lib/leaflet/leaflet.js?v=100"></script>
+  <script src="lib/leaflet/leaflet.js?v=101"></script>
 
   <!-- MÓDULOS DEL JUEGO (orden importante) -->
-  <script src="js/config/config.js?v=100"></script>
-  <script src="js/nucleo/utilidades.js?v=100"></script>
-  <script src="js/mundo/mundo_publico.js?v=100"></script>
-  <script src="js/notificaciones/notificaciones.js?v=100"></script>
-  <script src="js/usuarios/usuarios.js?v=100"></script>
-  <script src="js/guardado/guardado.js?v=100"></script>
-  <script src="js/historial/historial.js?v=100"></script>
-  <script src="js/dinero/dinero.js?v=100"></script>
-  <script src="js/vida/vida.js?v=100"></script>
-  <script src="js/items/items.js?v=100"></script>
-  <script src="js/mochila/mochila.js?v=100"></script>
-  <script src="js/mapa/mapa.js?v=100"></script>
-  <script src="js/gps/gps.js?v=100"></script>
-  <script src="js/tiendas/datos_tiendas.js?v=100"></script>
-  <script src="js/tiendas/tiendas.js?v=100"></script>
-  <script src="js/pesca/pesca.js?v=100"></script>
-  <script src="js/tesoros/datos_tesoros.js?v=100"></script>
-  <script src="js/tesoros/tesoros.js?v=100"></script>
-  <script src="js/misiones/datos_misiones.js?v=100"></script>
-  <script src="js/misiones/misiones.js?v=100"></script>
-  <script src="js/cofres/cofres.js?v=100"></script>
-  <script src="js/correo/correo.js?v=100"></script>
-  <script src="js/enemigos/enemigos.js?v=100"></script>
-  <script src="js/online/sync_servidor.js?v=100"></script>
-  <script src="js/admin/admin.js?v=100"></script>
-  <script src="js/opciones/opciones.js?v=100"></script>
-  <script src="js/online/mundo_online.js?v=100"></script>
-  <script src="js/online/amigos.js?v=100"></script>
-  <script src="js/chat/chat.js?v=100"></script>
-  <script src="js/online/multijugador.js?v=100"></script>
-  <script src="js/principal.js?v=100"></script>
+  <script src="js/config/config.js?v=101"></script>
+  <script src="js/nucleo/utilidades.js?v=101"></script>
+  <script src="js/mundo/mundo_publico.js?v=101"></script>
+  <script src="js/notificaciones/notificaciones.js?v=101"></script>
+  <script src="js/usuarios/usuarios.js?v=101"></script>
+  <script src="js/guardado/guardado.js?v=101"></script>
+  <script src="js/historial/historial.js?v=101"></script>
+  <script src="js/dinero/dinero.js?v=101"></script>
+  <script src="js/vida/vida.js?v=101"></script>
+  <script src="js/items/items.js?v=101"></script>
+  <script src="js/mochila/mochila.js?v=101"></script>
+  <script src="js/mapa/mapa.js?v=101"></script>
+  <script src="js/gps/gps.js?v=101"></script>
+  <script src="js/tiendas/datos_tiendas.js?v=101"></script>
+  <script src="js/tiendas/tiendas.js?v=101"></script>
+  <script src="js/pesca/pesca.js?v=101"></script>
+  <script src="js/tesoros/datos_tesoros.js?v=101"></script>
+  <script src="js/tesoros/tesoros.js?v=101"></script>
+  <script src="js/misiones/datos_misiones.js?v=101"></script>
+  <script src="js/misiones/misiones.js?v=101"></script>
+  <script src="js/cofres/cofres.js?v=101"></script>
+  <script src="js/correo/correo.js?v=101"></script>
+  <script src="js/enemigos/enemigos.js?v=101"></script>
+  <script src="js/online/sync_servidor.js?v=101"></script>
+  <script src="js/admin/admin.js?v=101"></script>
+  <script src="js/opciones/opciones.js?v=101"></script>
+  <script src="js/online/mundo_online.js?v=101"></script>
+  <script src="js/online/amigos.js?v=101"></script>
+  <script src="js/chat/chat.js?v=101"></script>
+  <script src="js/online/multijugador.js?v=101"></script>
+  <script src="js/principal.js?v=101"></script>
   <script>
     // Registrar la app instalable (PWA)
     if ('serviceWorker' in navigator) {
       const yaTeniaVersion = !!navigator.serviceWorker.controller;
-      navigator.serviceWorker.register('sw.js?v=100', { updateViaCache: 'none' })
+      navigator.serviceWorker.register('sw.js?v=101', { updateViaCache: 'none' })
         .then(function (reg) { reg.update(); })
         .catch(function () {});
       // Cuando llega una versión nueva del juego: avisar y recargar solo

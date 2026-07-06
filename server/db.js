@@ -113,6 +113,16 @@ function initDb() {
     );
 
     CREATE INDEX IF NOT EXISTS idx_chat_pair ON chat_messages(from_player_id, to_player_id, created_at);
+
+    CREATE TABLE IF NOT EXISTS chat_read_cursors (
+      player_id INTEGER NOT NULL,
+      other_player_id INTEGER NOT NULL,
+      last_read_message_id INTEGER NOT NULL DEFAULT 0,
+      updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+      PRIMARY KEY (player_id, other_player_id),
+      FOREIGN KEY (player_id) REFERENCES players(id) ON DELETE CASCADE,
+      FOREIGN KEY (other_player_id) REFERENCES players(id) ON DELETE CASCADE
+    );
   `);
 
   // Solo si la BD está vacía: semilla mínima; importMundo trae datos reales de mundo.json
@@ -581,24 +591,62 @@ function parseChatTime(value) {
   return Number.isFinite(t) ? t : Date.now();
 }
 
-function formatChatMessage(row) {
+function getChatReadCursor(playerId, otherId) {
+  const row = db.prepare(`
+    SELECT last_read_message_id FROM chat_read_cursors
+    WHERE player_id = ? AND other_player_id = ?
+  `).get(playerId, otherId);
+  return row ? Number(row.last_read_message_id) || 0 : 0;
+}
+
+function markChatRead(playerId, otherId, messageId) {
+  const mid = parseInt(messageId, 10);
+  if (!Number.isFinite(mid) || mid <= 0) return null;
+  const msg = db.prepare(`
+    SELECT id, from_player_id, to_player_id FROM chat_messages WHERE id = ?
+  `).get(mid);
+  if (!msg) return null;
+  const valid =
+    (msg.from_player_id === otherId && msg.to_player_id === playerId) ||
+    (msg.from_player_id === playerId && msg.to_player_id === otherId);
+  if (!valid) return null;
+  const prev = getChatReadCursor(playerId, otherId);
+  if (mid <= prev) return { playerId, otherId, lastReadMessageId: prev };
+  db.prepare(`
+    INSERT INTO chat_read_cursors (player_id, other_player_id, last_read_message_id, updated_at)
+    VALUES (?, ?, ?, datetime('now'))
+    ON CONFLICT(player_id, other_player_id) DO UPDATE SET
+      last_read_message_id = excluded.last_read_message_id,
+      updated_at = excluded.updated_at
+  `).run(playerId, otherId, mid);
+  return { playerId, otherId, lastReadMessageId: mid };
+}
+
+function formatChatMessage(row, viewerId, readByOtherCursor) {
   if (!row) return null;
+  const fromId = row.from_player_id;
+  const toId = row.to_player_id;
+  let readAt = null;
+  if (viewerId && fromId === viewerId && readByOtherCursor != null) {
+    if (Number(row.id) <= Number(readByOtherCursor)) readAt = parseChatTime(row.created_at);
+  }
   return {
     id: row.id,
-    fromPlayerId: row.from_player_id,
-    toPlayerId: row.to_player_id,
+    fromPlayerId: fromId,
+    toPlayerId: toId,
     fromName: row.from_name || row.fromName || '?',
     toName: row.to_name || row.toName || '?',
     type: row.type || 'text',
     text: row.text || '',
     location: row.location_lat != null && row.location_lng != null
-      ? { lat: row.location_lat, lng: row.location_lng, playerId: 'JG-' + row.from_player_id }
+      ? { lat: row.location_lat, lng: row.location_lng, playerId: 'JG-' + fromId }
       : null,
-    createdAt: parseChatTime(row.created_at)
+    createdAt: parseChatTime(row.created_at),
+    readAt
   };
 }
 
-function getChatMessageById(id) {
+function getChatMessageById(id, viewerId) {
   const row = db.prepare(`
     SELECT cm.*, fp.name AS from_name, tp.name AS to_name
     FROM chat_messages cm
@@ -606,7 +654,10 @@ function getChatMessageById(id) {
     JOIN players tp ON tp.id = cm.to_player_id
     WHERE cm.id = ?
   `).get(id);
-  return formatChatMessage(row);
+  if (!row) return null;
+  const otherId = row.from_player_id === viewerId ? row.to_player_id : row.from_player_id;
+  const readCursor = viewerId ? getChatReadCursor(otherId, viewerId) : 0;
+  return formatChatMessage(row, viewerId, readCursor);
 }
 
 function insertChatMessage(fromId, toId, type, text, lat, lng) {
@@ -614,10 +665,11 @@ function insertChatMessage(fromId, toId, type, text, lat, lng) {
     INSERT INTO chat_messages (from_player_id, to_player_id, type, text, location_lat, location_lng)
     VALUES (?, ?, ?, ?, ?, ?)
   `).run(fromId, toId, type || 'text', text || '', lat ?? null, lng ?? null);
-  return getChatMessageById(info.lastInsertRowid);
+  return getChatMessageById(info.lastInsertRowid, fromId);
 }
 
 function getChatHistory(playerId, otherId, limit = 120) {
+  const readByOther = getChatReadCursor(otherId, playerId);
   const rows = db.prepare(`
     SELECT cm.*, fp.name AS from_name, tp.name AS to_name
     FROM chat_messages cm
@@ -628,7 +680,7 @@ function getChatHistory(playerId, otherId, limit = 120) {
     ORDER BY cm.id DESC
     LIMIT ?
   `).all(playerId, otherId, otherId, playerId, limit);
-  return rows.reverse().map(formatChatMessage).filter(Boolean);
+  return rows.reverse().map(r => formatChatMessage(r, playerId, readByOther)).filter(Boolean);
 }
 
 function getChatConversations(playerId) {
@@ -648,7 +700,8 @@ function getChatConversations(playerId) {
     const key = String(otherId);
     if (seen.has(key)) continue;
     seen.add(key);
-    const msg = formatChatMessage(row);
+    const readByOther = getChatReadCursor(otherId, playerId);
+    const msg = formatChatMessage(row, playerId, readByOther);
     if (msg) list.push({ playerId: otherId, lastMessage: msg });
   }
   return list;
@@ -706,5 +759,7 @@ module.exports = {
   getChatHistory,
   getChatConversations,
   formatChatMessage,
+  getChatReadCursor,
+  markChatRead,
   canChatBetween
 };

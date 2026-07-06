@@ -14,6 +14,15 @@ const Opciones = {
       this.cerrar();
     });
 
+    const chkChat = document.getElementById('opcion-notif-chat');
+    const chkAmigos = document.getElementById('opcion-notif-amigos');
+    if (chkChat) {
+      chkChat.addEventListener('change', () => this._guardarPreferencia('notifChat', chkChat.checked));
+    }
+    if (chkAmigos) {
+      chkAmigos.addEventListener('change', () => this._guardarPreferencia('notifAmigos', chkAmigos.checked));
+    }
+
     document.getElementById('opcion-salir').addEventListener('click', () => {
       const panel = document.getElementById('opciones-confirm-salir');
       if (panel) panel.classList.remove('oculto');
@@ -64,8 +73,26 @@ const Opciones = {
   abrir() {
     this._refrescarAdmin();
     this.pintarPerfilOpciones();
+    this._pintarPreferencias();
     document.getElementById('opciones-confirm-salir')?.classList.add('oculto');
     document.getElementById('ventana-opciones').classList.remove('oculto');
+  },
+
+  _pintarPreferencias() {
+    const prefs = Guardado.datos?.preferencias || {};
+    const chkChat = document.getElementById('opcion-notif-chat');
+    const chkAmigos = document.getElementById('opcion-notif-amigos');
+    if (chkChat) chkChat.checked = prefs.notifChat !== false;
+    if (chkAmigos) chkAmigos.checked = prefs.notifAmigos !== false;
+  },
+
+  _guardarPreferencia(clave, valor) {
+    if (!Guardado.datos) return;
+    if (!Guardado.datos.preferencias) {
+      Guardado.datos.preferencias = { notifChat: true, notifAmigos: true };
+    }
+    Guardado.datos.preferencias[clave] = !!valor;
+    Guardado.guardar();
   },
 
   _refrescarAdmin() {

@@ -237,11 +237,18 @@
   -webkit-user-select: text;
 }
 .message-time {
-  margin-top: 4px;
   color: #9fb3ce;
   font-size: 9px;
-  text-align: right;
 }
+.message-meta {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 4px;
+}
+.msg-enviado, .msg-leido { font-size: 9px; color: #7f91a8; }
+.msg-leido { color: #38c6ff; }
 
 .location-card {
   margin-top: 6px;
