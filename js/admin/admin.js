@@ -64,6 +64,19 @@ const Admin = {
         this.publicado = Object.assign(this.publicado, JSON.parse(texto));
       }
     } catch (e) { /* sin conexión: se sigue con lo guardado */ }
+    try {
+      const { indice } = await MundoPublico.refrescarCuentasServidor();
+      if (indice?.length) {
+        const porId = new Map();
+        for (const j of (this.publicado.jugadores || [])) {
+          if (j?.id) porId.set(j.id, j);
+        }
+        for (const j of indice) {
+          porId.set(j.id, Object.assign({}, porId.get(j.id), j));
+        }
+        this.publicado.jugadores = [...porId.values()];
+      }
+    } catch (e) { /* sin indice remoto */ }
     if (!this.publicado.precios) this.publicado.precios = {};
     if (!this.publicado.itemsNuevos) this.publicado.itemsNuevos = [];
     if (!this.publicado.baneados) this.publicado.baneados = [];
@@ -511,8 +524,10 @@ const Admin = {
     else this.datos.jugadoresExtra.push(entrada);
     localStorage.setItem(this.CLAVE, JSON.stringify(this.datos,
       (clave, valor) => clave.startsWith('_') ? undefined : valor));
-    if (!silencioso && this.esAdminJugador() && MundoPublico.puedePublicar()) {
-      this._encolarPublicacion(true);
+    if (!silencioso && this.esAdminJugador()) {
+      const puede = (typeof SyncServidor !== 'undefined' && SyncServidor.puedePublicar()) ||
+        (typeof MundoPublico !== 'undefined' && MundoPublico.puedeEscribir && MundoPublico.puedeEscribir());
+      if (puede) this._encolarPublicacion(true);
     }
   },
 
@@ -1770,6 +1785,7 @@ const Admin = {
     }
     localStorage.setItem(this.CLAVE, JSON.stringify(this.datos,
       (clave, valor) => clave.startsWith('_') ? undefined : valor));
+    this._pubPendiente = true;
     const ok = await this._publicarParaTodos(true);
     if (!ok && this.esAdminJugador()) {
       this._adminAviso('Guardado en tu teléfono. Pulsa Sincronizar para que los demás lo vean.', 'alerta');
@@ -3528,6 +3544,16 @@ const Admin = {
   async publicarMundo(silencioso) {
     if (!this._mundoCargado) return false;
     if (!this.esAdminJugador()) return false;
+    try {
+      await this.actualizarJugadoresGlobales();
+      const { indice } = await MundoPublico.refrescarCuentasServidor();
+      if (indice?.length) {
+        const porId = new Map();
+        for (const j of this._jugadoresParaPublicar()) porId.set(j.id, j);
+        for (const j of indice) porId.set(j.id, Object.assign({}, porId.get(j.id), j));
+        this.publicado.jugadores = [...porId.values()];
+      }
+    } catch (e) { /* seguir con jugadores locales */ }
     let adminLocal;
     try {
       adminLocal = JSON.parse(this._jsonMundo());

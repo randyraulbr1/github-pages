@@ -196,13 +196,47 @@ const MundoPublico = {
       if (mundo) this._mundoCache = JSON.stringify(mundo);
       return { indice: ind, mundo };
     }
+
+    let indiceArchivo = null;
+    if (CONFIG.repoPublicacion) {
+      try {
+        indiceArchivo = await this._descargarJsonRepo(this._rutaIndiceCuentas());
+      } catch (e) { /* */ }
+    }
+
+    let jugadoresServidor = [];
+    if (CONFIG.servidorOnline) {
+      try {
+        const base = CONFIG.servidorOnline.replace(/\/$/, '');
+        const r = await Utilidades.fetchConTimeout(base + '/api/public/cuentas', { cache: 'no-store' }, 6000);
+        const data = await r.json().catch(() => ({}));
+        if (data.ok && Array.isArray(data.jugadores)) jugadoresServidor = data.jugadores;
+      } catch (e) { /* */ }
+    }
+
     const textoMundo = await this.descargar();
     if (textoMundo) this._mundoCache = textoMundo;
     let mundo = null;
     if (textoMundo) {
       try { mundo = JSON.parse(textoMundo); } catch (e) {}
     }
-    return { indice: mundo ? this._indiceDesdeMundo(mundo) : null, mundo };
+
+    const porId = new Map();
+    const agregar = (lista) => {
+      for (const j of (lista || [])) {
+        if (!j?.id) continue;
+        porId.set(j.id, Object.assign({}, porId.get(j.id), j));
+      }
+    };
+    agregar(indiceArchivo);
+    agregar(jugadoresServidor);
+    agregar(mundo ? mundo.jugadores : null);
+
+    const indice = [...porId.values()].sort((a, b) =>
+      (a.nombre || '').localeCompare(b.nombre || ''));
+    if (mundo && indice.length) mundo.jugadores = indice;
+
+    return { indice, mundo };
   },
 
   _versionMundo(texto) {
@@ -423,6 +457,12 @@ const MundoPublico = {
   async guardarCuenta(perfil, partidaSnap) {
     if (!perfil?.id) return false;
     if (this.usaFirebase()) return this._guardarCuentaFirebase(perfil, partidaSnap);
+
+    if (typeof SyncServidor !== 'undefined' && SyncServidor.puedePublicar()) {
+      const okSrv = await SyncServidor.registrarCuenta(perfil, partidaSnap);
+      if (okSrv) return true;
+    }
+
     if (!this._tokenGitHub() || !CONFIG.repoPublicacion) return false;
 
     const extras = {

@@ -20,6 +20,60 @@ function parseData(row) {
   try { return JSON.parse(row.data_json || '{}'); } catch (e) { return {}; }
 }
 
+/** Nunca pierde jugadores/partidas al publicar solo el mapa. */
+function mergeJugadoresPartidas(destino, fuentes) {
+  if (!destino || typeof destino !== 'object') return destino;
+  const porId = new Map();
+  for (const fuente of (fuentes || [])) {
+    if (!fuente) continue;
+    for (const j of (fuente.jugadores || [])) {
+      if (!j?.id) continue;
+      porId.set(j.id, Object.assign({}, porId.get(j.id), j));
+    }
+  }
+  if (porId.size) destino.jugadores = [...porId.values()];
+
+  if (!destino.partidas) destino.partidas = {};
+  for (const fuente of (fuentes || [])) {
+    if (!fuente?.partidas) continue;
+    for (const [id, p] of Object.entries(fuente.partidas)) {
+      const prev = destino.partidas[id];
+      if (!prev || !prev.t || (p.t || 0) >= (prev.t || 0)) destino.partidas[id] = p;
+    }
+  }
+  return destino;
+}
+
+function registrarCuentaEnSnapshot(perfil, partida) {
+  if (!perfil?.id) return false;
+  const prev = getWorldSnapshot() || {
+    actualizadoEn: Date.now(),
+    jugadores: [],
+    partidas: {},
+    misiones: [],
+    tesoros: [],
+    objetos: [],
+    enemigos: [],
+    posiciones: {}
+  };
+  const mundo = Object.assign({}, prev);
+  mergeJugadoresPartidas(mundo, [{
+    jugadores: [{
+      id: perfil.id,
+      nombre: perfil.nombre,
+      telefono: perfil.telefono || '',
+      pinHash: perfil.pinHash || '',
+      creado: perfil.creado || Date.now(),
+      sesionToken: perfil.sesionToken,
+      sesionT: perfil.sesionT
+    }],
+    partidas: partida ? { [perfil.id]: partida } : {}
+  }]);
+  mundo.actualizadoEn = Date.now();
+  saveWorldSnapshot(mundo);
+  return true;
+}
+
 function findObjectByOrigenId(origenId) {
   if (!origenId) return null;
   for (const row of getAllWorldObjects()) {
@@ -290,6 +344,7 @@ function syncMundoFromJson(mundo, io) {
   }
 
   const prev = getWorldSnapshot();
+  mergeJugadoresPartidas(mundo, [prev, mundo]);
   if (prev?.cuerposMuertos) {
     mundo.cuerposMuertos = mundo.cuerposMuertos || prev.cuerposMuertos;
     limpiarCuerposExpirados(mundo);
@@ -424,6 +479,8 @@ function syncMundoFromJson(mundo, io) {
 
 module.exports = {
   syncMundoFromJson,
+  mergeJugadoresPartidas,
+  registrarCuentaEnSnapshot,
   getWorldSnapshot,
   registrarRecogidaObjeto,
   registrarRecogidaTesoro,

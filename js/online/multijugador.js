@@ -124,6 +124,10 @@ const Multijugador = {
       this.enviarStats(true);
       this._iniciarPollingMundo();
       this._pullMundoServidor();
+      if (typeof Usuarios !== 'undefined' && Usuarios.perfilActivo &&
+          typeof SyncServidor !== 'undefined' && SyncServidor.registrarCuenta) {
+        SyncServidor.registrarCuenta(Usuarios.perfilActivo, null).catch(() => {});
+      }
     });
 
     this.socket.on('disconnect', () => {

@@ -48,5 +48,22 @@ const SyncServidor = {
     } catch (e) {
       return false;
     }
+  },
+
+  async registrarCuenta(perfil, partida) {
+    const base = (CONFIG.servidorOnline || '').replace(/\/$/, '');
+    const token = localStorage.getItem(Multijugador.TOKEN_KEY);
+    if (!base || !token || !perfil?.id) return false;
+    try {
+      const r = await fetch(base + '/api/player/registrar-cuenta', {
+        method: 'POST',
+        headers: this._headers(),
+        body: JSON.stringify({ perfil, partida: partida || null })
+      });
+      const data = await r.json().catch(() => ({}));
+      return !!data.ok;
+    } catch (e) {
+      return false;
+    }
   }
 };

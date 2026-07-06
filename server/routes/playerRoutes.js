@@ -9,7 +9,7 @@ const {
   getWorldSnapshot
 } = require('../db');
 const { authMiddleware, gameAdminMiddleware } = require('../auth');
-const { syncMundoFromJson, actualizarPartidaEnSnapshot } = require('../syncMundo');
+const { syncMundoFromJson, actualizarPartidaEnSnapshot, registrarCuentaEnSnapshot } = require('../syncMundo');
 
 const router = express.Router();
 
@@ -54,6 +54,16 @@ router.post('/sync-partida', authMiddleware, (req, res) => {
   }
   const io = req.app.get('io');
   const ok = actualizarPartidaEnSnapshot(perfilId, partida, io);
+  res.json({ ok });
+});
+
+/** Registra/actualiza cuenta del juego (pinHash) en el snapshot del servidor */
+router.post('/registrar-cuenta', authMiddleware, (req, res) => {
+  const { perfil, partida } = req.body;
+  if (!perfil?.id || !perfil?.nombre) {
+    return res.status(400).json({ ok: false, error: 'perfil con id y nombre requerido' });
+  }
+  const ok = registrarCuentaEnSnapshot(perfil, partida || null);
   res.json({ ok });
 });
 

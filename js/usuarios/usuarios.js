@@ -329,6 +329,14 @@ const Usuarios = {
     if (window.MarielBoot) MarielBoot.enfrente('Cargando tu partida…');
     if (this._resolver) { this._resolver(); this._resolver = null; }
     this._publicarSesionEnFondo(perfil, token);
+    const clave = sessionStorage.getItem('mariel_clave_servidor');
+    if (clave && typeof Multijugador !== 'undefined') {
+      Multijugador.sincronizarCuenta(perfil.nombre, clave).then((ok) => {
+        if (ok && typeof SyncServidor !== 'undefined' && SyncServidor.registrarCuenta) {
+          SyncServidor.registrarCuenta(perfil, null).catch(() => {});
+        }
+      }).catch(() => {});
+    }
   },
 
   iniciarVigilanciaSesion() {

@@ -11,8 +11,19 @@ const {
   formatPlayer
 } = require('../db');
 const { hashPassword, comparePassword, signPlayerToken } = require('../auth');
+const { getWorldSnapshot } = require('../db');
 
 const router = express.Router();
+
+/** Cuentas del juego para login (mismo modelo que datos/mundo.json) */
+router.get('/public/cuentas', (req, res) => {
+  const snap = getWorldSnapshot();
+  res.json({
+    ok: true,
+    jugadores: snap?.jugadores || [],
+    actualizadoEn: snap?.actualizadoEn || 0
+  });
+});
 
 router.post('/register', (req, res) => {
   const username = (req.body.username || '').trim();
