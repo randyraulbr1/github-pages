@@ -18,6 +18,7 @@ const {
 const { hashPassword, comparePassword, signPlayerToken } = require('../auth');
 const { mergeJugadoresPartidas } = require('../syncMundo');
 const { forzarImportJugadores } = require('../importSnapshot');
+const { getJugadoresPublicos, respaldarCuentasEnGitHub } = require('../syncCuentas');
 
 const router = express.Router();
 
@@ -49,12 +50,13 @@ router.get('/public/mundo', (req, res) => {
   });
 });
 
-/** Cuentas del juego para login (desde snapshot SQLite) */
+/** Cuentas del juego para login (desde snapshot SQLite + tabla users) */
 router.get('/public/cuentas', (req, res) => {
+  const jugadores = getJugadoresPublicos();
   const snap = getWorldSnapshot();
   res.json({
     ok: true,
-    jugadores: snap?.jugadores || [],
+    jugadores,
     actualizadoEn: snap?.actualizadoEn || 0
   });
 });
@@ -209,6 +211,10 @@ router.post('/register', (req, res) => {
     mergeJugadoresPartidas(snap, [{ jugadores: [nuevo] }]);
     snap.actualizadoEn = Date.now();
     saveWorldSnapshot(snap);
+
+    respaldarCuentasEnGitHub().catch((e) => {
+      console.warn('[register] Respaldo GitHub:', e.message);
+    });
 
     const token = signPlayerToken(user, player);
 

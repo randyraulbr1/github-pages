@@ -5,11 +5,17 @@ services:
     rootDir: server
     buildCommand: npm install
     startCommand: npm start
+    disk:
+      name: mariel-sqlite-data
+      mountPath: /var/data
+      sizeGB: 1
     envVars:
       - key: NODE_VERSION
         value: 20.18.1
       - key: NODE_ENV
         value: production
+      - key: DATABASE_DIR
+        value: /var/data
       - key: JWT_SECRET
         generateValue: true
       - key: ADMIN_PASSWORD

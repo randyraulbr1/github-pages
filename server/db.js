@@ -6,10 +6,10 @@ const Database = require('better-sqlite3');
 const path = require('path');
 const fs = require('fs');
 
-const DATA_DIR = path.join(__dirname, 'data');
+const DATA_DIR = process.env.DATABASE_DIR || path.join(__dirname, 'data');
 if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
 
-const DB_PATH = path.join(DATA_DIR, 'game.sqlite');
+const DB_PATH = process.env.DATABASE_PATH || path.join(DATA_DIR, 'game.sqlite');
 const db = new Database(DB_PATH);
 
 db.pragma('journal_mode = WAL');
@@ -141,6 +141,16 @@ function initDb() {
     }
   } catch (e) {
     console.warn('   importSnapshot:', e.message);
+  }
+
+  try {
+    const { reconciliarCuentasEnSnapshot } = require('./syncCuentas');
+    const rec = reconciliarCuentasEnSnapshot();
+    if (rec.added > 0) {
+      console.log('   Cuentas SQLite → snapshot:', rec.added, 'añadidas (total', rec.total + ')');
+    }
+  } catch (e) {
+    console.warn('   syncCuentas:', e.message);
   }
 }
 

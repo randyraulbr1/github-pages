@@ -560,6 +560,11 @@ function syncMundoFromJson(mundo, io) {
     }
   }
 
+  try {
+    const { reconciliarCuentasEnSnapshot } = require('./syncCuentas');
+    reconciliarCuentasEnSnapshot(mundo);
+  } catch (e) { /* */ }
+
   saveWorldSnapshot(mundo);
 
   pushMundoToGitHub(mundo).then((r) => {

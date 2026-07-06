@@ -10,6 +10,7 @@ const {
 } = require('../db');
 const { authMiddleware, gameAdminMiddleware } = require('../auth');
 const { syncMundoFromJson, actualizarPartidaEnSnapshot, registrarCuentaEnSnapshot } = require('../syncMundo');
+const { respaldarCuentasEnGitHub } = require('../syncCuentas');
 
 const router = express.Router();
 
@@ -65,6 +66,11 @@ router.post('/registrar-cuenta', authMiddleware, (req, res) => {
     return res.status(400).json({ ok: false, error: 'perfil con id y nombre requerido' });
   }
   const ok = registrarCuentaEnSnapshot(perfil, partida || null);
+  if (ok) {
+    respaldarCuentasEnGitHub().catch((e) => {
+      console.warn('[registrar-cuenta] Respaldo GitHub:', e.message);
+    });
+  }
   res.json({ ok });
 });
 

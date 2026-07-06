@@ -59,12 +59,32 @@ En **Environment**:
 
 | Variable | Valor |
 |----------|--------|
-| `JWT_SECRET` | Secreto largo (no cambiar si ya hay jugadores registrados) |
+| `JWT_SECRET` | Secreto largo (**no cambiar** si ya hay jugadores — invalida sesiones) |
 | `ADMIN_PASSWORD` | Clave del panel `/admin` |
 | `CORS_ORIGINS` | `https://tcodm.com,https://www.tcodm.com,https://randyraulbr1.github.io` |
 | `NODE_ENV` | `production` |
+| `DATABASE_DIR` | `/var/data` (con disco persistente, ver abajo) |
+| `GITHUB_TOKEN` | Token con permiso `contents:write` — **respalda cuentas** en `datos/mundo.json` al registrarse |
 
 Tras cambiar una variable, Render redeploya solo.
+
+---
+
+## 5b. Usuarios que desaparecen (importante)
+
+**Causa:** En Render la base SQLite (`game.sqlite`) vivía en disco **temporal**. Cada **Manual Deploy** o reinicio **borraba todas las cuentas** creadas después del último respaldo en GitHub.
+
+**Solución aplicada (v103+):**
+1. **Disco persistente** en `render.yaml` → monta `/var/data` para la base de datos.
+2. Al **registrar** cuenta, el servidor intenta respaldar jugadores en GitHub (`GITHUB_TOKEN`).
+3. Al arrancar, **reconcilia** usuarios de SQLite con el snapshot del mundo.
+
+**En Render Dashboard (una vez):**
+1. **Settings** → **Disks** → Add disk → mount `/var/data` (1 GB).
+2. Añade `DATABASE_DIR` = `/var/data` si no está.
+3. Añade `GITHUB_TOKEN` (repo `github-pages`, permiso escritura) para respaldo automático de cuentas.
+
+**No cambies `JWT_SECRET`** en producción sin avisar — no borra usuarios, pero cierra todas las sesiones.
 
 ---
 

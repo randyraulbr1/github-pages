@@ -37,6 +37,15 @@ const CORS_ORIGINS = (() => {
 
 initDb();
 
+try {
+  const { countUsers, reconciliarCuentasEnSnapshot } = require('./syncCuentas');
+  const n = countUsers();
+  const rec = reconciliarCuentasEnSnapshot();
+  console.log('   Usuarios en BD:', n, '| Jugadores en snapshot:', rec.total);
+} catch (e) {
+  console.warn('   syncCuentas al arranque:', e.message);
+}
+
 const app = express();
 const server = http.createServer(app);
 

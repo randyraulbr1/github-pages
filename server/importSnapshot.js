@@ -6,6 +6,7 @@ const fs = require('fs');
 const path = require('path');
 const { getWorldSnapshot, saveWorldSnapshot } = require('./db');
 const { mergeJugadoresPartidas } = require('./syncMundo');
+const { countUsers, reconciliarCuentasEnSnapshot } = require('./syncCuentas');
 
 function leerMundoJson() {
   const ruta = path.join(__dirname, '..', 'datos', 'mundo.json');
@@ -25,8 +26,9 @@ function importarSnapshotSiFalta() {
   const sinSnapshot = !prev;
   const sinJugadores = !prev?.jugadores?.length;
   const archivoTieneJugadores = (archivo.jugadores || []).length > 0;
+  const usuariosSqlite = countUsers();
 
-  if (!sinSnapshot && !sinJugadores) {
+  if (!sinSnapshot && !sinJugadores && usuariosSqlite === 0) {
     return { ok: true, skipped: true, jugadores: prev.jugadores.length };
   }
 
@@ -76,6 +78,7 @@ function importarSnapshotSiFalta() {
   }
 
   mundo.actualizadoEn = Math.max(mundo.actualizadoEn || 0, archivo.actualizadoEn || Date.now());
+  reconciliarCuentasEnSnapshot(mundo);
   saveWorldSnapshot(mundo);
 
   return {
