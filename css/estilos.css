@@ -139,17 +139,35 @@ button { font-family: inherit; }
   position: relative;
   flex: 0 0 auto;
   display: flex; align-items: center; justify-content: center;
-  width: clamp(44px, 12vw, 52px);
-  height: clamp(44px, 12vw, 52px);
   padding: 0;
-  border-radius: 14px;
+  border-radius: 12px;
   border: 2px solid rgba(255,255,255,.18);
   background: rgba(12,16,28,.55);
   color: #e8eef8;
-  font-size: clamp(22px, 6vw, 28px);
   cursor: pointer;
   text-shadow: 0 1px 3px rgba(0,0,0,.85);
   box-shadow: 0 3px 10px rgba(0,0,0,.35);
+  transition: transform .12s ease, background .15s ease;
+}
+.btn-hud-accion:active { transform: scale(.92); }
+.btn-hud-mini {
+  width: clamp(22px, 6vw, 26px);
+  height: clamp(22px, 6vw, 26px);
+  font-size: clamp(11px, 3vw, 14px);
+  border-radius: 8px;
+}
+.btn-hud-principal {
+  width: clamp(36px, 10vw, 44px);
+  height: clamp(36px, 10vw, 44px);
+  font-size: clamp(17px, 4.5vw, 22px);
+}
+.hud-btn-mochila { background: linear-gradient(145deg, rgba(245,158,11,.45), rgba(12,16,28,.75)); }
+.hud-btn-gps { background: linear-gradient(145deg, rgba(14,165,233,.45), rgba(12,16,28,.75)); }
+.hud-btn-admin { background: linear-gradient(145deg, rgba(61,139,253,.45), rgba(12,16,28,.75)); }
+.hud-btn-arma { background: linear-gradient(145deg, rgba(191,90,242,.4), rgba(12,16,28,.75)); }
+#btn-gps.activo {
+  box-shadow: 0 0 12px rgba(56,198,255,.75), 0 3px 10px rgba(0,0,0,.35);
+  border-color: rgba(56,198,255,.55);
 }
 .mochila-dinero-bar {
   display: flex; align-items: center; justify-content: center; gap: 8px;
@@ -191,13 +209,14 @@ button { font-family: inherit; }
   display: flex; flex-direction: column; align-items: center; gap: 6px;
 }
 .dano-flotante {
-  font-size: 28px; font-weight: 900; color: #ff453a;
-  text-shadow: 0 2px 8px rgba(0,0,0,.8), 0 0 12px rgba(255,69,58,.6);
-  opacity: 0; transform: translateY(12px) scale(.8);
-  transition: opacity .2s ease, transform .35s ease;
+  font-size: clamp(22px, 6vw, 32px); font-weight: 900; color: #ff453a;
+  letter-spacing: -0.5px;
+  text-shadow: 0 2px 8px rgba(0,0,0,.85), 0 0 14px rgba(255,69,58,.7);
+  opacity: 0; transform: translateY(16px) scale(.85);
+  transition: opacity .18s ease, transform .4s ease;
 }
 .dano-flotante.visible { opacity: 1; transform: translateY(0) scale(1); }
-.dano-flotante.saliendo { opacity: 0; transform: translateY(-28px) scale(1.1); }
+.dano-flotante.saliendo { opacity: 0; transform: translateY(-36px) scale(1.15); }
 .auth-muerte-destacado {
   background: rgba(255,214,10,.12); border: 1px solid rgba(255,214,10,.35);
   border-radius: 10px; padding: 10px 12px;
@@ -214,7 +233,23 @@ button { font-family: inherit; }
   align-items: center;
   text-align: center;
 }
-.enemigo-emoji { font-size: 28px; line-height: 1; text-shadow: 0 2px 6px rgba(0,0,0,.55); }
+.enemigo-cono-wrap {
+  position: absolute;
+  width: 72px; height: 72px;
+  left: 50%; top: 50%;
+  margin: -36px 0 0 -36px;
+  pointer-events: none;
+  z-index: 0;
+  opacity: .85;
+  transition: transform .25s ease;
+}
+.enemigo-cono {
+  width: 100%; height: 100%;
+  background: linear-gradient(to top, rgba(255,69,58,.55) 0%, rgba(255,69,58,.12) 55%, transparent 100%);
+  clip-path: polygon(50% 50%, 12% 4%, 88% 4%);
+  filter: drop-shadow(0 0 4px rgba(255,69,58,.5));
+}
+.enemigo-emoji { font-size: 28px; line-height: 1; text-shadow: 0 2px 6px rgba(0,0,0,.55); position: relative; z-index: 1; }
 .enemigo-nivel-tag {
   margin-top: 2px;
   padding: 1px 6px;
@@ -225,6 +260,8 @@ button { font-family: inherit; }
   background: rgba(20,26,42,.88);
   border: 1px solid rgba(255,255,255,.25);
   white-space: nowrap;
+  position: relative;
+  z-index: 2;
 }
 .enemigo-calavera {
   display: block;
@@ -305,7 +342,7 @@ button { font-family: inherit; }
 /* ============ BOTONES INFERIORES (burbujas estilo juego) ============ */
 #botones-inferiores {
   position: fixed; bottom: calc(10px + env(safe-area-inset-bottom)); left: 50%; transform: translateX(-50%);
-  z-index: 1000; display: flex; gap: clamp(6px, 2vw, 14px); align-items: flex-end;
+  z-index: 1000; display: flex; gap: clamp(8px, 2.5vw, 14px); align-items: center;
   max-width: min(100vw, 480px); padding: 0 clamp(6px, 2vw, 16px);
 }
 @media (min-width: 768px) {
@@ -435,8 +472,110 @@ button { font-family: inherit; }
 }
 .pestana.activa { background: rgba(61,139,253,.28); color: #fff; }
 
-/* ============ MOCHILA ============ */
-#rejilla-mochila { display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px; padding: 14px; }
+/* ============ INVENTARIO (estilo RPG) ============ */
+.inventario-caja {
+  background: linear-gradient(180deg, rgba(18,24,42,.98), rgba(12,16,28,.98));
+  border: 1px solid rgba(255,214,10,.15);
+  max-width: 420px;
+}
+.inv-header {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 14px 16px 10px; border-bottom: 1px solid rgba(255,255,255,.08);
+}
+.inv-titulo {
+  display: flex; align-items: center; gap: 8px;
+  font-size: 15px; font-weight: 800; letter-spacing: .06em; color: #fff;
+}
+.inv-icono-titulo { font-size: 18px; }
+.inv-cerrar { flex-shrink: 0; }
+.inv-status-bar {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 10px 16px; gap: 10px;
+  border-bottom: 1px solid rgba(255,255,255,.06);
+}
+.inv-dinero {
+  display: flex; align-items: center; gap: 6px;
+  font-size: 17px; font-weight: 800; color: #ffd60a;
+}
+.inv-dinero-icono { font-size: 18px; }
+.inv-arma-status {
+  display: flex; align-items: center; gap: 6px;
+  font-size: 11px; font-weight: 600; color: #b8c4dc;
+}
+.inv-dot {
+  width: 8px; height: 8px; border-radius: 50%;
+  background: rgba(255,255,255,.2);
+}
+.inv-dot.activa { background: #ffd60a; box-shadow: 0 0 6px rgba(255,214,10,.8); }
+.inv-seccion { padding: 12px 16px 0; }
+.inv-seccion-arma { text-align: center; padding-bottom: 8px; }
+.inv-seccion-titulo {
+  font-size: 10px; font-weight: 800; letter-spacing: .12em;
+  color: #8e99b0; margin-bottom: 8px; text-align: left;
+}
+.inv-seccion-titulo-row {
+  display: flex; justify-content: space-between; align-items: center;
+  font-size: 10px; font-weight: 800; letter-spacing: .12em;
+  color: #8e99b0; margin-bottom: 8px;
+}
+.inv-slot-arma-grande {
+  width: 72px; height: 72px; margin: 0 auto;
+  border-radius: 12px;
+  border: 2px solid rgba(255,214,10,.45);
+  background: rgba(0,0,0,.35);
+  display: flex; align-items: center; justify-content: center;
+  box-shadow: inset 0 0 12px rgba(255,214,10,.08);
+}
+.inv-slot-arma-grande.equipada .inv-arma-placeholder { opacity: 1; filter: none; }
+.inv-arma-placeholder {
+  font-size: 36px; opacity: .35; filter: grayscale(.6);
+}
+.inv-slot-arma-grande .inv-arma-icono { font-size: 36px; }
+.inv-arma-nombre { font-size: 12px; color: #c8d0e0; margin-top: 6px; }
+.inv-rejilla, #rejilla-mochila {
+  display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px;
+}
+.inv-rejilla .slot, #rejilla-mochila .slot {
+  aspect-ratio: 1; background: rgba(255,255,255,.05);
+  border-radius: 10px; border: 1px solid rgba(255,255,255,.1);
+  font-size: clamp(22px, 6vw, 28px);
+}
+.inv-rejilla .slot.slot-equipado, #rejilla-mochila .slot.slot-equipado {
+  border-color: rgba(255,214,10,.5);
+  box-shadow: inset 0 0 8px rgba(255,214,10,.15);
+}
+.inv-pie {
+  display: flex; align-items: center; justify-content: space-between; gap: 10px;
+  padding: 12px 16px 16px; margin-top: 8px;
+  border-top: 1px solid rgba(255,255,255,.06);
+}
+.inv-ayuda {
+  margin: 0; font-size: 11px; line-height: 1.35; color: #8e99b0; flex: 1;
+}
+.inv-info-i {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 16px; height: 16px; border-radius: 50%;
+  background: rgba(255,255,255,.12); font-size: 10px; font-weight: 800;
+  margin-right: 4px; font-style: normal;
+}
+.inv-rojo { color: #ff6b6b; font-weight: 700; }
+.inv-btn-eliminar {
+  flex-shrink: 0;
+  padding: 8px 12px; border-radius: 10px;
+  border: 2px dashed rgba(255,69,58,.55);
+  background: rgba(255,69,58,.08);
+  color: #ff6b6b; font-size: 11px; font-weight: 800; letter-spacing: .04em;
+  cursor: pointer;
+}
+.inv-btn-eliminar:active { background: rgba(255,69,58,.22); }
+.inv-detalle {
+  margin: 8px 16px 0; padding: 12px;
+  background: rgba(255,255,255,.05); border-radius: 12px;
+  display: flex; gap: 12px; align-items: center;
+}
+
+/* ============ MOCHILA (legacy slots) ============ */
+#rejilla-mochila { padding: 0 0 4px; }
 .slot {
   aspect-ratio: 1; background: rgba(255,255,255,.06); border-radius: 14px;
   border: 1px solid rgba(255,255,255,.1); position: relative;

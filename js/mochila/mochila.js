@@ -22,9 +22,13 @@ const Mochila = {
     this.slots = Guardado.datos.mochila;
 
     document.getElementById('btn-mochila').addEventListener('click', () => this.abrir());
+    const hudArma = document.getElementById('hud-arma-equipada');
+    if (hudArma) hudArma.addEventListener('click', () => this.abrir());
     document.getElementById('btn-usar-item').addEventListener('click', () => this.usarSeleccionado());
     document.getElementById('btn-escribir-item').addEventListener('click', () => this.escribirNota());
     document.getElementById('btn-eliminar-item').addEventListener('click', () => this.eliminarSeleccionado());
+    const btnInvDel = document.getElementById('btn-inv-eliminar');
+    if (btnInvDel) btnInvDel.addEventListener('click', () => this.eliminarSeleccionado());
     const btnEq = document.getElementById('btn-equipar-item');
     if (btnEq) btnEq.addEventListener('click', () => this.equiparSeleccionado());
     this.pintar();
@@ -201,21 +205,35 @@ const Mochila = {
     const id = this.armaEquipadaId();
     const tiene = id && this.tieneItem(id);
     const item = tiene ? Items.seguro(id) : null;
-    const icon = item ? (item.icono || '🗡️') : '✊';
+    const icon = item ? (item.icono || '🗡️') : null;
     const nombre = item ? item.nombre : 'Puños';
     const dano = item ? (item.dano || 0) : 0;
+    const titulo = dano > 0 ? nombre + ' (+' + dano + ' daño)' : nombre;
     const hud = document.getElementById('hud-arma-equipada');
     const slot = document.getElementById('slot-arma-equipada');
     const nom = document.getElementById('slot-arma-nombre');
-    const titulo = dano > 0 ? nombre + ' (+' + dano + ' daño)' : nombre + ' (sin bonus)';
-    if (hud) { hud.textContent = icon; hud.title = titulo; }
-    if (slot) { slot.textContent = icon; slot.title = titulo; }
-    if (nom) nom.textContent = dano > 0 ? nombre + ' +' + dano : nombre;
+    const dot = document.getElementById('inv-arma-dot');
+    if (hud) { hud.textContent = icon || '🗡️'; hud.title = 'Arma: ' + titulo; }
+    if (slot) {
+      slot.classList.toggle('equipada', !!tiene);
+      slot.innerHTML = tiene
+        ? '<span class="inv-arma-icono">' + icon + '</span>'
+        : '<span class="inv-arma-placeholder">🗡️</span>';
+      slot.title = titulo;
+    }
+    if (nom) {
+      nom.textContent = titulo;
+      nom.classList.toggle('oculto', !tiene);
+    }
+    if (dot) dot.classList.toggle('activa', !!tiene);
   },
 
   pintar() {
     const rejilla = document.getElementById('rejilla-mochila');
     if (!rejilla) return;
+    const usados = this.slots.filter(Boolean).length;
+    const cap = document.getElementById('inv-capacidad');
+    if (cap) cap.textContent = usados + ' / ' + this.TOTAL_SLOTS;
     rejilla.innerHTML = '';
     this.slots.forEach((sl, i) => {
       const celda = document.createElement('div');
@@ -244,9 +262,16 @@ const Mochila = {
     this._arrastre = {
       origen: indice,
       movio: false,
+      longPress: false,
       x0: ev.clientX, y0: ev.clientY,
       fantasma: null
     };
+    this._arrastre.timer = setTimeout(() => {
+      if (!this._arrastre || this._arrastre.movio) return;
+      this._arrastre.longPress = true;
+      this._eliminarSlot(indice);
+      this._arrastre = null;
+    }, 650);
     const mover = e => this._moverArrastre(e);
     const soltar = e => {
       window.removeEventListener('pointermove', mover);
@@ -261,6 +286,7 @@ const Mochila = {
     const a = this._arrastre;
     if (!a) return;
     if (!a.movio && Math.hypot(ev.clientX - a.x0, ev.clientY - a.y0) < 8) return;
+    clearTimeout(a.timer);
     if (!a.movio) {
       a.movio = true;
       const item = Items.seguro(this.slots[a.origen].id);
@@ -289,6 +315,8 @@ const Mochila = {
     const a = this._arrastre;
     this._arrastre = null;
     if (!a) return;
+    clearTimeout(a.timer);
+    if (a.longPress) return;
     if (a.fantasma) a.fantasma.remove();
     document.querySelectorAll('.slot.destino, #papelera.destino')
       .forEach(el => el.classList.remove('destino'));
@@ -451,5 +479,8 @@ const Mochila = {
 
   eliminarSeleccionado() {
     if (this.slotSeleccionado >= 0) this._eliminarSlot(this.slotSeleccionado);
+    else if (typeof Notificaciones !== 'undefined') {
+      Notificaciones.mostrar('Toca un objeto de la mochila primero', 'alerta', 2500);
+    }
   }
 };

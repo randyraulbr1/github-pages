@@ -67,10 +67,8 @@ const Dinero = {
   },
 
   pintar() {
-    const cant = this.saldo;
-    const texto = '$' + cant;
     const el = document.getElementById('hud-dinero-cantidad');
-    if (el) el.textContent = texto;
+    if (el) el.textContent = String(this.saldo);
     if (typeof Opciones !== 'undefined' && Opciones.pintarPerfilOpciones) Opciones.pintarPerfilOpciones();
   }
 };

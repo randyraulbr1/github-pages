@@ -154,11 +154,36 @@ const Enemigos = {
     }
   },
 
+  _bearingDeg(lat1, lon1, lat2, lon2) {
+    const φ1 = lat1 * Math.PI / 180;
+    const φ2 = lat2 * Math.PI / 180;
+    const Δλ = (lon2 - lon1) * Math.PI / 180;
+    const y = Math.sin(Δλ) * Math.cos(φ2);
+    const x = Math.cos(φ1) * Math.sin(φ2) - Math.sin(φ1) * Math.cos(φ2) * Math.cos(Δλ);
+    return (Math.atan2(y, x) * 180 / Math.PI + 360) % 360;
+  },
+
   _htmlMarcador(e) {
     const nv = this._nivelEnemigo(e);
+    const mostrarCono = e.facingDeg != null && e._enZona;
+    const cono = mostrarCono
+      ? '<div class="enemigo-cono-wrap" style="transform:rotate(' + e.facingDeg + 'deg)">' +
+        '<div class="enemigo-cono"></div></div>' : '';
     return '<div class="enemigo-pin' + (this._esLetal(e) ? ' enemigo-letal' : '') + '">' +
+      cono +
       '<span class="enemigo-emoji">' + (e.icono || '👹') + '</span>' +
       '<span class="enemigo-nivel-tag">Nv ' + nv + '</span></div>';
+  },
+
+  _refrescarIconoMarcador(e) {
+    const m = this._marcadores[e.id];
+    if (!m) return;
+    m.setIcon(L.divIcon({
+      className: '',
+      html: this._htmlMarcador(e),
+      iconSize: [44, 52],
+      iconAnchor: [22, 26]
+    }));
   },
 
   _crearEnMapa(e) {
@@ -225,10 +250,14 @@ const Enemigos = {
         );
         e.vida = data.hp;
       }
+      if (data?.facingDeg != null) e.facingDeg = data.facingDeg;
+      if (data?.targetPlayerId != null) e.targetPlayerId = data.targetPlayerId;
+      e._enZona = !!e.facingDeg || e._enZona;
     }
     const m = this._marcadores[origenId];
     if (m) {
       m.setLatLng([lat, lng]);
+      this._refrescarIconoMarcador(e);
       this._actualizarBarra(e);
     }
   },
@@ -237,12 +266,7 @@ const Enemigos = {
     const m = this._marcadores[e.id];
     if (m) {
       m.setLatLng(e.pos);
-      m.setIcon(L.divIcon({
-        className: '',
-        html: this._htmlMarcador(e),
-        iconSize: [44, 52],
-        iconAnchor: [22, 26]
-      }));
+      this._refrescarIconoMarcador(e);
     }
     if (this._zonas[e.id]) this._zonas[e.id].setLatLng(e.pos);
     if (this._zonasAtaque[e.id]) this._zonasAtaque[e.id].setLatLng(e.pos);
@@ -340,6 +364,8 @@ const Enemigos = {
       if (!this._marcadores[e.id]) continue;
       this._aplicarEstadoRemoto(e);
       const d = Utilidades.distanciaMetros(GPS.posicion, e.pos);
+      const enZona = d <= this._radioZona(e);
+      e._enZona = enZona;
       this._actualizarVisibilidadZonas(e, d);
       if (online) {
         this._actualizarBarra(e);
@@ -349,7 +375,15 @@ const Enemigos = {
       const radioZona = this._radioZona(e);
       const radioAtaque = this._radioAtaque(e);
       const enExterior = d <= radioExt;
-      const enZona = d <= radioZona;
+
+      if (enZona && GPS.posicion) {
+        e.facingDeg = this._bearingDeg(e.pos[0], e.pos[1], GPS.posicion[0], GPS.posicion[1]);
+        this._refrescarIconoMarcador(e);
+      } else if (!enZona) {
+        e.facingDeg = null;
+        this._refrescarIconoMarcador(e);
+      }
+
       const enAtaque = d <= radioAtaque;
 
       if (enZona && d > 3) {

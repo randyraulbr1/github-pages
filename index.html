@@ -13,7 +13,7 @@
   <script>
     // Aviso temprano en móvil (antes de cargar 20+ archivos JS)
     (function () {
-      var V = '72';
+      var V = '73';
       var texto = document.getElementById('carga-texto');
       if (texto) texto.textContent = 'Conectando…';
       var prev = localStorage.getItem('mariel_app_version');
@@ -113,11 +113,11 @@
       </div>
     </div>
     <div id="hud-acciones-mini">
-      <button id="btn-opciones" class="btn-hud-accion" type="button" title="Opciones">⚙️</button>
-      <button id="btn-amigos" class="btn-hud-accion" type="button" title="Amigos">
+      <button id="btn-opciones" class="btn-hud-accion btn-hud-mini" type="button" title="Opciones">⚙️</button>
+      <button id="btn-amigos" class="btn-hud-accion btn-hud-mini" type="button" title="Amigos">
         <span class="icono-amigos-blanco" aria-hidden="true">👥</span><span id="badge-amigos" class="badge-avisos oculto">0</span>
       </button>
-      <button id="btn-notific" class="btn-hud-accion" type="button" title="Avisos">
+      <button id="btn-notific" class="btn-hud-accion btn-hud-mini" type="button" title="Avisos">
         🔔<span id="badge-avisos" class="badge-avisos oculto">●</span>
       </button>
     </div>
@@ -146,16 +146,12 @@
   <!-- ADMIN: cesto para borrar pines al organizar -->
   <div id="admin-cesto-borrar" class="oculto" title="Arrastra aquí un pin para borrarlo">🗑️</div>
 
-  <!-- BOTONES INFERIORES (burbujas) -->
+  <!-- BOTONES INFERIORES -->
   <div id="botones-inferiores">
-    <div id="hud-arma-equipada" class="hud-arma-equipada" title="Arma equipada: puños">✊</div>
-    <button id="btn-mochila" class="btn-burbuja" type="button" title="Mochila">
-      <span class="burbuja-icono">🎒</span><span class="burbuja-texto">Mochila</span>
-    </button>
-    <button id="btn-gps" class="btn-burbuja" type="button" title="GPS">
-      <span class="burbuja-icono">📍</span><span class="burbuja-texto">GPS</span>
-    </button>
-    <button id="btn-admin" class="btn-burbuja oculto"><span class="burbuja-icono">🛠️</span><span class="burbuja-texto">Admin</span></button>
+    <button id="hud-arma-equipada" class="btn-hud-accion btn-hud-principal hud-btn-arma" type="button" title="Arma equipada">🗡️</button>
+    <button id="btn-mochila" class="btn-hud-accion btn-hud-principal hud-btn-mochila" type="button" title="Mochila">🎒</button>
+    <button id="btn-gps" class="btn-hud-accion btn-hud-principal hud-btn-gps" type="button" title="GPS">📍</button>
+    <button id="btn-admin" class="btn-hud-accion btn-hud-principal hud-btn-admin oculto" type="button" title="Admin">🛠️</button>
   </div>
 
   <!-- NOTIFICACIONES -->
@@ -223,21 +219,32 @@
     </div>
   </div>
 
-  <!-- ============ VENTANA: MOCHILA ============ -->
+  <!-- ============ VENTANA: MOCHILA / INVENTARIO ============ -->
   <div id="ventana-mochila" class="ventana oculto">
-    <div class="ventana-caja">
-      <div class="ventana-titulo">🎒 Mochila <button class="btn-cerrar" data-cierra="ventana-mochila">✕</button></div>
-      <div id="mochila-dinero-bar" class="mochila-dinero-bar">
-        <span class="mochila-dinero-icono">💰</span>
-        <span id="hud-dinero-cantidad">$0</span>
+    <div class="ventana-caja inventario-caja">
+      <div class="inv-header">
+        <div class="inv-titulo"><span class="inv-icono-titulo">🎒</span> INVENTARIO</div>
+        <button type="button" class="btn-cerrar inv-cerrar" data-cierra="ventana-mochila" aria-label="Cerrar">✕</button>
       </div>
-      <div class="mochila-arma-fila">
-        <span class="mochila-arma-etiqueta">⚔️ Arma equipada</span>
-        <div id="slot-arma-equipada" class="slot-arma-equipada" title="Toca un arma en la mochila y pulsa Equipar">✊</div>
-        <span id="slot-arma-nombre" class="slot-arma-nombre">Puños</span>
+      <div class="inv-status-bar">
+        <div class="inv-dinero"><span class="inv-dinero-icono">💰</span> <span id="hud-dinero-cantidad">100</span></div>
+        <div class="inv-arma-status"><span>⚔️</span> Arma equipada <span class="inv-dot" id="inv-arma-dot"></span></div>
       </div>
-      <div id="rejilla-mochila"></div>
-      <div id="detalle-item" class="oculto">
+      <div class="inv-seccion inv-seccion-arma">
+        <div class="inv-seccion-titulo">ARMA EQUIPADA</div>
+        <div id="slot-arma-equipada" class="inv-slot-arma-grande" title="Equipa un arma desde la mochila">
+          <span class="inv-arma-placeholder">🗡️</span>
+        </div>
+        <div id="slot-arma-nombre" class="inv-arma-nombre oculto"></div>
+      </div>
+      <div class="inv-seccion">
+        <div class="inv-seccion-titulo-row">
+          <span>MOCHILA</span>
+          <span id="inv-capacidad">0 / 25</span>
+        </div>
+        <div id="rejilla-mochila" class="inv-rejilla"></div>
+      </div>
+      <div id="detalle-item" class="inv-detalle oculto">
         <div id="detalle-icono"></div>
         <div id="detalle-info">
           <div id="detalle-nombre"></div>
@@ -245,13 +252,17 @@
           <div id="detalle-cantidad"></div>
         </div>
         <div id="detalle-botones">
-          <button id="btn-usar-item">Usar</button>
-          <button id="btn-equipar-item" style="display:none">Equipar</button>
-          <button id="btn-escribir-item">Escribir</button>
-          <button id="btn-eliminar-item">Eliminar</button>
+          <button type="button" id="btn-usar-item">Usar</button>
+          <button type="button" id="btn-equipar-item" style="display:none">Equipar</button>
+          <button type="button" id="btn-escribir-item">Escribir</button>
+          <button type="button" id="btn-eliminar-item">Eliminar</button>
         </div>
       </div>
-      <div id="papelera" title="Arrastra aquí para eliminar">🗑️ Soltar aquí para eliminar</div>
+      <div class="inv-pie">
+        <p class="inv-ayuda"><span class="inv-info-i">i</span> Mantén presionado un objeto para <span class="inv-rojo">eliminarlo</span></p>
+        <button type="button" id="btn-inv-eliminar" class="inv-btn-eliminar">🗑️ ELIMINAR</button>
+      </div>
+      <div id="papelera" class="oculto" aria-hidden="true"></div>
     </div>
   </div>
 

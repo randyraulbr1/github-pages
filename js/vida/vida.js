@@ -149,7 +149,7 @@ const Vida = {
       Guardado.guardar();
       this.pintar();
       if (nombreEnemigo || cantidad > 0) {
-        this._mostrarDanoFlotante(cantidad, nombreEnemigo);
+        this._mostrarDanoFlotante(cantidad);
       } else if (motivo) {
         Notificaciones.mostrar(motivo, 'alerta', 2200);
       }
@@ -157,19 +157,18 @@ const Vida = {
     }
   },
 
-  _mostrarDanoFlotante(cantidad, nombreEnemigo) {
+  _mostrarDanoFlotante(cantidad) {
     const zona = document.getElementById('zona-dano-flotante');
     if (!zona) return;
     const el = document.createElement('div');
     el.className = 'dano-flotante';
-    const nom = nombreEnemigo ? ' ' + nombreEnemigo : '';
-    el.textContent = '💥 -' + cantidad + nom;
+    el.textContent = '-' + cantidad;
     zona.appendChild(el);
     requestAnimationFrame(() => requestAnimationFrame(() => el.classList.add('visible')));
     setTimeout(() => {
       el.classList.add('saliendo');
-      setTimeout(() => el.remove(), 400);
-    }, 1100);
+      setTimeout(() => el.remove(), 450);
+    }, 900);
   },
 
   cambiar(cantidad, motivo) {
