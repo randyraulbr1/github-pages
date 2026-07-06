@@ -89,7 +89,7 @@ function startEnemyAI(io, onlinePlayers) {
             lastAttack.set(obj.id, now);
             const pl = findPlayerById(closest.playerId);
             if (pl) {
-              const nv = Math.max(1, pl.level || 1);
+              const nv = Math.max(1, data.nivel || 1);
               const factor = 1 + (nv - 1) * 0.06;
               const lo = Math.round(data.danoMin * factor);
               const hi = Math.round(data.danoMax * factor);

@@ -45,14 +45,11 @@ const Enemigos = {
   },
 
   _nivelEnemigo(e) {
-    if (typeof Vida !== 'undefined' && !Vida.estaMuerto()) {
-      return Math.max(1, Math.min(CONFIG.nivelMaximo, Vida.nivel));
-    }
     return Math.max(1, Math.min(CONFIG.nivelMaximo, e.nivel || 1));
   },
 
   _esLetal(e) {
-    const nv = this._nivelEnemigo(e);
+    const nv = Math.max(1, e.nivel || 1);
     const jugador = typeof Vida !== 'undefined' ? Math.max(1, Vida.nivel) : 1;
     return nv >= jugador * 10;
   },
@@ -326,7 +323,9 @@ const Enemigos = {
     if (ahora - ultimo < 2000) return;
     this._ultimoGolpeAuto[e.id] = ahora;
     const dano = this._danoEnemigo(e);
-    Vida.recibirDano(dano, '💥 ' + e.nombre + ' (Nv ' + this._nivelEnemigo(e) + ') -' + dano);
+    if (typeof Vida !== 'undefined') {
+      Vida.recibirDano(dano, null, e.nombre || 'Enemigo');
+    }
   },
 
   _tick() {
@@ -480,7 +479,7 @@ const Enemigos = {
     }
 
     const contra = this._danoEnemigo(e);
-    Vida.recibirDano(contra, '💥 ' + e.nombre + ' contraataca (-' + contra + ')');
+    Vida.recibirDano(contra, null, e.nombre || 'Enemigo');
     if (typeof Admin !== 'undefined') {
       Admin.guardar();
       if (Admin._publicarParaTodos) Admin._publicarParaTodos(true);

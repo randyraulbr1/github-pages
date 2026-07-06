@@ -137,8 +137,8 @@ const Vida = {
     }
   },
 
-  /** Daño de enemigos — el admin no baja del 50% ni muere */
-  recibirDano(cantidad, motivo) {
+  /** Daño de enemigos — popup flotante en vez de notificación */
+  recibirDano(cantidad, motivo, nombreEnemigo) {
     if (this.estaMuerto() || cantidad <= 0) return;
     const antes = this.actual;
     let nuevo = Math.max(0, this.actual - cantidad);
@@ -148,9 +148,28 @@ const Vida = {
       Guardado.datos.vida = this.actual;
       Guardado.guardar();
       this.pintar();
-      if (motivo) Notificaciones.mostrar(motivo, 'alerta', 2200);
+      if (nombreEnemigo || cantidad > 0) {
+        this._mostrarDanoFlotante(cantidad, nombreEnemigo);
+      } else if (motivo) {
+        Notificaciones.mostrar(motivo, 'alerta', 2200);
+      }
       if (this.actual === 0) this._activarMuerte();
     }
+  },
+
+  _mostrarDanoFlotante(cantidad, nombreEnemigo) {
+    const zona = document.getElementById('zona-dano-flotante');
+    if (!zona) return;
+    const el = document.createElement('div');
+    el.className = 'dano-flotante';
+    const nom = nombreEnemigo ? ' ' + nombreEnemigo : '';
+    el.textContent = '💥 -' + cantidad + nom;
+    zona.appendChild(el);
+    requestAnimationFrame(() => requestAnimationFrame(() => el.classList.add('visible')));
+    setTimeout(() => {
+      el.classList.add('saliendo');
+      setTimeout(() => el.remove(), 400);
+    }, 1100);
   },
 
   cambiar(cantidad, motivo) {

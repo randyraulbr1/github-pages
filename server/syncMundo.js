@@ -31,6 +31,62 @@ function findObjectByOrigenId(origenId) {
   return null;
 }
 
+const CUERPO_MS = 3600000;
+
+function limpiarCuerposExpirados(snapshot) {
+  if (!snapshot.cuerposMuertos) {
+    snapshot.cuerposMuertos = {};
+    return;
+  }
+  const now = Date.now();
+  for (const [k, c] of Object.entries(snapshot.cuerposMuertos)) {
+    if (!c.muertoAt || now - c.muertoAt > CUERPO_MS) delete snapshot.cuerposMuertos[k];
+  }
+}
+
+function getCuerpoMuerto(playerId) {
+  const snapshot = getWorldSnapshot();
+  if (!snapshot) return null;
+  limpiarCuerposExpirados(snapshot);
+  return snapshot.cuerposMuertos?.[String(playerId)] || null;
+}
+
+function registrarCuerpoMuerto(playerId, data, io) {
+  const snapshot = getWorldSnapshot() || { actualizadoEn: Date.now() };
+  if (!snapshot.cuerposMuertos) snapshot.cuerposMuertos = {};
+  limpiarCuerposExpirados(snapshot);
+  snapshot.cuerposMuertos[String(playerId)] = {
+    playerId: Number(playerId),
+    name: data.name || 'Jugador',
+    deathX: data.deathX,
+    deathY: data.deathY,
+    deadLevel: data.deadLevel || data.level || 1,
+    deadInventory: data.deadInventory || [],
+    muertoAt: Date.now()
+  };
+  snapshot.actualizadoEn = Date.now();
+  saveWorldSnapshot(snapshot);
+  if (io) io.emit('cuerpos:sync', { cuerpos: snapshot.cuerposMuertos });
+  return snapshot.cuerposMuertos[String(playerId)];
+}
+
+function quitarCuerpoMuerto(playerId, io) {
+  const snapshot = getWorldSnapshot();
+  if (!snapshot?.cuerposMuertos) return;
+  delete snapshot.cuerposMuertos[String(playerId)];
+  snapshot.actualizadoEn = Date.now();
+  saveWorldSnapshot(snapshot);
+  if (io) io.emit('cuerpos:sync', { cuerpos: snapshot.cuerposMuertos || {} });
+}
+
+function actualizarInventarioCuerpo(playerId, inv, io) {
+  const snapshot = getWorldSnapshot();
+  if (!snapshot?.cuerposMuertos?.[String(playerId)]) return;
+  snapshot.cuerposMuertos[String(playerId)].deadInventory = inv;
+  saveWorldSnapshot(snapshot);
+  if (io) io.emit('player:lootUpdate', { playerId, deadInventory: inv });
+}
+
 function registrarRecogidaTesoro(tesoroId, playerId, io) {
   const snapshot = getWorldSnapshot() || { actualizadoEn: Date.now() };
   if (!snapshot.tesorosEstado) snapshot.tesorosEstado = {};
@@ -168,6 +224,12 @@ function syncMundoFromJson(mundo, io) {
     return { ok: false, error: 'Mundo inválido' };
   }
 
+  const prev = getWorldSnapshot();
+  if (prev?.cuerposMuertos) {
+    mundo.cuerposMuertos = mundo.cuerposMuertos || prev.cuerposMuertos;
+    limpiarCuerposExpirados(mundo);
+  }
+
   mundo.actualizadoEn = mundo.actualizadoEn || Date.now();
   const eliminados = new Set(mundo.eliminados || []);
   const seenObjects = new Set();
@@ -290,4 +352,14 @@ function syncMundoFromJson(mundo, io) {
   return { ok: true, objetos, misiones, actualizadoEn: mundo.actualizadoEn };
 }
 
-module.exports = { syncMundoFromJson, getWorldSnapshot, registrarRecogidaObjeto, registrarRecogidaTesoro };
+module.exports = {
+  syncMundoFromJson,
+  getWorldSnapshot,
+  registrarRecogidaObjeto,
+  registrarRecogidaTesoro,
+  registrarCuerpoMuerto,
+  quitarCuerpoMuerto,
+  getCuerpoMuerto,
+  actualizarInventarioCuerpo,
+  limpiarCuerposExpirados
+};

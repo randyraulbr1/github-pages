@@ -21,7 +21,7 @@ const {
 } = require('./db');
 const { verifyToken } = require('./auth');
 const { startEnemyAI } = require('./enemyAI');
-const { registrarRecogidaObjeto, registrarRecogidaTesoro } = require('./syncMundo');
+const { registrarRecogidaObjeto, registrarRecogidaTesoro, registrarCuerpoMuerto, quitarCuerpoMuerto, getCuerpoMuerto, actualizarInventarioCuerpo } = require('./syncMundo');
 
 /** playerId -> { socketId, playerId, name, x, y, hp, hpMax, level } */
 const onlinePlayers = new Map();
@@ -153,7 +153,8 @@ function setupSockets(io) {
       playerMissions: getPlayerMissions(socket.playerId),
       social,
       mundoSnapshot,
-      mundoActualizadoEn: mundoSnapshot?.actualizadoEn || 0
+      mundoActualizadoEn: mundoSnapshot?.actualizadoEn || 0,
+      cuerposMuertos: mundoSnapshot?.cuerposMuertos || {}
     });
 
     socket.broadcast.emit('player:online', playerSnapshot(onlinePlayers.get(socket.playerId)));
@@ -243,6 +244,17 @@ function setupSockets(io) {
         deadInventory: online?.deadInventory || [],
         deadLevel: online?.deadLevel || data.level
       });
+
+      if (online?.dead || data.hp <= 0) {
+        registrarCuerpoMuerto(socket.playerId, {
+          name: online?.name || data.name,
+          deathX: online?.deathX,
+          deathY: online?.deathY,
+          deadLevel: online?.deadLevel || data.level,
+          deadInventory: online?.deadInventory || [],
+          level: data.level
+        }, io);
+      }
       ack?.({ ok: true, player: data });
     });
 
@@ -251,13 +263,14 @@ function setupSockets(io) {
       const targetOnline = onlinePlayers.get(targetId);
       const targetDb = findPlayerById(targetId);
       const reviver = findPlayerById(socket.playerId);
+      const cuerpo = getCuerpoMuerto(targetId);
       if (!targetDb || !reviver) return ack?.({ ok: false, error: 'Jugador no encontrado' });
 
-      const isDead = targetOnline?.dead || targetDb.hp <= 0;
+      const isDead = targetOnline?.dead || targetDb.hp <= 0 || !!cuerpo;
       if (!isDead) return ack?.({ ok: false, error: 'Ese jugador no está muerto' });
 
-      const tx = targetOnline?.deathX ?? targetDb.x;
-      const ty = targetOnline?.deathY ?? targetDb.y;
+      const tx = targetOnline?.deathX ?? cuerpo?.deathX ?? targetDb.x;
+      const ty = targetOnline?.deathY ?? cuerpo?.deathY ?? targetDb.y;
       if (distance(reviver.x, reviver.y, tx, ty) > REVIVE_DISTANCE) {
         return ack?.({ ok: false, error: 'Demasiado lejos (máx. 50 m)' });
       }
@@ -270,7 +283,10 @@ function setupSockets(io) {
         targetOnline.dead = false;
         targetOnline.deathX = null;
         targetOnline.deathY = null;
+        targetOnline.deadInventory = [];
+        targetOnline.deadLevel = null;
       }
+      quitarCuerpoMuerto(targetId, io);
 
       io.emit('player:revived', {
         playerId: targetId,
@@ -346,23 +362,36 @@ function setupSockets(io) {
       const itemId = (payload?.itemId || '').trim();
       const cantidad = Math.max(1, parseInt(payload?.cantidad, 10) || 1);
       const targetOnline = onlinePlayers.get(targetId);
+      const cuerpo = getCuerpoMuerto(targetId);
       const reviver = findPlayerById(socket.playerId);
-      if (!targetOnline || !reviver) return ack?.({ ok: false, error: 'Jugador no encontrado' });
-      if (!targetOnline.dead && targetOnline.hp > 0) {
+      if (!reviver) return ack?.({ ok: false, error: 'Jugador no encontrado' });
+
+      let inv, tx, ty;
+      if (targetOnline && (targetOnline.dead || targetOnline.hp <= 0)) {
+        inv = targetOnline.deadInventory || [];
+        tx = targetOnline.deathX ?? targetOnline.x;
+        ty = targetOnline.deathY ?? targetOnline.y;
+      } else if (cuerpo) {
+        inv = cuerpo.deadInventory || [];
+        tx = cuerpo.deathX;
+        ty = cuerpo.deathY;
+      } else {
         return ack?.({ ok: false, error: 'No está muerto' });
       }
-      const tx = targetOnline.deathX ?? targetOnline.x;
-      const ty = targetOnline.deathY ?? targetOnline.y;
+
       if (distance(reviver.x, reviver.y, tx, ty) > REVIVE_DISTANCE) {
         return ack?.({ ok: false, error: 'Demasiado lejos (máx. 50 m)' });
       }
-      const inv = targetOnline.deadInventory || [];
       const idx = inv.findIndex(x => x.id === itemId);
       if (idx < 0) return ack?.({ ok: false, error: 'Objeto no encontrado' });
       const tomar = Math.min(cantidad, inv[idx].cantidad || 1);
       inv[idx].cantidad -= tomar;
       if (inv[idx].cantidad <= 0) inv.splice(idx, 1);
-      targetOnline.deadInventory = inv;
+      if (targetOnline) {
+        targetOnline.deadInventory = inv;
+      } else {
+        actualizarInventarioCuerpo(targetId, inv, io);
+      }
       io.emit('player:lootUpdate', { playerId: targetId, deadInventory: inv });
       ack?.({ ok: true, item: { id: itemId, cantidad: tomar }, deadInventory: inv });
     });

@@ -7,6 +7,8 @@ const Multijugador = {
   socket: null,
   activo: false,
   marcadores: {},
+  cuerpos: {},
+  cuerposMarcadores: {},
   online: [],
   _ultimoEnvio: 0,
   _ultimoStats: 0,
@@ -136,6 +138,7 @@ const Multijugador = {
       if (typeof Amigos !== 'undefined' && data.social) Amigos.aplicarSocial(data.social);
       this.online = (data.onlinePlayers || []).filter(p => this._visible(p.playerId));
       this._redibujar(false);
+      if (data.cuerposMuertos) this._aplicarCuerpos(data.cuerposMuertos);
       this.enviarStats(true);
     });
 
@@ -154,6 +157,7 @@ const Multijugador = {
     this.socket.on('player:offline', (p) => {
       this.online = this.online.filter(x => Number(x.playerId) !== Number(p.playerId));
       this._quitarMarcador(p.playerId);
+      this._redibujarCuerpos();
       if (typeof Amigos !== 'undefined') Amigos.refrescar();
     });
 
@@ -195,6 +199,8 @@ const Multijugador = {
         this.online[i].deadLevel = null;
         this._actualizarMarcador(this.online[i]);
       }
+      delete this.cuerpos[String(data.playerId)];
+      this._quitarMarcadorCuerpo(String(data.playerId));
     });
 
     this.socket.on('world:updateObject', (obj) => {
@@ -221,6 +227,15 @@ const Multijugador = {
         this.online[i].deadInventory = data.deadInventory || [];
         this._actualizarMarcador(this.online[i]);
       }
+      const cid = String(data.playerId);
+      if (this.cuerpos[cid]) {
+        this.cuerpos[cid].deadInventory = data.deadInventory || [];
+        this._actualizarMarcadorCuerpo(this.cuerpos[cid]);
+      }
+    });
+
+    this.socket.on('cuerpos:sync', (data) => {
+      this._aplicarCuerpos(data?.cuerpos || {});
     });
 
     this.socket.on('world:objetoRecogido', (data) => {
@@ -230,7 +245,7 @@ const Multijugador = {
 
     this.socket.on('enemy:attack', (data) => {
       if (typeof Vida !== 'undefined' && data.damage) {
-        Vida.recibirDano(data.damage, '👹 ' + (data.enemyName || 'Enemigo') + ' te atacó (-' + data.damage + ')');
+        Vida.recibirDano(data.damage, null, data.enemyName || 'Enemigo');
         this.enviarStats(true);
       }
     });
@@ -301,6 +316,9 @@ const Multijugador = {
     Admin._crudoPublicado = json;
     Admin._ultimoFirmaPublicada = Admin._firmaMundo(json);
     Admin._aplicarMundoRemoto(json);
+    if (m.cuerposMuertos && typeof Multijugador !== 'undefined') {
+      Multijugador._aplicarCuerpos(m.cuerposMuertos);
+    }
     if (avisar && typeof Usuarios !== 'undefined' && !Usuarios.esAdministrador() &&
         typeof Notificaciones !== 'undefined') {
       Notificaciones.mostrar('🌍 El admin actualizó el mapa', 'info', 4000);
@@ -383,8 +401,82 @@ const Multijugador = {
       html += '</div>';
     }
     html += '<button type="button" class="popup-muerto-revivir" data-revive-pid="' + p.playerId +
-      '">🩹 Revivir (botiquín)</button></div>';
+      '">🩹 Revivir (botiquín)</button>';
+    const pid = Number(p.playerId);
+    const soyYo = pid === this._miPlayerId();
+    const esAmigo = typeof Amigos !== 'undefined' && Amigos.esAmigo(pid);
+    if (!soyYo && !esAmigo && typeof Amigos !== 'undefined') {
+      html += '<button type="button" class="popup-muerto-amigo" data-amigo-pid="' + pid +
+        '">👥 Agregar amigo</button>';
+    }
+    html += '</div>';
     return html;
+  },
+
+  _aplicarCuerpos(cuerpos) {
+    this.cuerpos = cuerpos || {};
+    this._redibujarCuerpos();
+  },
+
+  _redibujarCuerpos() {
+    const idsOnlineDead = new Set(
+      this.online.filter(p => this._estaMuerto(p)).map(p => String(p.playerId))
+    );
+    for (const id of Object.keys(this.cuerposMarcadores)) {
+      if (!this.cuerpos[id] || idsOnlineDead.has(id)) this._quitarMarcadorCuerpo(id);
+    }
+    for (const [id, c] of Object.entries(this.cuerpos)) {
+      if (idsOnlineDead.has(id)) continue;
+      this._actualizarMarcadorCuerpo(c);
+    }
+  },
+
+  _jugadorMuertoParaPopup(p) {
+    return {
+      playerId: p.playerId,
+      name: p.name,
+      deadLevel: p.deadLevel || p.level,
+      deadInventory: p.deadInventory || []
+    };
+  },
+
+  _actualizarMarcadorCuerpo(c) {
+    if (!Mapa.mapa || !c) return;
+    const id = String(c.playerId);
+    const p = {
+      playerId: c.playerId,
+      name: c.name,
+      deadLevel: c.deadLevel,
+      deadInventory: c.deadInventory || [],
+      deathX: c.deathX,
+      deathY: c.deathY,
+      dead: true
+    };
+    let m = this.cuerposMarcadores[id];
+    const icon = this._iconoJugadorMuerto(p);
+    const pos = { x: c.deathX, y: c.deathY };
+    if (!m) {
+      m = L.marker([pos.x, pos.y], {
+        icon,
+        interactive: true,
+        zIndexOffset: 9999
+      }).addTo(Mapa.mapa);
+      m.on('click', () => m.openPopup());
+      m.bindPopup(() => this._popupMuertoHtml(p), { maxWidth: 260, className: 'popup-muerto-wrap' });
+      this._enlazarPopupMuerto(m, p);
+      this.cuerposMarcadores[id] = m;
+    } else {
+      m.setLatLng([pos.x, pos.y]);
+      m.setIcon(icon);
+      m.bindPopup(() => this._popupMuertoHtml(p), { maxWidth: 260, className: 'popup-muerto-wrap' });
+      this._enlazarPopupMuerto(m, p);
+    }
+  },
+
+  _quitarMarcadorCuerpo(id) {
+    const m = this.cuerposMarcadores[id];
+    if (m && Mapa.mapa) Mapa.mapa.removeLayer(m);
+    delete this.cuerposMarcadores[id];
   },
 
   _enlazarPopupMuerto(m, p) {
@@ -394,6 +486,10 @@ const Multijugador = {
       el.querySelector('.popup-muerto-revivir')?.addEventListener('click', () => {
         m.closePopup();
         this.revivirJugador(p);
+      });
+      el.querySelector('.popup-muerto-amigo')?.addEventListener('click', () => {
+        m.closePopup();
+        if (typeof Amigos !== 'undefined') Amigos.solicitar(p.playerId);
       });
       el.querySelectorAll('[data-loot-id]').forEach(btn => {
         btn.addEventListener('click', () => {
@@ -592,13 +688,10 @@ const Multijugador = {
     if (!Mapa.mapa || !p) return;
     const id = p.playerId;
     const muerto = this._estaMuerto(p);
-    if (muerto && !this._visibleMuertoCerca(p)) {
-      this._quitarMarcador(id);
-      return;
-    }
     const pos = this._posMarcador(p);
     let m = this.marcadores[id];
     const icon = muerto ? this._iconoJugadorMuerto(p) : this._iconoJugador(p);
+    const popupP = muerto ? this._jugadorMuertoParaPopup(p) : p;
     if (!m) {
       m = L.marker([pos.x, pos.y], {
         icon,
@@ -607,8 +700,8 @@ const Multijugador = {
       }).addTo(Mapa.mapa);
       if (muerto) {
         m.on('click', () => m.openPopup());
-        m.bindPopup(() => this._popupMuertoHtml(p), { maxWidth: 260, className: 'popup-muerto-wrap' });
-        this._enlazarPopupMuerto(m, p);
+        m.bindPopup(() => this._popupMuertoHtml(popupP), { maxWidth: 260, className: 'popup-muerto-wrap' });
+        this._enlazarPopupMuerto(m, popupP);
       } else {
         m.bindPopup(() => typeof Amigos !== 'undefined' ? Amigos.popupHtml(p) : p.name);
       }
@@ -619,8 +712,8 @@ const Multijugador = {
       m.off('click');
       if (muerto) {
         m.on('click', () => m.openPopup());
-        m.bindPopup(() => this._popupMuertoHtml(p), { maxWidth: 260, className: 'popup-muerto-wrap' });
-        this._enlazarPopupMuerto(m, p);
+        m.bindPopup(() => this._popupMuertoHtml(popupP), { maxWidth: 260, className: 'popup-muerto-wrap' });
+        this._enlazarPopupMuerto(m, popupP);
       } else {
         m.bindPopup(() => typeof Amigos !== 'undefined' ? Amigos.popupHtml(p) : p.name);
       }
@@ -642,6 +735,7 @@ const Multijugador = {
     for (const p of this.online) {
       this._actualizarMarcador(p);
     }
+    this._redibujarCuerpos();
     if (mostrarAviso !== false && this.online.length && typeof Notificaciones !== 'undefined') {
       Notificaciones.mostrar('👥 ' + this.online.length + ' jugador(es) en vivo', 'info', 3000);
     }

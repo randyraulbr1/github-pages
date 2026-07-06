@@ -3,7 +3,7 @@
 // ============================================================
 const CONFIG = {
   // Cambiar al publicar: obliga al móvil a descartar caché vieja
-  version: '69',
+  version: '70',
   maxPila: 10,
 
   // Nombre reservado del administrador (solo este jugador ve el panel admin)
@@ -39,7 +39,8 @@ const CONFIG = {
 
   // Distancias (en metros)
   distanciaInteraccion: 20,      // distancia para poder tocar tiendas, pesca, etc.
-  distanciaVerMuerto: 50,        // ver pin ⚰️ de jugador muerto y revivir con botiquín
+  distanciaVerMuerto: 50,        // distancia para revivir/saquear
+  cuerpoMuertoHoras: 1,          // pin ⚰️ visible en mapa (aunque desconecte)
   vidaAlRevivir: 40,             // vida al ser revivido (amigo o admin)
   cofreVacioHoras: 1,            // cofre vacío desaparece del mapa tras N horas
   distanciaDetectorTesoro: 150,  // el buscador de tesoros empieza a avisar

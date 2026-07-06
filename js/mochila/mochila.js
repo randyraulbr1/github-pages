@@ -28,6 +28,7 @@ const Mochila = {
     const btnEq = document.getElementById('btn-equipar-item');
     if (btnEq) btnEq.addEventListener('click', () => this.equiparSeleccionado());
     this.pintar();
+    this.pintarArmaHud();
   },
 
   abrir() {
@@ -196,8 +197,25 @@ const Mochila = {
   },
 
   // ---------- PINTADO ----------
+  pintarArmaHud() {
+    const id = this.armaEquipadaId();
+    const tiene = id && this.tieneItem(id);
+    const item = tiene ? Items.seguro(id) : null;
+    const icon = item ? (item.icono || '🗡️') : '✊';
+    const nombre = item ? item.nombre : 'Puños';
+    const dano = item ? (item.dano || 0) : 0;
+    const hud = document.getElementById('hud-arma-equipada');
+    const slot = document.getElementById('slot-arma-equipada');
+    const nom = document.getElementById('slot-arma-nombre');
+    const titulo = dano > 0 ? nombre + ' (+' + dano + ' daño)' : nombre + ' (sin bonus)';
+    if (hud) { hud.textContent = icon; hud.title = titulo; }
+    if (slot) { slot.textContent = icon; slot.title = titulo; }
+    if (nom) nom.textContent = dano > 0 ? nombre + ' +' + dano : nombre;
+  },
+
   pintar() {
     const rejilla = document.getElementById('rejilla-mochila');
+    if (!rejilla) return;
     rejilla.innerHTML = '';
     this.slots.forEach((sl, i) => {
       const celda = document.createElement('div');
@@ -215,6 +233,7 @@ const Mochila = {
       }
       rejilla.appendChild(celda);
     });
+    this.pintarArmaHud();
   },
 
   // ---------- ARRASTRAR Y SOLTAR (funciona con dedo y ratón) ----------

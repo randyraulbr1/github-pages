@@ -54,11 +54,21 @@ button { font-family: inherit; }
 .fila-barra-xp .barra-nivel { margin-right: 2px; }
 
 #contenedor-dinero, #contenedor-vida, #contenedor-hambre, #contenedor-xp {
-  position: relative; flex: 1; height: 18px;
+  position: relative; flex: 1;
   min-width: 0;
-  border-radius: 9px; overflow: hidden;
-  border: 1px solid rgba(255,255,255,.35);
-  background: rgba(255,255,255,.1);
+  overflow: hidden;
+  border: 1px solid rgba(0,0,0,.45);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.12), 0 2px 6px rgba(0,0,0,.45);
+}
+#contenedor-vida {
+  height: 22px;
+  border-radius: 2px;
+  background: rgba(0,0,0,.35);
+}
+#contenedor-hambre, #contenedor-xp {
+  height: 8px;
+  border-radius: 2px;
+  background: rgba(0,0,0,.35);
 }
 #dinero-relleno {
   position: absolute; inset: 0; width: 0;
@@ -75,10 +85,11 @@ button { font-family: inherit; }
 .barra-dinero-icono { color: #ffe28a !important; }
 .fila-barra-dinero { margin-top: 2px; }
 #contenedor-vida {
-  background: rgba(255,255,255,.08);
+  background: rgba(0,0,0,.35);
 }
 #vida-relleno {
   position: absolute; inset: 0; width: 100%;
+  border-radius: 1px;
   background: linear-gradient(180deg, #5ce883 0%, #30d158 48%, #1e8a3e 100%);
   transition: width .4s ease, background .3s ease;
 }
@@ -102,18 +113,20 @@ button { font-family: inherit; }
 }
 
 #contenedor-hambre {
-  background: rgba(255,255,255,.08);
+  background: rgba(0,0,0,.35);
 }
 #hambre-relleno {
   position: absolute; inset: 0; height: 100%; width: 50%;
+  border-radius: 1px;
   background: linear-gradient(90deg, #e8940a, #ffb020, #ffc840);
   transition: width .4s ease;
 }
 #contenedor-xp {
-  background: rgba(255,255,255,.08);
+  background: rgba(0,0,0,.35);
 }
 #xp-relleno {
   position: absolute; inset: 0; height: 100%; width: 0;
+  border-radius: 1px;
   background: linear-gradient(90deg, #6b4eff, #a78bfa);
   transition: width .4s ease;
 }
@@ -147,6 +160,53 @@ button { font-family: inherit; }
   font-size: 18px; font-weight: 800; color: #ffd60a;
 }
 .mochila-dinero-icono { font-size: 22px; }
+.mochila-arma-fila {
+  display: flex; align-items: center; gap: 10px;
+  margin: 0 14px 10px; padding: 8px 12px;
+  border-radius: 12px; background: rgba(255,255,255,.06);
+  border: 1px solid rgba(255,255,255,.1);
+}
+.mochila-arma-etiqueta { font-size: 12px; font-weight: 700; color: #aeaeb2; flex-shrink: 0; }
+.slot-arma-equipada {
+  width: 48px; height: 48px; border-radius: 10px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 28px; background: rgba(0,0,0,.35);
+  border: 2px solid rgba(191,90,242,.45);
+  box-shadow: 0 2px 8px rgba(0,0,0,.35);
+}
+.slot-arma-nombre { font-size: 13px; font-weight: 700; color: #e8eef8; }
+.hud-arma-equipada {
+  width: 44px; height: 44px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 22px; flex-shrink: 0;
+  background: rgba(12,16,28,.75);
+  border: 2px solid rgba(255,255,255,.2);
+  box-shadow: 0 3px 10px rgba(0,0,0,.4);
+  margin-bottom: 4px;
+}
+#zona-dano-flotante {
+  position: fixed; left: 50%; top: 42%;
+  transform: translateX(-50%);
+  z-index: 3000; pointer-events: none;
+  display: flex; flex-direction: column; align-items: center; gap: 6px;
+}
+.dano-flotante {
+  font-size: 28px; font-weight: 900; color: #ff453a;
+  text-shadow: 0 2px 8px rgba(0,0,0,.8), 0 0 12px rgba(255,69,58,.6);
+  opacity: 0; transform: translateY(12px) scale(.8);
+  transition: opacity .2s ease, transform .35s ease;
+}
+.dano-flotante.visible { opacity: 1; transform: translateY(0) scale(1); }
+.dano-flotante.saliendo { opacity: 0; transform: translateY(-28px) scale(1.1); }
+.auth-muerte-destacado {
+  background: rgba(255,214,10,.12); border: 1px solid rgba(255,214,10,.35);
+  border-radius: 10px; padding: 10px 12px;
+}
+.popup-muerto-amigo {
+  margin-top: 6px; width: 100%; padding: 7px; border-radius: 10px;
+  border: none; background: rgba(61,139,253,.22); color: #7eb8ff;
+  font-weight: 700; cursor: pointer; font-size: 12px;
+}
 .enemigo-pin {
   position: relative;
   display: flex;

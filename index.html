@@ -60,8 +60,9 @@
   <div id="pantalla-muerte" class="pantalla-auth oculto">
     <div class="auth-caja">
       <div class="auth-titulo">💀 Has muerto</div>
-      <p class="auth-aviso">Tu vida llegó a 0. Pide ayuda a un amigo para que te reviva con un 🩹 botiquín (cuesta $300 en la farmacia).</p>
-      <p class="auth-aviso">Tu pin ⚰️ queda en el mapa donde caíste. Solo se ve a menos de 50 m.</p>
+      <p class="auth-aviso auth-muerte-destacado">📱 Mantén el teléfono encendido y <b>no cierres esta pantalla</b> para que tus amigos puedan encontrarte en el mapa.</p>
+      <p class="auth-aviso">Pide ayuda a un amigo para que te reviva con un 🩹 botiquín ($300 en la farmacia).</p>
+      <p class="auth-aviso">Tu pin ⚰️ queda en el mapa <b>1 hora</b> donde caíste (aunque te desconectes).</p>
     </div>
   </div>
 
@@ -147,6 +148,7 @@
 
   <!-- BOTONES INFERIORES (burbujas) -->
   <div id="botones-inferiores">
+    <div id="hud-arma-equipada" class="hud-arma-equipada" title="Arma equipada: puños">✊</div>
     <button id="btn-mochila" class="btn-burbuja" type="button" title="Mochila">
       <span class="burbuja-icono">🎒</span><span class="burbuja-texto">Mochila</span>
     </button>
@@ -158,6 +160,7 @@
 
   <!-- NOTIFICACIONES -->
   <div id="zona-notificaciones"></div>
+  <div id="zona-dano-flotante"></div>
 
   <!-- CARTEL MISIÓN ACTIVA (centro pantalla) -->
   <div id="overlay-mision-activa" class="overlay-mision oculto">
@@ -227,6 +230,11 @@
       <div id="mochila-dinero-bar" class="mochila-dinero-bar">
         <span class="mochila-dinero-icono">💰</span>
         <span id="hud-dinero-cantidad">$0</span>
+      </div>
+      <div class="mochila-arma-fila">
+        <span class="mochila-arma-etiqueta">⚔️ Arma equipada</span>
+        <div id="slot-arma-equipada" class="slot-arma-equipada" title="Toca un arma en la mochila y pulsa Equipar">✊</div>
+        <span id="slot-arma-nombre" class="slot-arma-nombre">Puños</span>
       </div>
       <div id="rejilla-mochila"></div>
       <div id="detalle-item" class="oculto">
@@ -720,44 +728,44 @@
   </div>
 
   <!-- LIBRERÍAS -->
-  <script src="lib/leaflet/leaflet.js?v=69"></script>
+  <script src="lib/leaflet/leaflet.js?v=70"></script>
 
   <!-- MÓDULOS DEL JUEGO (orden importante) -->
-  <script src="js/config/config.js?v=69"></script>
-  <script src="js/nucleo/utilidades.js?v=69"></script>
-  <script src="js/mundo/mundo_publico.js?v=69"></script>
-  <script src="js/notificaciones/notificaciones.js?v=69"></script>
-  <script src="js/usuarios/usuarios.js?v=69"></script>
-  <script src="js/guardado/guardado.js?v=69"></script>
-  <script src="js/historial/historial.js?v=69"></script>
-  <script src="js/dinero/dinero.js?v=69"></script>
-  <script src="js/vida/vida.js?v=69"></script>
-  <script src="js/items/items.js?v=69"></script>
-  <script src="js/mochila/mochila.js?v=69"></script>
-  <script src="js/mapa/mapa.js?v=69"></script>
-  <script src="js/gps/gps.js?v=69"></script>
-  <script src="js/tiendas/datos_tiendas.js?v=69"></script>
-  <script src="js/tiendas/tiendas.js?v=69"></script>
-  <script src="js/pesca/pesca.js?v=69"></script>
-  <script src="js/tesoros/datos_tesoros.js?v=69"></script>
-  <script src="js/tesoros/tesoros.js?v=69"></script>
-  <script src="js/misiones/datos_misiones.js?v=69"></script>
-  <script src="js/misiones/misiones.js?v=69"></script>
-  <script src="js/cofres/cofres.js?v=69"></script>
-  <script src="js/correo/correo.js?v=69"></script>
-  <script src="js/enemigos/enemigos.js?v=69"></script>
-  <script src="js/online/sync_servidor.js?v=69"></script>
-  <script src="js/admin/admin.js?v=69"></script>
-  <script src="js/opciones/opciones.js?v=69"></script>
-  <script src="js/online/mundo_online.js?v=69"></script>
-  <script src="js/online/amigos.js?v=69"></script>
-  <script src="js/online/multijugador.js?v=69"></script>
-  <script src="js/principal.js?v=69"></script>
+  <script src="js/config/config.js?v=70"></script>
+  <script src="js/nucleo/utilidades.js?v=70"></script>
+  <script src="js/mundo/mundo_publico.js?v=70"></script>
+  <script src="js/notificaciones/notificaciones.js?v=70"></script>
+  <script src="js/usuarios/usuarios.js?v=70"></script>
+  <script src="js/guardado/guardado.js?v=70"></script>
+  <script src="js/historial/historial.js?v=70"></script>
+  <script src="js/dinero/dinero.js?v=70"></script>
+  <script src="js/vida/vida.js?v=70"></script>
+  <script src="js/items/items.js?v=70"></script>
+  <script src="js/mochila/mochila.js?v=70"></script>
+  <script src="js/mapa/mapa.js?v=70"></script>
+  <script src="js/gps/gps.js?v=70"></script>
+  <script src="js/tiendas/datos_tiendas.js?v=70"></script>
+  <script src="js/tiendas/tiendas.js?v=70"></script>
+  <script src="js/pesca/pesca.js?v=70"></script>
+  <script src="js/tesoros/datos_tesoros.js?v=70"></script>
+  <script src="js/tesoros/tesoros.js?v=70"></script>
+  <script src="js/misiones/datos_misiones.js?v=70"></script>
+  <script src="js/misiones/misiones.js?v=70"></script>
+  <script src="js/cofres/cofres.js?v=70"></script>
+  <script src="js/correo/correo.js?v=70"></script>
+  <script src="js/enemigos/enemigos.js?v=70"></script>
+  <script src="js/online/sync_servidor.js?v=70"></script>
+  <script src="js/admin/admin.js?v=70"></script>
+  <script src="js/opciones/opciones.js?v=70"></script>
+  <script src="js/online/mundo_online.js?v=70"></script>
+  <script src="js/online/amigos.js?v=70"></script>
+  <script src="js/online/multijugador.js?v=70"></script>
+  <script src="js/principal.js?v=70"></script>
   <script>
     // Registrar la app instalable (PWA)
     if ('serviceWorker' in navigator) {
       const yaTeniaVersion = !!navigator.serviceWorker.controller;
-      navigator.serviceWorker.register('sw.js?v=69', { updateViaCache: 'none' })
+      navigator.serviceWorker.register('sw.js?v=70', { updateViaCache: 'none' })
         .then(function (reg) { reg.update(); })
         .catch(function () {});
       // Cuando llega una versión nueva del juego: avisar y recargar solo
