@@ -3,7 +3,7 @@
 // ============================================================
 const CONFIG = {
   // Cambiar al publicar: obliga al móvil a descartar caché vieja
-  version: '123',
+  version: '124',
   maxPila: 10,
 
   // Nombre reservado del administrador (solo este jugador ve el panel admin)
@@ -67,4 +67,10 @@ const CONFIG = {
 
   // Servidor multijugador en vivo (Render). Vacío = desactivado.
   servidorOnline: 'https://mariel-online.onrender.com',
+
+  // Atajo temporal de desarrollo (quitar antes de producción)
+  devLoginRandy: {
+    usuario: 'randy',
+    clave: ''
+  },
 };

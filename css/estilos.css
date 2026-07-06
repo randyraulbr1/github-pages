@@ -1528,6 +1528,12 @@ body.en-auth #zona-notificaciones { display: none !important; }
   border: none; border-radius: 12px; background: transparent;
   color: #8ab4ff; font-size: 14px; cursor: pointer;
 }
+.btn-dev-login-randy {
+  margin-top: 8px;
+  border: 1px dashed rgba(138, 180, 255, 0.55);
+  color: #b8d4ff;
+  font-size: 13px;
+}
 .mision-letrero.lista { border-color: #ffd60a; box-shadow: 0 0 10px rgba(255,214,10,.45); animation: misionLetreroBrillo 1.4s ease-in-out infinite; }
 .mision-letrero .punto-color.premio { box-shadow: 0 0 8px #ffd60a; animation: misionLetreroBrillo 1.4s ease-in-out infinite; }
 @keyframes misionLetreroBrillo {

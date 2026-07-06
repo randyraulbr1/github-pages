@@ -279,6 +279,9 @@ const Usuarios = {
 
       await this._activar(perfil);
       sessionStorage.setItem('mariel_clave_servidor', clave);
+      if (perfil.nombre && perfil.nombre.toLowerCase() === 'randy') {
+        localStorage.setItem('mariel_dev_clave_randy', clave);
+      }
     } catch (e) {
       console.error('Error en login:', e);
       this._mostrarAvisoAuth('login', 'Error al entrar. Intenta de nuevo.');
@@ -450,6 +453,30 @@ const Usuarios = {
     Notificaciones.mostrar('📱 Número actualizado: ' + limpio, 'exito', 5000);
   },
 
+  _claveDevRandy() {
+    const cfg = CONFIG.devLoginRandy || {};
+    return String(cfg.clave || '').trim()
+      || localStorage.getItem('mariel_dev_clave_randy')
+      || sessionStorage.getItem('mariel_clave_servidor')
+      || '';
+  },
+
+  async entrarComoRandyDev() {
+    const cfg = CONFIG.devLoginRandy || {};
+    const usuario = String(cfg.usuario || 'randy').trim();
+    let clave = this._claveDevRandy();
+    if (!clave) {
+      clave = prompt('Contraseña de randy (se guarda solo en este navegador):', '') || '';
+      if (!clave) return;
+      localStorage.setItem('mariel_dev_clave_randy', clave);
+    }
+    const campoUsuario = document.getElementById('login-usuario');
+    const campoClave = document.getElementById('login-clave');
+    if (campoUsuario) campoUsuario.value = usuario;
+    if (campoClave) campoClave.value = clave;
+    await this.iniciarSesion();
+  },
+
   UN_MES_MS: 30 * 24 * 60 * 60 * 1000
 };
 
@@ -457,11 +484,13 @@ document.addEventListener('DOMContentLoaded', () => {
   const irReg = document.getElementById('btn-ir-registro');
   const irLog = document.getElementById('btn-ir-login');
   const btnLog = document.getElementById('btn-iniciar-sesion');
+  const btnDevRandy = document.getElementById('btn-dev-login-randy');
   const btnReg = document.getElementById('btn-crear-perfil');
   const btnSalirRemoto = document.getElementById('btn-sesion-remota-salir');
   if (irReg) irReg.addEventListener('click', () => Usuarios.mostrarRegistro());
   if (irLog) irLog.addEventListener('click', () => Usuarios.mostrarLogin());
   if (btnLog) btnLog.addEventListener('click', () => Usuarios.iniciarSesion());
+  if (btnDevRandy) btnDevRandy.addEventListener('click', () => Usuarios.entrarComoRandyDev());
   if (btnReg) btnReg.addEventListener('click', () => Usuarios.crear());
   if (btnSalirRemoto) btnSalirRemoto.addEventListener('click', () => Usuarios.cerrarSesion());
 });
