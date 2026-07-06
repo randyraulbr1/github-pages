@@ -6,12 +6,7 @@
 // La carnada mejora la suerte (se gasta 1 por captura).
 // ============================================================
 const Pesca = {
-  MUELLES: [
-    [22.9963, -82.7472],
-    [22.9988, -82.7443],
-    [22.9941, -82.7457],
-    [23.0008, -82.7482]
-  ],
+  MUELLES: [],
   _animacion: null,
   _estado: 'listo', // listo | moviendo
   _posIndicador: 0,

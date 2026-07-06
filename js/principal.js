@@ -109,6 +109,9 @@ async function esperarMapaListo() {
     // —— FASE 2: SESIÓN (login si hace falta; el mundo ya está listo) ——
     avanzarCarga('Comprobando sesión…');
     await Usuarios.iniciar();
+    if (Usuarios.perfilActivo && typeof Admin !== 'undefined' && Admin.refrescarMundoTrasLogin) {
+      await pasoSeguro('mundo-servidor', () => Admin.refrescarMundoTrasLogin());
+    }
 
     // —— FASE 3: PARTIDA DEL JUGADOR ACTIVO ——
     avanzarCarga('Cargando tu partida…');

@@ -1,6 +1,3 @@
-/**
- * Sincroniza datos/mundo.json del admin del juego → SQLite + broadcast en vivo.
- */
 const {
   db,
   getAllWorldObjects,
@@ -17,6 +14,7 @@ const {
   saveWorldSnapshot,
   getWorldSnapshot
 } = require('./db');
+const { pushMundoToGitHub } = require('./githubMundo');
 
 function parseData(row) {
   try { return JSON.parse(row.data_json || '{}'); } catch (e) { return {}; }
@@ -408,6 +406,11 @@ function syncMundoFromJson(mundo, io) {
   }
 
   saveWorldSnapshot(mundo);
+
+  pushMundoToGitHub(mundo).then((r) => {
+    if (r.ok) console.log('[mundo] Respaldo en GitHub OK');
+    else if (!r.skipped) console.warn('[mundo] GitHub:', r.error || r.reason);
+  }).catch((e) => console.warn('[mundo] GitHub:', e.message));
 
   if (io) {
     io.emit('mundo:sync', {

@@ -1,283 +1,27 @@
 {
+  "actualizadoEn": 0,
   "misiones": [],
   "tesoros": [],
-  "objetos": [
-    {
-      "id": "admx_o_mr76zyws",
-      "pos": [
-        22.993775,
-        -82.759516
-      ],
-      "itemId": "coco",
-      "cantidad": 1,
-      "reaparece": 0
-    },
-    {
-      "id": "admx_o_mr770ncj",
-      "pos": [
-        22.992788,
-        -82.759709
-      ],
-      "itemId": "cangrejo",
-      "cantidad": 1,
-      "reaparece": 0
-    }
-  ],
-  "posiciones": {
-    "enm_mr8cz25s": [
-      22.993597,
-      -82.757861
-    ],
-    "enm_mr8cze5b": [
-      22.993864,
-      -82.757607
-    ]
-  },
+  "objetos": [],
+  "enemigos": [],
+  "posiciones": {},
   "eliminados": [],
   "precios": {},
-  "itemsNuevos": [
-    {
-      "id": "marcador_tesoro_mapa",
-      "nombre": "Icono mapa tesoro",
-      "icono": "🎁",
-      "precio": 0,
-      "tipo": "especial",
-      "desc": "Marcador de tesoros en el mapa"
-    }
-  ],
+  "itemsNuevos": [],
   "mantenimiento": {
     "activo": false,
     "mensaje": ""
   },
   "baneados": [],
   "mensajes": [],
-  "jugadores": [
-    {
-      "id": "pmr7x4zhznzw5o",
-      "nombre": "randy",
-      "telefono": "7709908375",
-      "creado": 1783263656375,
-      "pinHash": "4bdc96ffc0926b62d55708e3c1755ca3f04b8c28bec6fd85777117da67497f11",
-      "sesionToken": "mr8cyhf6ekpp3b9sap",
-      "sesionT": 1783290226866
-    },
-    {
-      "id": "pmr8cj06j7ehv1",
-      "nombre": "33",
-      "telefono": "2352647625",
-      "creado": 1783289504683,
-      "pinHash": "4bdc96ffc0926b62d55708e3c1755ca3f04b8c28bec6fd85777117da67497f11",
-      "sesionT": 0
-    },
-    {
-      "id": "pmr8cnje4g4ky2",
-      "nombre": "55",
-      "telefono": "2352647627",
-      "creado": 1783289716204,
-      "pinHash": "4bdc96ffc0926b62d55708e3c1755ca3f04b8c28bec6fd85777117da67497f11",
-      "sesionT": 0
-    }
-  ],
+  "jugadores": [],
   "cofres": [],
   "correoReclamados": [],
   "correoTienda": [],
-  "partidas": {
-    "pmr7x4zhznzw5o": {
-      "datos": {
-        "mochila": [
-          {
-            "id": "agua",
-            "cantidad": 2
-          },
-          {
-            "id": "pan",
-            "cantidad": 1
-          },
-          null,
-          null,
-          null,
-          null,
-          null,
-          null,
-          null,
-          null,
-          {
-            "id": "arroz_congri",
-            "cantidad": 2
-          },
-          null,
-          null,
-          null,
-          null,
-          null,
-          null,
-          null,
-          null,
-          null,
-          null,
-          null,
-          null,
-          null,
-          null
-        ],
-        "dinero": {
-          "saldo": 100,
-          "control": "68e382a3687042dcd0420432d9bf210eada6d12606b6ecd367d18c724c2f4b38"
-        },
-        "vida": 50,
-        "hambre": 29,
-        "xp": 0,
-        "nivel": 1,
-        "posicionJugador": [
-          22.992530787175006,
-          -82.75564312934875
-        ],
-        "tesorosRecogidos": [],
-        "misiones": {},
-        "misionesEstado": {},
-        "correoEnviados": [],
-        "correoRecibidos": [],
-        "correoTiendaLocal": [],
-        "historialDinero": [
-          {
-            "t": 1783263656478,
-            "detalle": "Dinero inicial",
-            "monto": 100,
-            "saldo": 100,
-            "lugar": "sin posición",
-            "pos": null,
-            "hashAnterior": "GENESIS",
-            "hash": "65ec4691dc9cd1f8d600d833456b400fff92fa73558eb8fad0fe636e0987ddab"
-          }
-        ],
-        "historialObjetos": [
-          {
-            "t": 1783285646629,
-            "detalle": "Obtenido: Arroz congrí",
-            "monto": 1,
-            "saldo": null,
-            "lugar": "campo abierto",
-            "pos": [
-              22.99346,
-              -82.753582
-            ],
-            "hashAnterior": "GENESIS",
-            "hash": "e96854a9acb4a25b2aee748379066ebc2a13245c4a98a0e77d5df69c3681d176"
-          },
-          {
-            "t": 1783286569118,
-            "detalle": "Obtenido: Arroz congrí",
-            "monto": 1,
-            "saldo": null,
-            "lugar": "campo abierto",
-            "pos": [
-              22.99343,
-              -82.753449
-            ],
-            "hashAnterior": "e96854a9acb4a25b2aee748379066ebc2a13245c4a98a0e77d5df69c3681d176",
-            "hash": "fbae5840e60927e3c722f98c907e62982acea469a7e2dbba501a57f06634524c"
-          }
-        ],
-        "mensajesVistos": [],
-        "muerto": false,
-        "armaEquipada": null
-      },
-      "t": 1783293398189
-    },
-    "pmr8cj06j7ehv1": {
-      "datos": {
-        "mochila": [
-          {
-            "id": "agua",
-            "cantidad": 2
-          },
-          {
-            "id": "pan",
-            "cantidad": 1
-          },
-          null,
-          null,
-          null,
-          null,
-          null,
-          null,
-          null,
-          null,
-          null,
-          null,
-          null,
-          null,
-          null,
-          null,
-          null,
-          null,
-          null,
-          null,
-          null,
-          null,
-          null,
-          null,
-          null
-        ],
-        "dinero": {
-          "saldo": 100,
-          "control": "68e382a3687042dcd0420432d9bf210eada6d12606b6ecd367d18c724c2f4b38"
-        },
-        "vida": 100,
-        "hambre": 50,
-        "muerto": false
-      },
-      "t": 1783289504683
-    },
-    "pmr8cnje4g4ky2": {
-      "datos": {
-        "mochila": [
-          {
-            "id": "agua",
-            "cantidad": 2
-          },
-          {
-            "id": "pan",
-            "cantidad": 1
-          },
-          null,
-          null,
-          null,
-          null,
-          null,
-          null,
-          null,
-          null,
-          null,
-          null,
-          null,
-          null,
-          null,
-          null,
-          null,
-          null,
-          null,
-          null,
-          null,
-          null,
-          null,
-          null,
-          null
-        ],
-        "dinero": {
-          "saldo": 100,
-          "control": "68e382a3687042dcd0420432d9bf210eada6d12606b6ecd367d18c724c2f4b38"
-        },
-        "vida": 100,
-        "hambre": 50,
-        "muerto": false
-      },
-      "t": 1783289716204
-    }
-  },
-  "actualizadoEn": 1783293398417,
-  "enemigos": [],
+  "partidas": {},
   "enemigosEstado": {},
+  "objetosEstado": {},
+  "tesorosEstado": {},
   "tiendasAdmin": [],
   "tiendasStock": {},
   "combate": {
@@ -287,6 +31,5 @@
     "radioZona": 40,
     "radioPersecucion": 20,
     "curacionMs": 120000
-  },
-  "moverPinJugador": true
+  }
 }

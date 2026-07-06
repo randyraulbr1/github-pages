@@ -234,7 +234,18 @@ const Multijugador = {
     this.socket.on('world:removeObject', () => { /* el mundo completo llega por mundo:sync */ });
 
     this.socket.on('mundo:sync', (data) => {
-      this._aplicarMundoServidor(data, true);
+      if (!data?.mundo || typeof Admin === 'undefined') return;
+      const ts = data.actualizadoEn || data.mundo.actualizadoEn || Date.now();
+      const json = JSON.stringify(data.mundo);
+      this.mundoServidorTs = Math.max(this.mundoServidorTs, ts);
+      Admin._crudoPublicado = json;
+      Admin._ultimoFirmaPublicada = Admin._firmaMundo(json);
+      Admin._aplicarMundoRemoto(json);
+      if (data.mundo.cuerposMuertos) this._aplicarCuerpos(data.mundo.cuerposMuertos);
+      if (typeof Usuarios !== 'undefined' && !Usuarios.esAdministrador() &&
+          typeof Notificaciones !== 'undefined') {
+        Notificaciones.mostrar('🌍 El admin actualizó el mapa', 'info', 4000);
+      }
     });
 
     this.socket.on('partida:sync', (data) => {

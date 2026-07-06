@@ -54,12 +54,11 @@ const Admin = {
     }
     if (this.datos.mantenimiento === undefined) this.datos.mantenimiento = null;
 
-    // El mundo oficial vive en GitHub: al actualizar datos/mundo.json,
-    // todos los jugadores reciben las misiones nuevas al recargar el juego
+    // El mundo oficial: GitHub Pages + servidor en vivo (el más reciente gana)
     this.publicado = { misiones: [], tesoros: [], objetos: [], posiciones: {}, eliminados: [], precios: {}, itemsNuevos: [], jugadores: [] };
     this._crudoPublicado = null;
     try {
-      const texto = await MundoPublico.descargar();
+      const texto = await this._descargarMejorMundo();
       if (texto) {
         this._crudoPublicado = texto;
         this.publicado = Object.assign(this.publicado, JSON.parse(texto));
@@ -139,6 +138,81 @@ const Admin = {
       return JSON.stringify(o);
     } catch (e) {
       return jsonStr || '';
+    }
+  },
+
+  /** Elige el mundo más reciente entre GitHub y el servidor Render. */
+  async _descargarMejorMundo() {
+    let mejor = null;
+    let mejorTs = 0;
+
+    try {
+      const texto = await MundoPublico.descargar();
+      if (texto) {
+        const ts = JSON.parse(texto).actualizadoEn || 0;
+        if (ts >= mejorTs) {
+          mejor = texto;
+          mejorTs = ts;
+        }
+      }
+    } catch (e) { /* */ }
+
+    if (CONFIG.servidorOnline) {
+      const token = localStorage.getItem(
+        (typeof Multijugador !== 'undefined' && Multijugador.TOKEN_KEY) || 'mariel_online_token'
+      );
+      if (token) {
+        try {
+          const base = CONFIG.servidorOnline.replace(/\/$/, '');
+          const r = await fetch(base + '/api/player/mundo', {
+            headers: { Authorization: 'Bearer ' + token }
+          });
+          const data = await r.json().catch(() => ({}));
+          if (data.ok && data.mundo) {
+            const ts = data.actualizadoEn || data.mundo.actualizadoEn || 0;
+            if (ts >= mejorTs) {
+              mejor = JSON.stringify(data.mundo);
+              mejorTs = ts;
+            }
+          }
+        } catch (e) { /* servidor dormido */ }
+      }
+    }
+
+    return mejor;
+  },
+
+  /** Tras iniciar sesión, vuelve a cargar el mundo del servidor si es más nuevo. */
+  async refrescarMundoTrasLogin() {
+    if (!CONFIG.servidorOnline || !this._mundoCargado) return false;
+    const token = localStorage.getItem(
+      (typeof Multijugador !== 'undefined' && Multijugador.TOKEN_KEY) || 'mariel_online_token'
+    );
+    if (!token) return false;
+    try {
+      const base = CONFIG.servidorOnline.replace(/\/$/, '');
+      const r = await fetch(base + '/api/player/mundo', {
+        headers: { Authorization: 'Bearer ' + token }
+      });
+      const data = await r.json().catch(() => ({}));
+      if (!data.ok || !data.mundo) return false;
+      const tsRemoto = data.actualizadoEn || data.mundo.actualizadoEn || 0;
+      const tsLocal = this.publicado?.actualizadoEn || 0;
+      if (tsRemoto < tsLocal) return false;
+      const json = JSON.stringify(data.mundo);
+      if (this._firmaMundo(json) === this._firmaMundo(this._crudoPublicado || '{}') &&
+          tsRemoto === tsLocal) {
+        return false;
+      }
+      this._crudoPublicado = json;
+      this._ultimoFirmaPublicada = this._firmaMundo(json);
+      if (typeof Multijugador !== 'undefined') {
+        Multijugador.mundoServidorTs = Math.max(Multijugador.mundoServidorTs || 0, tsRemoto);
+      }
+      this._aplicarMundoRemoto(json);
+      return true;
+    } catch (e) {
+      return false;
     }
   },
 
@@ -3473,7 +3547,14 @@ const Admin = {
     if (typeof SyncServidor !== 'undefined' && SyncServidor.puedePublicar()) {
       okServidor = await SyncServidor.publicar(json);
       if (okServidor && !silencioso) {
-        this._avisoSyncManual('📡 Mundo enviado a todos en vivo');
+        this._avisoSyncManual('📡 Mundo enviado a todos en vivo (+ respaldo GitHub)');
+      }
+    }
+
+    if (typeof MundoPublico !== 'undefined' && MundoPublico.puedeEscribir && MundoPublico.puedeEscribir()) {
+      okGitHub = await MundoPublico._putMundoGitHub(json);
+      if (okGitHub && !silencioso && !okServidor) {
+        this._avisoSyncManual('🌍 Mundo guardado en GitHub');
       }
     } else if (CONFIG.firebaseMundoUrl) {
       try {
@@ -3519,8 +3600,11 @@ const Admin = {
       return true;
     }
 
-    if (!okServidor && !silencioso) {
-      Notificaciones.mostrar('Inicia sesión en el juego para publicar al servidor en vivo', 'alerta', 7000);
+    if (!okServidor && !okGitHub && !silencioso) {
+      Notificaciones.mostrar(
+        'Inicia sesión en el juego para publicar. El mapa solo queda en este teléfono hasta sincronizar.',
+        'alerta', 8000
+      );
     }
     return false;
   },
