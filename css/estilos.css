@@ -168,7 +168,7 @@ button { font-family: inherit; }
   font-size: clamp(11px, 3vw, 14px);
   border-radius: 8px;
   background: transparent;
-  border: none;
+  border: 2px solid rgba(255, 255, 255, .28);
   box-shadow: none;
 }
 .btn-hud-principal {
