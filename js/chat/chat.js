@@ -573,8 +573,7 @@ const Chat = {
     }).addTo(Mapa.mapa);
 
     this._colocandoPin = { marcador, playerId };
-    const ctrl = document.getElementById('chat-pin-controles');
-    if (ctrl) ctrl.classList.remove('oculto');
+    this._mostrarControlesPin('colocar');
     Mapa.mapa.panTo(centro);
   },
 
@@ -598,9 +597,32 @@ const Chat = {
   },
 
   cancelarColocacionPin() {
-    const playerId = this._colocandoPin?.playerId;
-    this._limpiarColocacionPin();
-    if (playerId) this.openConversation(playerId);
+    if (this._colocandoPin) {
+      const playerId = this._colocandoPin?.playerId;
+      this._limpiarColocacionPin();
+      if (playerId) this.openConversation(playerId);
+      return;
+    }
+    if (this._pinActivo) this.dejarDeSeguirPin();
+  },
+
+  _mostrarControlesPin(modo) {
+    const ctrl = document.getElementById('chat-pin-controles');
+    const txt = document.getElementById('chat-pin-texto');
+    const btnOk = document.getElementById('btn-chat-pin-confirmar');
+    if (!ctrl) return;
+    if (modo === 'colocar') {
+      ctrl.classList.remove('oculto');
+      if (txt) txt.textContent = 'Arrastra el pin 📍 en el mapa y confirma';
+      btnOk?.classList.remove('oculto');
+    } else if (modo === 'seguir') {
+      ctrl.classList.remove('oculto');
+      if (txt) txt.textContent = 'Sigue la línea azul hasta el pin';
+      btnOk?.classList.add('oculto');
+    } else {
+      ctrl.classList.add('oculto');
+      btnOk?.classList.remove('oculto');
+    }
   },
 
   _limpiarColocacionPin() {
@@ -608,7 +630,7 @@ const Chat = {
       this._colocandoPin.marcador.remove();
     }
     this._colocandoPin = null;
-    document.getElementById('chat-pin-controles')?.classList.add('oculto');
+    this._mostrarControlesPin(null);
   },
 
   _latLngAPorcentaje(lat, lng) {
@@ -642,6 +664,7 @@ const Chat = {
     }
     this._activarPinMapa(key);
     this.cerrarPanel();
+    this._mostrarControlesPin('seguir');
     Notificaciones.mostrar('📍 Sigue la línea azul hasta el pin', 'exito', 3500);
   },
 
@@ -654,25 +677,30 @@ const Chat = {
     const pin = this._pinsMapa[key];
     if (pin) pin.marcador.setIcon(this._iconoPinMapa(true));
     this._actualizarLineaPin();
+    this._mostrarControlesPin('seguir');
     this._pintarLetreroPin();
+  },
+
+  _quitarPinMapa(key) {
+    if (!key || !this._pinsMapa[key]) return;
+    const pin = this._pinsMapa[key];
+    if (pin.marcador) pin.marcador.remove();
+    delete this._pinsMapa[key];
+    if (this._pinActivo === key) this._pinActivo = null;
   },
 
   dejarDeSeguirPin(opciones) {
     const silencioso = opciones && opciones.silencioso;
     const pinKey = this._pinActivo;
     const pin = pinKey ? this._pinsMapa[pinKey] : null;
-    this._pinActivo = null;
+    const etiqueta = pin?.etiqueta || 'ubicación';
+    if (pinKey) this._quitarPinMapa(pinKey);
     this._actualizarLineaPin();
-    if (pin) {
-      pin.marcador.setIcon(this._iconoPinMapa(false));
-      if (!silencioso) {
-        Notificaciones.mostrar(
-          '📍 Dejaste de seguir el pin de ' + (pin.etiqueta || 'ubicación') + '. El pin sigue en el mapa.',
-          'info', 4500
-        );
-      }
-    }
+    this._mostrarControlesPin(null);
     this._pintarLetreroPin();
+    if (!silencioso) {
+      Notificaciones.mostrar('📍 Pin de ' + etiqueta + ' quitado del mapa.', 'info', 3500);
+    }
   },
 
   _pintarLetreroPin() {
@@ -696,7 +724,7 @@ const Chat = {
         '<div class="datos-letrero">' +
           '<div class="titulo-letrero">📍 Pin de ' + this._esc(pin.etiqueta) + ' ➜</div>' +
           distTxt +
-          '<div class="estado-letrero">Toca ✕ para dejar de seguir</div>' +
+          '<div class="estado-letrero">Toca ✕ o Cancelar para quitar el pin</div>' +
         '</div>' +
         '<button type="button" class="btn-letrero-pin" data-dejar-pin title="Dejar de seguir">✕</button>' +
       '</div>';
