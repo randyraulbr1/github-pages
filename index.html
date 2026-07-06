@@ -10,14 +10,14 @@
   <link rel="apple-touch-icon" href="iconos/icono-192.png">
   <link rel="stylesheet" href="lib/leaflet/leaflet.css">
   <link rel="stylesheet" href="css/estilos.css">
-  <link rel="stylesheet" href="css/chat.css?v=115">
+  <link rel="stylesheet" href="css/chat.css?v=120">
   <link rel="stylesheet" href="css/amigos.css">
   <link rel="stylesheet" href="css/opciones.css?v=116">
   <link rel="stylesheet" href="css/notificaciones.css?v=117">
   <script>
     // Aviso temprano en móvil (antes de cargar 20+ archivos JS)
     (function () {
-      var V = '118';
+      var V = '120';
       var texto = document.getElementById('carga-texto');
       if (texto) texto.textContent = 'Conectando…';
       var prev = localStorage.getItem('mariel_app_version');
@@ -123,7 +123,7 @@
         <span class="icono-amigos-blanco" aria-hidden="true">👥</span><span id="badge-amigos" class="badge-avisos oculto">0</span>
       </button>
       <button id="btn-notific" class="btn-hud-accion btn-hud-mini" type="button" title="Avisos">
-        🔔<span id="badge-avisos" class="badge-avisos oculto">●</span>
+        🔔<span id="badge-avisos" class="badge-avisos oculto"></span>
       </button>
     </div>
     <div id="letrero-misiones" class="oculto"></div>
@@ -880,7 +880,7 @@
   <script src="js/config/config.js?v=104"></script>
   <script src="js/nucleo/utilidades.js?v=104"></script>
   <script src="js/mundo/mundo_publico.js?v=104"></script>
-  <script src="js/notificaciones/notificaciones.js?v=117"></script>
+  <script src="js/notificaciones/notificaciones.js?v=120"></script>
   <script src="js/usuarios/usuarios.js?v=104"></script>
   <script src="js/guardado/guardado.js?v=104"></script>
   <script src="js/historial/historial.js?v=104"></script>
@@ -899,9 +899,9 @@
   <script src="js/misiones/misiones.js?v=104"></script>
   <script src="js/cofres/cofres.js?v=104"></script>
   <script src="js/correo/correo.js?v=104"></script>
-  <script src="js/enemigos/enemigos.js?v=118"></script>
+  <script src="js/enemigos/enemigos.js?v=120"></script>
   <script src="js/online/sync_servidor.js?v=104"></script>
-  <script src="js/admin/admin.js?v=118"></script>
+  <script src="js/admin/admin.js?v=120"></script>
   <script src="js/opciones/opciones.js?v=116"></script>
   <script src="js/online/mundo_online.js?v=104"></script>
   <script src="js/online/amigos.js?v=107"></script>
@@ -912,7 +912,7 @@
     // Registrar la app instalable (PWA)
     if ('serviceWorker' in navigator) {
       const yaTeniaVersion = !!navigator.serviceWorker.controller;
-      navigator.serviceWorker.register('sw.js?v=118', { updateViaCache: 'none' })
+      navigator.serviceWorker.register('sw.js?v=120', { updateViaCache: 'none' })
         .then(function (reg) { reg.update(); })
         .catch(function () {});
       // Cuando llega una versión nueva del juego: avisar y recargar solo

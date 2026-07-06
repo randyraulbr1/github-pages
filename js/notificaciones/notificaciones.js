@@ -5,6 +5,9 @@
 // ============================================================
 const Notificaciones = {
   _toastTimer: null,
+  _toastOcultarTimer: null,
+  _toastEl: null,
+  _toastPila: 0,
 
   _esImportante(texto, tipo) {
     if (tipo === 'admin' || tipo === 'error') return true;
@@ -62,24 +65,50 @@ const Notificaciones = {
   _mostrarToast(texto, tipo, duracionMs) {
     const zona = document.getElementById('zona-notificaciones');
     if (!zona) return;
-    const n = document.createElement('div');
-    n.className = 'notificacion ' + tipo;
-    n.textContent = texto;
-    zona.appendChild(n);
 
-    requestAnimationFrame(() => requestAnimationFrame(() => n.classList.add('visible')));
+    if (this._toastEl && zona.contains(this._toastEl)) {
+      this._toastPila++;
+      const txt = this._toastEl.querySelector('.notif-texto');
+      const pila = this._toastEl.querySelector('.notif-pila');
+      if (txt) txt.textContent = texto;
+      if (pila) {
+        pila.textContent = Utilidades.contadorBadge(this._toastPila);
+        pila.classList.toggle('oculto', this._toastPila <= 1);
+      }
+      this._toastEl.className = 'notificacion visible ' + tipo;
+    } else {
+      zona.querySelectorAll('.notificacion').forEach(n => n.remove());
+      this._toastPila = 1;
+      const n = document.createElement('div');
+      n.className = 'notificacion ' + tipo;
+      n.innerHTML =
+        '<span class="notif-texto"></span>' +
+        '<span class="notif-pila oculto">1</span>';
+      n.querySelector('.notif-texto').textContent = texto;
+      zona.appendChild(n);
+      this._toastEl = n;
+      requestAnimationFrame(() => requestAnimationFrame(() => n.classList.add('visible')));
+    }
 
-    setTimeout(() => {
-      n.classList.add('saliendo');
-      setTimeout(() => n.remove(), 400);
-    }, duracionMs);
+    clearTimeout(this._toastOcultarTimer);
+    this._toastOcultarTimer = setTimeout(() => this._ocultarToast(), duracionMs);
+  },
+
+  _ocultarToast() {
+    if (!this._toastEl) return;
+    const el = this._toastEl;
+    el.classList.add('saliendo');
+    this._toastEl = null;
+    this._toastPila = 0;
+    setTimeout(() => el.remove(), 400);
   },
 
   _actualizarBadge() {
     const badge = document.getElementById('badge-avisos');
     if (!badge || !Guardado.datos) return;
-    const sinLeer = (Guardado.datos.notificaciones || []).some(n => !n.leido);
-    badge.classList.toggle('oculto', !sinLeer);
+    const sinLeer = (Guardado.datos.notificaciones || []).filter(n => !n.leido).length;
+    badge.textContent = Utilidades.contadorBadge(sinLeer);
+    badge.classList.toggle('oculto', sinLeer <= 0);
   },
 
   mostrarAdmin(texto, duracionMs) {
