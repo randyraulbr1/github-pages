@@ -15,7 +15,7 @@
   <script>
     // Aviso temprano en móvil (antes de cargar 20+ archivos JS)
     (function () {
-      var V = '110';
+      var V = '111';
       var texto = document.getElementById('carga-texto');
       if (texto) texto.textContent = 'Conectando…';
       var prev = localStorage.getItem('mariel_app_version');
@@ -264,34 +264,39 @@
   <div id="amigos-toast" class="oculto" aria-live="polite"></div>
 
   <!-- ============ CHAT JUGADORES ============ -->
-  <section class="chat-panel" id="chatPanel">
+  <section class="chat-panel" id="chatPanel" aria-label="Chat de jugadores">
     <div class="chat-header">
       <div class="header-left">
-        <button type="button" class="back-btn" id="backBtnChat">‹</button>
+        <button type="button" class="back-btn" id="backBtnChat" aria-label="Volver">‹</button>
         <div class="chat-title">
           <strong id="headerTitleChat">💬 Chats</strong>
-          <small id="chatSub">Jugadores en línea</small>
+          <small id="chatSub">Selecciona un jugador</small>
         </div>
       </div>
-      <button type="button" class="close-chat" id="closeChat">×</button>
+      <button type="button" class="close-chat" id="closeChat" aria-label="Cerrar">✕</button>
     </div>
+
     <div class="chat-view chat-list show" id="chatList"></div>
+
     <div class="chat-view" id="chatView">
       <div class="messages" id="messagesChat"></div>
-      <div class="chat-actions">
-        <button type="button" class="chat-btn" id="emojiBtnChat">😀</button>
-        <button type="button" class="chat-btn" id="locationBtnChat">📍</button>
-        <button type="button" class="chat-btn" id="friendBtnChat" title="Agregar amigo">＋</button>
+      <div class="chat-status-line" id="chatStatusLine">Listo</div>
+
+      <div class="chat-tools">
+        <button type="button" class="chat-icon-btn" id="emojiBtnChat" title="Emojis">😀</button>
+        <button type="button" class="chat-icon-btn" id="locationBtnChat" title="Enviar ubicación">📍</button>
+        <button type="button" class="chat-icon-btn chat-friend-btn" id="friendBtnChat" title="Agregar amigo">👥</button>
       </div>
+
       <div class="emoji-panel" id="emojiPanelChat">
         <button type="button" class="emoji">😀</button><button type="button" class="emoji">😂</button><button type="button" class="emoji">🔥</button><button type="button" class="emoji">❤️</button>
-        <button type="button" class="emoji">👍</button><button type="button" class="emoji">👎</button><button type="button" class="emoji">😡</button><button type="button" class="emoji">😎</button>
-        <button type="button" class="emoji">⚔️</button><button type="button" class="emoji">🛡️</button><button type="button" class="emoji">💰</button><button type="button" class="emoji">🎒</button>
-        <button type="button" class="emoji">📍</button><button type="button" class="emoji">🏃</button><button type="button" class="emoji">☠️</button><button type="button" class="emoji">✅</button>
+        <button type="button" class="emoji">👍</button><button type="button" class="emoji">😎</button><button type="button" class="emoji">⚔️</button><button type="button" class="emoji">📍</button>
+        <button type="button" class="emoji">👎</button><button type="button" class="emoji">😡</button><button type="button" class="emoji">🛡️</button><button type="button" class="emoji">✅</button>
       </div>
+
       <div class="chat-input-area">
-        <textarea class="chat-input" id="chatInput" rows="1" placeholder="Escribe un mensaje..."></textarea>
-        <button type="button" class="send-btn" id="sendBtnChat">➤</button>
+        <textarea class="chat-input" id="chatInput" rows="1" placeholder="Escribe mensaje..." autocomplete="off"></textarea>
+        <button type="button" class="send-btn" id="sendBtnChat" title="Enviar" aria-label="Enviar">➤</button>
       </div>
     </div>
   </section>
@@ -852,7 +857,7 @@
   <script src="js/opciones/opciones.js?v=104"></script>
   <script src="js/online/mundo_online.js?v=104"></script>
   <script src="js/online/amigos.js?v=107"></script>
-  <script src="js/chat/chat.js?v=104"></script>
+  <script src="js/chat/chat.js?v=111"></script>
   <script src="js/online/multijugador.js?v=104"></script>
   <script src="js/principal.js?v=104"></script>
   <script>

@@ -70,8 +70,8 @@ const Chat = {
       }
     });
     input?.addEventListener('input', () => {
-      input.style.height = '42px';
-      input.style.height = Math.min(input.scrollHeight, 84) + 'px';
+      input.style.height = '44px';
+      input.style.height = Math.min(input.scrollHeight, 88) + 'px';
     });
 
     document.querySelectorAll('#emojiPanelChat .emoji').forEach(btn => {
@@ -227,6 +227,8 @@ const Chat = {
     if (this.activePlayer === other) {
       this.renderMessages();
       this._marcarLeido(other);
+      const nombre = msg.fromName || 'Jugador';
+      this._estadoLinea(nombre + ' escribió');
     }
     this.renderChatList();
     this._actualizarBadge();
@@ -252,7 +254,11 @@ const Chat = {
         cambio = true;
       }
     }
-    if (cambio && this.activePlayer === other) this.renderMessages();
+    if (cambio && this.activePlayer === other) {
+      this.renderMessages();
+      const jug = this._jugadoresDisponibles().find(j => j.id === other);
+      this._estadoLinea('Leído por ' + (jug?.name || 'jugador'));
+    }
   },
 
   async _marcarLeido(otherId) {
@@ -277,14 +283,42 @@ const Chat = {
     } catch (e) { /* sin red */ }
   },
 
+  _estadoLinea(texto) {
+    const el = document.getElementById('chatStatusLine');
+    if (!el) return;
+    if (!texto) {
+      el.textContent = '';
+      el.style.display = 'none';
+      return;
+    }
+    el.style.display = 'flex';
+    el.textContent = texto;
+  },
+
+  _avatarEmoji(nombre) {
+    const n = (nombre || '?').trim();
+    const emojis = ['🧔','🥷','🧢','👤','🎮','⚔️','🛡️','🏃'];
+    let h = 0;
+    for (let i = 0; i < n.length; i++) h = (h + n.charCodeAt(i)) % emojis.length;
+    return emojis[h];
+  },
+
+  _checksHtml(msg) {
+    if (msg.from !== 'me') return '';
+    if (msg.readAt) return '<span class="checks read">✓✓ leído</span>';
+    return '<span class="checks sent">✓</span>';
+  },
+
   showList() {
     this.activePlayer = null;
     document.getElementById('chatView')?.classList.remove('show');
     document.getElementById('chatList')?.classList.add('show');
     document.getElementById('backBtnChat')?.classList.remove('show');
     document.getElementById('headerTitleChat').textContent = '💬 Chats';
-    document.getElementById('chatSub') && (document.getElementById('chatSub').textContent = 'Jugadores en línea');
+    const sub = document.getElementById('chatSub');
+    if (sub) sub.textContent = 'Selecciona un jugador';
     document.getElementById('emojiPanelChat')?.classList.remove('show');
+    this._estadoLinea('');
     this.renderChatList();
   },
 
@@ -298,13 +332,14 @@ const Chat = {
     const jug = this._jugadoresDisponibles().find(j => j.id === this.activePlayer);
     document.getElementById('headerTitleChat').textContent = jug?.name || ('Jugador ' + this.activePlayer);
     const sub = document.getElementById('chatSub');
-    if (sub) sub.textContent = jug?.online ? '🟢 En línea' : '⚫ Desconectado';
+    if (sub) sub.textContent = jug?.online ? '🟢 En línea' : '⚪ Desconectado';
 
     await this._cargarHistorial(this.activePlayer);
     this.updateFriendButton();
     this.renderMessages();
     this._marcarLeido(this.activePlayer);
     this._actualizarBadge();
+    this._estadoLinea('Listo');
 
     const panel = document.getElementById('chatPanel');
     if (panel && !panel.classList.contains('show')) {
@@ -351,7 +386,7 @@ const Chat = {
       row.type = 'button';
       row.className = 'chat-row';
       row.innerHTML =
-        '<div class="avatar ' + (j.online ? 'online' : '') + '">🧍</div>' +
+        '<div class="avatar ' + (j.online ? 'online' : '') + '">' + this._avatarEmoji(j.name) + '</div>' +
         '<div class="chat-row-info">' +
           '<div class="chat-row-name">' + this._esc(j.name) +
             (j.friend ? ' <span class="friend-mark">★</span>' : '') +
@@ -370,54 +405,51 @@ const Chat = {
   _ultimoMensaje(playerId) {
     const list = this.chats[playerId] || [];
     const last = list[list.length - 1];
-    if (!last) return { text: 'Sin mensajes todavía', time: '' };
-    const text = last.type === 'location' ? '📍 Ubicación enviada' : last.text;
+    if (!last) return { text: 'Sin mensajes', time: '' };
+    const prefijo = last.from === 'me' ? 'Tú: ' : '';
+    const text = last.type === 'location' ? '📍 Ubicación enviada' : (prefijo + (last.text || ''));
     return { text, time: this._timeAgo(last.createdAt) };
-  },
-
-  _textoLectura(msg) {
-    if (msg.from !== 'me') return '';
-    if (msg.readAt) return '<span class="msg-leido" title="Leído">✓✓ Leído</span>';
-    return '<span class="msg-enviado" title="Enviado">✓</span>';
   },
 
   renderMessages() {
     const cont = document.getElementById('messagesChat');
     if (!cont || !this.activePlayer) return;
     const list = this.chats[this.activePlayer] || [];
+    const jug = this._jugadoresDisponibles().find(j => j.id === this.activePlayer);
     cont.innerHTML = '';
 
     if (!list.length) {
       cont.innerHTML =
-        '<div class="message other">' +
-          '<div class="message-name">Sistema</div>' +
-          '<div class="message-text">No hay mensajes todavía. Escribe o manda una ubicación 📍</div>' +
+        '<div class="msg system">' +
+          '<div class="msg-name">Sistema</div>' +
+          '<div class="msg-text">No hay mensajes todavía. Escribe o manda una ubicación 📍</div>' +
         '</div>';
       return;
     }
 
     list.forEach((msg, index) => {
       const div = document.createElement('div');
-      div.className = 'message ' + msg.from;
+      const clase = msg.from === 'system' ? 'system' : (msg.from === 'me' ? 'me' : 'other');
+      div.className = 'msg ' + clase;
+      const nombre = msg.from === 'me' ? 'Tú' : this._esc(msg.name || jug?.name || 'Jugador');
       let html =
-        '<div class="message-name">' + this._esc(msg.name) + '</div>' +
-        '<div class="message-text">' + this._esc(msg.text) + '</div>';
+        '<div class="msg-name">' + nombre + '</div>' +
+        '<div class="msg-text">' + this._esc(msg.text) + '</div>';
 
       if (msg.type === 'location' && msg.location) {
         const pct = this._latLngAPorcentaje(msg.location.lat, msg.location.lng);
         html +=
-          '<div class="location-card">' +
-            '<div class="location-map" style="--px:' + pct.x + '%; --py:' + pct.y + '%;"></div>' +
-            '<div class="location-info">📍 Pin de ' + this._esc(msg.location.playerId || ('JG-' + msg.fromPlayerId)) +
-              ' · ' + msg.location.lat.toFixed(5) + ', ' + msg.location.lng.toFixed(5) +
+          '<div class="pin-card">' +
+            '<div class="pin-map" style="--px:' + pct.x + '%; --py:' + pct.y + '%;"></div>' +
+            '<div class="pin-text">📍 Ubicación · ' + msg.location.lat.toFixed(5) + ', ' + msg.location.lng.toFixed(5) +
             '</div>' +
             '<button type="button" class="pin-open-btn" data-index="' + index + '">Abrir pin en el mapa</button>' +
           '</div>';
       }
 
-      html += '<div class="message-meta">' +
-        '<span class="message-time">' + this._timeAgo(msg.createdAt) + '</span>' +
-        this._textoLectura(msg) +
+      html += '<div class="msg-bottom">' +
+        '<span>' + this._timeAgo(msg.createdAt) + '</span>' +
+        this._checksHtml(msg) +
       '</div>';
       div.innerHTML = html;
       cont.appendChild(div);
@@ -440,9 +472,11 @@ const Chat = {
 
     if (input) {
       input.value = '';
-      input.style.height = '42px';
+      input.style.height = '44px';
     }
     document.getElementById('emojiPanelChat')?.classList.remove('show');
+    const jug = this._jugadoresDisponibles().find(j => j.id === this.activePlayer);
+    this._estadoLinea('Enviado a ' + (jug?.name || 'jugador'));
     this.renderMessages();
     this.renderChatList();
   },
@@ -492,15 +526,17 @@ const Chat = {
     }
     Amigos.solicitar(this.activePlayer);
     this.updateFriendButton();
+    const jug = this._jugadoresDisponibles().find(j => j.id === this.activePlayer);
+    this._estadoLinea('Solicitud de amistad enviada a ' + (jug?.name || 'jugador'));
   },
 
   updateFriendButton() {
     const btn = document.getElementById('friendBtnChat');
     if (!btn || !this.activePlayer) return;
     const esAmigo = typeof Amigos !== 'undefined' && Amigos.esAmigo(this.activePlayer);
-    btn.textContent = esAmigo ? '✓' : '＋';
+    btn.textContent = esAmigo ? '✓' : '👥';
     btn.classList.toggle('friend-added', esAmigo);
-    btn.title = esAmigo ? 'Amigo agregado' : 'Agregar amigo';
+    btn.title = esAmigo ? 'Ya es amigo' : 'Agregar amigo';
   },
 
   openMapToSend() {
