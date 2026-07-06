@@ -45,6 +45,9 @@ const Enemigos = {
   },
 
   _nivelEnemigo(e) {
+    if (typeof Vida !== 'undefined' && !Vida.estaMuerto()) {
+      return Math.max(1, Math.min(CONFIG.nivelMaximo, Vida.nivel));
+    }
     return Math.max(1, Math.min(CONFIG.nivelMaximo, e.nivel || 1));
   },
 

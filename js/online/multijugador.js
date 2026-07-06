@@ -360,11 +360,11 @@ const Multijugador = {
       Notificaciones.mostrar('🩹 Necesitas un botiquín en la mochila ($300 en la farmacia)', 'alerta', 4500);
       return;
     }
-    const cura = (typeof Items !== 'undefined' && Items.obtener('botiquin')?.curaVida) || 55;
+    const cura = CONFIG.vidaAlRevivir || 40;
     const hpMax = typeof Vida !== 'undefined' ? Vida.vidaMaxima() : 100;
     this.socket.emit('player:revive', {
       targetPlayerId: p.playerId,
-      curaVida: cura,
+      reviveHp: cura,
       hpMax
     }, (res) => {
       if (res?.ok) {
@@ -486,7 +486,7 @@ const Multijugador = {
       m = L.marker([pos.x, pos.y], {
         icon,
         interactive: true,
-        zIndexOffset: muerto ? 880 : 900
+        zIndexOffset: muerto ? 9999 : 900
       }).addTo(Mapa.mapa);
       if (muerto) {
         m.on('click', () => this.revivirJugador(p));

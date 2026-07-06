@@ -251,7 +251,7 @@ function setupSockets(io) {
       }
 
       const hpMax = Math.max(1, Math.round(payload?.hpMax || targetOnline?.hpMax || 100));
-      const cura = Math.max(1, Math.min(hpMax, Math.round(payload?.curaVida || 55)));
+      const cura = Math.max(1, Math.min(hpMax, Math.round(payload?.reviveHp || 40)));
       updatePlayer(targetId, { hp: cura });
       if (targetOnline) {
         targetOnline.hp = cura;

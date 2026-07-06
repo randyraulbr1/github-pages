@@ -823,7 +823,7 @@ const Admin = {
       return;
     }
 
-    partida.vida = this._vidaMaximaJugador(partida);
+    partida.vida = CONFIG.vidaAlRevivir || 40;
     partida.muerto = false;
     if (partida.hambre == null || partida.hambre < CONFIG.hambreInicial) {
       partida.hambre = CONFIG.hambreInicial;

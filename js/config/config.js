@@ -3,7 +3,7 @@
 // ============================================================
 const CONFIG = {
   // Cambiar al publicar: obliga al móvil a descartar caché vieja
-  version: '67',
+  version: '68',
   maxPila: 10,
 
   // Nombre reservado del administrador (solo este jugador ve el panel admin)
@@ -39,6 +39,7 @@ const CONFIG = {
   // Distancias (en metros)
   distanciaInteraccion: 20,      // distancia para poder tocar tiendas, pesca, etc.
   distanciaVerMuerto: 50,        // ver pin ⚰️ de jugador muerto y revivir con botiquín
+  vidaAlRevivir: 40,             // vida al ser revivido (amigo o admin)
   distanciaDetectorTesoro: 150,  // el buscador de tesoros empieza a avisar
   distanciaVerTesoro: 10,
 

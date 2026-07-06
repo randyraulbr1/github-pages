@@ -1149,6 +1149,7 @@ body.sesion-cerrada .ventana { display: none !important; }
   display: flex; flex-direction: column; align-items: center;
   pointer-events: auto; cursor: pointer;
   filter: drop-shadow(0 2px 5px rgba(0,0,0,.45));
+  position: relative; z-index: 99999;
 }
 .mjm-etiqueta {
   font-size: 10px; font-weight: 700; color: #ff6b6b;

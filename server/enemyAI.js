@@ -62,6 +62,7 @@ function startEnemyAI(io, onlinePlayers) {
       let closestDist = Infinity;
 
       for (const p of players) {
+        if (p.dead || (p.hp != null && p.hp <= 0)) continue;
         const d = distanceMeters(obj.x, obj.y, p.x, p.y);
         if (d <= data.radioZona && d < closestDist) {
           closestDist = d;
@@ -88,16 +89,31 @@ function startEnemyAI(io, onlinePlayers) {
             lastAttack.set(obj.id, now);
             const pl = findPlayerById(closest.playerId);
             if (pl) {
-              const dmg = data.danoMin + Math.floor(Math.random() * (Math.max(1, data.danoMax - data.danoMin + 1)));
+              const nv = Math.max(1, pl.level || 1);
+              const factor = 1 + (nv - 1) * 0.06;
+              const lo = Math.round(data.danoMin * factor);
+              const hi = Math.round(data.danoMax * factor);
+              const dmg = lo + Math.floor(Math.random() * (Math.max(1, hi - lo + 1)));
               const newHp = Math.max(0, pl.hp - dmg);
               updatePlayer(closest.playerId, { hp: newHp });
               const online = onlinePlayers.get(closest.playerId);
-              if (online) online.hp = newHp;
+              if (online) {
+                online.hp = newHp;
+                if (newHp <= 0) {
+                  online.dead = true;
+                  online.deathX = online.x;
+                  online.deathY = online.y;
+                }
+              }
 
               io.emit('player:updateStats', {
                 playerId: closest.playerId,
                 hp: newHp,
-                level: pl.level
+                hpMax: online?.hpMax || 100,
+                level: pl.level,
+                dead: newHp <= 0,
+                deathX: newHp <= 0 ? online?.deathX : null,
+                deathY: newHp <= 0 ? online?.deathY : null
               });
 
               const targetSocket = io.sockets.sockets.get(closest.socketId);
