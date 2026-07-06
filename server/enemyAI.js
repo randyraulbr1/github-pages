@@ -92,9 +92,11 @@ function startEnemyAI(io, onlinePlayers) {
       const data = parseEnemyData(obj);
       if (data.hp <= 0) continue;
 
+      const zoneLat = data.origenX;
+      const zoneLon = data.origenY;
       const inZone = players.filter(p => {
         if (p.dead || (p.hp != null && p.hp <= 0)) return false;
-        return distanceMeters(obj.x, obj.y, p.x, p.y) <= data.radioZona;
+        return distanceMeters(zoneLat, zoneLon, p.x, p.y) <= data.radioZona;
       });
 
       const target = pickTarget(obj.id, obj, inZone);
@@ -120,7 +122,7 @@ function startEnemyAI(io, onlinePlayers) {
           distanceMeters(obj.x, obj.y, p.x, p.y) <= data.radioAtaque
         );
 
-        if (inAttack.length && closestDist <= data.radioAtaque) {
+        if (inAttack.length) {
           const now = Date.now();
           const prev = lastAttack.get(obj.id) || 0;
           if (now - prev >= ATTACK_COOLDOWN_MS) {
@@ -176,7 +178,8 @@ function startEnemyAI(io, onlinePlayers) {
         const dx = data.origenX - obj.x;
         const dy = data.origenY - obj.y;
         const distDeg = Math.sqrt(dx * dx + dy * dy);
-        if (distDeg > 0.00001) {
+        const distOrigenM = distanceMeters(obj.x, obj.y, data.origenX, data.origenY);
+        if (distDeg > 0.00001 && distOrigenM > 2) {
           newX = obj.x + (dx / distDeg) * ENEMY_STEP;
           newY = obj.y + (dy / distDeg) * ENEMY_STEP;
         }

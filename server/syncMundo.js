@@ -335,13 +335,23 @@ function upsertWorldObject(origenId, type, x, y, data, io, silent) {
   const existing = findObjectByOrigenId(origenId);
   let row;
   if (existing) {
-    row = updateWorldObject(existing.id, {
+    const campos = {
       type,
-      x: Number(x),
-      y: Number(y),
       state: 'active',
       data_json: JSON.stringify(payload)
-    });
+    };
+    // La IA mueve enemigos en vivo — no resetear x/y al sincronizar mundo.json
+    if (type !== 'enemy') {
+      campos.x = Number(x);
+      campos.y = Number(y);
+    } else {
+      let prev = {};
+      try { prev = JSON.parse(existing.data_json || '{}'); } catch (e) { prev = {}; }
+      if (payload.origenX == null && prev.origenX != null) payload.origenX = prev.origenX;
+      if (payload.origenY == null && prev.origenY != null) payload.origenY = prev.origenY;
+      campos.data_json = JSON.stringify(payload);
+    }
+    row = updateWorldObject(existing.id, campos);
   } else {
     row = createWorldObject({
       type,
