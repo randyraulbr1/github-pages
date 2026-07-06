@@ -88,18 +88,37 @@ const CUERPO_MS = 3600000;
 function limpiarCuerposExpirados(snapshot) {
   if (!snapshot.cuerposMuertos) {
     snapshot.cuerposMuertos = {};
-    return;
+    return false;
   }
   const now = Date.now();
+  let changed = false;
   for (const [k, c] of Object.entries(snapshot.cuerposMuertos)) {
-    if (!c.muertoAt || now - c.muertoAt > CUERPO_MS) delete snapshot.cuerposMuertos[k];
+    if (!c.muertoAt || now - c.muertoAt > CUERPO_MS) {
+      delete snapshot.cuerposMuertos[k];
+      changed = true;
+    }
   }
+  return changed;
 }
 
-function getCuerpoMuerto(playerId) {
+/** Borra ataúdes vencidos, guarda y avisa a todos los clientes. */
+function sincronizarCuerposExpirados(io) {
+  const snapshot = getWorldSnapshot();
+  if (!snapshot) return;
+  if (!limpiarCuerposExpirados(snapshot)) return;
+  snapshot.actualizadoEn = Date.now();
+  saveWorldSnapshot(snapshot);
+  if (io) io.emit('cuerpos:sync', { cuerpos: snapshot.cuerposMuertos || {} });
+}
+
+function getCuerpoMuerto(playerId, io) {
   const snapshot = getWorldSnapshot();
   if (!snapshot) return null;
-  limpiarCuerposExpirados(snapshot);
+  if (limpiarCuerposExpirados(snapshot)) {
+    snapshot.actualizadoEn = Date.now();
+    saveWorldSnapshot(snapshot);
+    if (io) io.emit('cuerpos:sync', { cuerpos: snapshot.cuerposMuertos || {} });
+  }
   return snapshot.cuerposMuertos?.[String(playerId)] || null;
 }
 
@@ -568,6 +587,7 @@ module.exports = {
   registrarCuerpoMuerto,
   quitarCuerpoMuerto,
   getCuerpoMuerto,
+  sincronizarCuerposExpirados,
   actualizarInventarioCuerpo,
   registrarLootMuerto,
   actualizarMochilaMuertoEnSnapshot,

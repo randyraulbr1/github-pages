@@ -1195,6 +1195,13 @@ button { font-family: inherit; }
   background: #bf5af2; box-shadow: 0 0 0 5px rgba(191,90,242,.35);
 }
 .popup-muerto { min-width: 160px; text-align: center; }
+.popup-muerto-expira { font-size: 11px; color: #ffd60a; margin: 4px 0 6px; }
+.popup-muerto-ayuda {
+  font-size: 10px; color: #9fb3ce; line-height: 1.35;
+  margin: 6px 0 8px; padding: 6px 8px; border-radius: 8px;
+  background: rgba(255,255,255,.05); text-align: left;
+}
+.popup-muerto-ayuda b { color: #dfe9f7; }
 .popup-muerto-nombre { font-weight: 800; font-size: 14px; margin-bottom: 2px; }
 .popup-muerto-nivel { font-size: 12px; color: #8e8e93; margin-bottom: 8px; }
 .popup-muerto-items { text-align: left; margin: 8px 0; max-height: 120px; overflow-y: auto; }

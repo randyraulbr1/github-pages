@@ -502,20 +502,18 @@ const Multijugador = {
     if (!this.socket || !this.activo) return;
     const tomar = Math.max(1, cantidad || 1);
     const datos = this._datosPopupMuerto(playerId);
+    const maxDist = CONFIG.distanciaVerMuerto || 50;
+    const d = this._distanciaCuerpo(datos);
+    if (d > maxDist) {
+      Notificaciones.mostrar('📍 Demasiado lejos para saquear (' + Math.round(d) + ' m). Máx. ' + maxDist + ' m', 'info', 3500);
+      return;
+    }
     const inv = (datos.deadInventory || []).map(x => ({ id: x.id, cantidad: x.cantidad || 1 }));
     const idx = inv.findIndex(x => x.id === itemId);
     if (idx < 0) {
       Notificaciones.mostrar('❌ Ese objeto ya no está en el cuerpo', 'alerta', 2500);
       this._refrescarPopupsMuertos(playerId);
       return;
-    }
-    inv[idx].cantidad -= tomar;
-    if (inv[idx].cantidad <= 0) inv.splice(idx, 1);
-    this._aplicarLootLocal(playerId, inv);
-    const fila = btn?.closest('.popup-muerto-item');
-    if (fila) {
-      fila.classList.add('popup-muerto-item-saqueado');
-      setTimeout(() => fila.remove(), 180);
     }
     if (btn) {
       btn.disabled = true;
@@ -538,15 +536,22 @@ const Multijugador = {
         btn.textContent = 'Saquear';
       }
       if (res?.ok) {
+        inv[idx].cantidad -= tomar;
+        if (inv[idx].cantidad <= 0) inv.splice(idx, 1);
+        this._aplicarLootLocal(playerId, inv);
+        const fila = btn?.closest('.popup-muerto-item');
+        if (fila) {
+          fila.classList.add('popup-muerto-item-saqueado');
+          setTimeout(() => fila.remove(), 180);
+        }
         if (typeof Mochila !== 'undefined' && res.item) {
           Mochila.agregar(res.item.id, res.item.cantidad, { silencioso: true });
         }
         Notificaciones.mostrar('🎒 Saqueaste del cuerpo', 'exito', 3000);
-        this._aplicarLootLocal(playerId, res.deadInventory);
-      } else {
-        this._aplicarLootLocal(playerId, datos.deadInventory || []);
         this._refrescarPopupsMuertos(playerId);
-        if (res?.error) Notificaciones.mostrar('❌ ' + res.error, 'error', 3500);
+      } else {
+        Notificaciones.mostrar('❌ ' + (res?.error || 'No se pudo saquear'), 'alerta', 3500);
+        this._refrescarPopupsMuertos(playerId);
       }
     });
   },
@@ -617,12 +622,46 @@ const Multijugador = {
     return (p.name || '?').replace(/</g, '');
   },
 
+  _cuerpoVigente(c) {
+    if (!c) return false;
+    const ms = (CONFIG.cuerpoMuertoHoras || 1) * 3600000;
+    if (!c.muertoAt) return true;
+    return Date.now() - c.muertoAt < ms;
+  },
+
+  _tiempoRestanteCuerpo(c) {
+    if (!c?.muertoAt) return '';
+    const ms = (CONFIG.cuerpoMuertoHoras || 1) * 3600000;
+    const rest = ms - (Date.now() - c.muertoAt);
+    if (rest <= 0) return 'expirado';
+    const mins = Math.ceil(rest / 60000);
+    if (mins < 60) return mins + ' min';
+    return Math.floor(mins / 60) + ' h ' + (mins % 60) + ' min';
+  },
+
+  _distanciaCuerpo(datos) {
+    if (!GPS.posicion || datos.deathX == null || datos.deathY == null) return Infinity;
+    return Utilidades.distanciaMetros(GPS.posicion, [datos.deathX, datos.deathY]);
+  },
+
   _popupMuertoHtml(p) {
     const nombre = (p.name || 'Jugador').replace(/</g, '');
     const nv = p.deadLevel || p.level || 1;
+    const datos = this._datosPopupMuerto(p.playerId);
+    const dist = this._distanciaCuerpo(datos);
+    const maxDist = CONFIG.distanciaVerMuerto || 50;
+    const cerca = dist <= maxDist;
+    const cuerpo = this.cuerpos[String(p.playerId)];
+    const restante = cuerpo ? this._tiempoRestanteCuerpo(cuerpo) : '';
     let html = '<div class="popup-muerto">';
     html += '<div class="popup-muerto-nombre">' + nombre + '</div>';
     html += '<div class="popup-muerto-nivel">Nv ' + nv + ' · 💀 Muerto</div>';
+    if (restante && restante !== 'expirado') {
+      html += '<div class="popup-muerto-expira">⏱️ Desaparece en ' + restante + '</div>';
+    }
+    html += '<div class="popup-muerto-ayuda">' +
+      (cerca ? '📍 Estás cerca (' + Math.round(dist) + ' m)' : '📍 Acércate a menos de ' + maxDist + ' m (ahora ' + Math.round(dist) + ' m)') +
+      '<br>🎒 Cualquier jugador puede <b>saquear</b>.<br>🩹 <b>Revivir</b> requiere botiquín en tu mochila.</div>';
     const items = p.deadInventory || [];
     if (items.length) {
       html += '<div class="popup-muerto-items">';
@@ -649,7 +688,11 @@ const Multijugador = {
   },
 
   _aplicarCuerpos(cuerpos) {
-    this.cuerpos = cuerpos || {};
+    const filtrados = {};
+    for (const [id, c] of Object.entries(cuerpos || {})) {
+      if (this._cuerpoVigente(c)) filtrados[id] = c;
+    }
+    this.cuerpos = filtrados;
     const miId = this._miPlayerId();
     const miCuerpo = miId > 0 ? this.cuerpos[String(miId)] : null;
     if (miCuerpo?.muertoAt && typeof Guardado !== 'undefined' && Guardado.datos) {
@@ -666,10 +709,12 @@ const Multijugador = {
       this.online.filter(p => this._estaMuerto(p)).map(p => String(p.playerId))
     );
     for (const id of Object.keys(this.cuerposMarcadores)) {
-      if (!this.cuerpos[id] || idsOnlineDead.has(id)) this._quitarMarcadorCuerpo(id);
+      if (!this.cuerpos[id] || !this._cuerpoVigente(this.cuerpos[id]) || idsOnlineDead.has(id)) {
+        this._quitarMarcadorCuerpo(id);
+      }
     }
     for (const [id, c] of Object.entries(this.cuerpos)) {
-      if (idsOnlineDead.has(id)) continue;
+      if (!this._cuerpoVigente(c) || idsOnlineDead.has(id)) continue;
       this._actualizarMarcadorCuerpo(c);
     }
     this._actualizarLineasAmigo();
@@ -762,10 +807,11 @@ const Multijugador = {
         L.DomEvent.disableClickPropagation(root);
         L.DomEvent.disableScrollPropagation(root);
       }
-      if (!root._muertoClickOk) {
-        root._muertoClickOk = true;
-        root.addEventListener('click', (ev) => this._manejarClickPopupMuerto(ev, m));
+      if (root._muertoClickFn) {
+        root.removeEventListener('click', root._muertoClickFn);
       }
+      root._muertoClickFn = (ev) => this._manejarClickPopupMuerto(ev, m);
+      root.addEventListener('click', root._muertoClickFn);
     });
   },
 

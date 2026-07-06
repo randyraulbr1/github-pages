@@ -24,7 +24,7 @@ const {
 } = require('./db');
 const { verifyToken, isGameAdminName } = require('./auth');
 const { startEnemyAI } = require('./enemyAI');
-const { registrarRecogidaObjeto, registrarRecogidaTesoro, registrarCuerpoMuerto, quitarCuerpoMuerto, getCuerpoMuerto, actualizarInventarioCuerpo, registrarLootMuerto, actualizarPartidaEnSnapshot, revivirPartidaEnSnapshot, buscarPerfilIdPorNombre } = require('./syncMundo');
+const { registrarRecogidaObjeto, registrarRecogidaTesoro, registrarCuerpoMuerto, quitarCuerpoMuerto, getCuerpoMuerto, sincronizarCuerposExpirados, actualizarInventarioCuerpo, registrarLootMuerto, actualizarPartidaEnSnapshot, revivirPartidaEnSnapshot, buscarPerfilIdPorNombre } = require('./syncMundo');
 
 /** playerId -> { socketId, playerId, name, x, y, hp, hpMax, level } */
 const onlinePlayers = new Map();
@@ -141,6 +141,8 @@ function setupSockets(io) {
       });
     }
   }, SYNC_INTERVAL_MS);
+
+  setInterval(() => sincronizarCuerposExpirados(io), 120000);
 
   io.on('connection', (socket) => {
     const player = findPlayerById(socket.playerId);
@@ -312,7 +314,7 @@ function setupSockets(io) {
       const targetId = parseInt(payload?.targetPlayerId, 10);
       const targetOnline = onlinePlayers.get(targetId);
       const targetDb = findPlayerById(targetId);
-      const cuerpo = getCuerpoMuerto(targetId);
+      const cuerpo = getCuerpoMuerto(targetId, io);
       if (!targetDb) return ack?.({ ok: false, error: 'Jugador no encontrado' });
 
       const isDead = targetOnline?.dead || targetDb.hp <= 0 || !!cuerpo;
@@ -360,7 +362,7 @@ function setupSockets(io) {
       const targetOnline = onlinePlayers.get(targetId);
       const targetDb = findPlayerById(targetId);
       const reviver = findPlayerById(socket.playerId);
-      const cuerpo = getCuerpoMuerto(targetId);
+      const cuerpo = getCuerpoMuerto(targetId, io);
       if (!targetDb || !reviver) return ack?.({ ok: false, error: 'Jugador no encontrado' });
 
       const isDead = targetOnline?.dead || targetDb.hp <= 0 || !!cuerpo;
@@ -465,7 +467,7 @@ function setupSockets(io) {
       const itemId = (payload?.itemId || '').trim();
       const cantidad = Math.max(1, parseInt(payload?.cantidad, 10) || 1);
       const targetOnline = onlinePlayers.get(targetId);
-      const cuerpo = getCuerpoMuerto(targetId);
+      const cuerpo = getCuerpoMuerto(targetId, io);
       const reviver = findPlayerById(socket.playerId);
       if (!reviver) return ack?.({ ok: false, error: 'Jugador no encontrado' });
 
