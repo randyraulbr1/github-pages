@@ -44,8 +44,9 @@ const Enemigos = {
   _sincronizarZonas(e) {
     const centro = this._centroZona(e);
     if (!centro) return;
-    if (this._zonas[e.id]) this._zonas[e.id].setLatLng(centro);
-    if (this._zonasAtaque[e.id]) this._zonasAtaque[e.id].setLatLng(centro);
+    const ll = L.latLng(centro[0], centro[1]);
+    if (this._zonas[e.id]) this._zonas[e.id].setLatLng(ll);
+    if (this._zonasAtaque[e.id]) this._zonasAtaque[e.id].setLatLng(ll);
   },
 
   iniciar() {
@@ -128,7 +129,8 @@ const Enemigos = {
   },
 
   _centroZona(e) {
-    return (e.posOrigen && e.posOrigen.length >= 2) ? e.posOrigen : e.pos;
+    if (e?.pos?.length >= 2) return e.pos;
+    return (e?.posOrigen?.length >= 2) ? e.posOrigen : null;
   },
 
   _rangoDanoNivel() {
@@ -408,7 +410,6 @@ const Enemigos = {
     if (typeof Admin !== 'undefined') {
       if (data?.origenX != null && data?.origenY != null) {
         e.posOrigen = [data.origenX, data.origenY];
-        this._sincronizarZonas(e);
       }
       if (data?.hp != null) {
         Admin.publicado.enemigosEstado = Admin.publicado.enemigosEstado || {};
@@ -420,9 +421,8 @@ const Enemigos = {
       }
       if (data?.facingDeg != null) {
         e.facingDeg = data.facingDeg;
-        const centro = this._centroZona(e);
-        if (centro && typeof GPS !== 'undefined' && GPS.posicion) {
-          e._enZona = Utilidades.distanciaMetros(GPS.posicion, centro) <= this._radioZona(e);
+        if (typeof GPS !== 'undefined' && GPS.posicion && e.pos?.length >= 2) {
+          e._enZona = Utilidades.distanciaMetros(GPS.posicion, e.pos) <= this._radioZona(e);
         }
       } else if (data?.targetPlayerId) {
         e._enZona = true;
@@ -456,6 +456,7 @@ const Enemigos = {
       m.setLatLng(e.pos);
       this._refrescarIconoMarcador(e);
     }
+    this._sincronizarZonas(e);
     this._actualizarBarra(e);
   },
 
@@ -480,11 +481,8 @@ const Enemigos = {
   },
 
   _alCambiarDistancia(e, dMarcador) {
-    const centro = this._centroZona(e);
-    const dZona = (centro && typeof GPS !== 'undefined' && GPS.posicion)
-      ? Utilidades.distanciaMetros(GPS.posicion, centro) : dMarcador;
-    this._actualizarVisibilidadZonas(e, dZona);
-    const enExterior = dZona <= this._radioExterior(e);
+    this._actualizarVisibilidadZonas(e, dMarcador);
+    const enExterior = dMarcador <= this._radioExterior(e);
     if (enExterior && !e._avisoZona) {
       e._avisoZona = true;
       Notificaciones.mostrar('⚠️ Zona de ' + (e.nombre || 'enemigo') + ' — ¡cuidado!', 'alerta', 3500);
@@ -515,6 +513,7 @@ const Enemigos = {
     m.setLatLng([nlat, nlng]);
     e.pos[0] = nlat;
     e.pos[1] = nlng;
+    this._sincronizarZonas(e);
     const pi = typeof Mapa !== 'undefined'
       ? Mapa.puntosInteractivos.find(x => x.id === e.id) : null;
     if (pi && pi.posicion) {
@@ -551,15 +550,13 @@ const Enemigos = {
       if (!this._marcadores[e.id]) continue;
       this._aplicarEstadoRemoto(e);
 
-      const centro = this._centroZona(e);
-      const dZona = Utilidades.distanciaMetros(GPS.posicion, centro);
-      const dEnemigo = Utilidades.distanciaMetros(GPS.posicion, e.pos);
+      const d = Utilidades.distanciaMetros(GPS.posicion, e.pos);
       const radioZona = this._radioZona(e);
       const radioAtaque = this._radioAtaque(e);
-      const enZona = dZona <= radioZona;
-      const enAtaque = dEnemigo <= radioAtaque;
+      const enZona = d <= radioZona;
+      const enAtaque = d <= radioAtaque;
       e._enZona = enZona;
-      this._actualizarVisibilidadZonas(e, dZona);
+      this._actualizarVisibilidadZonas(e, d);
 
       if (online) {
         if (this._interp[e.id]) this._aplicarInterp(e);
@@ -575,7 +572,7 @@ const Enemigos = {
         this._refrescarIconoMarcador(e);
       }
 
-      if (enZona && dEnemigo > 3) {
+      if (enZona && d > 3) {
         const m = this._marcadores[e.id];
         const ll = m.getLatLng();
         const t = enAtaque ? 0.18 : 0.12;

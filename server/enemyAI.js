@@ -92,11 +92,9 @@ function startEnemyAI(io, onlinePlayers) {
       const data = parseEnemyData(obj);
       if (data.hp <= 0) continue;
 
-      const zoneLat = data.origenX;
-      const zoneLon = data.origenY;
       const inZone = players.filter(p => {
         if (p.dead || (p.hp != null && p.hp <= 0)) return false;
-        return distanceMeters(zoneLat, zoneLon, p.x, p.y) <= data.radioZona;
+        return distanceMeters(obj.x, obj.y, p.x, p.y) <= data.radioZona;
       });
 
       const target = pickTarget(obj.id, obj, inZone);
