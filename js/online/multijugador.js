@@ -351,7 +351,6 @@ const Multijugador = {
     const firma = Admin._firmaMundo(json);
     if (ts <= this.mundoServidorTs && firma === Admin._ultimoFirmaPublicada) return false;
     this.mundoServidorTs = Math.max(this.mundoServidorTs, ts);
-    const json = JSON.stringify(m);
     Admin._crudoPublicado = json;
     Admin._ultimoFirmaPublicada = Admin._firmaMundo(json);
     Admin._aplicarMundoRemoto(json);
@@ -365,21 +364,29 @@ const Multijugador = {
     return true;
   },
 
-  async _pullMundoServidor() {
+  /** Descarga el mundo del servidor (no requiere socket activo). */
+  async obtenerMundoServidor() {
     const base = this.urlServidor();
     const token = localStorage.getItem(this.TOKEN_KEY);
-    if (!base || !token || !this.activo) return;
-    const ahora = Date.now();
-    if (ahora - this._ultimoPullMundo < 2500) return;
-    this._ultimoPullMundo = ahora;
+    if (!base || !token) return false;
     try {
       const r = await fetch(base + '/api/player/mundo', {
         headers: { Authorization: 'Bearer ' + token }
       });
       const data = await r.json().catch(() => ({}));
-      if (!data.ok || !data.mundo) return;
-      this._aplicarMundoServidor(data, false);
-    } catch (e) { /* servidor dormido */ }
+      if (!data.ok || !data.mundo) return false;
+      return this._aplicarMundoServidor(data, false);
+    } catch (e) {
+      return false;
+    }
+  },
+
+  async _pullMundoServidor() {
+    if (!this.activo) return;
+    const ahora = Date.now();
+    if (ahora - this._ultimoPullMundo < 2500) return;
+    this._ultimoPullMundo = ahora;
+    await this.obtenerMundoServidor();
   },
 
   recogerTesoroCompartido(tesoroId) {

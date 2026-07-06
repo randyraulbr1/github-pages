@@ -697,6 +697,15 @@ const Admin = {
 
   async _revisarActualizacion() {
     try {
+      if (CONFIG.servidorOnline && typeof Multijugador !== 'undefined' &&
+          localStorage.getItem(Multijugador.TOKEN_KEY)) {
+        await Multijugador.obtenerMundoServidor();
+        if (typeof Usuarios !== 'undefined') Usuarios.verificarSesionRemota();
+        if (typeof Guardado !== 'undefined' && Usuarios.perfilActivo) {
+          Guardado.sincronizarNube(true).catch(() => {});
+        }
+        return;
+      }
       const texto = await MundoPublico.descargar();
       if (!texto) return;
       if (this._crudoPublicado === null) { this._crudoPublicado = texto; return; }

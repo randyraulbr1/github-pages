@@ -16,7 +16,6 @@ const Enemigos = {
   _marcadores: {},
   _zonas: {},
   _zonasAtaque: {},
-  _barraVida: {},
   _enCombate: null,
   _tickId: null,
   _ultimoGolpeAuto: {},
@@ -166,25 +165,30 @@ const Enemigos = {
   _htmlMarcador(e) {
     const nv = this._nivelEnemigo(e);
     const letal = this._esLetal(e);
+    const max = e.vidaMax || e.vida || 50;
+    const actual = this._vidaActual(e);
+    const pct = Math.max(0, Math.min(100, (actual / max) * 100));
     const mostrarCono = e.facingDeg != null && e._enZona;
     const cono = mostrarCono
       ? '<div class="enemigo-cono-wrap" style="transform:rotate(' + e.facingDeg + 'deg)">' +
         '<div class="enemigo-cono"></div></div>' : '';
     const calavera = letal
-      ? '<span class="enemigo-calavera" title="Nv ' + nv + ' · 10× tu nivel">💀</span>' : '';
+      ? '<div class="enemigo-calavera" title="Nv ' + nv + ' · 10× tu nivel">💀</div>' : '';
     return '<div class="enemigo-pin' + (letal ? ' enemigo-letal' : '') + '">' +
       cono +
       calavera +
       '<div class="enemigo-etiqueta"><span class="enemigo-nivel">Nv ' + nv + '</span></div>' +
-      '<span class="enemigo-emoji">' + (e.icono || '👹') + '</span></div>';
+      '<span class="enemigo-emoji">' + (e.icono || '👹') + '</span>' +
+      '<div class="enemigo-barra-vida"><div class="enemigo-barra-relleno" style="width:' + pct + '%"></div></div>' +
+      '</div>';
   },
 
   _iconoMarcador(e) {
     return L.divIcon({
       className: '',
       html: this._htmlMarcador(e),
-      iconSize: [56, 54],
-      iconAnchor: [28, 46]
+      iconSize: [56, 62],
+      iconAnchor: [28, 54]
     });
   },
 
@@ -233,7 +237,6 @@ const Enemigos = {
       if (Mapa.mapa && Mapa.mapa.hasLayer(this._zonasAtaque[id])) Mapa.mapa.removeLayer(this._zonasAtaque[id]);
       delete this._zonasAtaque[id];
     }
-    if (this._barraVida[id]) { this._barraVida[id].remove(); delete this._barraVida[id]; }
     delete this._ultimoGolpeAuto[id];
   },
 
@@ -298,30 +301,7 @@ const Enemigos = {
   },
 
   _actualizarBarra(e) {
-    const max = e.vidaMax || e.vida || 50;
-    const actual = this._vidaActual(e);
-    const pct = Math.max(0, Math.min(100, (actual / max) * 100));
-    const m = this._marcadores[e.id];
-    if (!m) return;
-    let bar = this._barraVida[e.id];
-    const html = '<div class="enemigo-barra-vida"><div class="enemigo-barra-relleno" style="width:' + pct + '%"></div></div>';
-    if (!bar) {
-      bar = L.divIcon({
-        className: 'enemigo-barra-contenedor',
-        html: html,
-        iconSize: [52, 6],
-        iconAnchor: [26, 42]
-      });
-      this._barraVida[e.id] = L.marker(e.pos, { icon: bar, interactive: false, zIndexOffset: 500 }).addTo(Mapa.mapa);
-    } else {
-      bar.setIcon(L.divIcon({
-        className: 'enemigo-barra-contenedor',
-        html: html,
-        iconSize: [52, 6],
-        iconAnchor: [26, 42]
-      }));
-      bar.setLatLng(m.getLatLng());
-    }
+    this._refrescarIconoMarcador(e);
   },
 
   _alCambiarDistancia(e, d) {
@@ -342,7 +322,6 @@ const Enemigos = {
     e.pos[0] = nlat; e.pos[1] = nlng;
     if (this._zonas[e.id]) this._zonas[e.id].setLatLng([nlat, nlng]);
     if (this._zonasAtaque[e.id]) this._zonasAtaque[e.id].setLatLng([nlat, nlng]);
-    if (this._barraVida[e.id]) this._barraVida[e.id].setLatLng([nlat, nlng]);
   },
 
   _golpeAutomatico(e) {
