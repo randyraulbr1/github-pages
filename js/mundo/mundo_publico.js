@@ -159,11 +159,20 @@ const MundoPublico = {
     return [];
   },
 
-  mundoTieneContenido(m) {
+  /** Mundo válido para usar como fuente (mapa vacío tras borrar también cuenta). */
+  mundoEsValido(m) {
     if (!m || typeof m !== 'object') return false;
+    if (typeof m.actualizadoEn === 'number' && m.actualizadoEn > 0) return true;
+    if ((m.jugadores?.length || 0) > 0) return true;
+    if ((m.eliminados?.length || 0) > 0) return true;
     return (m.misiones?.length || 0) + (m.objetos?.length || 0) +
       (m.enemigos?.length || 0) + (m.tesoros?.length || 0) +
-      (m.tiendasAdmin?.length || 0) + Object.keys(m.posiciones || {}).length > 0;
+      (m.tiendasAdmin?.length || 0) + (m.cofres?.length || 0) +
+      Object.keys(m.posiciones || {}).length > 0;
+  },
+
+  mundoTieneContenido(m) {
+    return this.mundoEsValido(m);
   },
 
   async _descargarDesdeGitHub() {
@@ -179,7 +188,7 @@ const MundoPublico = {
         if (!r.ok) continue;
         const texto = await r.text();
         const m = JSON.parse(texto);
-        if (this.mundoTieneContenido(m)) {
+        if (this.mundoEsValido(m)) {
           return { texto, actualizadoEn: m.actualizadoEn || 0 };
         }
       } catch (e) { /* siguiente URL */ }
@@ -191,7 +200,7 @@ const MundoPublico = {
     if (!CONFIG.servidorOnline) return this._descargarDesdeGitHub();
     if (typeof SyncServidor !== 'undefined' && SyncServidor.obtenerMundo) {
       const data = await SyncServidor.obtenerMundo();
-      if (data?.mundo && this.mundoTieneContenido(data.mundo)) {
+      if (data?.mundo && typeof data.mundo === 'object') {
         return {
           texto: JSON.stringify(data.mundo),
           actualizadoEn: data.actualizadoEn || data.mundo.actualizadoEn || 0
@@ -202,7 +211,7 @@ const MundoPublico = {
       const base = CONFIG.servidorOnline.replace(/\/$/, '');
       const r = await Utilidades.fetchConTimeout(base + '/api/public/mundo', { cache: 'no-store' }, 8000);
       const data = await r.json().catch(() => ({}));
-      if (data.ok && data.mundo && this.mundoTieneContenido(data.mundo)) {
+      if (data.ok && data.mundo && typeof data.mundo === 'object') {
         return {
           texto: JSON.stringify(data.mundo),
           actualizadoEn: data.actualizadoEn || data.mundo.actualizadoEn || 0

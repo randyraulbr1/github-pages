@@ -2540,6 +2540,8 @@ const Admin = {
       this.datos.tiendasAdmin = (this.datos.tiendasAdmin || []).filter(x => x.id !== punto.id);
       if (!this.datos.eliminados.includes(punto.id)) this.datos.eliminados.push(punto.id);
     }
+    delete (this.datos.posiciones || {})[punto.id];
+    delete (this.publicado.posiciones || {})[punto.id];
     this.guardar();
     this._publicarParaTodos(true);
 
@@ -3950,7 +3952,21 @@ const Admin = {
       misiones: this._itemsConPosicion(this.misionesTodas()),
       tesoros: this._itemsConPosicion(this.tesorosTodos()),
       objetos: this._itemsConPosicion(this.objetosTodos()),
-      posiciones: Object.assign({}, this.publicado.posiciones, this.datos.posiciones),
+      posiciones: (() => {
+        const idsActivos = new Set();
+        for (const lista of [
+          this.misionesTodas(), this.tesorosTodos(), this.objetosTodos(),
+          this.enemigosTodos(), this.tiendasAdminTodas()
+        ]) {
+          for (const it of lista) if (it?.id) idsActivos.add(it.id);
+        }
+        const pos = Object.assign({}, this.publicado.posiciones, this.datos.posiciones);
+        const filtradas = {};
+        for (const [id, p] of Object.entries(pos)) {
+          if (idsActivos.has(id)) filtradas[id] = p;
+        }
+        return filtradas;
+      })(),
       eliminados: [...new Set([...this.publicado.eliminados, ...this.datos.eliminados])]
         .filter(id => !id.startsWith('admx_')),
       precios: Object.assign({}, this.publicado.precios, this.datos.precios),
