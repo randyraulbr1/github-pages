@@ -2042,6 +2042,19 @@ body.jugador-muerto #admin-controles { pointer-events: none; opacity: .35; }
 }
 .admin-pin-x.oculto { display: none !important; }
 .admin-pin-moviendo .admin-pin-x { display: none !important; }
+.leaflet-marker-icon.admin-pin-organizar:has(.enemigo-pin) .admin-pin-grip {
+  bottom: 4px;
+  left: 6px;
+  width: 32px;
+  height: 32px;
+  font-size: 17px;
+  z-index: 60;
+}
+.leaflet-marker-icon.admin-pin-organizar:has(.enemigo-pin) .admin-pin-x {
+  top: 2px;
+  right: 4px;
+  z-index: 60;
+}
 body.admin-organizar .leaflet-marker-icon {
   pointer-events: auto !important;
 }

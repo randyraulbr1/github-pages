@@ -320,17 +320,7 @@ const Admin = {
     }
     if (typeof Enemigos !== 'undefined') {
       for (const e of Enemigos.lista) {
-        const m = Enemigos._marcadores[e.id];
-        if (!m) continue;
-        this._arrastreOrganizarMarcador(m, { id: e.id, marcador: m }, (marc) => {
-          const p = marc.getLatLng();
-          this._fijarPosicionEnemigo(e.id, [+p.lat.toFixed(6), +p.lng.toFixed(6)]);
-        }, (marc) => {
-          const p = marc.getLatLng();
-          if (typeof Enemigos.fijarPosicion === 'function') {
-            Enemigos.fijarPosicion(e, [+p.lat.toFixed(6), +p.lng.toFixed(6)], { silencioso: true });
-          }
-        });
+        this._arrastreOrganizarEnemigo(e);
       }
     }
     if (typeof Misiones !== 'undefined') {
@@ -2624,6 +2614,24 @@ const Admin = {
     requestAnimationFrame(() => asegurarControlesPin());
   },
 
+  _arrastreOrganizarEnemigo(e) {
+    if (!e?.id || typeof Enemigos === 'undefined') return;
+    const m = Enemigos._marcadores[e.id];
+    if (!m) return;
+    const alSoltar = (marc) => {
+      const p = marc.getLatLng();
+      this._fijarPosicionEnemigo(e.id, [+p.lat.toFixed(6), +p.lng.toFixed(6)]);
+      if (this.modo === 'organizar') {
+        requestAnimationFrame(() => this._arrastreOrganizarEnemigo(e));
+      }
+    };
+    const alArrastrar = (marc) => {
+      const p = marc.getLatLng();
+      Enemigos._moverEnemigo(e, +p.lat.toFixed(6), +p.lng.toFixed(6));
+    };
+    this._arrastreOrganizarMarcador(m, { id: e.id, marcador: m }, alSoltar, alArrastrar);
+  },
+
   _habilitarArrastreMarcador(marcador, alSoltar) {
     if (!marcador || marcador === GPS.marcador) return;
     if (this.modo === 'organizar') {
@@ -2655,6 +2663,7 @@ const Admin = {
     );
     if (typeof Enemigos !== 'undefined' && Enemigos._actualizarZonasOrganizar) {
       Enemigos._actualizarZonasOrganizar();
+      Enemigos._actualizarPrioridadAdmin(true);
     }
 
     // Mostrar pines fantasma de los tesoros base (normalmente invisibles)
