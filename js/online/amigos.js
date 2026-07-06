@@ -9,9 +9,12 @@ const Amigos = {
   friendIds: new Set(),
   blockedIds: new Set(),
   _marcadosKey: 'mariel_amigos_pin',
+  _favKey: 'mariel_amigos_fav',
   _marcados: new Set(),
+  _favoritos: new Set(),
   _filtro: '',
   _toastTimer: null,
+  _confirmPending: null,
 
   _cargarMarcados() {
     try {
@@ -21,11 +24,31 @@ const Amigos = {
         this._marcados = new Set(ids.length ? [ids[0]] : []);
       }
     } catch (e) { this._marcados = new Set(); }
+    try {
+      const fav = JSON.parse(localStorage.getItem(this._favKey) || '[]');
+      this._favoritos = new Set((fav || []).map(Number).filter(Boolean));
+    } catch (e) { this._favoritos = new Set(); }
   },
 
   _guardarMarcados() {
     const ids = [...this._marcados];
     localStorage.setItem(this._marcadosKey, JSON.stringify(ids.length ? [ids[0]] : []));
+  },
+
+  _guardarFavoritos() {
+    localStorage.setItem(this._favKey, JSON.stringify([...this._favoritos]));
+  },
+
+  esFavorito(playerId) { return this._favoritos.has(Number(playerId)); },
+
+  toggleFavorito(playerId) {
+    const id = Number(playerId);
+    if (this._favoritos.has(id)) this._favoritos.delete(id);
+    else this._favoritos.add(id);
+    this._guardarFavoritos();
+    this._pintar();
+    const nombre = this.friends.find(f => Number(f.playerId) === id)?.name || 'amigo';
+    this._toast(this._favoritos.has(id) ? '⭐ ' + nombre + ' favorito' : 'Quitado de favoritos');
   },
 
   obtenerMarcados() { return this._marcados; },
@@ -204,10 +227,40 @@ const Amigos = {
       this._pintar();
     });
 
+    document.getElementById('amigos-confirm-cancel')?.addEventListener('click', () => this._cerrarConfirm());
+    document.getElementById('amigos-confirm-ok')?.addEventListener('click', () => this._aceptarConfirm());
+
+    document.addEventListener('click', () => this._cerrarMenus());
+
     const panel = document.querySelector('#ventana-amigos .friends-panel');
     panel?.addEventListener('click', (e) => e.stopPropagation());
 
     this._pintar();
+  },
+
+  _cerrarMenus() {
+    document.querySelectorAll('#ventana-amigos .pop-menu.show').forEach(m => m.classList.remove('show'));
+  },
+
+  _pedirConfirm(titulo, texto, accion) {
+    this._confirmPending = accion;
+    const ov = document.getElementById('amigos-overlay');
+    const t = document.getElementById('amigos-confirm-title');
+    const p = document.getElementById('amigos-confirm-text');
+    if (t) t.textContent = titulo;
+    if (p) p.textContent = texto;
+    ov?.classList.remove('oculto');
+  },
+
+  _cerrarConfirm() {
+    this._confirmPending = null;
+    document.getElementById('amigos-overlay')?.classList.add('oculto');
+  },
+
+  async _aceptarConfirm() {
+    const fn = this._confirmPending;
+    this._cerrarConfirm();
+    if (typeof fn === 'function') await fn();
   },
 
   async refrescar() {
@@ -273,28 +326,43 @@ const Amigos = {
   async eliminar(playerId) {
     const id = Number(playerId);
     const nombre = this.friends.find(f => Number(f.playerId) === id)?.name || 'Jugador';
-    if (this._marcados.has(id)) {
-      this._marcados.delete(id);
-      this._guardarMarcados();
-      if (typeof Multijugador !== 'undefined') Multijugador._actualizarLineasAmigo();
-    }
-    const base = this._base();
-    if (!base || !this._token()) return;
-    try {
-      const r = await fetch(base + '/api/friends/' + playerId, {
-        method: 'DELETE',
-        headers: this._headers()
-      });
-      const data = await r.json();
-      if (data.ok) {
-        this._toast(nombre + ' eliminado');
-        await this.refrescar();
+    this._pedirConfirm(
+      '¿Eliminar amigo?',
+      '¿Seguro que quieres eliminar a ' + nombre + ' de tus amigos?',
+      async () => {
+        if (this._marcados.has(id)) {
+          this._marcados.delete(id);
+          this._guardarMarcados();
+          if (typeof Multijugador !== 'undefined') Multijugador._actualizarLineasAmigo();
+        }
+        const base = this._base();
+        if (!base || !this._token()) return;
+        try {
+          const r = await fetch(base + '/api/friends/' + playerId, {
+            method: 'DELETE',
+            headers: this._headers()
+          });
+          const data = await r.json();
+          if (data.ok) {
+            this._toast(nombre + ' eliminado');
+            await this.refrescar();
+          }
+        } catch (e) { /* */ }
       }
-    } catch (e) { /* */ }
+    );
   },
 
   async bloquear(playerId) {
-    await this._post('/api/friends/block', { playerId }, '🚫 Jugador bloqueado');
+    const id = Number(playerId);
+    const nombre = this.friends.find(f => Number(f.playerId) === id)?.name || 'Jugador';
+    this._pedirConfirm(
+      '¿Bloquear jugador?',
+      'No podrás recibir mensajes ni invitaciones de ' + nombre + '.',
+      async () => {
+        await this._post('/api/friends/block', { playerId }, '🚫 Jugador bloqueado');
+        this._toast(nombre + ' bloqueado');
+      }
+    );
   },
 
   async desbloquear(playerId) {
@@ -367,45 +435,93 @@ const Amigos = {
     const id = Number(f.playerId);
     const estado = this._estadoAmigo(f);
     const marcado = this.esMarcado(id);
+    const fav = this.esFavorito(id);
     const puedePin = this._puedePin(f);
     const puedeChat = this._puedeChat(f);
     const clases = ['friend-card'];
     if (estado.online) clases.push('online');
     if (marcado) clases.push('pin-activo');
 
+    const statusCls = estado.online && !estado.muerto ? '' : ' offline';
+
     return '<div class="' + clases.join(' ') + '" data-amigo-id="' + id + '">' +
       '<div class="avatar">' + this._avatarEmoji(f.name) +
         '<span class="status-dot"></span></div>' +
-      '<div>' +
-        '<div class="friend-name">' + this._esc(f.name) + '</div>' +
-        '<div class="friend-status">' + this._esc(estado.texto) +
+      '<div class="friend-info">' +
+        '<div class="friend-name">' + this._esc(f.name) + (fav ? ' ⭐' : '') + '</div>' +
+        '<div class="friend-status' + statusCls + '">' + this._esc(estado.texto) +
           (marcado ? ' · 📍 Marcado' : '') + '</div>' +
       '</div>' +
       '<div class="actions">' +
-        '<button type="button" class="friend-action pin' + (marcado ? ' activo' : '') + '"' +
-          (puedePin ? '' : ' disabled') + ' data-amigo-pin="' + id + '" title="Ver pin">📍</button>' +
         '<button type="button" class="friend-action chat"' +
           (puedeChat ? '' : ' disabled') + ' data-amigo-chat="' + id + '" title="Chat">💬</button>' +
-        '<button type="button" class="friend-action delete" data-amigo-quitar="' + id + '" title="Eliminar">🗑️</button>' +
+        '<button type="button" class="friend-action pin' + (marcado ? ' activo' : '') + '"' +
+          (puedePin ? '' : ' disabled') + ' data-amigo-pin="' + id + '" title="Ver pin">📍</button>' +
+        '<button type="button" class="friend-action more" data-amigo-menu="' + id + '" title="Más">⋮</button>' +
+      '</div>' +
+      '<div class="pop-menu" data-menu-for="' + id + '">' +
+        '<div class="menu-item invite" data-amigo-invite="' + id + '">👥 Invitar grupo</div>' +
+        '<div class="menu-item fav' + (fav ? ' fav-activo' : '') + '" data-amigo-fav="' + id + '">⭐ Favorito</div>' +
+        '<div class="menu-item block danger" data-amigo-block="' + id + '">🚫 Bloquear</div>' +
+        '<div class="menu-item remove danger" data-amigo-quitar="' + id + '">🗑️ Eliminar</div>' +
       '</div></div>';
   },
 
   _enlazarTarjetas(contenedor) {
     if (!contenedor) return;
     contenedor.querySelectorAll('[data-amigo-pin]').forEach(el => {
-      el.onclick = () => {
+      el.onclick = (e) => {
+        e.stopPropagation();
         if (el.disabled) return;
         this.toggleMarcar(Number(el.dataset.amigoPin));
       };
     });
     contenedor.querySelectorAll('[data-amigo-chat]').forEach(el => {
-      el.onclick = () => {
+      el.onclick = (e) => {
+        e.stopPropagation();
         if (el.disabled) return;
         this.abrirChat(Number(el.dataset.amigoChat));
       };
     });
+    contenedor.querySelectorAll('[data-amigo-menu]').forEach(el => {
+      el.onclick = (e) => {
+        e.stopPropagation();
+        const id = el.dataset.amigoMenu;
+        const menu = contenedor.querySelector('[data-menu-for="' + id + '"]');
+        if (!menu) return;
+        const abierto = menu.classList.contains('show');
+        this._cerrarMenus();
+        if (!abierto) menu.classList.add('show');
+      };
+    });
     contenedor.querySelectorAll('[data-amigo-quitar]').forEach(el => {
-      el.onclick = () => this.eliminar(Number(el.dataset.amigoQuitar));
+      el.onclick = (e) => {
+        e.stopPropagation();
+        this._cerrarMenus();
+        this.eliminar(Number(el.dataset.amigoQuitar));
+      };
+    });
+    contenedor.querySelectorAll('[data-amigo-block]').forEach(el => {
+      el.onclick = (e) => {
+        e.stopPropagation();
+        this._cerrarMenus();
+        this.bloquear(Number(el.dataset.amigoBlock));
+      };
+    });
+    contenedor.querySelectorAll('[data-amigo-fav]').forEach(el => {
+      el.onclick = (e) => {
+        e.stopPropagation();
+        this._cerrarMenus();
+        this.toggleFavorito(Number(el.dataset.amigoFav));
+      };
+    });
+    contenedor.querySelectorAll('[data-amigo-invite]').forEach(el => {
+      el.onclick = (e) => {
+        e.stopPropagation();
+        this._cerrarMenus();
+        const nombre = this.friends.find(f => Number(f.playerId) === Number(el.dataset.amigoInvite))?.name || 'amigo';
+        this._toast('Invitación a grupo — ' + nombre + ' (próximamente)');
+      };
     });
     contenedor.querySelectorAll('[data-amigo-aceptar]').forEach(el => {
       el.onclick = () => this.aceptar(Number(el.dataset.amigoAceptar));
@@ -426,7 +542,7 @@ const Amigos = {
     if (!lista) return;
 
     if (contador) {
-      contador.textContent = 'MIS AMIGOS (' + this.friends.length + ')';
+      contador.textContent = this.friends.length + (this.friends.length === 1 ? ' amigo' : ' amigos');
     }
 
     if (pendientes) {
@@ -435,8 +551,9 @@ const Amigos = {
         let html = '<div class="amigos-pendientes-titulo">SOLICITUDES PENDIENTES (' + this.pendingIn.length + ')</div>';
         for (const r of this.pendingIn) {
           html += '<div class="friend-card pendiente">' +
-            '<div><div class="friend-name">' + this._esc(r.fromName) + '</div>' +
-            '<div class="friend-status">Quiere ser tu amigo</div></div>' +
+            '<div class="avatar">' + this._avatarEmoji(r.fromName) + '</div>' +
+            '<div class="friend-info"><div class="friend-name">' + this._esc(r.fromName) + '</div>' +
+            '<div class="friend-status offline">Quiere ser tu amigo</div></div>' +
             '<div class="actions">' +
             '<button type="button" class="friend-action aceptar" data-amigo-aceptar="' + r.id + '">Aceptar</button>' +
             '<button type="button" class="friend-action rechazar" data-amigo-rechazar="' + r.id + '">Rechazar</button>' +
@@ -457,11 +574,10 @@ const Amigos = {
 
     lista.innerHTML = '';
     if (!amigosFiltrados.length) {
-      lista.innerHTML = '<div class="friend-card">' +
-        '<div class="avatar">?</div>' +
-        '<div><div class="friend-name">' +
+      lista.innerHTML = '<div class="friend-card"><div class="avatar">?</div><div class="friend-info">' +
+        '<div class="friend-name">' +
           (filtro ? 'Sin resultados' : 'Sin amigos todavía') +
-        '</div><div class="friend-status">' +
+        '</div><div class="friend-status offline">' +
           (filtro ? 'No encontré ningún amigo con ese nombre.' : 'Agrégalos por nombre o desde el mapa.') +
         '</div></div></div>';
     } else {

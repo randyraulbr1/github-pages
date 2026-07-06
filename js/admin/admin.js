@@ -81,6 +81,7 @@ const Admin = {
     if (!this.publicado.mantenimiento) this.publicado.mantenimiento = { activo: false, mensaje: '' };
     if (!this.publicado.jugadores) this.publicado.jugadores = [];
     if (!this.publicado.cofres) this.publicado.cofres = [];
+    if (!this.publicado.cuerposMuertos) this.publicado.cuerposMuertos = {};
     if (!this.publicado.correoReclamados) this.publicado.correoReclamados = [];
     if (!this.publicado.correoTienda) this.publicado.correoTienda = [];
     if (!this.publicado.partidas) this.publicado.partidas = {};
@@ -368,6 +369,52 @@ const Admin = {
         });
       }
     }
+    if (typeof Multijugador !== 'undefined') {
+      for (const [id, m] of Object.entries(Multijugador.cuerposMarcadores || {})) {
+        const playerId = Number(id);
+        if (!playerId) continue;
+        this._arrastreOrganizarMarcador(m, {
+          id: 'cuerpo_' + id,
+          marcador: m,
+          _cuerpoPlayerId: playerId,
+          nombre: (Multijugador.cuerpos?.[id]?.name) || 'Ataúd'
+        }, (marc) => {
+          const p = marc.getLatLng();
+          this._moverCuerpoAdmin(playerId, +p.lat.toFixed(6), +p.lng.toFixed(6));
+        });
+      }
+      for (const p of (Multijugador.online || [])) {
+        if (!Multijugador._estaMuerto(p)) continue;
+        const m = Multijugador.marcadores[p.playerId];
+        if (!m) continue;
+        this._arrastreOrganizarMarcador(m, {
+          id: 'cuerpo_on_' + p.playerId,
+          marcador: m,
+          _cuerpoPlayerId: p.playerId,
+          nombre: p.name || 'Ataúd'
+        }, (marc) => {
+          const ll = marc.getLatLng();
+          this._moverCuerpoAdmin(p.playerId, +ll.lat.toFixed(6), +ll.lng.toFixed(6));
+        });
+      }
+    }
+  },
+
+  _eliminarCuerpoAdmin(playerId) {
+    const key = String(playerId);
+    if (this.publicado.cuerposMuertos) delete this.publicado.cuerposMuertos[key];
+    if (typeof Multijugador !== 'undefined') {
+      delete Multijugador.cuerpos[key];
+      Multijugador._quitarMarcadorCuerpo(key);
+      const i = Multijugador.online.findIndex(x => Number(x.playerId) === Number(playerId));
+      if (i >= 0) {
+        Multijugador._quitarMarcador(playerId);
+        Multijugador.online.splice(i, 1);
+      }
+    }
+    this.guardar();
+    this._publicarParaTodos(true);
+    Notificaciones.mostrar('🗑️ Ataúd eliminado del mapa', 'alerta');
   },
 
   _combinar(publicados, locales) {
@@ -2405,7 +2452,35 @@ const Admin = {
       el.classList.remove('admin-pin-armado', 'admin-pin-moviendo');
       const btn = el.querySelector('.admin-pin-x');
       if (btn) btn.remove();
+      const grip = el.querySelector('.admin-pin-grip');
+      if (grip) grip.remove();
     }
+  },
+
+  _moverCuerpoAdmin(playerId, lat, lng) {
+    const key = String(playerId);
+    if (!this.publicado.cuerposMuertos) this.publicado.cuerposMuertos = {};
+    const c = (typeof Multijugador !== 'undefined' && Multijugador.cuerpos?.[key]) ||
+      this.publicado.cuerposMuertos[key] || {};
+    const updated = Object.assign({}, c, {
+      playerId: Number(playerId),
+      deathX: lat,
+      deathY: lng,
+      name: c.name || '?',
+      muertoAt: c.muertoAt || Date.now()
+    });
+    this.publicado.cuerposMuertos[key] = updated;
+    if (typeof Multijugador !== 'undefined') {
+      if (!Multijugador.cuerpos) Multijugador.cuerpos = {};
+      Multijugador.cuerpos[key] = Object.assign({}, Multijugador.cuerpos[key] || {}, updated);
+      const p = Multijugador.online?.find(x => Number(x.playerId) === Number(playerId));
+      if (p) {
+        p.deathX = lat;
+        p.deathY = lng;
+      }
+    }
+    this.guardar();
+    this._publicarParaTodos(true);
   },
 
   _arrastreOrganizarMarcador(marcador, punto, alMoverPos, alArrastrar) {
@@ -2416,7 +2491,7 @@ const Admin = {
     if (marcador.dragging) marcador.dragging.disable();
     marcador.setZIndexOffset(13000);
 
-    const asegurarBotonX = () => {
+    const asegurarControlesPin = () => {
       const el = marcador.getElement?.();
       if (!el) return null;
       el.classList.add('admin-pin-organizar');
@@ -2430,11 +2505,37 @@ const Admin = {
         btn.addEventListener('click', (ev) => {
           L.DomEvent.stopPropagation(ev);
           ev.preventDefault();
+          if (punto._cuerpoPlayerId) {
+            this._eliminarCuerpoAdmin(punto._cuerpoPlayerId);
+            return;
+          }
           this._eliminarPin(punto, true);
         });
         el.appendChild(btn);
       }
-      return btn;
+      let grip = el.querySelector('.admin-pin-grip');
+      if (!grip) {
+        grip = document.createElement('button');
+        grip.type = 'button';
+        grip.className = 'admin-pin-grip';
+        grip.title = 'Arrastrar pin';
+        grip.textContent = '⊞';
+        const armar = (ev) => {
+          L.DomEvent.stopPropagation(ev);
+          if (ev.cancelable) ev.preventDefault();
+          if (this.modo !== 'organizar') return;
+          const pinEl = marcador.getElement?.();
+          if (pinEl) pinEl.classList.add('admin-pin-armado');
+          btn?.classList.add('oculto');
+          grip.classList.add('oculto');
+          marcador.options.draggable = true;
+          if (marcador.dragging) marcador.dragging.enable();
+        };
+        grip.addEventListener('mousedown', armar);
+        grip.addEventListener('touchstart', armar, { passive: false });
+        el.appendChild(grip);
+      }
+      return { btn, grip };
     };
 
     const desarmar = () => {
@@ -2442,17 +2543,7 @@ const Admin = {
       if (el) el.classList.remove('admin-pin-armado', 'admin-pin-moviendo');
       marcador.options.draggable = false;
       if (marcador.dragging) marcador.dragging.disable();
-      asegurarBotonX();
-    };
-
-    punto._orgArm = () => {
-      if (this.modo !== 'organizar') return;
-      const el = marcador.getElement?.();
-      if (el) el.classList.add('admin-pin-armado');
-      const btn = el?.querySelector('.admin-pin-x');
-      if (btn) btn.classList.add('oculto');
-      marcador.options.draggable = true;
-      if (marcador.dragging) marcador.dragging.enable();
+      asegurarControlesPin();
     };
 
     punto._orgDragStart = () => {
@@ -2461,8 +2552,8 @@ const Admin = {
         el.classList.add('admin-pin-moviendo');
         el.classList.remove('admin-pin-armado');
       }
-      const btn = marcador.getElement?.()?.querySelector('.admin-pin-x');
-      if (btn) btn.classList.add('oculto');
+      el?.querySelector('.admin-pin-x')?.classList.add('oculto');
+      el?.querySelector('.admin-pin-grip')?.classList.add('oculto');
     };
 
     punto._movOrg = () => {
@@ -2474,12 +2565,11 @@ const Admin = {
       desarmar();
     };
 
-    marcador.on('click', punto._orgArm);
     marcador.on('dragstart', punto._orgDragStart);
     marcador.on('drag', punto._movOrg);
     marcador.on('dragend', punto._finOrg);
 
-    requestAnimationFrame(() => asegurarBotonX());
+    requestAnimationFrame(() => asegurarControlesPin());
   },
 
   _habilitarArrastreMarcador(marcador, alSoltar) {
@@ -2508,7 +2598,7 @@ const Admin = {
       cesto.classList.remove('activo', 'cesto-hover');
     }
     this._mostrarControles(
-      '✋ Toca un pin para moverlo · Pulsa ✕ arriba para borrarlo',
+      '⊞ Arrastra con el cuadrito · ✕ borra el pin (también ataúdes ⚰️)',
       false
     );
     if (typeof Enemigos !== 'undefined' && Enemigos._actualizarZonasOrganizar) {
@@ -2667,6 +2757,16 @@ const Admin = {
     if (typeof Tiendas !== 'undefined' && Tiendas._marcadoresAdmin) {
       for (const [id, m] of Object.entries(Tiendas._marcadoresAdmin)) {
         this._limpiarPinOrganizar(m, { id, marcador: m });
+      }
+    }
+    if (typeof Multijugador !== 'undefined') {
+      for (const [id, m] of Object.entries(Multijugador.cuerposMarcadores || {})) {
+        this._limpiarPinOrganizar(m, { id: 'cuerpo_' + id, marcador: m });
+      }
+      for (const p of (Multijugador.online || [])) {
+        if (!Multijugador._estaMuerto(p)) continue;
+        const m = Multijugador.marcadores[p.playerId];
+        if (m) this._limpiarPinOrganizar(m, { id: 'cuerpo_on_' + p.playerId, marcador: m });
       }
     }
     for (const o of this.objetosTodos()) {
@@ -4047,6 +4147,15 @@ const Admin = {
       })(),
       jugadores: this._jugadoresParaPublicar(),
       cofres: this._cofresParaPublicar(),
+      cuerposMuertos: (() => {
+        const out = Object.assign({}, this.publicado.cuerposMuertos || {});
+        if (typeof Multijugador !== 'undefined' && Multijugador.cuerpos) {
+          for (const [k, c] of Object.entries(Multijugador.cuerpos)) {
+            if (c) out[k] = Object.assign({}, out[k] || {}, c);
+          }
+        }
+        return out;
+      })(),
       correoReclamados: (() => {
         const porCod = new Map();
         for (const r of (this.publicado.correoReclamados || [])) porCod.set(r.codigo, r);

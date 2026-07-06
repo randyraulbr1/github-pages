@@ -223,48 +223,40 @@
   <div id="ventana-amigos" class="ventana oculto">
     <div class="friends-panel" role="dialog" aria-label="Panel de amigos">
       <div class="panel-header">
-        <div class="panel-title"><span>👥</span> AMIGOS</div>
-        <button type="button" class="amigos-close" id="cerrar-amigos" aria-label="Cerrar">×</button>
+        <div class="panel-title">👥 Amigos</div>
+        <button type="button" class="amigos-close" id="cerrar-amigos" aria-label="Cerrar">✕</button>
       </div>
 
       <div class="panel-content">
-        <section class="add-section">
-          <div>
-            <div class="section-head">AGREGAR AMIGO</div>
-            <div class="hint">
-              Marca el pin <b>📍</b> de un amigo para ver una línea hacia su posición en el mapa.
-            </div>
-            <div class="add-row">
-              <label class="input-wrap">
-                <span>👤</span>
-                <input id="amigos-buscar" type="text" maxlength="20" placeholder="Nombre del jugador" autocomplete="off">
-              </label>
-              <button type="button" class="add-btn" id="btn-amigos-agregar">👥 AGREGAR</button>
-            </div>
+        <div class="section-title">➕ AGREGAR AMIGO</div>
+        <div class="add-box">
+          <div class="add-row">
+            <input id="amigos-buscar" type="text" maxlength="20" placeholder="Buscar usuario por nombre..." autocomplete="off">
+            <button type="button" class="add-btn" id="btn-amigos-agregar" title="Agregar">+</button>
           </div>
-          <div class="preview-map" aria-hidden="true">
-            <div class="pulse"></div>
-          </div>
-        </section>
+        </div>
 
-        <section>
-          <div class="friends-top">
-            <div class="section-head" id="amigos-count" style="margin-bottom:0">MIS AMIGOS (0)</div>
-            <label class="search-box">
-              <span>🔎</span>
-              <input id="amigos-buscar-filtro" type="text" placeholder="Buscar amigo..." autocomplete="off">
-            </label>
-          </div>
+        <div class="section-title">👥 MIS AMIGOS</div>
+        <div class="count" id="amigos-count">0 amigos</div>
 
-          <div id="amigos-pendientes" class="amigos-pendientes oculto"></div>
-          <div id="amigos-lista" class="friends-list"></div>
-          <div id="amigos-bloqueados" class="amigos-bloqueados oculto"></div>
+        <div class="search-row">
+          <input id="amigos-buscar-filtro" type="text" placeholder="Buscar entre amigos..." autocomplete="off">
+        </div>
 
-          <div class="amigos-info">
-            <span>i</span>
-            Los pines marcados se muestran en el mapa con una línea hacia su posición.
-          </div>
-        </section>
+        <div id="amigos-pendientes" class="amigos-pendientes oculto"></div>
+        <div id="amigos-lista" class="friends-list"></div>
+        <div id="amigos-bloqueados" class="amigos-bloqueados oculto"></div>
+      </div>
+    </div>
+  </div>
+
+  <div id="amigos-overlay" class="amigos-overlay oculto" aria-hidden="true">
+    <div class="amigos-confirm" role="dialog" aria-modal="true">
+      <h3 id="amigos-confirm-title">Confirmar</h3>
+      <p id="amigos-confirm-text">¿Seguro?</p>
+      <div class="confirm-row">
+        <button type="button" class="modal-btn cancel" id="amigos-confirm-cancel">Cancelar</button>
+        <button type="button" class="modal-btn ok" id="amigos-confirm-ok">Aceptar</button>
       </div>
     </div>
   </div>
@@ -859,7 +851,7 @@
   <script src="js/admin/admin.js?v=104"></script>
   <script src="js/opciones/opciones.js?v=104"></script>
   <script src="js/online/mundo_online.js?v=104"></script>
-  <script src="js/online/amigos.js?v=104"></script>
+  <script src="js/online/amigos.js?v=107"></script>
   <script src="js/chat/chat.js?v=104"></script>
   <script src="js/online/multijugador.js?v=104"></script>
   <script src="js/principal.js?v=104"></script>
