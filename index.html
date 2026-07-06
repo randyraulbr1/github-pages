@@ -13,7 +13,7 @@
   <script>
     // Aviso temprano en móvil (antes de cargar 20+ archivos JS)
     (function () {
-      var V = '60';
+      var V = '71';
       var texto = document.getElementById('carga-texto');
       if (texto) texto.textContent = 'Conectando…';
       var prev = localStorage.getItem('mariel_app_version');
@@ -115,7 +115,7 @@
     <div id="hud-acciones-mini">
       <button id="btn-opciones" class="btn-hud-accion" type="button" title="Opciones">⚙️</button>
       <button id="btn-amigos" class="btn-hud-accion" type="button" title="Amigos">
-        👥<span id="badge-amigos" class="badge-avisos oculto">0</span>
+        <span class="icono-amigos-blanco" aria-hidden="true">👥</span><span id="badge-amigos" class="badge-avisos oculto">0</span>
       </button>
       <button id="btn-notific" class="btn-hud-accion" type="button" title="Avisos">
         🔔<span id="badge-avisos" class="badge-avisos oculto">●</span>
@@ -419,7 +419,6 @@
 
           <div class="admin-seccion-titulo">🌍 Servidor</div>
           <button class="fila-opcion admin-nav" id="admin-mantenimiento"><span class="icono-opcion">🚧</span> Mantenimiento</button>
-          <button class="fila-opcion admin-nav" id="admin-clave-publicar"><span class="icono-opcion">🔑</span> <span id="admin-clave-etiqueta">Token</span></button>
           <button class="fila-opcion admin-nav" id="admin-publicar"><span class="icono-opcion">🔄</span> Sincronizar</button>
         </nav>
 
@@ -544,34 +543,6 @@
               <button id="admin-ban-1mes" class="admin-ban-btn">1 mes</button>
               <button id="admin-ban-perm" class="admin-ban-btn peligro">Permanente</button>
               <button id="admin-ban-quitar" class="admin-ban-btn ok">Quitar ban</button>
-            </div>
-          </div>
-
-          <div id="admin-vista-clave" class="admin-vista oculto">
-            <div class="admin-clave-cuerpo">
-              <div id="admin-github-token">
-              <p class="admin-clave-ayuda">
-                🌍 <b>Todo en un solo archivo:</b> mapa, objetos y cuentas viven en <code>datos/mundo.json</code>
-                (como el coco y el cangrejo del mapa). Los jugadores lo leen sin token ni VPN.
-              </p>
-              <p id="admin-clave-estado" class="admin-clave-estado">Sin token en este teléfono.</p>
-              <p id="admin-clave-previo" class="admin-clave-ayuda oculto"></p>
-              <p class="admin-clave-ayuda">
-                Pulsa <b>Crear token en GitHub</b>, copia el token y pégalo aquí.
-                Queda solo en <b>tu teléfono</b> — GitHub no permite guardarlo en el repo.
-              </p>
-              <button id="btn-admin-crear-token" type="button" class="fila-opcion admin-clave-crear">🔗 Crear token en GitHub</button>
-              <div class="campo-admin">
-                <label for="admin-clave-token">Token de acceso personal</label>
-                <div class="campo-clave">
-                  <input id="admin-clave-token" type="password" placeholder="ghp_… o github_pat_…" autocomplete="off" spellcheck="false">
-                  <button type="button" class="btn-ojo-clave" data-campo="admin-clave-token">👁️</button>
-                </div>
-              </div>
-              <p class="admin-clave-enlace">Contents → Read and write en <code>randyraulbr1/github-pages</code></p>
-              <button id="btn-admin-clave-guardar" class="btn-auth-principal">Guardar token</button>
-              <button id="btn-admin-clave-borrar" class="fila-opcion peligro admin-clave-borrar">🗑️ Borrar token</button>
-              </div>
             </div>
           </div>
 

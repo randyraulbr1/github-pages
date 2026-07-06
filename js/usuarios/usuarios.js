@@ -307,7 +307,7 @@ const Usuarios = {
     const okNube = await MundoPublico.guardarCuenta(perfil, snap);
     if (!okNube) {
       Notificaciones.mostrar(
-        '⚠️ Cuenta creada aquí, pero no llegó al servidor. El admin debe tener 🔑 Token y pulsar Sincronizar.',
+        '⚠️ Cuenta creada aquí, pero no llegó al servidor. El admin debe iniciar sesión y pulsar Sincronizar.',
         'alerta', 10000
       );
     }

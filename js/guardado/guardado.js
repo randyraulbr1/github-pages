@@ -154,13 +154,14 @@ const Guardado = {
 
   _avisarSinSyncNube() {
     if (this._avisoSinNube) return;
+    if (typeof SyncServidor !== 'undefined' && SyncServidor.puedePublicar()) return;
     if (MundoPublico.usaFirebase()) return;
     if (typeof Usuarios === 'undefined' || !Usuarios.esAdministrador()) return;
     if (MundoPublico.puedeEscribir()) return;
     this._avisoSinNube = true;
     if (typeof Notificaciones !== 'undefined') {
       Notificaciones.mostrar(
-        '⚠️ Falta 🔑 Token en este teléfono (Admin → Token). Sin eso no se sube el mundo.',
+        '⚠️ Inicia sesión en el juego para sincronizar con el servidor.',
         'alerta', 10000
       );
     }
