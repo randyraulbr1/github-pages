@@ -170,6 +170,10 @@ async function esperarMapaListo() {
       b.addEventListener('click', () => {
         const id = b.dataset.cierra;
         if (id === 'ventana-combate') return;
+        if (id === 'ventana-admin' && typeof Admin !== 'undefined' && Admin.cerrarPanel) {
+          Admin.cerrarPanel();
+          return;
+        }
         document.getElementById(id).classList.add('oculto');
       });
     });

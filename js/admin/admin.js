@@ -15,6 +15,9 @@ const Admin = {
   datos: null,      // borradores locales del admin (solo en este teléfono)
   publicado: null,  // mundo oficial descargado de datos/mundo.json (lo ven todos)
   modo: null,       // null | 'colocar' | 'organizar'
+  _adminNavPila: [],
+  _adminVistaActual: null,
+  _jugadoresTab: 'vivos',
   _colocacion: null,  // { tipo, valores, marcador }
   _fantasmas: [],     // marcadores temporales de tesoros base en modo admin
   _marcadoresObjeto: {}, // id → marcador Leaflet (evita duplicados al sincronizar)
@@ -52,6 +55,8 @@ const Admin = {
     if (!this.datos.tiendasAdmin) this.datos.tiendasAdmin = [];
     if (this.datos.moverPinJugador === undefined) {
       this.datos.moverPinJugador = !!(this.publicado && this.publicado.moverPinJugador);
+    } else {
+      this.datos.moverPinJugador = !!this.datos.moverPinJugador;
     }
     if (this.datos.mantenimiento === undefined) this.datos.mantenimiento = null;
 
@@ -406,6 +411,12 @@ const Admin = {
       radioZona: 40, radioPersecucion: 20, curacionMs: 120000
     }, this.publicado.combate || {}, this.datos.combate || {});
   },
+  combateEnemigosConfig() {
+    return Object.assign({
+      danoMin: 5, danoMax: 8, nivelReferencia: 1,
+      factorPorNivel: 0.06
+    }, this.publicado.combateEnemigos || {}, this.datos.combateEnemigos || {});
+  },
   objetosTodos() {
     if (this.esAdminJugador()) {
       return this._combinar(this.publicado.objetos || [], this.datos.objetos || []);
@@ -752,7 +763,9 @@ const Admin = {
     enlazar('admin-crear-enemigo', () => this.abrirFormulario('enemigo'));
     enlazar('admin-crear-tienda', () => this.abrirFormulario('tienda_admin'));
     enlazar('admin-combate-config', () => this.abrirCombateConfig());
+    enlazar('admin-combate-enemigos', () => this.abrirCombateEnemigosConfig());
     enlazar('btn-admin-combate-guardar', () => this._guardarCombateConfig());
+    enlazar('btn-admin-combate-enemigos-guardar', () => this._guardarCombateEnemigosConfig());
     enlazar('btn-admin-cofre-panel', () => this._continuarCofrePanel());
     const chkCofreVis = document.getElementById('admin-cofre-visible');
     if (chkCofreVis) {
@@ -783,8 +796,6 @@ const Admin = {
         }
       });
     }
-    enlazar('admin-carpeta-cofres', () => this._toggleCarpetaAdmin('admin-carpeta-cofres-cont', 'admin-carpeta-cofres'));
-    enlazar('admin-ver-cofres-ocultos', () => this.toggleVerCofresOcultos());
     enlazar('admin-publicar', () => this.publicarMundo(false));
     enlazar('btn-admin-msg-enviar', () => this._enviarMensajeUi());
     enlazar('btn-admin-mant-activar', () => this._activarMantenimientoUi());
@@ -806,6 +817,7 @@ const Admin = {
     enlazar('admin-ban-quitar', () => this._aplicarBan(null));
     this._actualizarEtiquetaMoverPin();
     this._actualizarEtiquetaVerCofresOcultos();
+    this._actualizarEtiquetaMantenimientoNav();
     if (typeof Cofres !== 'undefined') {
       Cofres.verOcultos = !!this.datos.verCofresOcultos;
       Cofres._pintarTodos();
@@ -953,19 +965,19 @@ const Admin = {
     if (typeof Enemigos !== 'undefined') Enemigos._recargar();
     if (typeof Tiendas !== 'undefined' && Tiendas.refrescarAdmin) Tiendas.refrescarAdmin();
     if (typeof Usuarios !== 'undefined') Usuarios.verificarSesionRemota();
-    if (this.publicado.moverPinJugador !== undefined) {
+    if (this.datos.moverPinJugador === undefined && this.publicado.moverPinJugador !== undefined) {
       this.datos.moverPinJugador = !!this.publicado.moverPinJugador;
-      this._actualizarEtiquetaMoverPin();
-      if (typeof GPS !== 'undefined') GPS._actualizarArrastre();
+      this.guardar();
     }
+    this._actualizarEtiquetaMoverPin();
+    if (typeof GPS !== 'undefined') GPS._actualizarArrastre();
 
     this.refrescarVisibles();
     this.mostrarMensajes();
     if (typeof Notificaciones !== 'undefined') Notificaciones._actualizarBadge();
     this._aplicarRevivirDesdeNube();
     if (this.modo === 'organizar') this._reaplicarArrastreOrganizar();
-    const vistaJug = document.getElementById('admin-vista-jugadores');
-    if (vistaJug && !vistaJug.classList.contains('oculto')) this._listarCuentasAsync();
+    this._refrescarListaJugadoresSiAbierta();
   },
 
   _jugadorEstaMuerto(pd, vida) {
@@ -1212,28 +1224,62 @@ const Admin = {
     if (!this.esAdminJugador()) return;
     this._marcarPanelDesbloqueado();
     document.getElementById('ventana-admin').classList.remove('oculto');
+    this._actualizarEtiquetaMantenimientoNav();
   },
 
-  _mostrarPanelDerecho(vistaId, titulo) {
+  _adminAbierto() {
+    const v = document.getElementById('ventana-admin');
+    return !!(v && !v.classList.contains('oculto'));
+  },
+
+  cerrarPanel() {
+    document.getElementById('ventana-admin')?.classList.add('oculto');
+  },
+
+  _refrescarListaJugadoresSiAbierta() {
+    if (!this._adminAbierto()) return;
+    const vistaJug = document.getElementById('admin-vista-jugadores');
+    if (!vistaJug || vistaJug.classList.contains('oculto')) return;
+    this._listarCuentasAsync({ soloRefrescar: true });
+  },
+
+  _mostrarPanelDerecho(vistaId, titulo, opciones) {
+    const opts = opciones || {};
+    if (!opts.sinHistorial && this._adminVistaActual && this._adminVistaActual !== vistaId) {
+      this._adminNavPila.push({ id: this._adminVistaActual, titulo: this._adminVistaTitulo || '' });
+    }
+    this._adminVistaActual = vistaId;
+    this._adminVistaTitulo = titulo || '';
     document.querySelectorAll('.admin-vista').forEach(v => v.classList.add('oculto'));
     const vista = document.getElementById(vistaId);
     if (vista) vista.classList.remove('oculto');
     const tit = document.getElementById('admin-panel-titulo');
     if (tit) tit.textContent = titulo || '';
     document.getElementById('admin-panel-derecho').classList.remove('oculto');
-    document.getElementById('ventana-admin').classList.remove('oculto');
+    if (!opts.sinAbrirVentana) {
+      document.getElementById('ventana-admin').classList.remove('oculto');
+    }
   },
 
   _ocultarPanelDerecho() {
     document.getElementById('admin-panel-derecho').classList.add('oculto');
     document.querySelectorAll('.admin-vista').forEach(v => v.classList.add('oculto'));
+    this._adminVistaActual = null;
+    this._adminVistaTitulo = '';
   },
 
   _volverAlPanel() {
     if (this._editorJugador?._creando) this._editorJugador = null;
-    this._ocultarPanelDerecho();
+    const prev = this._adminNavPila.pop();
     document.getElementById('btn-admin-guardar').style.display = '';
+    if (prev?.id) {
+      this._mostrarPanelDerecho(prev.id, prev.titulo, { sinHistorial: true });
+      if (prev.id === 'admin-vista-jugadores') this._listarCuentasAsync({ soloRefrescar: true });
+      return;
+    }
+    this._ocultarPanelDerecho();
     document.getElementById('ventana-admin').classList.remove('oculto');
+    this._actualizarEtiquetaMantenimientoNav();
   },
 
   // ---------- FORMULARIOS ----------
@@ -2432,6 +2478,16 @@ const Admin = {
     return null;
   },
 
+  _actualizarEtiquetaMantenimientoNav() {
+    const el = document.getElementById('admin-mant-nav-texto');
+    if (!el) return;
+    const mant = this.datos.mantenimiento || this.publicado.mantenimiento || {};
+    const on = !!mant.activo;
+    el.textContent = on ? 'ON' : 'OFF';
+    const btn = document.getElementById('admin-mantenimiento');
+    if (btn) btn.classList.toggle('admin-toggle-on', on);
+  },
+
   alternarMantenimiento() { this.abrirMantenimiento(); },
 
   abrirMantenimiento() {
@@ -2451,6 +2507,7 @@ const Admin = {
       'Estamos mejorando el juego, vuelve más tarde 🌴';
     this.datos.mantenimiento = { activo: true, mensaje };
     this.guardar();
+    this._actualizarEtiquetaMantenimientoNav();
     Notificaciones.mostrar('🚧 Mantenimiento activado (tú como admin puedes seguir jugando)', 'alerta', 6000);
     this._publicarParaTodos(true);
     this._volverAlPanel();
@@ -2459,6 +2516,7 @@ const Admin = {
   _quitarMantenimientoUi() {
     this.datos.mantenimiento = { activo: false, mensaje: '' };
     this.guardar();
+    this._actualizarEtiquetaMantenimientoNav();
     Notificaciones.mostrar('🟢 Mantenimiento desactivado', 'exito', 5000);
     this._publicarParaTodos(true);
     this._volverAlPanel();
@@ -2563,14 +2621,13 @@ const Admin = {
     this._listarCuentasAsync();
   },
 
-  async _listarCuentasAsync() {
+  async _listarCuentasAsync(opciones) {
+    const opts = opciones || {};
     await this.actualizarJugadoresGlobales();
     await this._actualizarPartidasDesdeServidor();
     const cont = document.getElementById('admin-lista-jugadores');
-    const contMuertos = document.getElementById('admin-lista-muertos');
-    const seccionMuertos = document.getElementById('admin-seccion-muertos');
     const buscar = document.getElementById('admin-buscar-jugador');
-    if (buscar) buscar.value = '';
+    if (!opts.soloRefrescar && buscar) buscar.value = '';
 
     const pintarFila = (j, destino) => {
       const local = Usuarios.datos.lista.find(p => p.id === j.id);
@@ -2625,8 +2682,8 @@ const Admin = {
       };
       if (muerto) {
         mk('❤️', () => this._revivirJugador(j), 'Revivir jugador', 'btn-revivir-jugador');
-        mk('🗑️', () => this._eliminarJugadorMuerto(j), 'Eliminar jugador muerto', 'btn-eliminar-jugador');
       }
+      mk('🗑️', () => this._eliminarJugadorCuenta(j), 'Eliminar jugador', 'btn-eliminar-jugador');
       mk('✏️', () => this._abrirEditorJugador(local || j, !local), 'Editar cuenta e inventario');
       mk('✉️', () => this.abrirMensaje(j.id), 'Enviar mensaje');
       mk('🚫', () => this._abrirBanJugador(j), 'Banear');
@@ -2635,8 +2692,8 @@ const Admin = {
     };
 
     const pintar = (filtro) => {
+      if (!cont) return;
       cont.innerHTML = '';
-      if (contMuertos) contMuertos.innerHTML = '';
       const f = (filtro || '').trim().toLowerCase();
       const globales = this.jugadoresGlobales().filter(j => {
         if (!f) return true;
@@ -2659,18 +2716,81 @@ const Admin = {
         const estado = this._vidaJugadorLista(j, pd);
         if (estado.muerto) muertos.push(j); else vivos.push(j);
       }
-      if (seccionMuertos) seccionMuertos.classList.toggle('oculto', !muertos.length);
-      for (const j of muertos) pintarFila(j, contMuertos || cont);
-      for (const j of vivos) pintarFila(j, cont);
-      if (!globales.length) {
-        cont.innerHTML = '<div class="campo-caja" style="padding:14px;">No hay jugadores con ese criterio</div>';
+      const lista = this._jugadoresTab === 'muertos' ? muertos : vivos;
+      for (const j of lista) pintarFila(j, cont);
+      const tabV = document.getElementById('admin-tab-vivos');
+      const tabM = document.getElementById('admin-tab-muertos');
+      if (tabV) tabV.textContent = '🟢 Vivos (' + vivos.length + ')';
+      if (tabM) tabM.textContent = '💀 Muertos (' + muertos.length + ')';
+      if (!lista.length) {
+        cont.innerHTML = '<div class="campo-caja" style="padding:14px;">' +
+          (this._jugadoresTab === 'muertos' ? 'No hay jugadores muertos' : 'No hay jugadores vivos con ese criterio') +
+          '</div>';
       }
     };
 
-    buscar.oninput = () => pintar(buscar.value);
-    pintar('');
+    if (buscar && !buscar._jugadoresOk) {
+      buscar._jugadoresOk = true;
+      buscar.oninput = () => pintar(buscar.value);
+    }
+    const tabV = document.getElementById('admin-tab-vivos');
+    const tabM = document.getElementById('admin-tab-muertos');
+    if (tabV && !tabV._jugadoresOk) {
+      tabV._jugadoresOk = true;
+      tabV.addEventListener('click', () => {
+        this._jugadoresTab = 'vivos';
+        tabV.classList.add('activa');
+        tabM?.classList.remove('activa');
+        pintar(buscar?.value || '');
+      });
+    }
+    if (tabM && !tabM._jugadoresOk) {
+      tabM._jugadoresOk = true;
+      tabM.addEventListener('click', () => {
+        this._jugadoresTab = 'muertos';
+        tabM.classList.add('activa');
+        tabV?.classList.remove('activa');
+        pintar(buscar?.value || '');
+      });
+    }
+    pintar(buscar?.value || '');
     this._colocacion = null;
+    if (opts.soloRefrescar) return;
     this._mostrarPanelDerecho('admin-vista-jugadores', '👥 Jugadores');
+  },
+
+  async _eliminarJugadorCuenta(perfil) {
+    const j = typeof perfil === 'string'
+      ? this.jugadoresGlobales().find(x => x.id === perfil)
+      : perfil;
+    if (!j) return;
+    if (j.id === Usuarios.perfilActivo?.id) {
+      this._adminAviso('No puedes eliminar al jugador activo');
+      return;
+    }
+    const partida = await this._obtenerPartidaJugador(j);
+    const muerto = this._jugadorEstaMuerto(partida, partida?.vida);
+    const aviso = muerto
+      ? '¿Eliminar a ' + j.nombre + ' y su partida del servidor?'
+      : '¿Eliminar a ' + j.nombre + '? Está VIVO — se borrará su cuenta y partida.';
+    if (!confirm(aviso)) return;
+
+    Usuarios.datos.lista = Usuarios.datos.lista.filter(p => p.id !== j.id);
+    Usuarios._guardarLista();
+    localStorage.removeItem(CONFIG.claveGuardado + '::' + j.id);
+
+    if (this.publicado.jugadores) {
+      this.publicado.jugadores = this.publicado.jugadores.filter(x => x.id !== j.id);
+    }
+    if (this.datos.jugadoresExtra) {
+      this.datos.jugadoresExtra = this.datos.jugadoresExtra.filter(x => x.id !== j.id);
+    }
+    delete (this.publicado.partidas || {})[j.id];
+    delete (this.datos.partidasExtra || {})[j.id];
+    this.guardar();
+    await this._publicarParaTodos(false);
+    Notificaciones.mostrar('🗑️ ' + j.nombre + ' eliminado', 'alerta', 5000);
+    this._listarCuentasAsync({ soloRefrescar: true });
   },
 
   listarJugadores() { this.listarCuentas(); },
@@ -3694,6 +3814,7 @@ const Admin = {
       tesorosEstado: Object.assign({}, this.publicado.tesorosEstado || {}),
       tesoroIconoMapa: this.tesoroIconoMapa(),
       combate: this.combateConfig(),
+      combateEnemigos: this.combateEnemigosConfig(),
       moverPinJugador: !!this.datos.moverPinJugador
     }, quitarTemporales, 2);
   },
@@ -3893,10 +4014,16 @@ const Admin = {
     if (pinPanel) pinPanel.classList.add('oculto');
     const pin = document.getElementById('admin-cofre-pin');
     if (pin) pin.value = '';
+    this._actualizarEtiquetaVerCofresOcultos();
     this._mostrarPanelDerecho('admin-vista-cofre', '🧰 Colocar cofre');
     setTimeout(() => {
       this._pintarRejillaGenerica('admin-cofre-rejilla', this._cofreSlots, 'cofre-slot');
       this._enlazarAdmRejilla('admin-cofre-infinito', this._cofreSlots, 'admin-cofre-rejilla', 'cofre-slot');
+      const btnOcultos = document.getElementById('admin-ver-cofres-ocultos');
+      if (btnOcultos && !btnOcultos._cofreOk) {
+        btnOcultos._cofreOk = true;
+        btnOcultos.addEventListener('click', () => this.toggleVerCofresOcultos());
+      }
     }, 0);
   },
 
@@ -3953,6 +4080,57 @@ const Admin = {
     this.guardar();
     this._publicarParaTodos(true);
     Notificaciones.mostrar('⚔️ Reglas de combate actualizadas para todos', 'exito');
+    this._volverAlPanel();
+  },
+
+  abrirCombateEnemigosConfig() {
+    const cfg = this.combateEnemigosConfig();
+    const set = (id, v) => { const el = document.getElementById(id); if (el) el.value = v; };
+    set('admin-enemigo-dano-min', cfg.danoMin);
+    set('admin-enemigo-dano-max', cfg.danoMax);
+    set('admin-enemigo-nivel-ref', cfg.nivelReferencia || 1);
+    set('admin-enemigo-factor', Math.round((cfg.factorPorNivel || 0.06) * 100));
+    this._pintarGraficaCombateEnemigos();
+    ['admin-enemigo-dano-min', 'admin-enemigo-dano-max', 'admin-enemigo-nivel-ref'].forEach(id => {
+      const el = document.getElementById(id);
+      if (el && !el._graficaEnemigoOk) {
+        el._graficaEnemigoOk = true;
+        el.addEventListener('input', () => this._pintarGraficaCombateEnemigos());
+      }
+    });
+    this._mostrarPanelDerecho('admin-vista-combate-enemigos', '👹 Daño enemigos');
+  },
+
+  _pintarGraficaCombateEnemigos() {
+    const cont = document.getElementById('admin-enemigo-grafica');
+    if (!cont) return;
+    const min = Math.max(1, this._numero('admin-enemigo-dano-min') || 5);
+    const max = Math.max(min, this._numero('admin-enemigo-dano-max') || 8);
+    const ref = Math.max(1, this._numero('admin-enemigo-nivel-ref') || 1);
+    const factor = Math.max(1, this._numero('admin-enemigo-factor') || 6) / 100;
+    let html = '<div class="admin-combate-grafica-titulo">Daño enemigo por nivel (referencia nv ' + ref + ')</div>';
+    for (let n = 1; n <= Math.min(20, CONFIG.nivelMaximo || 100); n += (n < 10 ? 1 : 5)) {
+      const f = 1 + (n - 1) * factor;
+      const lo = Math.round(min * f);
+      const hi = Math.round(max * f);
+      html += '<div class="admin-combate-fila">Nv ' + n + ': ' + lo + '–' + hi + '</div>';
+    }
+    cont.innerHTML = html;
+  },
+
+  _guardarCombateEnemigosConfig() {
+    this.datos.combateEnemigos = {
+      danoMin: Math.max(1, this._numero('admin-enemigo-dano-min') || 5),
+      danoMax: Math.max(1, this._numero('admin-enemigo-dano-max') || 8),
+      nivelReferencia: Math.max(1, this._numero('admin-enemigo-nivel-ref') || 1),
+      factorPorNivel: Math.max(0.01, (this._numero('admin-enemigo-factor') || 6) / 100)
+    };
+    if (this.datos.combateEnemigos.danoMax < this.datos.combateEnemigos.danoMin) {
+      this.datos.combateEnemigos.danoMax = this.datos.combateEnemigos.danoMin;
+    }
+    this.guardar();
+    this._publicarParaTodos(true);
+    Notificaciones.mostrar('👹 Reglas de daño enemigo actualizadas', 'exito');
     this._volverAlPanel();
   },
 

@@ -293,8 +293,11 @@ button { font-family: inherit; }
 }
 .btn-hud-accion:active { transform: scale(.92); }
 .btn-hud-accion .badge-avisos {
-  position: absolute; top: -3px; right: -3px;
-  font-size: 8px; color: #ff453a;
+  position: absolute; top: -5px; right: -5px;
+  min-width: 18px; height: 18px; padding: 0 4px;
+  border-radius: 999px; background: #ff453a; color: #fff;
+  font-size: 11px; font-weight: 800; line-height: 18px; text-align: center;
+  box-shadow: 0 0 8px rgba(255,69,58,.65);
 }
 
 #hud-dinero-mini {
@@ -535,12 +538,77 @@ button { font-family: inherit; }
 .inv-slot-arma-grande .inv-arma-icono { font-size: 36px; }
 .inv-arma-nombre { font-size: 12px; color: #c8d0e0; margin-top: 6px; }
 .inv-rejilla, #rejilla-mochila {
-  display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px;
+  display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px;
 }
 .inv-rejilla .slot, #rejilla-mochila .slot {
-  aspect-ratio: 1; background: rgba(255,255,255,.05);
-  border-radius: 10px; border: 1px solid rgba(255,255,255,.1);
-  font-size: clamp(22px, 6vw, 28px);
+  aspect-ratio: 1 / 1;
+  border-radius: 13px;
+  border: 1px solid #3d4657;
+  background: linear-gradient(145deg, #202838, #151c29);
+  position: relative;
+  display: flex; justify-content: center; align-items: center;
+  font-size: clamp(22px, 6vw, 30px);
+}
+.inv-rejilla .slot.drag-over, #rejilla-mochila .slot.drag-over,
+.inv-equip-slot.drag-over {
+  border-color: #ffc928;
+  box-shadow: 0 0 12px rgba(255,201,40,.6);
+}
+.inv-weapon-box-area {
+  height: 105px; border-radius: 14px;
+  border: 1px solid #283647;
+  background: rgba(255,255,255,.025);
+  display: flex; justify-content: center; align-items: center;
+}
+.inv-equip-slot {
+  width: 82px; height: 82px; border-radius: 13px;
+  border: 2px solid #ffc928 !important;
+  background: radial-gradient(circle, #202a3b, #111822) !important;
+  box-shadow: 0 0 14px rgba(255,201,40,.35);
+}
+.inv-equip-slot .inv-item-drag {
+  width: 70%; height: 70%; font-size: clamp(25px, 8vw, 34px);
+}
+.inv-item-drag {
+  width: 70%; height: 70%;
+  display: flex; justify-content: center; align-items: center;
+  cursor: grab; position: relative; line-height: 1;
+  touch-action: none;
+}
+.inv-item-drag .cantidad, .inv-item-drag .qty {
+  position: absolute; right: -8px; bottom: -8px;
+  background: #06080d; border: 1px solid rgba(255,255,255,.18);
+  border-radius: 50%; min-width: 20px; height: 20px;
+  font-size: 13px; font-weight: 900;
+  display: flex; justify-content: center; align-items: center;
+}
+.inv-delete-zone {
+  width: 145px; min-height: 54px; border-radius: 12px;
+  border: 2px dashed #ff4545; color: #ff5959;
+  display: none; justify-content: center; align-items: center;
+  font-weight: 900; background: rgba(255,0,0,.05); flex-shrink: 0;
+}
+.inv-delete-zone.show { display: flex; }
+.inv-delete-zone.active {
+  background: rgba(255,0,0,.25);
+  box-shadow: 0 0 18px rgba(255,0,0,.55);
+}
+.inv-ghost-item {
+  position: fixed; z-index: 9999; pointer-events: none;
+  transform: translate(-50%, -50%);
+  font-size: 38px; filter: drop-shadow(0 6px 8px #000);
+}
+.admin-jugadores-tabs {
+  display: flex; gap: 8px; padding: 0 14px 10px;
+}
+.admin-tab-jug {
+  flex: 1; padding: 8px 10px; border-radius: 10px;
+  border: 1px solid rgba(255,255,255,.12);
+  background: rgba(255,255,255,.06); color: #ddd;
+  font-weight: 700; font-size: 12px; cursor: pointer;
+}
+.admin-tab-jug.activa {
+  background: rgba(61,139,253,.25); border-color: rgba(61,139,253,.45); color: #fff;
 }
 .inv-rejilla .slot.slot-equipado, #rejilla-mochila .slot.slot-equipado {
   border-color: rgba(255,214,10,.5);

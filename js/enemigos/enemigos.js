@@ -54,14 +54,23 @@ const Enemigos = {
   },
 
   _rangoDanoEnemigo(e) {
+    const cfgEn = (typeof Admin !== 'undefined' && Admin.combateEnemigosConfig)
+      ? Admin.combateEnemigosConfig() : null;
     const nv = this._nivelEnemigo(e);
-    const factor = 1 + (nv - 1) * 0.06;
+    const factor = cfgEn ? (1 + (nv - 1) * (cfgEn.factorPorNivel || 0.06)) : (1 + (nv - 1) * 0.06);
     let lo = e.danoMin;
     let hi = e.danoMax;
     if (lo == null || hi == null) {
       const base = Math.max(1, e.dano || 10);
-      lo = Math.round(base * 0.65 * factor);
-      hi = Math.round(base * factor);
+      if (cfgEn) {
+        const ref = Math.max(1, cfgEn.nivelReferencia || 1);
+        const fRef = 1 + (ref - 1) * (cfgEn.factorPorNivel || 0.06);
+        lo = Math.round((cfgEn.danoMin || 5) * (factor / fRef));
+        hi = Math.round((cfgEn.danoMax || 8) * (factor / fRef));
+      } else {
+        lo = Math.round(base * 0.65 * factor);
+        hi = Math.round(base * factor);
+      }
     } else {
       lo = Math.round(lo * factor);
       hi = Math.round(hi * factor);

@@ -27,8 +27,6 @@ const Mochila = {
     document.getElementById('btn-usar-item').addEventListener('click', () => this.usarSeleccionado());
     document.getElementById('btn-escribir-item').addEventListener('click', () => this.escribirNota());
     document.getElementById('btn-eliminar-item').addEventListener('click', () => this.eliminarSeleccionado());
-    const btnInvDel = document.getElementById('btn-inv-eliminar');
-    if (btnInvDel) btnInvDel.addEventListener('click', () => this.eliminarSeleccionado());
     const btnEq = document.getElementById('btn-equipar-item');
     if (btnEq) btnEq.addEventListener('click', () => this.equiparSeleccionado());
     this.pintar();
@@ -206,26 +204,33 @@ const Mochila = {
     const tiene = id && this.tieneItem(id);
     const item = tiene ? Items.seguro(id) : null;
     const icon = item ? (item.icono || '🗡️') : null;
-    const nombre = item ? item.nombre : 'Puños';
+    const nombre = item ? item.nombre : 'Sin arma';
     const dano = item ? (item.dano || 0) : 0;
     const titulo = dano > 0 ? nombre + ' (+' + dano + ' daño)' : nombre;
     const hud = document.getElementById('hud-arma-equipada');
     const slot = document.getElementById('slot-arma-equipada');
-    const nom = document.getElementById('slot-arma-nombre');
-    const dot = document.getElementById('inv-arma-dot');
+    const status = document.getElementById('inv-weapon-status');
     if (hud) { hud.textContent = icon || '🗡️'; hud.title = 'Arma: ' + titulo; }
+    if (status) {
+      status.textContent = tiene ? ('⚔️ ' + nombre + ' equipada') : '⚔️ Sin arma';
+    }
     if (slot) {
       slot.classList.toggle('equipada', !!tiene);
-      slot.innerHTML = tiene
-        ? '<span class="inv-arma-icono">' + icon + '</span>'
-        : '<span class="inv-arma-placeholder">🗡️</span>';
+      if (!this._arrastre?.activo) {
+        slot.innerHTML = tiene
+          ? this._htmlItemDrag(item.icono, 1, false)
+          : '<span class="inv-arma-placeholder">🗡️</span>';
+        if (tiene) this._enlazarItemDrag(slot.querySelector('.inv-item-drag'), 'equip');
+      }
       slot.title = titulo;
     }
-    if (nom) {
-      nom.textContent = titulo;
-      nom.classList.toggle('oculto', !tiene);
-    }
-    if (dot) dot.classList.toggle('activa', !!tiene);
+  },
+
+  _htmlItemDrag(icono, cantidad, conQty) {
+    let h = '<div class="inv-item-drag"><span>' + (icono || '📦') + '</span>';
+    if (conQty && cantidad > 1) h += '<span class="qty">' + cantidad + '</span>';
+    h += '</div>';
+    return h;
   },
 
   pintar() {
@@ -234,6 +239,8 @@ const Mochila = {
     const usados = this.slots.filter(Boolean).length;
     const cap = document.getElementById('inv-capacidad');
     if (cap) cap.textContent = usados + ' / ' + this.TOTAL_SLOTS;
+    const dinInv = document.getElementById('inv-dinero-cantidad');
+    if (dinInv && typeof Dinero !== 'undefined') dinInv.textContent = Dinero.saldo;
     rejilla.innerHTML = '';
     this.slots.forEach((sl, i) => {
       const celda = document.createElement('div');
@@ -241,103 +248,112 @@ const Mochila = {
       celda.dataset.indice = i;
       if (sl) {
         const item = Items.seguro(sl.id);
-        celda.textContent = item.icono;
+        celda.innerHTML = this._htmlItemDrag(item.icono, sl.cantidad, true);
         if (this.armaEquipadaId() === sl.id) celda.classList.add('slot-equipado');
-        const cant = document.createElement('span');
-        cant.className = 'cantidad';
-        cant.textContent = sl.cantidad;
-        celda.appendChild(cant);
-        celda.addEventListener('pointerdown', ev => this._empezarArrastre(ev, i));
+        const dragEl = celda.querySelector('.inv-item-drag');
+        if (dragEl) this._enlazarItemDrag(dragEl, i);
       }
       rejilla.appendChild(celda);
     });
     this.pintarArmaHud();
   },
 
-  // ---------- ARRASTRAR Y SOLTAR (funciona con dedo y ratón) ----------
-  _empezarArrastre(ev, indice) {
+  _enlazarItemDrag(el, origen) {
+    if (!el || el._invDragOk) return;
+    el._invDragOk = true;
+    el.addEventListener('pointerdown', (ev) => this._prepararArrastre(ev, origen));
+  },
+
+  _prepararArrastre(ev, origen) {
     ev.preventDefault();
-    const sl = this.slots[indice];
-    if (!sl) return;
-    this._arrastre = {
-      origen: indice,
-      movio: false,
-      longPress: false,
-      x0: ev.clientX, y0: ev.clientY,
-      fantasma: null
+    const idxReal = origen === 'equip'
+      ? this.slots.findIndex(s => s && s.id === this.armaEquipadaId())
+      : origen;
+    const sl = origen === 'equip'
+      ? (this.armaEquipadaId() ? { id: this.armaEquipadaId(), cantidad: 1 } : null)
+      : this.slots[idxReal];
+    if (!sl || (origen !== 'equip' && idxReal < 0)) return;
+    const item = Items.seguro(sl.id);
+    const deleteZone = document.getElementById('inv-delete-zone');
+    let dragStarted = false;
+    let ghost = null;
+    let lastEv = ev;
+    const holdTimer = setTimeout(() => {
+      if (dragStarted) return;
+      dragStarted = true;
+      this._arrastre = { activo: true, origen: idxReal, desdeEquip: origen === 'equip', item: sl };
+      ghost = document.createElement('div');
+      ghost.className = 'inv-ghost-item';
+      ghost.textContent = item.icono;
+      document.body.appendChild(ghost);
+      if (deleteZone) deleteZone.classList.add('show');
+      this._moverGhost(lastEv, ghost, deleteZone);
+      window.addEventListener('pointermove', onMove);
+      window.addEventListener('pointerup', onUp, { once: true });
+    }, 350);
+
+    const onMove = (e) => {
+      e.preventDefault();
+      lastEv = e;
+      if (dragStarted) this._moverGhost(e, ghost, deleteZone);
     };
-    this._arrastre.timer = setTimeout(() => {
-      if (!this._arrastre || this._arrastre.movio) return;
-      this._arrastre.longPress = true;
-      this._eliminarSlot(indice);
-      this._arrastre = null;
-    }, 650);
-    const mover = e => this._moverArrastre(e);
-    const soltar = e => {
-      window.removeEventListener('pointermove', mover);
-      window.removeEventListener('pointerup', soltar);
-      this._soltarArrastre(e);
+
+    const onUp = (e) => {
+      clearTimeout(holdTimer);
+      window.removeEventListener('pointermove', onMove);
+      if (!dragStarted) {
+        if (origen !== 'equip') this.mostrarDetalle(origen);
+        else if (idxReal >= 0) this.mostrarDetalle(idxReal);
+        return;
+      }
+      this._finalizarArrastre(e, idxReal, ghost, deleteZone);
     };
-    window.addEventListener('pointermove', mover);
-    window.addEventListener('pointerup', soltar);
+
+    const cancelHold = () => {
+      clearTimeout(holdTimer);
+      if (!dragStarted) window.removeEventListener('pointermove', savePtr);
+    };
+    const savePtr = (e) => { e.preventDefault(); lastEv = e; };
+    window.addEventListener('pointermove', savePtr);
+    window.addEventListener('pointerup', cancelHold, { once: true });
   },
 
-  _moverArrastre(ev) {
-    const a = this._arrastre;
-    if (!a) return;
-    if (!a.movio && Math.hypot(ev.clientX - a.x0, ev.clientY - a.y0) < 8) return;
-    clearTimeout(a.timer);
-    if (!a.movio) {
-      a.movio = true;
-      const item = Items.seguro(this.slots[a.origen].id);
-      a.fantasma = document.createElement('div');
-      a.fantasma.id = 'item-fantasma';
-      a.fantasma.textContent = item.icono;
-      document.body.appendChild(a.fantasma);
+  _moverGhost(ev, ghost, deleteZone) {
+    if (!ghost) return;
+    ghost.style.left = ev.clientX + 'px';
+    ghost.style.top = ev.clientY + 'px';
+    document.querySelectorAll('.slot.drag-over, .inv-equip-slot.drag-over')
+      .forEach(s => s.classList.remove('drag-over'));
+    const el = document.elementFromPoint(ev.clientX, ev.clientY);
+    const slot = el?.closest?.('.slot');
+    if (slot) slot.classList.add('drag-over');
+    if (deleteZone) {
+      deleteZone.classList.toggle('active', !!(el && el.closest('#inv-delete-zone')));
     }
-    a.fantasma.style.left = ev.clientX + 'px';
-    a.fantasma.style.top = ev.clientY + 'px';
-
-    // Resaltar la casilla o papelera bajo el dedo
-    document.querySelectorAll('.slot.destino, #papelera.destino')
-      .forEach(el => el.classList.remove('destino'));
-    const bajo = this._elementoBajo(ev.clientX, ev.clientY);
-    if (bajo) bajo.classList.add('destino');
   },
 
-  _elementoBajo(x, y) {
-    const el = document.elementFromPoint(x, y);
-    if (!el) return null;
-    return el.closest('.slot') || el.closest('#papelera');
-  },
-
-  _soltarArrastre(ev) {
-    const a = this._arrastre;
+  _finalizarArrastre(ev, origen, ghost, deleteZone) {
+    if (ghost) ghost.remove();
+    if (deleteZone) deleteZone.classList.remove('show', 'active');
+    document.querySelectorAll('.slot.drag-over, .inv-equip-slot.drag-over')
+      .forEach(s => s.classList.remove('drag-over'));
     this._arrastre = null;
-    if (!a) return;
-    clearTimeout(a.timer);
-    if (a.longPress) return;
-    if (a.fantasma) a.fantasma.remove();
-    document.querySelectorAll('.slot.destino, #papelera.destino')
-      .forEach(el => el.classList.remove('destino'));
 
-    if (!a.movio) {
-      // Fue un toque simple: mostrar detalle del item
-      this.mostrarDetalle(a.origen);
+    const el = document.elementFromPoint(ev.clientX, ev.clientY);
+    if (el?.closest('#inv-delete-zone')) {
+      if (origen === 'equip') this.desequiparArma();
+      else this._eliminarSlot(origen);
       return;
     }
-
-    const bajo = this._elementoBajo(ev.clientX, ev.clientY);
-    if (!bajo) return;
-
-    if (bajo.id === 'papelera') {
-      this._eliminarSlot(a.origen);
+    const targetSlot = el?.closest('.slot');
+    if (!targetSlot) return;
+    if (targetSlot.classList.contains('inv-equip-slot') || targetSlot.dataset.type === 'weapon') {
+      const sl = this.slots[origen];
+      if (sl && Items.seguro(sl.id).tipo === 'arma') this.equiparArma(sl.id);
       return;
     }
-
-    const destino = parseInt(bajo.dataset.indice, 10);
-    if (isNaN(destino) || destino === a.origen) return;
-    this.moverSlot(a.origen, destino);
+    const destino = parseInt(targetSlot.dataset.indice, 10);
+    if (!isNaN(destino) && destino !== origen) this.moverSlot(origen, destino);
   },
 
   // Mover / intercambiar / apilar entre dos casillas

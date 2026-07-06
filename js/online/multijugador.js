@@ -364,8 +364,8 @@ const Multijugador = {
     }
     Admin._aplicarRevivirDesdeNube();
     const vistaJug = document.getElementById('admin-vista-jugadores');
-    if (vistaJug && !vistaJug.classList.contains('oculto') && Admin._listarCuentasAsync) {
-      Admin._listarCuentasAsync();
+    if (vistaJug && !vistaJug.classList.contains('oculto') && Admin._adminAbierto?.()) {
+      Admin._listarCuentasAsync({ soloRefrescar: true });
     }
   },
 

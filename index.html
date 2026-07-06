@@ -13,7 +13,7 @@
   <script>
     // Aviso temprano en móvil (antes de cargar 20+ archivos JS)
     (function () {
-      var V = '82';
+      var V = '83';
       var texto = document.getElementById('carga-texto');
       if (texto) texto.textContent = 'Conectando…';
       var prev = localStorage.getItem('mariel_app_version');
@@ -227,15 +227,16 @@
         <button type="button" class="btn-cerrar inv-cerrar" data-cierra="ventana-mochila" aria-label="Cerrar">✕</button>
       </div>
       <div class="inv-status-bar">
-        <div class="inv-dinero"><span class="inv-dinero-icono">💰</span> <span id="hud-dinero-cantidad">100</span></div>
-        <div class="inv-arma-status"><span>⚔️</span> Arma equipada <span class="inv-dot" id="inv-arma-dot"></span></div>
+        <div class="inv-dinero"><span class="inv-dinero-icono">💰</span> $<span id="inv-dinero-cantidad">100</span></div>
+        <div class="inv-arma-status" id="inv-weapon-status">⚔️ Sin arma</div>
       </div>
       <div class="inv-seccion inv-seccion-arma">
         <div class="inv-seccion-titulo">ARMA EQUIPADA</div>
-        <div id="slot-arma-equipada" class="inv-slot-arma-grande" title="Equipa un arma desde la mochila">
-          <span class="inv-arma-placeholder">🗡️</span>
+        <div class="inv-weapon-box-area">
+          <div id="slot-arma-equipada" class="inv-equip-slot slot" data-type="weapon" title="Arrastra un arma aquí">
+            <span class="inv-arma-placeholder">🗡️</span>
+          </div>
         </div>
-        <div id="slot-arma-nombre" class="inv-arma-nombre oculto"></div>
       </div>
       <div class="inv-seccion">
         <div class="inv-seccion-titulo-row">
@@ -259,8 +260,8 @@
         </div>
       </div>
       <div class="inv-pie">
-        <p class="inv-ayuda"><span class="inv-info-i">i</span> Mantén presionado un objeto para <span class="inv-rojo">eliminarlo</span></p>
-        <button type="button" id="btn-inv-eliminar" class="inv-btn-eliminar">🗑️ ELIMINAR</button>
+        <p class="inv-ayuda">Mantén presionado un objeto <span class="inv-rojo">para moverlo o eliminarlo</span></p>
+        <div id="inv-delete-zone" class="inv-delete-zone">🗑️ ELIMINAR</div>
       </div>
       <div id="papelera" class="oculto" aria-hidden="true"></div>
     </div>
@@ -415,21 +416,12 @@
           <button class="fila-opcion admin-nav" id="admin-jugadores"><span class="icono-opcion">👥</span> Lista</button>
           <button class="fila-opcion admin-nav" id="admin-mensaje"><span class="icono-opcion">✉️</span> Mensaje</button>
 
-          <button type="button" class="fila-opcion admin-carpeta" id="admin-carpeta-cofres">
-            <span class="admin-carpeta-flecha">▶</span>
-            <span class="icono-opcion">🧰</span> Cofres
-          </button>
-          <div class="admin-carpeta-contenido oculto" id="admin-carpeta-cofres-cont">
-            <button type="button" class="fila-opcion admin-nav admin-sub" id="admin-ver-cofres-ocultos">
-              <span class="icono-opcion">👻</span> <span id="admin-ver-cofres-ocultos-texto">Ver ocultos: OFF</span>
-            </button>
-          </div>
-
           <div class="admin-seccion-titulo">⚔️ Combate</div>
           <button class="fila-opcion admin-nav" id="admin-combate-config"><span class="icono-opcion">⚔️</span> Reglas globales</button>
+          <button class="fila-opcion admin-nav" id="admin-combate-enemigos"><span class="icono-opcion">👹</span> Daño enemigos</button>
 
           <div class="admin-seccion-titulo">🌍 Servidor</div>
-          <button class="fila-opcion admin-nav" id="admin-mantenimiento"><span class="icono-opcion">🚧</span> Mantenimiento</button>
+          <button class="fila-opcion admin-nav" id="admin-mantenimiento"><span class="icono-opcion">🚧</span> Mantenimiento: <span id="admin-mant-nav-texto">OFF</span></button>
           <button class="fila-opcion admin-nav" id="admin-publicar"><span class="icono-opcion">🔄</span> Sincronizar</button>
         </nav>
 
@@ -451,11 +443,10 @@
               <button type="button" id="admin-crear-jugador" class="btn-auth-principal admin-btn-toolbar">+ Crear jugador</button>
             </div>
             <input id="admin-buscar-jugador" type="search" placeholder="🔍 Buscar nombre, teléfono o ID…">
-            <div id="admin-seccion-muertos" class="admin-seccion-muertos oculto">
-              <div class="admin-seccion-titulo">💀 Muertos</div>
-              <div id="admin-lista-muertos"></div>
+            <div class="admin-jugadores-tabs">
+              <button type="button" id="admin-tab-vivos" class="admin-tab-jug activa">🟢 Vivos</button>
+              <button type="button" id="admin-tab-muertos" class="admin-tab-jug">💀 Muertos</button>
             </div>
-            <div class="admin-seccion-titulo">👥 Jugadores</div>
             <div id="admin-lista-jugadores"></div>
           </div>
 
@@ -613,6 +604,9 @@
                 <input type="checkbox" id="admin-cofre-visible" checked>
                 <label for="admin-cofre-visible">Visible (cualquiera puede abrirlo)</label>
               </div>
+              <button type="button" class="fila-opcion admin-nav admin-sub" id="admin-ver-cofres-ocultos" style="margin:0 0 10px;text-align:left;">
+                <span class="icono-opcion">👻</span> <span id="admin-ver-cofres-ocultos-texto">Ver ocultos: OFF</span>
+              </button>
               <div class="campo-admin oculto" id="cofre-pin-panel">
                 <label for="admin-cofre-pin">PIN de 4 números (cofre oculto)</label>
                 <input id="admin-cofre-pin" type="password" inputmode="numeric" maxlength="4" placeholder="1234" autocomplete="off">
@@ -655,6 +649,33 @@
               </div>
               <button type="button" id="btn-admin-combate-guardar" class="btn-auth-principal">Guardar reglas</button>
               <div id="admin-combate-grafica"></div>
+            </div>
+          </div>
+          <div id="admin-vista-combate-enemigos" class="admin-vista oculto">
+            <div class="admin-clave-cuerpo">
+              <p class="admin-clave-ayuda">Daño que hacen los enemigos según su nivel y el tuyo.</p>
+              <div class="campo-doble">
+                <div class="campo-admin">
+                  <label for="admin-enemigo-dano-min">Daño mínimo (nivel referencia)</label>
+                  <input id="admin-enemigo-dano-min" type="number" min="1" inputmode="numeric">
+                </div>
+                <div class="campo-admin">
+                  <label for="admin-enemigo-dano-max">Daño máximo (nivel referencia)</label>
+                  <input id="admin-enemigo-dano-max" type="number" min="1" inputmode="numeric">
+                </div>
+              </div>
+              <div class="campo-doble">
+                <div class="campo-admin">
+                  <label for="admin-enemigo-nivel-ref">Nivel de referencia del enemigo</label>
+                  <input id="admin-enemigo-nivel-ref" type="number" min="1" max="100" inputmode="numeric">
+                </div>
+                <div class="campo-admin">
+                  <label for="admin-enemigo-factor">Extra daño por nivel (%)</label>
+                  <input id="admin-enemigo-factor" type="number" min="1" max="30" inputmode="numeric">
+                </div>
+              </div>
+              <button type="button" id="btn-admin-combate-enemigos-guardar" class="btn-auth-principal">Guardar reglas enemigos</button>
+              <div id="admin-enemigo-grafica"></div>
             </div>
           </div>
         </aside>
@@ -710,44 +731,44 @@
   </div>
 
   <!-- LIBRERÍAS -->
-  <script src="lib/leaflet/leaflet.js?v=82"></script>
+  <script src="lib/leaflet/leaflet.js?v=83"></script>
 
   <!-- MÓDULOS DEL JUEGO (orden importante) -->
-  <script src="js/config/config.js?v=82"></script>
-  <script src="js/nucleo/utilidades.js?v=82"></script>
-  <script src="js/mundo/mundo_publico.js?v=82"></script>
-  <script src="js/notificaciones/notificaciones.js?v=82"></script>
-  <script src="js/usuarios/usuarios.js?v=82"></script>
-  <script src="js/guardado/guardado.js?v=82"></script>
-  <script src="js/historial/historial.js?v=82"></script>
-  <script src="js/dinero/dinero.js?v=82"></script>
-  <script src="js/vida/vida.js?v=82"></script>
-  <script src="js/items/items.js?v=82"></script>
-  <script src="js/mochila/mochila.js?v=82"></script>
-  <script src="js/mapa/mapa.js?v=82"></script>
-  <script src="js/gps/gps.js?v=82"></script>
-  <script src="js/tiendas/datos_tiendas.js?v=82"></script>
-  <script src="js/tiendas/tiendas.js?v=82"></script>
-  <script src="js/pesca/pesca.js?v=82"></script>
-  <script src="js/tesoros/datos_tesoros.js?v=82"></script>
-  <script src="js/tesoros/tesoros.js?v=82"></script>
-  <script src="js/misiones/datos_misiones.js?v=82"></script>
-  <script src="js/misiones/misiones.js?v=82"></script>
-  <script src="js/cofres/cofres.js?v=82"></script>
-  <script src="js/correo/correo.js?v=82"></script>
-  <script src="js/enemigos/enemigos.js?v=82"></script>
-  <script src="js/online/sync_servidor.js?v=82"></script>
-  <script src="js/admin/admin.js?v=82"></script>
-  <script src="js/opciones/opciones.js?v=82"></script>
-  <script src="js/online/mundo_online.js?v=82"></script>
-  <script src="js/online/amigos.js?v=82"></script>
-  <script src="js/online/multijugador.js?v=82"></script>
-  <script src="js/principal.js?v=82"></script>
+  <script src="js/config/config.js?v=83"></script>
+  <script src="js/nucleo/utilidades.js?v=83"></script>
+  <script src="js/mundo/mundo_publico.js?v=83"></script>
+  <script src="js/notificaciones/notificaciones.js?v=83"></script>
+  <script src="js/usuarios/usuarios.js?v=83"></script>
+  <script src="js/guardado/guardado.js?v=83"></script>
+  <script src="js/historial/historial.js?v=83"></script>
+  <script src="js/dinero/dinero.js?v=83"></script>
+  <script src="js/vida/vida.js?v=83"></script>
+  <script src="js/items/items.js?v=83"></script>
+  <script src="js/mochila/mochila.js?v=83"></script>
+  <script src="js/mapa/mapa.js?v=83"></script>
+  <script src="js/gps/gps.js?v=83"></script>
+  <script src="js/tiendas/datos_tiendas.js?v=83"></script>
+  <script src="js/tiendas/tiendas.js?v=83"></script>
+  <script src="js/pesca/pesca.js?v=83"></script>
+  <script src="js/tesoros/datos_tesoros.js?v=83"></script>
+  <script src="js/tesoros/tesoros.js?v=83"></script>
+  <script src="js/misiones/datos_misiones.js?v=83"></script>
+  <script src="js/misiones/misiones.js?v=83"></script>
+  <script src="js/cofres/cofres.js?v=83"></script>
+  <script src="js/correo/correo.js?v=83"></script>
+  <script src="js/enemigos/enemigos.js?v=83"></script>
+  <script src="js/online/sync_servidor.js?v=83"></script>
+  <script src="js/admin/admin.js?v=83"></script>
+  <script src="js/opciones/opciones.js?v=83"></script>
+  <script src="js/online/mundo_online.js?v=83"></script>
+  <script src="js/online/amigos.js?v=83"></script>
+  <script src="js/online/multijugador.js?v=83"></script>
+  <script src="js/principal.js?v=83"></script>
   <script>
     // Registrar la app instalable (PWA)
     if ('serviceWorker' in navigator) {
       const yaTeniaVersion = !!navigator.serviceWorker.controller;
-      navigator.serviceWorker.register('sw.js?v=82', { updateViaCache: 'none' })
+      navigator.serviceWorker.register('sw.js?v=83', { updateViaCache: 'none' })
         .then(function (reg) { reg.update(); })
         .catch(function () {});
       // Cuando llega una versión nueva del juego: avisar y recargar solo
