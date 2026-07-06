@@ -4,7 +4,7 @@
   "telefono": "2352647622",
   "pinHash": "4bdc96ffc0926b62d55708e3c1755ca3f04b8c28bec6fd85777117da67497f11",
   "creado": 1783379355081,
-  "actualizadoEn": 1783379357182,
+  "actualizadoEn": 1783379369739,
   "partida": {
     "datos": {
       "mochila": [
@@ -46,8 +46,21 @@
       },
       "vida": 100,
       "hambre": 50,
-      "muerto": false
+      "xp": 0,
+      "nivel": 1,
+      "posicionJugador": null,
+      "tesorosRecogidos": [],
+      "misiones": {},
+      "misionesEstado": {},
+      "correoEnviados": [],
+      "correoRecibidos": [],
+      "correoTiendaLocal": [],
+      "historialDinero": [],
+      "historialObjetos": [],
+      "mensajesVistos": [],
+      "muerto": false,
+      "armaEquipada": null
     },
-    "t": 1783379355081
+    "t": 1783379367559
   }
 }
