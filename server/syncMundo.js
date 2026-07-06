@@ -573,9 +573,25 @@ function syncMundoFromJson(mundo, io) {
   }
 
   try {
-    const { reconciliarCuentasEnSnapshot, purgarCuentasFueraDeSnapshot } = require('./syncCuentas');
+    const {
+      reconciliarCuentasEnSnapshot,
+      purgarCuentasFueraDeSnapshot,
+      deduplicarJugadoresPorNombre
+    } = require('./syncCuentas');
     if (Array.isArray(mundo.jugadores)) {
       purgarCuentasFueraDeSnapshot(mundo);
+      const dedupe = deduplicarJugadoresPorNombre(mundo.jugadores);
+      mundo.jugadores = dedupe.jugadores;
+      if (dedupe.aliasIds.size) {
+        mundo.partidas = mundo.partidas || {};
+        for (const [viejo, canon] of dedupe.aliasIds) {
+          const p = mundo.partidas[viejo];
+          if (!p) continue;
+          const prev = mundo.partidas[canon];
+          if (!prev || (p.t || 0) >= (prev.t || 0)) mundo.partidas[canon] = p;
+          delete mundo.partidas[viejo];
+        }
+      }
     } else {
       reconciliarCuentasEnSnapshot(mundo);
     }

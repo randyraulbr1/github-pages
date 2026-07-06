@@ -18,6 +18,45 @@ function listUsersWithPlayers() {
   `).all();
 }
 
+function prioridadJugador(j) {
+  let s = 0;
+  if (j?.telefono) s += 20;
+  if (j?.pinHash) s += 10;
+  const id = String(j?.id || '');
+  if (id && !id.startsWith('srv_')) s += 15;
+  if (id.startsWith('pmr') || (id.startsWith('p') && id.length > 4)) s += 5;
+  return s;
+}
+
+/** Una cuenta por nombre; prioriza id PWA (pmr…) y teléfono sobre srv_N duplicados. */
+function deduplicarJugadoresPorNombre(lista) {
+  if (!Array.isArray(lista)) return { jugadores: [], aliasIds: new Map() };
+  const sinNombre = lista.filter(j => j?.id && !String(j.nombre || '').trim());
+  const grupos = new Map();
+  for (const j of lista) {
+    if (!j?.id || !String(j.nombre || '').trim()) continue;
+    const key = String(j.nombre).trim().toLowerCase();
+    if (!grupos.has(key)) grupos.set(key, []);
+    grupos.get(key).push(j);
+  }
+  const resultado = [...sinNombre];
+  const aliasIds = new Map();
+  for (const [, dupes] of grupos) {
+    const ordenados = dupes.slice().sort((a, b) => prioridadJugador(b) - prioridadJugador(a));
+    const canon = Object.assign({}, ordenados[0]);
+    for (let i = 1; i < ordenados.length; i++) {
+      const o = ordenados[i];
+      if (!canon.telefono && o.telefono) canon.telefono = o.telefono;
+      if (!canon.pinHash && o.pinHash) canon.pinHash = o.pinHash;
+      if (!canon.creado && o.creado) canon.creado = o.creado;
+      aliasIds.set(o.id, canon.id);
+    }
+    resultado.push(canon);
+  }
+  resultado.sort((a, b) => String(a.nombre || '').localeCompare(String(b.nombre || ''), 'es'));
+  return { jugadores: resultado, aliasIds };
+}
+
 function reconciliarCuentasEnSnapshot(mundoOpt) {
   const rows = listUsersWithPlayers();
   let mundo = mundoOpt || getWorldSnapshot();
@@ -35,7 +74,22 @@ function reconciliarCuentasEnSnapshot(mundoOpt) {
   }
 
   if (!rows.length) {
-    return { ok: true, added: 0, total: (mundo.jugadores || []).length };
+    const dedupe = deduplicarJugadoresPorNombre(mundo.jugadores || []);
+    mundo.jugadores = dedupe.jugadores;
+    if (dedupe.aliasIds.size && mundo.partidas) {
+      for (const [viejo, canon] of dedupe.aliasIds) {
+        const p = mundo.partidas[viejo];
+        if (!p) continue;
+        const prev = mundo.partidas[canon];
+        if (!prev || (p.t || 0) >= (prev.t || 0)) mundo.partidas[canon] = p;
+        delete mundo.partidas[viejo];
+      }
+    }
+    if (dedupe.aliasIds.size) {
+      mundo.actualizadoEn = Date.now();
+      if (!mundoOpt) saveWorldSnapshot(mundo);
+    }
+    return { ok: true, added: 0, merged: dedupe.aliasIds.size, total: dedupe.jugadores.length };
   }
 
   const porNombre = new Map();
@@ -61,6 +115,21 @@ function reconciliarCuentasEnSnapshot(mundoOpt) {
 
   if (nuevos.length) {
     mergeJugadoresPartidas(mundo, [{ jugadores: nuevos }]);
+  }
+
+  const dedupe = deduplicarJugadoresPorNombre(mundo.jugadores || []);
+  mundo.jugadores = dedupe.jugadores;
+  if (dedupe.aliasIds.size && mundo.partidas) {
+    for (const [viejo, canon] of dedupe.aliasIds) {
+      const p = mundo.partidas[viejo];
+      if (!p) continue;
+      const prev = mundo.partidas[canon];
+      if (!prev || (p.t || 0) >= (prev.t || 0)) mundo.partidas[canon] = p;
+      delete mundo.partidas[viejo];
+    }
+  }
+
+  if (nuevos.length || dedupe.aliasIds.size) {
     mundo.actualizadoEn = Date.now();
     if (!mundoOpt) saveWorldSnapshot(mundo);
   }
@@ -68,6 +137,7 @@ function reconciliarCuentasEnSnapshot(mundoOpt) {
   return {
     ok: true,
     added: nuevos.length,
+    merged: dedupe.aliasIds.size,
     total: (mundo.jugadores || []).length,
     sqliteUsers: rows.length
   };
@@ -96,9 +166,7 @@ function getJugadoresPublicos() {
     });
   }
 
-  return [...porId.values()].sort((a, b) =>
-    String(a.nombre || '').localeCompare(String(b.nombre || ''), 'es')
-  );
+  return deduplicarJugadoresPorNombre([...porId.values()]).jugadores;
 }
 
 /** Borra de SQLite usuarios que ya no están en la lista publicada por el admin. */
@@ -135,6 +203,7 @@ module.exports = {
   listUsersWithPlayers,
   reconciliarCuentasEnSnapshot,
   purgarCuentasFueraDeSnapshot,
+  deduplicarJugadoresPorNombre,
   getJugadoresPublicos,
   respaldarCuentasEnGitHub
 };

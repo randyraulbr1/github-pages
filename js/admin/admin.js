@@ -569,7 +569,46 @@ const Admin = {
         }));
       }
     }
-    return [...porId.values()].sort((a, b) => (a.nombre || '').localeCompare(b.nombre || ''));
+    return this._deduplicarJugadoresPorNombre([...porId.values()]).jugadores;
+  },
+
+  _prioridadJugador(j) {
+    let s = 0;
+    if (j?.telefono) s += 20;
+    if (j?.pinHash) s += 10;
+    const id = String(j?.id || '');
+    if (id && !id.startsWith('srv_')) s += 15;
+    if (id.startsWith('pmr') || (id.startsWith('p') && id.length > 4)) s += 5;
+    return s;
+  },
+
+  /** Una cuenta por nombre; prioriza id PWA y teléfono sobre srv_N duplicados. */
+  _deduplicarJugadoresPorNombre(lista) {
+    if (!Array.isArray(lista)) return { jugadores: [], aliasIds: new Map() };
+    const sinNombre = lista.filter(j => j?.id && !String(j.nombre || '').trim());
+    const grupos = new Map();
+    for (const j of lista) {
+      if (!j?.id || !String(j.nombre || '').trim()) continue;
+      const key = String(j.nombre).trim().toLowerCase();
+      if (!grupos.has(key)) grupos.set(key, []);
+      grupos.get(key).push(j);
+    }
+    const resultado = [...sinNombre];
+    const aliasIds = new Map();
+    for (const [, dupes] of grupos) {
+      const ordenados = dupes.slice().sort((a, b) => this._prioridadJugador(b) - this._prioridadJugador(a));
+      const canon = Object.assign({}, ordenados[0]);
+      for (let i = 1; i < ordenados.length; i++) {
+        const o = ordenados[i];
+        if (!canon.telefono && o.telefono) canon.telefono = o.telefono;
+        if (!canon.pinHash && o.pinHash) canon.pinHash = o.pinHash;
+        if (!canon.creado && o.creado) canon.creado = o.creado;
+        aliasIds.set(o.id, canon.id);
+      }
+      resultado.push(canon);
+    }
+    resultado.sort((a, b) => (a.nombre || '').localeCompare(b.nombre || ''));
+    return { jugadores: resultado, aliasIds };
   },
 
   async actualizarJugadoresGlobales() {
@@ -734,11 +773,33 @@ const Admin = {
         }));
       }
     }
-    return [...porId.values()].map(j => {
+    const { jugadores, aliasIds } = this._deduplicarJugadoresPorNombre([...porId.values()]);
+    this._aliasJugadoresPublicar = aliasIds;
+    return jugadores.map(j => {
       const copia = Object.assign({}, j);
       delete copia.pinClave;
       return copia;
-    }).sort((a, b) => (a.nombre || '').localeCompare(b.nombre || ''));
+    });
+  },
+
+  _partidasParaPublicar() {
+    const porId = {};
+    for (const [id, p] of Object.entries(this.publicado.partidas || {})) {
+      porId[id] = p;
+    }
+    for (const [id, p] of Object.entries(this.datos.partidasExtra || {})) {
+      if (!porId[id] || (p.t && p.t > (porId[id].t || 0))) porId[id] = p;
+    }
+    const alias = this._aliasJugadoresPublicar;
+    if (alias && alias.size) {
+      for (const [viejo, canon] of alias) {
+        const p = porId[viejo];
+        if (!p) continue;
+        if (!porId[canon] || (p.t && p.t > (porId[canon].t || 0))) porId[canon] = p;
+        delete porId[viejo];
+      }
+    }
+    return porId;
   },
 
   // Posición corregida de un pin (si el admin lo movió). Muta la base en sitio
@@ -4000,16 +4061,7 @@ const Admin = {
         }
         return [...porId.values()].filter(t => t.cantidad > 0);
       })(),
-      partidas: (() => {
-        const porId = {};
-        for (const [id, p] of Object.entries(this.publicado.partidas || {})) {
-          porId[id] = p;
-        }
-        for (const [id, p] of Object.entries(this.datos.partidasExtra || {})) {
-          if (!porId[id] || (p.t && p.t > (porId[id].t || 0))) porId[id] = p;
-        }
-        return porId;
-      })(),
+      partidas: this._partidasParaPublicar(),
       enemigos: this._itemsConPosicion(this.enemigosTodos()),
       enemigosEstado: Object.assign({}, this.publicado.enemigosEstado || {}),
       objetosEstado: Object.assign({}, this.publicado.objetosEstado || {}),
