@@ -13,7 +13,7 @@
   <script>
     // Aviso temprano en móvil (antes de cargar 20+ archivos JS)
     (function () {
-      var V = '86';
+      var V = '87';
       var texto = document.getElementById('carga-texto');
       if (texto) texto.textContent = 'Conectando…';
       var prev = localStorage.getItem('mariel_app_version');
@@ -95,24 +95,20 @@
       <div class="fila-barra" title="Vida">
         <div id="contenedor-vida">
           <div id="vida-relleno"></div>
-          <span id="vida-texto">100/100</span>
+          <span id="vida-texto" class="barra-texto-int">100/100</span>
         </div>
       </div>
       <div class="fila-barra" title="Hambre">
-        <div class="barra-col">
-          <div id="contenedor-hambre">
-            <div id="hambre-relleno"></div>
-          </div>
-          <span id="hambre-texto" class="barra-etiqueta-num">50/100</span>
+        <div id="contenedor-hambre">
+          <div id="hambre-relleno"></div>
+          <span id="hambre-texto" class="barra-texto-int">50/100</span>
         </div>
       </div>
       <div class="fila-barra fila-barra-xp" title="Experiencia">
         <span id="nivel-texto" class="barra-nivel">Nv 1</span>
-        <div class="barra-col">
-          <div id="contenedor-xp">
-            <div id="xp-relleno"></div>
-          </div>
-          <span id="xp-texto" class="barra-etiqueta-num">0/80</span>
+        <div id="contenedor-xp">
+          <div id="xp-relleno"></div>
+          <span id="xp-texto" class="barra-texto-int">0/80</span>
         </div>
       </div>
     </div>
@@ -469,15 +465,9 @@
                   <label for="admin-nuevo-telefono">Teléfono (opcional)</label>
                   <input id="admin-nuevo-telefono" inputmode="tel" placeholder="Ej: 51234567">
                 </div>
-                <div class="campo-doble">
-                  <div class="campo-admin">
-                    <label for="admin-nuevo-clave">Contraseña</label>
-                    <input id="admin-nuevo-clave" type="password" placeholder="Mín. 4 caracteres">
-                  </div>
-                  <div class="campo-admin">
-                    <label for="admin-nuevo-clave2">Repetir</label>
-                    <input id="admin-nuevo-clave2" type="password" placeholder="Repite la contraseña">
-                  </div>
+                <div class="campo-admin">
+                  <label for="admin-nuevo-clave">Contraseña</label>
+                  <input id="admin-nuevo-clave" type="text" placeholder="Mín. 4 caracteres (visible)" autocomplete="off" spellcheck="false">
                 </div>
                 <div class="campo-caja">
                   <input type="checkbox" id="admin-nuevo-inventario-default" checked>
@@ -738,44 +728,44 @@
   </div>
 
   <!-- LIBRERÍAS -->
-  <script src="lib/leaflet/leaflet.js?v=86"></script>
+  <script src="lib/leaflet/leaflet.js?v=87"></script>
 
   <!-- MÓDULOS DEL JUEGO (orden importante) -->
-  <script src="js/config/config.js?v=86"></script>
-  <script src="js/nucleo/utilidades.js?v=86"></script>
-  <script src="js/mundo/mundo_publico.js?v=86"></script>
-  <script src="js/notificaciones/notificaciones.js?v=86"></script>
-  <script src="js/usuarios/usuarios.js?v=86"></script>
-  <script src="js/guardado/guardado.js?v=86"></script>
-  <script src="js/historial/historial.js?v=86"></script>
-  <script src="js/dinero/dinero.js?v=86"></script>
-  <script src="js/vida/vida.js?v=86"></script>
-  <script src="js/items/items.js?v=86"></script>
-  <script src="js/mochila/mochila.js?v=86"></script>
-  <script src="js/mapa/mapa.js?v=86"></script>
-  <script src="js/gps/gps.js?v=86"></script>
-  <script src="js/tiendas/datos_tiendas.js?v=86"></script>
-  <script src="js/tiendas/tiendas.js?v=86"></script>
-  <script src="js/pesca/pesca.js?v=86"></script>
-  <script src="js/tesoros/datos_tesoros.js?v=86"></script>
-  <script src="js/tesoros/tesoros.js?v=86"></script>
-  <script src="js/misiones/datos_misiones.js?v=86"></script>
-  <script src="js/misiones/misiones.js?v=86"></script>
-  <script src="js/cofres/cofres.js?v=86"></script>
-  <script src="js/correo/correo.js?v=86"></script>
-  <script src="js/enemigos/enemigos.js?v=86"></script>
-  <script src="js/online/sync_servidor.js?v=86"></script>
-  <script src="js/admin/admin.js?v=86"></script>
-  <script src="js/opciones/opciones.js?v=86"></script>
-  <script src="js/online/mundo_online.js?v=86"></script>
-  <script src="js/online/amigos.js?v=86"></script>
-  <script src="js/online/multijugador.js?v=86"></script>
-  <script src="js/principal.js?v=86"></script>
+  <script src="js/config/config.js?v=87"></script>
+  <script src="js/nucleo/utilidades.js?v=87"></script>
+  <script src="js/mundo/mundo_publico.js?v=87"></script>
+  <script src="js/notificaciones/notificaciones.js?v=87"></script>
+  <script src="js/usuarios/usuarios.js?v=87"></script>
+  <script src="js/guardado/guardado.js?v=87"></script>
+  <script src="js/historial/historial.js?v=87"></script>
+  <script src="js/dinero/dinero.js?v=87"></script>
+  <script src="js/vida/vida.js?v=87"></script>
+  <script src="js/items/items.js?v=87"></script>
+  <script src="js/mochila/mochila.js?v=87"></script>
+  <script src="js/mapa/mapa.js?v=87"></script>
+  <script src="js/gps/gps.js?v=87"></script>
+  <script src="js/tiendas/datos_tiendas.js?v=87"></script>
+  <script src="js/tiendas/tiendas.js?v=87"></script>
+  <script src="js/pesca/pesca.js?v=87"></script>
+  <script src="js/tesoros/datos_tesoros.js?v=87"></script>
+  <script src="js/tesoros/tesoros.js?v=87"></script>
+  <script src="js/misiones/datos_misiones.js?v=87"></script>
+  <script src="js/misiones/misiones.js?v=87"></script>
+  <script src="js/cofres/cofres.js?v=87"></script>
+  <script src="js/correo/correo.js?v=87"></script>
+  <script src="js/enemigos/enemigos.js?v=87"></script>
+  <script src="js/online/sync_servidor.js?v=87"></script>
+  <script src="js/admin/admin.js?v=87"></script>
+  <script src="js/opciones/opciones.js?v=87"></script>
+  <script src="js/online/mundo_online.js?v=87"></script>
+  <script src="js/online/amigos.js?v=87"></script>
+  <script src="js/online/multijugador.js?v=87"></script>
+  <script src="js/principal.js?v=87"></script>
   <script>
     // Registrar la app instalable (PWA)
     if ('serviceWorker' in navigator) {
       const yaTeniaVersion = !!navigator.serviceWorker.controller;
-      navigator.serviceWorker.register('sw.js?v=86', { updateViaCache: 'none' })
+      navigator.serviceWorker.register('sw.js?v=87', { updateViaCache: 'none' })
         .then(function (reg) { reg.update(); })
         .catch(function () {});
       // Cuando llega una versión nueva del juego: avisar y recargar solo

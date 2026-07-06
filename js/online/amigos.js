@@ -14,22 +14,47 @@ const Amigos = {
   _cargarMarcados() {
     try {
       const raw = localStorage.getItem(this._marcadosKey);
-      if (raw) this._marcados = new Set(JSON.parse(raw).map(Number));
+      if (raw) {
+        const ids = JSON.parse(raw).map(Number).filter(Boolean);
+        this._marcados = new Set(ids.length ? [ids[0]] : []);
+      }
     } catch (e) { this._marcados = new Set(); }
   },
 
   _guardarMarcados() {
-    localStorage.setItem(this._marcadosKey, JSON.stringify([...this._marcados]));
+    const ids = [...this._marcados];
+    localStorage.setItem(this._marcadosKey, JSON.stringify(ids.length ? [ids[0]] : []));
   },
 
   obtenerMarcados() { return this._marcados; },
 
   esMarcado(playerId) { return this._marcados.has(Number(playerId)); },
 
+  _estaEnMapa(f) {
+    if (typeof Multijugador === 'undefined' || !Multijugador.online?.length) return false;
+    const pid = Number(f.playerId);
+    const nombre = (f.name || '').trim().toLowerCase();
+    return Multijugador.online.some(p =>
+      Number(p.playerId) === pid ||
+      (p.name || '').trim().toLowerCase() === nombre
+    );
+  },
+
+  _estadoAmigo(f) {
+    const enMapa = this._estaEnMapa(f);
+    if (enMapa) return { texto: '🟢 En el mapa', enMapa: true };
+    if (f.online) return { texto: '🟢 En línea', enMapa: false };
+    return { texto: '⚫ Desconectado', enMapa: false };
+  },
+
   toggleMarcar(playerId) {
     const id = Number(playerId);
-    if (this._marcados.has(id)) this._marcados.delete(id);
-    else this._marcados.add(id);
+    if (this._marcados.has(id)) {
+      this._marcados.delete(id);
+    } else {
+      this._marcados.clear();
+      this._marcados.add(id);
+    }
     this._guardarMarcados();
     this._pintar();
     if (typeof Multijugador !== 'undefined') {
@@ -259,11 +284,11 @@ const Amigos = {
       html += '<p class="amigos-vacio">Aún no tienes amigos. Agrégalos desde el mapa o por nombre.</p>';
     }
     for (const f of this.friends) {
-      const on = f.online ? '🟢 En línea' : '⚫ Desconectado';
+      const estado = this._estadoAmigo(f);
       const marcado = this.esMarcado(f.playerId);
       html += '<div class="amigos-fila">' +
         '<div class="amigos-fila-info"><b>' + f.name + '</b>' +
-        '<div class="amigos-fila-meta">' + on + (marcado ? ' · 📍 Marcado' : '') + '</div></div>' +
+        '<div class="amigos-fila-meta">' + estado.texto + (marcado ? ' · 📍 Marcado' : '') + '</div></div>' +
         '<span class="amigos-fila-btns">' +
         '<button type="button" class="btn-amigo-mini btn-amigo-marcar' + (marcado ? ' activo' : '') +
         '" data-amigo-marcar="' + f.playerId + '" title="Marcar pin en el mapa">📍</button>' +
@@ -312,5 +337,10 @@ const Amigos = {
         badge.classList.add('oculto');
       }
     }
+  },
+
+  _pintarSiAbierto() {
+    const ventana = document.getElementById('ventana-amigos');
+    if (ventana && !ventana.classList.contains('oculto')) this._pintar();
   }
 };

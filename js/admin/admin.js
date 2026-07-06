@@ -53,11 +53,6 @@ const Admin = {
     if (this.datos.verCofresOcultos === undefined) this.datos.verCofresOcultos = false;
     if (!this.datos.enemigos) this.datos.enemigos = [];
     if (!this.datos.tiendasAdmin) this.datos.tiendasAdmin = [];
-    if (this.datos.moverPinJugador === undefined) {
-      this.datos.moverPinJugador = !!(this.publicado && this.publicado.moverPinJugador);
-    } else {
-      this.datos.moverPinJugador = !!this.datos.moverPinJugador;
-    }
     if (this.datos.mantenimiento === undefined) this.datos.mantenimiento = null;
 
     // El mundo oficial: GitHub Pages + servidor en vivo (el más reciente gana)
@@ -114,6 +109,18 @@ const Admin = {
     if (!Array.isArray(this.publicado.objetos)) this.publicado.objetos = [];
     if (!this.publicado.posiciones) this.publicado.posiciones = {};
     if (!Array.isArray(this.publicado.eliminados)) this.publicado.eliminados = [];
+
+    if (this.publicado.adminPinClaves) {
+      this.datos.jugadoresPinAdmin = Object.assign(
+        {}, this.publicado.adminPinClaves, this.datos.jugadoresPinAdmin || {}
+      );
+    }
+    if (this.datos.moverPinJugador === undefined) {
+      this.datos.moverPinJugador = !!this.publicado.moverPinJugador;
+    } else {
+      this.datos.moverPinJugador = !!this.datos.moverPinJugador;
+    }
+    this.guardar();
 
     // Posiciones únicas del mundo: lo publicado es la verdad, el local solo añade lo no publicado aún
     this._aplicarPosicionesMundo();
@@ -653,6 +660,7 @@ const Admin = {
       if (clave) extra.pinClave = clave;
       else delete extra.pinClave;
     }
+    this.guardar();
   },
 
   _adminAviso(texto, tipo) {
@@ -849,6 +857,7 @@ const Admin = {
     if (!this.esAdminJugador()) return;
     this.datos.moverPinJugador = !this.datos.moverPinJugador;
     this.guardar();
+    this._encolarPublicacion(true);
     this._actualizarEtiquetaMoverPin();
     if (typeof GPS !== 'undefined') GPS._actualizarArrastre();
     Notificaciones.mostrar(
@@ -981,9 +990,17 @@ const Admin = {
     if (typeof Enemigos !== 'undefined') Enemigos._recargar();
     if (typeof Tiendas !== 'undefined' && Tiendas.refrescarAdmin) Tiendas.refrescarAdmin();
     if (typeof Usuarios !== 'undefined') Usuarios.verificarSesionRemota();
+    if (this.publicado.adminPinClaves) {
+      this.datos.jugadoresPinAdmin = Object.assign(
+        {}, this.publicado.adminPinClaves, this.datos.jugadoresPinAdmin || {}
+      );
+      this.guardar();
+    }
     if (this.datos.moverPinJugador === undefined && this.publicado.moverPinJugador !== undefined) {
       this.datos.moverPinJugador = !!this.publicado.moverPinJugador;
       this.guardar();
+    } else if (this.publicado.moverPinJugador !== undefined && this.datos.moverPinJugador) {
+      this.publicado.moverPinJugador = true;
     }
     this._actualizarEtiquetaMoverPin();
     if (typeof GPS !== 'undefined') GPS._actualizarArrastre();
@@ -2841,12 +2858,10 @@ const Admin = {
     const nom = document.getElementById('admin-nuevo-nombre');
     const tel = document.getElementById('admin-nuevo-telefono');
     const c1 = document.getElementById('admin-nuevo-clave');
-    const c2 = document.getElementById('admin-nuevo-clave2');
     const chk = document.getElementById('admin-nuevo-inventario-default');
     if (nom) nom.value = '';
     if (tel) tel.value = '';
     if (c1) c1.value = '';
-    if (c2) c2.value = '';
     if (chk) chk.checked = true;
     this._pintarCrearJugador();
     this._mostrarPanelDerecho('admin-vista-crear-jugador', '➕ Crear jugador');
@@ -2883,13 +2898,11 @@ const Admin = {
     if (!ed || !ed._creando) return;
     const nombre = (document.getElementById('admin-nuevo-nombre').value || '').trim();
     const telefono = (document.getElementById('admin-nuevo-telefono').value || '').trim().replace(/[\s-]/g, '');
-    const clave = document.getElementById('admin-nuevo-clave').value || '';
-    const clave2 = document.getElementById('admin-nuevo-clave2').value || '';
+    const clave = (document.getElementById('admin-nuevo-clave').value || '').trim();
     const usarDefault = document.getElementById('admin-nuevo-inventario-default').checked;
 
     if (nombre.length < 2) { alert('Ponle un nombre al jugador'); return; }
     if (clave.length < 4) { alert('La contraseña debe tener al menos 4 caracteres'); return; }
-    if (clave !== clave2) { alert('Las contraseñas no coinciden'); return; }
     if (telefono && typeof Usuarios !== 'undefined' && !Usuarios.telefonoValido(telefono)) {
       alert('Número de teléfono inválido');
       return;
@@ -3668,6 +3681,9 @@ const Admin = {
     remoto.tiendasStock = admin.tiendasStock || remoto.tiendasStock || {};
     remoto.combate = admin.combate || remoto.combate;
     if (admin.moverPinJugador !== undefined) remoto.moverPinJugador = !!admin.moverPinJugador;
+    if (admin.adminPinClaves) {
+      remoto.adminPinClaves = Object.assign({}, remoto.adminPinClaves, admin.adminPinClaves);
+    }
     if (admin.enemigosEstado) remoto.enemigosEstado = admin.enemigosEstado;
     else if (!remoto.enemigosEstado) remoto.enemigosEstado = {};
     delete remoto.claveSyncNube;
@@ -3837,7 +3853,10 @@ const Admin = {
       tesoroIconoMapa: this.tesoroIconoMapa(),
       combate: this.combateConfig(),
       combateEnemigos: this.combateEnemigosConfig(),
-      moverPinJugador: !!this.datos.moverPinJugador
+      moverPinJugador: !!this.datos.moverPinJugador,
+      adminPinClaves: Object.assign(
+        {}, this.publicado.adminPinClaves || {}, this.datos.jugadoresPinAdmin || {}
+      )
     }, quitarTemporales, 2);
   },
 

@@ -47,11 +47,29 @@ button { font-family: inherit; }
   width: 100%;
 }
 .barra-nivel {
-  font-size: 9px; font-weight: 800; color: #ffe28a;
-  flex-shrink: 0; width: 28px; text-align: right;
-  text-shadow: 0 1px 2px rgba(0,0,0,.8);
+  font-size: 11px; font-weight: 900; color: #111;
+  flex-shrink: 0; width: 34px; text-align: right;
+  text-shadow: 0 0 3px #fff, 0 0 6px rgba(255,255,255,.85);
+  letter-spacing: -.02em;
 }
-.fila-barra-xp .barra-nivel { margin-right: 2px; }
+.fila-barra-xp .barra-nivel { margin-right: 3px; }
+
+.barra-texto-int,
+#vida-texto, #dinero-cantidad {
+  position: absolute;
+  left: 5px; right: 5px; top: 0; bottom: 0;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 9px; font-weight: 800; color: #fff;
+  text-shadow: 0 1px 2px rgba(0,0,0,.95), 0 0 4px rgba(0,0,0,.6);
+  font-variant-numeric: tabular-nums; z-index: 1; pointer-events: none;
+  line-height: 1;
+  padding: 0 2px;
+  box-sizing: border-box;
+}
+#contenedor-hambre .barra-texto-int,
+#contenedor-xp .barra-texto-int {
+  font-size: 8px;
+}
 
 #contenedor-dinero, #contenedor-vida, #contenedor-hambre, #contenedor-xp {
   position: relative; flex: 1;
@@ -75,13 +93,6 @@ button { font-family: inherit; }
   background: linear-gradient(90deg, #c8860a, #ffb020, #ffe28a);
   transition: width .4s ease;
 }
-#dinero-cantidad {
-  position: absolute; inset: 0;
-  display: flex; align-items: center; justify-content: center;
-  font-size: 10px; font-weight: 800; color: #fff;
-  text-shadow: 0 1px 2px rgba(0,0,0,.9);
-  font-variant-numeric: tabular-nums; z-index: 1; pointer-events: none;
-}
 .barra-dinero-icono { color: #ffe28a !important; }
 .fila-barra-dinero { margin-top: 2px; }
 #contenedor-vida {
@@ -104,26 +115,6 @@ button { font-family: inherit; }
   background: linear-gradient(180deg, rgba(255,255,255,.35), rgba(255,255,255,0));
   pointer-events: none;
 }
-#vida-texto, #dinero-cantidad {
-  position: absolute; inset: 0;
-  display: flex; align-items: center; justify-content: center;
-  font-size: 10px; font-weight: 800; color: #fff;
-  text-shadow: 0 1px 2px rgba(0,0,0,.9);
-  font-variant-numeric: tabular-nums; z-index: 1; pointer-events: none;
-}
-.barra-col {
-  flex: 1; min-width: 0;
-  display: flex; flex-direction: column; gap: 3px;
-}
-.barra-etiqueta-num {
-  font-size: 10px; font-weight: 800; color: #e8eef8;
-  text-align: right; line-height: 1.15;
-  text-shadow: 0 1px 3px rgba(0,0,0,.9);
-  font-variant-numeric: tabular-nums;
-  letter-spacing: .02em;
-}
-.fila-barra-xp .barra-etiqueta-num { color: #d4c4ff; }
-
 #contenedor-hambre {
   background: rgba(0,0,0,.35);
 }

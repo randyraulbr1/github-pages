@@ -1076,6 +1076,7 @@ const Multijugador = {
     }
     this._redibujarCuerpos();
     this._actualizarLineasAmigo();
+    if (typeof Amigos !== 'undefined') Amigos._pintarSiAbierto();
     if (mostrarAviso !== false && this.online.length && typeof Notificaciones !== 'undefined') {
       Notificaciones.mostrar('👥 ' + this.online.length + ' jugador(es) en vivo', 'info', 3000);
     }
