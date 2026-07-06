@@ -9,8 +9,8 @@
   <link rel="icon" type="image/png" href="iconos/icono-192.png">
   <link rel="apple-touch-icon" href="iconos/icono-192.png">
   <link rel="stylesheet" href="lib/leaflet/leaflet.css">
-  <link rel="stylesheet" href="css/estilos.css?v=130">
-  <link rel="stylesheet" href="css/chat.css?v=130">
+  <link rel="stylesheet" href="css/estilos.css?v=131">
+  <link rel="stylesheet" href="css/chat.css?v=131">
   <link rel="stylesheet" href="css/amigos.css">
   <link rel="stylesheet" href="css/opciones.css?v=116">
   <link rel="stylesheet" href="css/notificaciones.css?v=117">
@@ -878,11 +878,11 @@
   <script src="lib/leaflet/leaflet.js?v=104"></script>
 
   <!-- MÓDULOS DEL JUEGO (orden importante) -->
-  <script src="js/config/config.js?v=130"></script>
-  <script src="js/nucleo/utilidades.js?v=130"></script>
+  <script src="js/config/config.js?v=131"></script>
+  <script src="js/nucleo/utilidades.js?v=131"></script>
   <script src="js/mundo/mundo_publico.js?v=104"></script>
-  <script src="js/notificaciones/notificaciones.js?v=130"></script>
-  <script src="js/usuarios/usuarios.js?v=130"></script>
+  <script src="js/notificaciones/notificaciones.js?v=131"></script>
+  <script src="js/usuarios/usuarios.js?v=131"></script>
   <script src="js/guardado/guardado.js?v=104"></script>
   <script src="js/historial/historial.js?v=104"></script>
   <script src="js/dinero/dinero.js?v=104"></script>
@@ -900,20 +900,20 @@
   <script src="js/misiones/misiones.js?v=104"></script>
   <script src="js/cofres/cofres.js?v=104"></script>
   <script src="js/correo/correo.js?v=104"></script>
-  <script src="js/enemigos/enemigos.js?v=130"></script>
+  <script src="js/enemigos/enemigos.js?v=131"></script>
   <script src="js/online/sync_servidor.js?v=104"></script>
-  <script src="js/admin/admin.js?v=130"></script>
+  <script src="js/admin/admin.js?v=131"></script>
   <script src="js/opciones/opciones.js?v=116"></script>
   <script src="js/online/mundo_online.js?v=104"></script>
   <script src="js/online/amigos.js?v=107"></script>
-  <script src="js/chat/chat.js?v=130"></script>
+  <script src="js/chat/chat.js?v=131"></script>
   <script src="js/online/multijugador.js?v=104"></script>
   <script src="js/principal.js?v=104"></script>
   <script>
     // Registrar la app instalable (PWA)
     if ('serviceWorker' in navigator) {
       const yaTeniaVersion = !!navigator.serviceWorker.controller;
-      navigator.serviceWorker.register('sw.js?v=130', { updateViaCache: 'none' })
+      navigator.serviceWorker.register('sw.js?v=131', { updateViaCache: 'none' })
         .then(function (reg) { reg.update(); })
         .catch(function () {});
       // Cuando llega una versión nueva del juego: avisar y recargar solo
