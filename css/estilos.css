@@ -138,6 +138,13 @@ button { font-family: inherit; }
   display: flex; gap: 8px; justify-content: flex-end;
   margin-top: 4px;
   overflow: visible;
+  padding: 4px 6px;
+  border-radius: 10px;
+  background: rgba(12, 16, 28, .48);
+  border: 1px solid rgba(255, 255, 255, .12);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, .28);
+  width: fit-content;
+  margin-left: auto;
 }
 .btn-hud-accion {
   position: relative;
@@ -162,18 +169,21 @@ button { font-family: inherit; }
   border-radius: 8px;
 }
 .btn-hud-principal {
-  width: clamp(36px, 10vw, 44px);
-  height: clamp(36px, 10vw, 44px);
-  font-size: clamp(17px, 4.5vw, 22px);
+  width: clamp(32px, 9vw, 40px);
+  height: clamp(32px, 9vw, 40px);
+  font-size: clamp(15px, 4vw, 19px);
+  border-radius: 10px;
 }
-.hud-btn-mochila { background: linear-gradient(145deg, rgba(245,158,11,.45), rgba(12,16,28,.75)); }
-.hud-btn-gps { background: linear-gradient(145deg, rgba(14,165,233,.45), rgba(12,16,28,.75)); }
-.hud-btn-chat { background: linear-gradient(145deg, rgba(61,139,253,.45), rgba(12,16,28,.75)); }
-.hud-btn-admin { background: linear-gradient(145deg, rgba(61,139,253,.45), rgba(12,16,28,.75)); }
-.hud-btn-arma { background: linear-gradient(145deg, rgba(191,90,242,.4), rgba(12,16,28,.75)); }
-#btn-gps.activo {
-  box-shadow: 0 0 12px rgba(56,198,255,.75), 0 3px 10px rgba(0,0,0,.35);
-  border-color: rgba(56,198,255,.55);
+.hud-btn-mochila,
+.hud-btn-gps,
+.hud-btn-chat,
+.hud-btn-admin {
+  background: rgba(12, 16, 28, .55);
+}
+#btn-gps.activo,
+#btn-chat.activo {
+  border-color: rgba(255, 255, 255, .38);
+  box-shadow: 0 3px 10px rgba(0, 0, 0, .35);
 }
 .mochila-dinero-bar {
   display: flex; align-items: center; justify-content: center; gap: 8px;
@@ -200,23 +210,23 @@ button { font-family: inherit; }
 }
 .slot-arma-nombre { font-size: 13px; font-weight: 700; color: #e8eef8; }
 .hud-arma-equipada {
-  width: clamp(28px, 7.5vw, 32px);
-  height: clamp(28px, 7.5vw, 32px);
-  border-radius: 50%;
+  width: clamp(26px, 7vw, 30px);
+  height: clamp(26px, 7vw, 30px);
+  border-radius: 8px;
   display: flex; align-items: center; justify-content: center;
-  font-size: clamp(14px, 3.8vw, 16px);
+  font-size: clamp(13px, 3.5vw, 15px);
   flex-shrink: 0;
   pointer-events: none;
   user-select: none;
-  background: rgba(12,16,28,.65);
-  border: 1.5px solid rgba(255,255,255,.16);
-  box-shadow: 0 2px 6px rgba(0,0,0,.35);
-  margin-bottom: clamp(10px, 2.8vw, 14px);
-  opacity: .92;
+  background: rgba(12, 16, 28, .55);
+  border: 2px solid rgba(255, 255, 255, .18);
+  box-shadow: 0 3px 10px rgba(0, 0, 0, .35);
+  margin-bottom: 0;
+  opacity: 1;
 }
 .hud-arma-equipada.equipada {
-  border-color: rgba(191,90,242,.5);
-  background: rgba(12,16,28,.78);
+  border-color: rgba(255, 255, 255, .28);
+  background: rgba(12, 16, 28, .65);
 }
 #zona-dano-flotante {
   position: fixed; left: 50%; top: 42%;
@@ -389,14 +399,28 @@ button { font-family: inherit; }
   .parpadeo, .icono-mapa.cerca, .icono-tesoro, .icono-mapa.mision-premio, .mision-letrero.lista, .mision-letrero .punto-color.premio { animation: none !important; }
 }
 
-/* ============ BOTONES INFERIORES (burbujas estilo juego) ============ */
+/* ============ BOTONES INFERIORES (mismo estilo neutro que HUD mini) ============ */
 #botones-inferiores {
-  position: fixed; bottom: calc(10px + env(safe-area-inset-bottom)); left: 50%; transform: translateX(-50%);
-  z-index: 1000; display: flex; gap: clamp(8px, 2.5vw, 14px); align-items: flex-end;
-  max-width: min(100vw, 480px); padding: 0 clamp(6px, 2vw, 16px);
+  position: fixed;
+  bottom: calc(10px + env(safe-area-inset-bottom));
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 1000;
+  display: flex;
+  gap: clamp(6px, 2vw, 10px);
+  align-items: center;
+  width: fit-content;
+  max-width: min(calc(100vw - 16px), 420px);
+  padding: 5px 8px;
+  border-radius: 12px;
+  background: rgba(12, 16, 28, .52);
+  border: 1px solid rgba(255, 255, 255, .14);
+  box-shadow: 0 3px 10px rgba(0, 0, 0, .32);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
 }
 @media (min-width: 768px) {
-  #botones-inferiores { max-width: 560px; gap: 16px; }
+  #botones-inferiores { max-width: 440px; gap: 10px; padding: 6px 10px; }
   #panel-hud-izq { max-width: min(280px, 28vw); }
   #hud-dinero-cantidad { font-size: 12px; }
 }
