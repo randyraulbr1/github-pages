@@ -83,6 +83,7 @@ const Guardado = {
       armaEquipada: null,
       admin: { misiones: [], tesoros: [], objetos: [] },
       preferencias: { notifChat: true, notifAmigos: true },
+      objetosSuelto: [],
       nubeT: 0
     };
   },

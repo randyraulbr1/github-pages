@@ -166,6 +166,77 @@ const Admin = {
     }
   },
 
+  _contarElementosMapa(m) {
+    if (!m || typeof m !== 'object') return 0;
+    let n = Object.keys(m.posiciones || {}).length;
+    for (const campo of ['objetos', 'tesoros', 'enemigos', 'tiendasAdmin', 'misiones', 'cofres']) {
+      if (Array.isArray(m[campo])) n += m[campo].length;
+    }
+    return n;
+  },
+
+  _esPublicacionDestructiva(nuevo, referencia) {
+    const a = this._contarElementosMapa(nuevo);
+    const r = this._contarElementosMapa(referencia);
+    if (r < 3) return false;
+    return a < Math.max(1, Math.floor(r * 0.25));
+  },
+
+  async _refrescarPublicadoSiVacio() {
+    const n = this._contarElementosMapa(this.publicado);
+    if (n >= 3) return true;
+    try {
+      const texto = await this._descargarMejorMundo();
+      if (!texto) return n > 0;
+      const m = JSON.parse(texto);
+      if (this._contarElementosMapa(m) > n) {
+        this.publicado = Object.assign(this.publicado || {}, m);
+        this._aplicarPosicionesMundo();
+        this._crudoPublicado = texto;
+        return true;
+      }
+    } catch (e) { /* sin conexión */ }
+    return n > 0;
+  },
+
+  async _fusionarMapaConServidor(adminLocal) {
+    let snap = null;
+    try {
+      if (typeof SyncServidor !== 'undefined' && SyncServidor.obtenerMundo) {
+        const data = await SyncServidor.obtenerMundo();
+        snap = data?.mundo;
+      }
+      if (!snap) {
+        const texto = await this._descargarMejorMundo();
+        if (texto) snap = JSON.parse(texto);
+      }
+    } catch (e) { return adminLocal; }
+    if (!snap) return adminLocal;
+
+    const campos = ['objetos', 'tesoros', 'enemigos', 'tiendasAdmin', 'misiones', 'cofres'];
+    for (const campo of campos) {
+      const local = adminLocal[campo] || [];
+      const rem = snap[campo] || [];
+      if (!local.length && rem.length) {
+        adminLocal[campo] = rem.slice();
+      } else if (local.length && rem.length > local.length) {
+        const porId = new Map();
+        for (const it of rem) if (it?.id) porId.set(it.id, it);
+        for (const it of local) {
+          if (!it?.id) continue;
+          porId.set(it.id, Object.assign({}, porId.get(it.id), it));
+        }
+        adminLocal[campo] = [...porId.values()];
+      }
+    }
+    adminLocal.posiciones = Object.assign({}, snap.posiciones || {}, adminLocal.posiciones || {});
+    adminLocal.enemigosEstado = Object.assign({}, snap.enemigosEstado || {}, adminLocal.enemigosEstado || {});
+    adminLocal.tesorosEstado = Object.assign({}, snap.tesorosEstado || {}, adminLocal.tesorosEstado || {});
+    adminLocal.objetosEstado = Object.assign({}, snap.objetosEstado || {}, adminLocal.objetosEstado || {});
+    adminLocal.tiendasStock = Object.assign({}, snap.tiendasStock || {}, adminLocal.tiendasStock || {});
+    return adminLocal;
+  },
+
   /** Carga el mundo solo desde el servidor Render (SQLite). */
   async _descargarMejorMundo() {
     if (!CONFIG.servidorOnline) return null;
@@ -4104,6 +4175,7 @@ const Admin = {
     if (!this.esAdminJugador()) return false;
     if (!opts?.confiarLocal) {
       try {
+        await this._refrescarPublicadoSiVacio();
         await this.actualizarJugadoresGlobales();
         const { indice } = await MundoPublico.refrescarCuentasServidor();
         if (indice?.length) {
@@ -4120,6 +4192,21 @@ const Admin = {
     } catch (e) {
       return false;
     }
+
+    const referencia = this.publicado || {};
+    if (!opts?.forzar && this._esPublicacionDestructiva(adminLocal, referencia)) {
+      adminLocal = await this._fusionarMapaConServidor(adminLocal);
+      if (this._esPublicacionDestructiva(adminLocal, referencia)) {
+        if (!silencioso) {
+          Notificaciones.mostrar(
+            '⚠️ Publicación bloqueada: el mapa no cargó bien. Recarga o pulsa Sincronizar antes de publicar.',
+            'alerta', 10000
+          );
+        }
+        return false;
+      }
+    }
+
     const firma = this._firmaMundo(JSON.stringify(adminLocal));
     if (firma === this._ultimoFirmaPublicada && !this._pubPendiente) return true;
 
