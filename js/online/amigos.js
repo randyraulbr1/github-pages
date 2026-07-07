@@ -206,7 +206,10 @@ const Amigos = {
   },
 
   abrir() {
-    document.getElementById('ventana-amigos')?.classList.remove('oculto');
+    const ventana = document.getElementById('ventana-amigos');
+    if (!ventana) return;
+    ventana.classList.remove('oculto');
+    ventana.style.zIndex = '5600';
     this.refrescar();
   },
 
@@ -215,13 +218,29 @@ const Amigos = {
   },
 
   iniciarUI() {
-    if (this._uiLista) return;
-    this._uiLista = true;
-    this._cargarMarcados();
-    const btn = document.getElementById('btn-amigos');
-    if (btn) btn.addEventListener('click', () => this.abrir());
+    const enlazar = () => {
+      const btn = document.getElementById('btn-amigos');
+      if (!btn || btn.dataset.amigosOk) return false;
+      btn.dataset.amigosOk = '1';
+      btn.addEventListener('click', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        this.abrir();
+      });
+      document.getElementById('cerrar-amigos')?.addEventListener('click', () => this.cerrar());
+      return true;
+    };
 
-    document.getElementById('cerrar-amigos')?.addEventListener('click', () => this.cerrar());
+    if (!this._uiLista) {
+      this._uiLista = true;
+      this._cargarMarcados();
+    }
+    if (!enlazar()) {
+      document.addEventListener('DOMContentLoaded', () => enlazar(), { once: true });
+    }
+
+    if (this._uiCompleta) return;
+    this._uiCompleta = true;
 
     const enviar = document.getElementById('btn-amigos-agregar');
     if (enviar) enviar.addEventListener('click', () => this.solicitarPorNombre());
