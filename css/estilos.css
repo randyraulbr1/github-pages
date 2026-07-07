@@ -149,6 +149,9 @@ button { font-family: inherit; }
 #contenedor-hambre .barra-texto-int,
 #contenedor-xp .barra-texto-int {
   font-size: 8px;
+  left: 6px;
+  right: 6px;
+  padding: 0 1px;
 }
 
 #contenedor-dinero, #contenedor-vida, #contenedor-hambre, #contenedor-xp {
@@ -167,6 +170,8 @@ button { font-family: inherit; }
   height: 8px;
   border-radius: 2px;
   background: rgba(0,0,0,.35);
+  margin-left: -1px;
+  margin-right: -1px;
 }
 #dinero-relleno {
   position: absolute; inset: 0; width: 0;
