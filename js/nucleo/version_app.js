@@ -65,7 +65,7 @@ const MarielVersion = {
   },
 
   iniciar(versionEmbebida) {
-    this._embebida = String(versionEmbebida || window.__MARIEL_EMBEDDED__ || '');
+    this._embebida = String(window.__MARIEL_EMBEDDED__ || versionEmbebida || '');
     this._aplicarVersionTrasActualizacion();
     const btn = document.getElementById('btn-actualizar-app');
     if (btn && !btn._marielVersionOk) {
@@ -150,8 +150,13 @@ const MarielVersion = {
   versionCargada() {
     const emb = this._num(this._embebida);
     const cfg = typeof CONFIG !== 'undefined' ? this._num(CONFIG.version) : 0;
-    if (emb && cfg) return Math.min(emb, cfg);
-    return emb || cfg || 0;
+    let forz = 0;
+    try {
+      const fv = sessionStorage.getItem('mariel_force_version');
+      const t0 = parseInt(sessionStorage.getItem('mariel_actualizado_en') || '0', 10);
+      if (fv && t0 && Date.now() - t0 < 120000) forz = this._num(fv);
+    } catch (e) { /* */ }
+    return Math.max(emb, cfg, forz) || emb || cfg || forz || 0;
   },
 
   _parseVersionTexto(txt) {
@@ -197,6 +202,7 @@ const MarielVersion = {
     const v = String(version || this.versionCargada() || this._embebida || this._remota || '');
     if (v && v !== '?') localStorage.setItem('mariel_app_version', v);
     this._bloqueado = false;
+    this._actualizando = false;
     document.body.classList.remove('mariel-bloqueado-actualizar');
     document.getElementById('pantalla-actualizar')?.classList.add('oculto');
     const btn = document.getElementById('btn-actualizar-app');
