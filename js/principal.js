@@ -143,9 +143,17 @@ async function esperarMundoEnMapa() {
       await pasoSeguro('mundo-servidor', () => Admin.refrescarMundoTrasLogin());
       await pasoSeguro('cuenta-mundo', () => Usuarios.verificarCuentaEnMundo());
     }
-    if (Usuarios.perfilActivo && Usuarios.esAdministrador() &&
-        typeof SyncServidor !== 'undefined' && !SyncServidor.puedePublicar()) {
-      await pasoSeguro('token-servidor', () => SyncServidor.asegurarSesionServidor());
+    if (Usuarios.perfilActivo && CONFIG.servidorOnline) {
+      await pasoSeguro('token-servidor', async () => {
+        if (typeof SyncServidor === 'undefined') return;
+        if (SyncServidor.puedePublicar()) {
+          const ok = await SyncServidor.verificarToken();
+          if (ok) return;
+        }
+        await SyncServidor.asegurarSesionServidor(
+          Usuarios.esAdministrador() ? { pedirClave: false } : {}
+        );
+      });
     }
     if (Usuarios._cuentaEliminada) {
       ocultarCarga();
