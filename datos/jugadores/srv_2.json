@@ -4,7 +4,7 @@
   "telefono": "",
   "pinHash": "0a22b58a09f93652ac592f9424e5dedbeb450965c0e7ddc5b46f8ab21aa96bb1",
   "creado": 1783446327143,
-  "actualizadoEn": 1783446636948,
+  "actualizadoEn": 1783446637981,
   "partida": {
     "datos": {
       "mochila": [
@@ -45,7 +45,13 @@
       "posicionJugador": null,
       "tesorosRecogidos": [],
       "misiones": {},
-      "misionesEstado": {},
+      "misionesEstado": {
+        "admx_m_mray2lpx": {
+          "estado": "lista",
+          "progreso": 0,
+          "orden": 1783446630357
+        }
+      },
       "correoEnviados": [],
       "correoRecibidos": [],
       "correoTiendaLocal": [],
@@ -67,6 +73,6 @@
       "muertePos": null,
       "armaEquipada": null
     },
-    "t": 1783446624947
+    "t": 1783446637052
   }
 }
