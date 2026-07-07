@@ -1973,6 +1973,21 @@ body.mariel-bloqueado-actualizar #pantalla-actualizar {
 .marcador-jugador-online.marcador-admin .mjo-punto-admin {
   background: #bf5af2; box-shadow: 0 0 0 5px rgba(191,90,242,.35);
 }
+.ventana-ataud-caja { max-width: 320px; }
+.ventana-ataud-contenido { padding: 4px 2px 8px; }
+.ventana-ataud-contenido .popup-muerto { min-width: 0; }
+.leaflet-popup.popup-muerto-wrap {
+  z-index: 2500 !important;
+}
+.leaflet-popup.popup-muerto-wrap .leaflet-popup-content-wrapper {
+  pointer-events: auto;
+}
+.marcador-ataud-hit {
+  pointer-events: auto !important;
+  cursor: pointer;
+  background: transparent;
+  border: none;
+}
 .popup-muerto { min-width: 160px; text-align: center; }
 .popup-muerto-expira { font-size: 11px; color: #ffd60a; margin: 4px 0 6px; }
 .popup-muerto-ayuda {

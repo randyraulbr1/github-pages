@@ -17,6 +17,7 @@ const Multijugador = {
   _lineasAmigo: {},
   _pollMundo: null,
   _tickCuerposId: null,
+  _ataudPlayerId: null,
   _ultimoPullMundo: 0,
   _mundoPendiente: null,
   _reconectando: false,
@@ -190,6 +191,53 @@ const Multijugador = {
       Chat.iniciarUI();
       Chat.enlazarSocket(this.socket);
     }
+    this._enlazarPanelAtaud();
+  },
+
+  _enlazarPanelAtaud() {
+    if (this._panelAtaudOk) return;
+    this._panelAtaudOk = true;
+    const vent = document.getElementById('ventana-ataud');
+    const cont = document.getElementById('ventana-ataud-contenido');
+    const cerrar = document.getElementById('btn-cerrar-ataud');
+    if (cerrar) cerrar.addEventListener('click', () => this._cerrarPanelAtaud());
+    if (vent) {
+      vent.addEventListener('click', (ev) => {
+        if (ev.target === vent) this._cerrarPanelAtaud();
+      });
+    }
+    if (cont) {
+      cont.addEventListener('click', (ev) => this._manejarClickPopupMuerto(ev, null));
+    }
+  },
+
+  _cerrarPanelAtaud() {
+    const vent = document.getElementById('ventana-ataud');
+    if (vent) {
+      vent.classList.add('oculto');
+      vent.setAttribute('aria-hidden', 'true');
+    }
+    this._ataudPlayerId = null;
+  },
+
+  _mostrarPanelAtaud(playerId) {
+    if (typeof MarielVersion !== 'undefined' && MarielVersion.estaBloqueado && MarielVersion.estaBloqueado()) {
+      return;
+    }
+    const pid = Number(playerId);
+    if (!pid) return;
+    this._enlazarPanelAtaud();
+    const cont = document.getElementById('ventana-ataud-contenido');
+    const vent = document.getElementById('ventana-ataud');
+    if (!cont || !vent) {
+      const m = this.cuerposMarcadores[String(pid)];
+      if (m?.openPopup) m.openPopup();
+      return;
+    }
+    this._ataudPlayerId = pid;
+    cont.innerHTML = this._popupMuertoHtml(this._datosPopupMuerto(pid));
+    vent.classList.remove('oculto');
+    vent.setAttribute('aria-hidden', 'false');
   },
 
   _enlazarEventos() {
@@ -963,6 +1011,10 @@ const Multijugador = {
   _refrescarPopupsMuertos(playerId) {
     const datos = this._datosPopupMuerto(playerId);
     const html = this._popupMuertoHtml(datos);
+    if (Number(this._ataudPlayerId) === Number(playerId)) {
+      const cont = document.getElementById('ventana-ataud-contenido');
+      if (cont) cont.innerHTML = html;
+    }
     const marcadores = [
       this.marcadores[playerId],
       this.cuerposMarcadores[String(playerId)]
@@ -1182,6 +1234,7 @@ const Multijugador = {
     }
     this._quitarCuerpoPropioSiVivo();
     this._actualizarLineasAmigo();
+    this._enlazarPanelAtaud();
   },
 
   _jugadorMuertoParaPopup(p) {
@@ -1230,7 +1283,14 @@ const Multijugador = {
     if (typeof m.setInteractive === 'function') m.setInteractive(true);
     m.bindPopup(
       () => this._popupMuertoHtml(this._datosPopupMuerto(playerId)),
-      { maxWidth: 260, className: 'popup-muerto-wrap' }
+      {
+        maxWidth: 280,
+        className: 'popup-muerto-wrap',
+        closeButton: true,
+        autoPan: true,
+        autoClose: true,
+        closeOnClick: false
+      }
     );
     this._enlazarPopupMuerto(m, playerId);
   },
@@ -1238,23 +1298,40 @@ const Multijugador = {
   _enlazarToqueAtaud(m) {
     if (!m) return;
     m.off('click');
+    m.off('touchend');
     m.off('touchstart');
     m.off('touchmove');
-    m.off('touchend');
     let toqueMovido = false;
     m.on('touchstart', () => { toqueMovido = false; });
     m.on('touchmove', () => { toqueMovido = true; });
     const abrir = (ev) => {
       if (typeof Admin !== 'undefined' && Admin.modo === 'organizar') return;
-      if (ev?.type === 'touchend') {
-        if (toqueMovido) return;
-        if (ev.cancelable) ev.preventDefault();
-      }
+      if (ev?.type === 'touchend' && toqueMovido) return;
+      if (ev?.cancelable && ev.type === 'touchend') ev.preventDefault();
       if (typeof L !== 'undefined' && L.DomEvent) L.DomEvent.stopPropagation(ev);
-      m.openPopup();
+      const pid = m._muertoPlayerId;
+      if (pid != null) this._mostrarPanelAtaud(pid);
     };
     m.on('click', abrir);
     m.on('touchend', abrir);
+    this._enlazarToqueAtaudDom(m, abrir);
+  },
+
+  _enlazarToqueAtaudDom(m, abrir) {
+    const el = m.getElement?.();
+    if (!el) {
+      m.once?.('add', () => this._enlazarToqueAtaudDom(m, abrir));
+      return;
+    }
+    if (el._ataudDomOk) return;
+    el._ataudDomOk = true;
+    el.classList.add('marcador-ataud-hit');
+    el.style.pointerEvents = 'auto';
+    el.style.cursor = 'pointer';
+    if (typeof L !== 'undefined' && L.DomEvent) {
+      L.DomEvent.on(el, 'click', abrir);
+      L.DomEvent.on(el, 'touchend', abrir);
+    }
   },
 
   _restaurarToqueAtaud(m) {
@@ -1294,6 +1371,8 @@ const Multijugador = {
       m = L.marker([pos.x, pos.y], {
         icon,
         interactive: true,
+        bubblingMouseEvents: false,
+        riseOnHover: true,
         zIndexOffset: 10050
       }).addTo(Mapa.mapa);
       this._bindPopupMuerto(m, c.playerId);
@@ -1337,7 +1416,8 @@ const Multijugador = {
     if (!btn || btn.disabled) return;
     ev.preventDefault();
     ev.stopPropagation();
-    const pid = m._muertoPlayerId;
+    const pid = m?._muertoPlayerId ?? this._ataudPlayerId;
+    if (!pid) return;
     const datos = this._datosPopupMuerto(pid);
     if (btn.classList.contains('popup-muerto-revivir')) {
       if (btn.classList.contains('cargando')) return;
@@ -1359,7 +1439,8 @@ const Multijugador = {
     if (btn.classList.contains('popup-muerto-chat')) {
       const nombre = btn.getAttribute('data-chat-nombre') || '';
       if (typeof Chat !== 'undefined') Chat.abrirDesdeMapa(pid, nombre);
-      if (m.closePopup) m.closePopup();
+      this._cerrarPanelAtaud();
+      if (m?.closePopup) m.closePopup();
       return;
     }
     if (btn.hasAttribute('data-loot-id')) {
@@ -1666,6 +1747,7 @@ const Multijugador = {
         Mochila.quitar('botiquin', 1, 'Revivió a ' + (datos.name || 'jugador'));
         Notificaciones.mostrar('🩹 Reviviste a ' + (datos.name || 'jugador'), 'exito', 5000);
         this._aplicarJugadorRevivido(datos.playerId, res.hp, payload.hpMax);
+        this._cerrarPanelAtaud();
         const marcador = this.marcadores[datos.playerId] || this.cuerposMarcadores[String(datos.playerId)];
         if (marcador?.getPopup()?.isOpen()) marcador.closePopup();
       } else {
@@ -1759,12 +1841,12 @@ const Multijugador = {
   _iconoJugadorMuerto(p) {
     const nombre = this._nombreMarcador(p);
     return L.divIcon({
-      className: '',
+      className: 'marcador-ataud-hit',
       html: '<div class="marcador-jugador-muerto">' +
         '<div class="mjm-etiqueta">' + nombre + '</div>' +
         '<div class="mjm-carabela">⚰️</div></div>',
-      iconSize: [56, 58],
-      iconAnchor: [28, 54]
+      iconSize: [72, 64],
+      iconAnchor: [36, 58]
     });
   },
 

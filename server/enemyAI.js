@@ -69,27 +69,7 @@ function pickClosest(obj, players) {
   return best;
 }
 
-/** Entre varios candidatos: el más cercano; si empatan (≤2 m) elige uno al azar. */
-function pickClosestOrRandom(obj, players) {
-  if (!players.length) return null;
-  if (players.length === 1) return players[0];
-  let bestD = Infinity;
-  let ties = [];
-  for (const p of players) {
-    const d = distanceMeters(obj.x, obj.y, p.x, p.y);
-    if (d < bestD - 2) {
-      bestD = d;
-      ties = [p];
-    } else if (Math.abs(d - bestD) <= 2) {
-      if (d < bestD) bestD = d;
-      ties.push(p);
-    }
-  }
-  if (!ties.length) return pickClosest(obj, players);
-  if (ties.length === 1) return ties[0];
-  return ties[Math.floor(Math.random() * ties.length)];
-}
-
+/** Entre varios candidatos: el más cercano; mantiene objetivo si sigue en zona. */
 function pickTarget(objId, obj, inZone) {
   if (!inZone.length) {
     enemyTargets.delete(objId);
@@ -99,8 +79,12 @@ function pickTarget(objId, obj, inZone) {
     enemyTargets.set(objId, inZone[0].playerId);
     return inZone[0];
   }
-  // Varios en zona: un solo objetivo — más cercano o aleatorio en empate
-  const chosen = pickClosestOrRandom(obj, inZone);
+  const prevId = enemyTargets.get(objId);
+  if (prevId != null) {
+    const prev = inZone.find(p => p.playerId === prevId);
+    if (prev) return prev;
+  }
+  const chosen = pickClosest(obj, inZone);
   enemyTargets.set(objId, chosen.playerId);
   return chosen;
 }
@@ -153,7 +137,7 @@ function startEnemyAI(io, onlinePlayers) {
           if (now - prev >= ATTACK_COOLDOWN_MS) {
             lastAttack.set(obj.id, now);
             const victim = inAttack.find(p => p.playerId === target.playerId)
-              || pickClosestOrRandom(obj, inAttack);
+              || pickClosest(obj, inAttack);
             enemyTargets.set(obj.id, victim.playerId);
             facingDeg = bearingDeg(obj.x, obj.y, victim.x, victim.y);
             targetPlayerId = victim.playerId;

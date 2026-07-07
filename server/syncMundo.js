@@ -788,6 +788,9 @@ function registrarAtaqueEnemigo(enemyId, playerId, px, py, playerLevel, io) {
 
   if (!eliminado) {
     data.ocultoHasta = estado.ocultoHasta || 0;
+    const { bearingDeg } = require('./enemyAI');
+    data.facingDeg = bearingDeg(row.x, row.y, px, py);
+    data.targetPlayerId = playerId;
     const updated = updateWorldObject(row.id, { data_json: JSON.stringify(data) });
     if (io) io.emit('world:updateObject', formatWorldObject(updated));
   }

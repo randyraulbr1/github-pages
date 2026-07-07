@@ -497,6 +497,63 @@ const Enemigos = {
     return (Math.atan2(y, x) * 180 / Math.PI + 360) % 360;
   },
 
+  _posicionJugadorOnline(playerId) {
+    if (typeof Multijugador === 'undefined' || !Multijugador.online) return null;
+    const p = Multijugador.online.find(x => Number(x.playerId) === Number(playerId));
+    if (!p || Multijugador._estaMuerto(p)) return null;
+    const pos = Multijugador._posMarcador(p);
+    if (pos?.x == null || pos?.y == null) return null;
+    return [pos.x, pos.y];
+  },
+
+  _jugadorVivoMasCercanoEnZona(e, desde) {
+    const origen = desde || this._posDesdeMarcador(e) || e.pos;
+    if (!origen?.length) return null;
+    const radio = this._radioZona(e);
+    let mejor = null;
+    let mejorD = Infinity;
+    if (GPS.posicion && !this._jugadorImuneEnemigos()) {
+      const d = Utilidades.distanciaMetros(origen, GPS.posicion);
+      if (d <= radio && d < mejorD) {
+        mejorD = d;
+        mejor = GPS.posicion.slice();
+      }
+    }
+    if (typeof Multijugador !== 'undefined') {
+      for (const p of Multijugador.online || []) {
+        if (Multijugador._estaMuerto(p)) continue;
+        const pos = Multijugador._posMarcador(p);
+        if (pos?.x == null) continue;
+        const d = Utilidades.distanciaMetros(origen, [pos.x, pos.y]);
+        if (d <= radio && d < mejorD) {
+          mejorD = d;
+          mejor = [pos.x, pos.y];
+        }
+      }
+    }
+    return mejor;
+  },
+
+  _actualizarFacingEnemigo(e) {
+    const pos = this._posDesdeMarcador(e) || e.pos;
+    if (!pos?.length) return;
+
+    let targetPos = null;
+    if (e._targetPlayerId != null) {
+      targetPos = this._posicionJugadorOnline(e._targetPlayerId);
+    }
+    if (!targetPos) {
+      targetPos = this._jugadorVivoMasCercanoEnZona(e, pos);
+    }
+    if (!targetPos && e.facingDeg != null && GPS.posicion && !this._jugadorImuneEnemigos()) {
+      const d = Utilidades.distanciaMetros(pos, GPS.posicion);
+      if (d <= this._radioZona(e) + 4) targetPos = GPS.posicion.slice();
+    }
+    if (targetPos) {
+      e.facingDeg = this._bearingDeg(pos[0], pos[1], targetPos[0], targetPos[1]);
+    }
+  },
+
   _htmlMarcador(e) {
     const nv = this._nivelEnemigo(e);
     const letal = this._esLetal(e);
@@ -504,7 +561,7 @@ const Enemigos = {
     const actual = this._vidaActual(e);
     const pct = Math.max(0, Math.min(100, (actual / max) * 100));
     const grande = !!e._vidaGrande;
-    const mostrarCono = e.facingDeg != null && e._enZona;
+    const mostrarCono = e.facingDeg != null && (e._enZona || e._targetPlayerId != null);
     const cono = mostrarCono
       ? '<div class="enemigo-cono-wrap" style="transform:rotate(' + e.facingDeg + 'deg)">' +
         '<div class="enemigo-cono"></div></div>' : '';
@@ -551,7 +608,7 @@ const Enemigos = {
     if (!el) return;
     const pin = el.querySelector('.marcador-enemigo-map') || el;
     let wrap = pin.querySelector('.enemigo-cono-wrap');
-    const mostrar = e.facingDeg != null && e._enZona;
+    const mostrar = e.facingDeg != null && (e._enZona || e._targetPlayerId != null);
     if (!mostrar) {
       if (wrap) wrap.remove();
       return;
@@ -1152,6 +1209,16 @@ const Enemigos = {
       Notificaciones.mostrar('Saliste de la zona roja', 'alerta', 2500);
       return;
     }
+    if (GPS.posicion) {
+      const pos = this._posDesdeMarcador(e) || e.pos;
+      if (pos?.length) {
+        e.facingDeg = this._bearingDeg(pos[0], pos[1], GPS.posicion[0], GPS.posicion[1]);
+        if (typeof Multijugador !== 'undefined' && Multijugador._miPlayerId) {
+          e._targetPlayerId = Multijugador._miPlayerId();
+        }
+        this._actualizarConoDOM(e);
+      }
+    }
     this._enCombate = e;
     this._atacar();
   },
@@ -1223,6 +1290,7 @@ const Enemigos = {
 
       if (online) {
         if (this._interp[e.id]) this._aplicarInterp(e);
+        this._actualizarFacingEnemigo(e);
         this._actualizarConoDOM(e);
         this._actualizarBarra(e);
         continue;
@@ -1334,6 +1402,16 @@ const Enemigos = {
       return;
     }
     this._ultimoAtaqueJugador = Date.now();
+    if (GPS.posicion) {
+      const pos = this._posDesdeMarcador(e) || e.pos;
+      if (pos?.length) {
+        e.facingDeg = this._bearingDeg(pos[0], pos[1], GPS.posicion[0], GPS.posicion[1]);
+        if (typeof Multijugador !== 'undefined' && Multijugador._miPlayerId) {
+          e._targetPlayerId = Multijugador._miPlayerId();
+        }
+        this._actualizarConoDOM(e);
+      }
+    }
 
     if (this._online()) {
       const res = await Multijugador.attackEnemy(e.id, GPS.posicion);
