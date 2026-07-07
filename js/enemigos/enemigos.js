@@ -657,11 +657,14 @@ const Enemigos = {
   _actualizarHudCombate() {
     const btnAtacar = document.getElementById('btn-hud-atacar');
     const btnHuir = document.getElementById('btn-hud-huir');
+    const btnModalAtacar = document.getElementById('btn-combate-atacar');
     const bannerHuida = document.getElementById('banner-huida');
     const hudFlotante = document.getElementById('hud-combate-flotante');
     const cooldownBar = document.getElementById('hud-ataque-cooldown');
     const cooldownFill = document.getElementById('hud-ataque-cooldown-relleno');
     const muerto = typeof Vida !== 'undefined' && Vida.estaMuerto();
+    const restCd = this._cooldownRestante();
+    const enCooldown = restCd > 0;
 
     if (this._estaInvisible()) {
       if (bannerHuida) {
@@ -684,24 +687,35 @@ const Enemigos = {
     this._objetivoHud = enemigo;
     const pctVida = this._pctVidaJugador();
     const puedeHuir = !muerto && pctVida <= 30;
-    const restCd = this._cooldownRestante();
     const mostrarAtaque = !!enemigo && !muerto;
 
     if (btnAtacar) {
       if (mostrarAtaque) {
         btnAtacar.classList.remove('oculto');
-        btnAtacar.textContent = '⚔️ ' + (enemigo.nombre || 'Enemigo');
-        btnAtacar.disabled = restCd > 0;
+        btnAtacar.disabled = enCooldown;
+        btnAtacar.classList.toggle('en-cooldown', enCooldown);
+        btnAtacar.textContent = enCooldown
+          ? '⏳ ' + Math.ceil(restCd / 1000) + ' s'
+          : '⚔️ ' + (enemigo.nombre || 'Enemigo');
       } else {
         btnAtacar.classList.add('oculto');
         btnAtacar.disabled = false;
+        btnAtacar.classList.remove('en-cooldown');
       }
+    }
+    const modalAbierto = !document.getElementById('ventana-combate')?.classList.contains('oculto');
+    if (btnModalAtacar && modalAbierto) {
+      btnModalAtacar.disabled = enCooldown;
+      btnModalAtacar.classList.toggle('en-cooldown', enCooldown);
+      btnModalAtacar.textContent = enCooldown
+        ? '⏳ ' + Math.ceil(restCd / 1000) + ' s'
+        : '⚔️ Atacar';
     }
     if (btnHuir) {
       btnHuir.classList.toggle('oculto', !puedeHuir);
     }
     if (cooldownBar && cooldownFill) {
-      const showCd = mostrarAtaque && restCd > 0;
+      const showCd = (mostrarAtaque || modalAbierto) && enCooldown;
       cooldownBar.classList.toggle('oculto', !showCd);
       if (showCd) {
         cooldownFill.style.width = ((1 - restCd / this.COOLDOWN_ATAQUE_MS) * 100) + '%';
@@ -714,6 +728,7 @@ const Enemigos = {
   },
 
   _atacarHud() {
+    if (this._cooldownRestante() > 0) return;
     const e = this._objetivoHud || this._enemigoMasCercanoEnZona();
     if (!e || typeof Vida !== 'undefined' && Vida.estaMuerto()) return;
     const d = Utilidades.distanciaMetros(GPS.posicion, e.pos);
@@ -863,6 +878,7 @@ const Enemigos = {
       (letal ? ' · 💀 Enemigo 10× más fuerte' : '') +
       ' · Daño enemigo: ' + rEn.lo + '–' + rEn.hi + ' aleatorio';
     document.getElementById('ventana-combate').classList.remove('oculto');
+    this._actualizarHudCombate();
   },
 
   _cerrarCombate() {
@@ -887,7 +903,7 @@ const Enemigos = {
     if (!e) return;
     const restCd = this._cooldownRestante();
     if (restCd > 0) {
-      Notificaciones.mostrar('⏳ Espera ' + Math.ceil(restCd / 1000) + ' s para atacar', 'alerta', 2000);
+      this._actualizarHudCombate();
       return;
     }
     const d = Utilidades.distanciaMetros(GPS.posicion, e.pos);

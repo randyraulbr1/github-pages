@@ -543,9 +543,13 @@ button { font-family: inherit; }
   box-shadow: 0 3px 10px rgba(0, 0, 0, .32);
   cursor: pointer;
 }
-.btn-hud-combate:disabled {
+.btn-hud-combate:disabled,
+.btn-hud-combate.en-cooldown,
+.btn-combate-atacar:disabled,
+.btn-combate-atacar.en-cooldown {
   opacity: .55;
   cursor: wait;
+  pointer-events: none;
 }
 .btn-hud-combate-huir {
   background: linear-gradient(180deg, #5ce883, #30a858);
