@@ -17,7 +17,7 @@
   <script>
     // Aviso temprano en móvil (antes de cargar 20+ archivos JS)
     (function () {
-      var V = '138';
+      var V = '139';
       var texto = document.getElementById('carga-texto');
       if (texto) texto.textContent = 'Conectando…';
       var prev = localStorage.getItem('mariel_app_version');
@@ -370,6 +370,16 @@
     </div>
   </div>
   <div id="inv-toast" class="inv-toast" aria-live="polite"></div>
+  <div id="inv-confirm-overlay" class="inv-confirm-overlay oculto" aria-hidden="true">
+    <div class="inv-confirm" role="dialog" aria-modal="true" aria-labelledby="inv-confirm-title">
+      <h3 id="inv-confirm-title">Eliminar objeto</h3>
+      <p id="inv-confirm-text">¿Seguro?</p>
+      <div class="inv-confirm-row">
+        <button type="button" class="inv-confirm-btn cancel" id="inv-confirm-cancel">Cancelar</button>
+        <button type="button" class="inv-confirm-btn ok" id="inv-confirm-ok">Eliminar</button>
+      </div>
+    </div>
+  </div>
 
   <!-- ============ VENTANA: TIENDA ============ -->
   <div id="ventana-tienda" class="ventana oculto">

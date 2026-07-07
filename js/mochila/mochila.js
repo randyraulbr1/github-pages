@@ -31,8 +31,8 @@ const Mochila = {
     const btnEq = document.getElementById('btn-equipar-item');
     if (btnEq) btnEq.addEventListener('click', () => this.equiparSeleccionado());
 
-    const useBtn = document.getElementById('inv-use-btn');
-    const useAllBtn = document.getElementById('inv-use-all-btn');
+    document.getElementById('inv-confirm-cancel')?.addEventListener('click', () => this._resolverConfirm(false));
+    document.getElementById('inv-confirm-ok')?.addEventListener('click', () => this._resolverConfirm(true));
 
     this.pintar();
     this.pintarArmaHud();
@@ -533,8 +533,7 @@ const Mochila = {
     if (!target || !from) return;
 
     if (target.id === 'inv-delete-btn') {
-      this._eliminarDesde(from.place, from.key, true);
-      this.pintar();
+      void this._eliminarDesde(from.place, from.key, true).then(() => this.pintar());
       return;
     }
 
@@ -585,11 +584,42 @@ const Mochila = {
     this._actualizarNombreArrastre();
   },
 
-  _eliminarDesde(place, key, confirmar) {
+  _requiereConfirmEliminar(item, id, place) {
+    if (place === 'equip') return true;
+    const tipo = Items.tipoConsumible(item, id);
+    if (tipo === 'hambre' || tipo === 'vida') return false;
+    return true;
+  },
+
+  _confirmarEliminar(texto) {
+    return new Promise((resolve) => {
+      this._confirmResolve = resolve;
+      const txt = document.getElementById('inv-confirm-text');
+      const ov = document.getElementById('inv-confirm-overlay');
+      if (txt) txt.textContent = texto;
+      ov?.classList.remove('oculto');
+      ov?.setAttribute('aria-hidden', 'false');
+    });
+  },
+
+  _resolverConfirm(ok) {
+    const ov = document.getElementById('inv-confirm-overlay');
+    ov?.classList.add('oculto');
+    ov?.setAttribute('aria-hidden', 'true');
+    const r = this._confirmResolve;
+    this._confirmResolve = null;
+    if (r) r(!!ok);
+  },
+
+  async _eliminarDesde(place, key, confirmar) {
     const sl = this._getItem(place, key);
-    if (!sl) return;
+    if (!sl) return false;
     const item = Items.seguro(sl.id);
-    if (confirmar && !confirm('¿Eliminar ' + item.nombre + (sl.cantidad > 1 ? ' x' + sl.cantidad : '') + '?')) return;
+    if (confirmar && this._requiereConfirmEliminar(item, sl.id, place)) {
+      const msg = '¿Eliminar ' + item.nombre + (sl.cantidad > 1 ? ' x' + sl.cantidad : '') + '?';
+      const ok = await this._confirmarEliminar(msg);
+      if (!ok) return false;
+    }
 
     if (place === 'equip') {
       Guardado.datos.armaEquipada = null;
@@ -603,6 +633,7 @@ const Mochila = {
     this.guardar();
     Historial.registrar('objetos', { detalle: 'Eliminado: ' + item.nombre, monto: -sl.cantidad });
     this._toast('Objeto borrado');
+    return true;
   },
 
   _restarUno(place, key) {
@@ -743,11 +774,9 @@ const Mochila = {
 
   eliminarSeleccionado() {
     if (this.selected) {
-      this._eliminarDesde(this.selected.place, this.selected.key, true);
-      this.pintar();
+      void this._eliminarDesde(this.selected.place, this.selected.key, true).then(() => this.pintar());
     } else if (this.slotSeleccionado >= 0) {
-      this._eliminarDesde('bag', this.slotSeleccionado, true);
-      this.pintar();
+      void this._eliminarDesde('bag', this.slotSeleccionado, true).then(() => this.pintar());
     }
   },
 
