@@ -178,6 +178,62 @@ const Admin = {
     return n;
   },
 
+  _mapaLocalCargado() {
+    if (this._contarElementosMapa(this.publicado || {}) > 0) return true;
+    if (!this.esAdminJugador()) return false;
+    return this._contarElementosMapa({
+      misiones: this.datos?.misiones,
+      tesoros: this.datos?.tesoros,
+      objetos: this.datos?.objetos,
+      enemigos: this.datos?.enemigos,
+      tiendasAdmin: this.datos?.tiendasAdmin,
+      posiciones: this.datos?.posiciones
+    }) > 0;
+  },
+
+  async asegurarMundoMapaCargado() {
+    if (this._mapaLocalCargado()) {
+      this.pintarMapaCompleto();
+      return true;
+    }
+    if (typeof Multijugador !== 'undefined' && Multijugador.obtenerMundoServidor) {
+      await Multijugador.obtenerMundoServidor();
+      if (this._mapaLocalCargado()) {
+        this.pintarMapaCompleto();
+        return true;
+      }
+    }
+    if (typeof MundoPublico !== 'undefined' && MundoPublico._descargarDesdeGitHub) {
+      const gh = await MundoPublico._descargarDesdeGitHub();
+      if (gh?.texto) {
+        try {
+          const m = JSON.parse(gh.texto);
+          if (MundoPublico.mundoTieneMapa(m)) {
+            this._aplicarMundoRemoto(gh.texto, { soloMapa: true });
+            this.pintarMapaCompleto();
+            return true;
+          }
+        } catch (e) { /* */ }
+      }
+    }
+    this.pintarMapaCompleto();
+    return false;
+  },
+
+  pintarMapaCompleto() {
+    this._sincronizarMapaRemoto(new Set(), new Set(), new Set(), new Set());
+    if (typeof Enemigos !== 'undefined' && Enemigos._recargar) Enemigos._recargar();
+    if (typeof Tiendas !== 'undefined' && Tiendas.refrescarAdmin) Tiendas.refrescarAdmin();
+    if (typeof Cofres !== 'undefined' && Cofres._pintarTodos) Cofres._pintarTodos();
+    this.refrescarVisibles();
+    if (typeof Enemigos !== 'undefined' && Enemigos.refrescarVisibilidadDistancia) {
+      Enemigos.refrescarVisibilidadDistancia();
+    }
+    if (typeof Multijugador !== 'undefined' && Multijugador.refrescarMarcadoresDistancia) {
+      Multijugador.refrescarMarcadoresDistancia();
+    }
+  },
+
   _esPublicacionDestructiva(nuevo, referencia) {
     const a = this._contarElementosMapa(nuevo);
     const r = this._contarElementosMapa(referencia);
@@ -260,13 +316,13 @@ const Admin = {
         data = await SyncServidor.obtenerMundo();
       }
       if (!data?.mundo) return false;
-      if (typeof MundoPublico !== 'undefined' && MundoPublico.mundoTieneContenido &&
-          !MundoPublico.mundoTieneContenido(data.mundo)) {
-        return false;
-      }
       const tsRemoto = data.actualizadoEn || data.mundo.actualizadoEn || 0;
       const tsLocal = this.publicado?.actualizadoEn || 0;
-      if (tsRemoto < tsLocal) return false;
+      const remotoMapa = typeof MundoPublico !== 'undefined' && MundoPublico.mundoTieneMapa
+        ? MundoPublico.mundoTieneMapa(data.mundo) : false;
+      const localMapa = this._contarElementosMapa(this.publicado || {}) > 0;
+      if (!remotoMapa) return false;
+      if (tsRemoto < tsLocal && localMapa) return false;
       const json = JSON.stringify(data.mundo);
       this._crudoPublicado = json;
       this._ultimoFirmaPublicada = this._firmaMundo(json);
@@ -1236,7 +1292,10 @@ const Admin = {
         if (data?.mundo && typeof this._aplicarMundoRemoto === 'function') {
           const ts = data.actualizadoEn || data.mundo.actualizadoEn || 0;
           const localTs = this.publicado?.actualizadoEn || 0;
-          if (ts >= localTs) {
+          const remotoMapa = typeof MundoPublico !== 'undefined' && MundoPublico.mundoTieneMapa
+            ? MundoPublico.mundoTieneMapa(data.mundo) : false;
+          const localMapa = this._contarElementosMapa(this.publicado || {}) > 0;
+          if (ts >= localTs && (remotoMapa || !localMapa)) {
             this._aplicarMundoRemoto(JSON.stringify(data.mundo), { soloMapa: true });
           }
         }
@@ -1257,6 +1316,12 @@ const Admin = {
   // Aplica el mundo publicado sin recargar toda la página
   _aplicarMundoRemoto(texto, opciones) {
     const opts = opciones || {};
+    let remoto = null;
+    try { remoto = JSON.parse(texto); } catch (e) { return; }
+    const localMapa = this._contarElementosMapa(this.publicado || {});
+    const remotoMapa = this._contarElementosMapa(remoto);
+    if (!opts.forzar && localMapa > 0 && remotoMapa === 0) return;
+
     const jugadoresGuardados = (this.publicado?.jugadores || []).slice();
     const partidasGuardadas = Object.assign({}, this.publicado?.partidas || {});
     const idsObjetosAntes = new Set(this.objetosTodos().map(o => o.id));
@@ -1277,7 +1342,7 @@ const Admin = {
         objetosEstado: {},
         tiendasAdmin: [],
         mantenimiento: { activo: false, mensaje: '' }
-      }, JSON.parse(texto));
+      }, remoto);
     } catch (e) { return; }
 
     if (opts.soloMapa) {

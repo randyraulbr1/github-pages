@@ -159,20 +159,49 @@ const MundoPublico = {
     return [];
   },
 
-  /** Mundo válido para usar como fuente (mapa vacío tras borrar también cuenta). */
-  mundoEsValido(m) {
-    if (!m || typeof m !== 'object') return false;
-    if (typeof m.actualizadoEn === 'number' && m.actualizadoEn > 0) return true;
-    if ((m.jugadores?.length || 0) > 0) return true;
-    if ((m.eliminados?.length || 0) > 0) return true;
-    return (m.misiones?.length || 0) + (m.objetos?.length || 0) +
-      (m.enemigos?.length || 0) + (m.tesoros?.length || 0) +
-      (m.tiendasAdmin?.length || 0) + (m.cofres?.length || 0) +
-      Object.keys(m.posiciones || {}).length > 0;
+  _contarElementosMapa(m) {
+    if (!m || typeof m !== 'object') return 0;
+    let n = Object.keys(m.posiciones || {}).length;
+    for (const campo of ['objetos', 'tesoros', 'enemigos', 'tiendasAdmin', 'misiones', 'cofres']) {
+      if (Array.isArray(m[campo])) n += m[campo].length;
+    }
+    return n;
   },
 
+  /** Hay elementos en el mapa (enemigos, objetos, tesoros, misiones…). */
+  mundoTieneMapa(m) {
+    return this._contarElementosMapa(m) > 0;
+  },
+
+  /** Mundo válido para usar como fuente (jugadores, timestamp, o mapa). */
+  mundoEsValido(m) {
+    if (!m || typeof m !== 'object') return false;
+    if (this.mundoTieneMapa(m)) return true;
+    if ((m.jugadores?.length || 0) > 0) return true;
+    if ((m.eliminados?.length || 0) > 0) return true;
+    return typeof m.actualizadoEn === 'number' && m.actualizadoEn > 0;
+  },
+
+  /** Para decidir si un snapshot remoto sustituye uno local con mapa. */
   mundoTieneContenido(m) {
-    return this.mundoEsValido(m);
+    return this.mundoTieneMapa(m);
+  },
+
+  _elegirMejorDescarga(servidor, github) {
+    if (!servidor && !github) return null;
+    if (!servidor) return github;
+    if (!github) return servidor;
+    let mSrv = null;
+    let mGh = null;
+    try { mSrv = JSON.parse(servidor.texto); } catch (e) { /* */ }
+    try { mGh = JSON.parse(github.texto); } catch (e) { /* */ }
+    const nSrv = this._contarElementosMapa(mSrv);
+    const nGh = this._contarElementosMapa(mGh);
+    if (nGh > nSrv) return github;
+    if (nSrv > nGh) return servidor;
+    const tSrv = servidor.actualizadoEn || mSrv?.actualizadoEn || 0;
+    const tGh = github.actualizadoEn || mGh?.actualizadoEn || 0;
+    return tGh > tSrv ? github : servidor;
   },
 
   async _descargarDesdeGitHub() {
@@ -198,27 +227,33 @@ const MundoPublico = {
 
   async _descargarDesdeServidor() {
     if (!CONFIG.servidorOnline) return this._descargarDesdeGitHub();
+
+    let servidor = null;
     if (typeof SyncServidor !== 'undefined' && SyncServidor.obtenerMundo) {
       const data = await SyncServidor.obtenerMundo();
       if (data?.mundo && typeof data.mundo === 'object') {
-        return {
+        servidor = {
           texto: JSON.stringify(data.mundo),
           actualizadoEn: data.actualizadoEn || data.mundo.actualizadoEn || 0
         };
       }
     }
-    try {
-      const base = CONFIG.servidorOnline.replace(/\/$/, '');
-      const r = await Utilidades.fetchConTimeout(base + '/api/public/mundo', { cache: 'no-store' }, 8000);
-      const data = await r.json().catch(() => ({}));
-      if (data.ok && data.mundo && typeof data.mundo === 'object') {
-        return {
-          texto: JSON.stringify(data.mundo),
-          actualizadoEn: data.actualizadoEn || data.mundo.actualizadoEn || 0
-        };
-      }
-    } catch (e) { /* */ }
-    return this._descargarDesdeGitHub();
+    if (!servidor) {
+      try {
+        const base = CONFIG.servidorOnline.replace(/\/$/, '');
+        const r = await Utilidades.fetchConTimeout(base + '/api/public/mundo', { cache: 'no-store' }, 8000);
+        const data = await r.json().catch(() => ({}));
+        if (data.ok && data.mundo && typeof data.mundo === 'object') {
+          servidor = {
+            texto: JSON.stringify(data.mundo),
+            actualizadoEn: data.actualizadoEn || data.mundo.actualizadoEn || 0
+          };
+        }
+      } catch (e) { /* */ }
+    }
+
+    const github = await this._descargarDesdeGitHub();
+    return this._elegirMejorDescarga(servidor, github);
   },
 
   _aplicarTokenDesdeTexto(texto) {

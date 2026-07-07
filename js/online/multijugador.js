@@ -19,6 +19,7 @@ const Multijugador = {
   _ultimoPullMundo: 0,
   _mundoPendiente: null,
   _reconectando: false,
+  _mundoSocketListo: false,
 
   urlServidor() {
     return (CONFIG.servidorOnline || '').replace(/\/$/, '');
@@ -77,7 +78,45 @@ const Multijugador = {
     if (!token) return false;
 
     await this.iniciar();
-    return this.activo;
+    return !!this.socket;
+  },
+
+  /**
+   * Conecta y espera game:init / mundo del socket antes de quitar la pantalla de carga.
+   */
+  async conectarYEsperarMundo(timeoutMs) {
+    const limite = typeof timeoutMs === 'number' ? timeoutMs : 12000;
+    const ok = await this.conectar();
+    if (!this.socket) return false;
+    if (this._mundoSocketListo) return true;
+
+    return new Promise((resolve) => {
+      let hecho = false;
+      const terminar = (valor) => {
+        if (hecho) return;
+        hecho = true;
+        clearTimeout(timer);
+        if (this.socket) {
+          this.socket.off('game:init', alListo);
+          this.socket.off('connect', alConectar);
+        }
+        resolve(!!valor);
+      };
+      const alListo = () => {
+        this._mundoSocketListo = true;
+        terminar(true);
+      };
+      const alConectar = () => {
+        this.socket.once('game:init', alListo);
+      };
+      const timer = setTimeout(() => terminar(this.activo), limite);
+
+      if (this.socket.connected) {
+        this.socket.once('game:init', alListo);
+      } else {
+        this.socket.once('connect', alConectar);
+      }
+    });
   },
 
   async iniciar() {
@@ -150,6 +189,7 @@ const Multijugador = {
     });
 
     this.socket.on('game:init', (data) => {
+      this._mundoSocketListo = true;
       if (typeof Amigos !== 'undefined' && data.social) Amigos.aplicarSocial(data.social);
       this.online = (data.onlinePlayers || []).filter(p => this._visible(p.playerId));
       this._redibujar(false);
@@ -479,6 +519,7 @@ const Multijugador = {
     Admin._ultimoFirmaPublicada = firma;
     Admin._aplicarMundoRemoto(json, { soloMapa: true });
     if (m.cuerposMuertos) this._aplicarCuerpos(m.cuerposMuertos);
+    if (tieneContenido) this._mundoSocketListo = true;
     if (avisar && typeof Usuarios !== 'undefined' && !Usuarios.esAdministrador() &&
         typeof Notificaciones !== 'undefined') {
       Notificaciones.mostrar('🌍 El admin actualizó el mapa', 'info', 4000);

@@ -78,6 +78,22 @@ async function esperarMapaListo() {
   });
 }
 
+async function esperarMundoEnMapa() {
+  if (typeof Admin === 'undefined' || !Admin.asegurarMundoMapaCargado) return;
+  MarielBoot.avanzar('Colocando enemigos y objetos…');
+  await Admin.asegurarMundoMapaCargado();
+  if (typeof GPS !== 'undefined' && GPS.posicion) {
+    await new Promise(resolve => setTimeout(resolve, 350));
+  }
+  if (typeof Multijugador !== 'undefined' && Usuarios.perfilActivo && CONFIG.servidorOnline) {
+    MarielBoot.avanzar('Conectando con otros jugadores…');
+    await Multijugador.conectarYEsperarMundo(12000);
+    if (typeof Admin !== 'undefined' && Admin.pintarMapaCompleto) {
+      Admin.pintarMapaCompleto();
+    }
+  }
+}
+
 (async function arrancar() {
   const ocultarCarga = () => MarielBoot.ocultar();
   const avanzarCarga = (msg) => MarielBoot.avanzar(msg);
@@ -191,6 +207,7 @@ async function esperarMapaListo() {
 
     // —— FASE 5: MAPA LISTO ANTES DE ENTRAR ——
     await esperarMapaListo();
+    await esperarMundoEnMapa();
 
     if (Guardado.integridadRota) {
       Notificaciones.mostrar('⚠️ Los datos guardados fueron modificados a mano (revisa el Historial)', 'error', 7000);
@@ -204,9 +221,9 @@ async function esperarMapaListo() {
       } else {
         Notificaciones.mostrar('🌴 ¡Hola ' + Usuarios.perfilActivo.nombre + '! Toca 📍 para usar tu GPS', 'info', 4500);
       }
-      if (typeof Multijugador !== 'undefined') {
+      if (typeof Multijugador !== 'undefined' && !Multijugador.activo) {
         Multijugador.conectar().then((ok) => {
-          if (ok && typeof Notificaciones !== 'undefined') {
+          if (ok && Multijugador.activo && typeof Notificaciones !== 'undefined') {
             Notificaciones.mostrar('📡 Conectado al servidor en vivo', 'info', 2500);
           }
         }).catch(() => {});
