@@ -92,6 +92,20 @@ function _fusionarPartidas(mundo, fuentes) {
   }
 }
 
+function _nombresJugadores(m) {
+  return new Set(
+    (m?.jugadores || []).map(j => String(j.nombre || '').toLowerCase()).filter(Boolean)
+  );
+}
+
+function _jugadoresDifieren(a, b) {
+  const na = _nombresJugadores(a);
+  const nb = _nombresJugadores(b);
+  if (na.size !== nb.size) return true;
+  for (const n of na) if (!nb.has(n)) return true;
+  return false;
+}
+
 /**
  * Al arrancar: descarga mundo.json de GitHub (gratis, sin disco) y fusiona jugadores.
  */
@@ -114,8 +128,9 @@ async function restaurarMundoAlArranque() {
   const sinSnapshot = !prev;
   const sinJugadores = !prev?.jugadores?.length;
   const githubTieneMas = (remoto?.jugadores?.length || 0) > (prev?.jugadores?.length || 0);
+  const githubDifiere = !!(remoto && prev && _jugadoresDifieren(remoto, prev));
 
-  if (!sqliteVacio && !sinSnapshot && !sinJugadores && !githubTieneMas) {
+  if (!sqliteVacio && !sinSnapshot && !sinJugadores && !githubTieneMas && !githubDifiere) {
     return { ok: true, skipped: true, jugadores: prev.jugadores.length };
   }
 
