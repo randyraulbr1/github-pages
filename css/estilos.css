@@ -670,10 +670,11 @@ button { font-family: inherit; }
 }
 .pestana.activa { background: rgba(61,139,253,.28); color: #fff; }
 
-/* ============ INVENTARIO (equipamiento + mochila) ============ */
+/* ============ INVENTARIO (móvil primero) ============ */
 .inventario-caja {
-  width: min(94vw, 430px);
-  max-height: min(94dvh, 610px);
+  width: min(94vw, 400px);
+  height: min(92dvh, 580px);
+  max-height: min(92dvh, calc(100dvh - 24px - env(safe-area-inset-top) - env(safe-area-inset-bottom)));
   background: linear-gradient(#8b8f98, #5b6068);
   border: 1px solid #555;
   border-radius: 15px;
@@ -682,11 +683,10 @@ button { font-family: inherit; }
   box-shadow: 0 14px 34px rgba(0,0,0,.45);
   display: flex;
   flex-direction: column;
-  max-width: min(94vw, 430px);
 }
 .inv-header {
-  height: 48px;
-  padding: 0 13px;
+  height: 42px;
+  padding: 0 10px;
   background: rgba(0,0,0,.16);
   display: flex;
   justify-content: space-between;
@@ -695,70 +695,73 @@ button { font-family: inherit; }
   border-bottom: none;
 }
 .inv-titulo {
-  font-size: 19px;
+  font-size: 17px;
   font-weight: 900;
   text-shadow: 0 2px 2px #000;
   letter-spacing: 0;
 }
 .inv-cerrar {
-  width: 31px;
-  height: 31px;
+  width: 30px;
+  height: 30px;
   border-radius: 8px;
   border: 1px solid #333;
   background: #454b54;
   color: #fff;
-  font-size: 20px;
+  font-size: 18px;
   flex-shrink: 0;
 }
 .inv-content {
   flex: 1;
   min-height: 0;
-  padding: 9px 10px 10px;
+  padding: 6px 8px calc(8px + env(safe-area-inset-bottom, 0px));
   display: flex;
   flex-direction: column;
+  gap: 2px;
 }
 .inv-top-row {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 7px;
-  gap: 8px;
+  margin-bottom: 2px;
+  gap: 6px;
+  flex: 0 0 auto;
 }
 .inv-dinero {
-  font-size: 16px;
+  font-size: 15px;
   font-weight: 900;
   color: #ffe45c;
   text-shadow: 0 2px 2px #000;
 }
 .inv-selected-name {
-  max-width: 58%;
-  font-size: 12px;
+  max-width: 55%;
+  font-size: 11px;
   color: #eef3fb;
-  font-weight: 900;
+  font-weight: 800;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
   text-align: right;
 }
 .inv-seccion-titulo {
-  font-size: 11px;
+  font-size: 10px;
   font-weight: 900;
   color: #e4e9f2;
   text-shadow: 0 1px 2px #000;
-  margin: 6px 2px;
+  margin: 2px;
+  flex: 0 0 auto;
 }
 .inv-equip-row {
   display: flex;
   justify-content: center;
-  gap: 8px;
-  margin-bottom: 8px;
-  flex-wrap: nowrap;
+  gap: 5px;
+  margin-bottom: 4px;
+  flex: 0 0 auto;
 }
 .inv-equip-slot {
-  width: 46px;
-  height: 46px;
-  flex: 0 0 46px;
-  border-radius: 10px;
+  width: 40px;
+  height: 40px;
+  flex: 0 0 40px;
+  border-radius: 8px;
   border: 1px solid rgba(255,255,255,.18);
   background: rgba(0,0,0,.16);
   display: grid;
@@ -772,58 +775,60 @@ button { font-family: inherit; }
 .inv-equip-slot::before {
   content: attr(data-icon);
   position: absolute;
-  font-size: 18px;
+  font-size: 16px;
   opacity: .25;
   pointer-events: none;
 }
 .inv-equip-slot.filled::before,
 .inv-equip-slot.equipada::before { opacity: 0; }
 .inv-equip-future {
-  opacity: .45;
+  opacity: .4;
   pointer-events: none;
 }
 .inv-slot-label {
   position: absolute;
-  bottom: 3px;
-  left: 2px;
-  right: 2px;
-  font-size: 8px;
+  bottom: 2px;
+  left: 1px;
+  right: 1px;
+  font-size: 7px;
   text-align: center;
   color: #e9eef8;
   text-shadow: 0 1px 2px #000;
   pointer-events: none;
-  line-height: 1.1;
+  line-height: 1;
 }
 .inv-bag-head {
   display: flex;
   justify-content: space-between;
   align-items: center;
+  flex: 0 0 auto;
 }
 .inv-count {
-  font-size: 11px;
+  font-size: 10px;
   color: #e0e6ef;
   font-weight: 900;
 }
 .inv-rejilla, #rejilla-mochila {
-  flex: 1;
+  flex: 1 1 auto;
   min-height: 0;
   display: grid;
   grid-template-columns: repeat(5, 1fr);
-  grid-auto-rows: 1fr;
-  gap: 7px;
+  grid-template-rows: repeat(5, 1fr);
+  gap: 5px;
   padding: 0;
+  overflow: hidden;
 }
 .inv-rejilla .slot, #rejilla-mochila .slot {
   aspect-ratio: 1 / 1;
-  min-height: 50px;
-  border-radius: 10px;
+  min-height: 0;
+  border-radius: 8px;
   border: 1px solid rgba(255,255,255,.18);
   background: rgba(0,0,0,.16);
   display: grid;
   place-items: center;
   position: relative;
   overflow: hidden;
-  font-size: clamp(22px, 7vw, 32px);
+  font-size: clamp(18px, 5.2vw, 28px);
   touch-action: none;
   user-select: none;
   -webkit-user-select: none;
@@ -832,13 +837,8 @@ button { font-family: inherit; }
 .inv-equip-slot.over,
 .inv-ctrl-btn.over {
   border-color: #ffcf26;
-  box-shadow: 0 0 12px rgba(255,207,38,.45);
+  box-shadow: 0 0 10px rgba(255,207,38,.4);
   transform: scale(1.03);
-}
-.inv-rejilla .slot.selected, #rejilla-mochila .slot.selected,
-.inv-equip-slot.selected {
-  border-color: #8fc7ff;
-  box-shadow: 0 0 10px rgba(143,199,255,.35);
 }
 .inv-item-drag {
   width: 74%;
@@ -854,55 +854,49 @@ button { font-family: inherit; }
 .inv-item-drag:active { transform: scale(.9); }
 .inv-item-drag .qty, .inv-item-drag .cantidad {
   position: absolute;
-  right: 1px;
-  bottom: 1px;
-  min-width: 17px;
-  height: 17px;
-  padding: 0 3px;
+  right: 0;
+  bottom: 0;
+  min-width: 15px;
+  height: 15px;
+  padding: 0 2px;
   border-radius: 99px;
   background: #111722;
   color: #fff;
   border: 1px solid rgba(255,255,255,.25);
-  font-size: 10px;
+  font-size: 9px;
   font-weight: 900;
   display: grid;
   place-items: center;
 }
 .inv-equip-slot .inv-item-drag {
-  width: 70%;
-  height: 70%;
-  font-size: 18px;
-}
-.inv-equip-slot .inv-item-drag .qty {
-  right: -4px;
-  bottom: -4px;
-  min-width: 15px;
-  height: 15px;
-  font-size: 9px;
+  width: 68%;
+  height: 68%;
+  font-size: 16px;
 }
 .inv-controls {
-  margin-top: 9px;
-  height: 42px;
+  margin-top: 4px;
+  height: 36px;
+  flex: 0 0 36px;
   border-top: 1px solid rgba(255,255,255,.08);
-  padding-top: 8px;
+  padding-top: 5px;
   display: flex;
-  gap: 8px;
+  gap: 6px;
   opacity: 0;
   pointer-events: none;
-  transition: opacity .15s ease;
+  transition: opacity .12s ease;
 }
 .inv-controls.show {
   opacity: 1;
   pointer-events: auto;
 }
 .inv-ctrl-btn {
-  flex: 0 0 42px;
-  height: 32px;
-  border-radius: 9px;
+  flex: 0 0 38px;
+  height: 30px;
+  border-radius: 8px;
   border: 1px solid #555;
   background: linear-gradient(#858b96, #59616d);
   color: #fff;
-  font-size: 15px;
+  font-size: 14px;
   font-weight: 900;
   transition: transform .12s, box-shadow .12s, border-color .12s;
   padding: 0;
@@ -911,35 +905,39 @@ button { font-family: inherit; }
   background: linear-gradient(#d25d5d, #8b2d2d);
 }
 .inv-ctrl-use {
+  display: none;
   background: linear-gradient(#5da26a, #2d6b38);
   margin-left: auto;
+  font-size: 13px;
 }
 .inv-ctrl-use-all {
+  display: none;
   background: linear-gradient(#4a8ea8, #245b70);
   font-size: 8px;
-  letter-spacing: .3px;
+  letter-spacing: .2px;
 }
 .inv-ctrl-btn:active, .inv-cerrar:active { transform: scale(.9); }
 .inv-ayuda {
+  flex: 0 0 auto;
   text-align: center;
-  color: #e0e6ef;
-  font-size: 10px;
-  height: 16px;
-  line-height: 16px;
-  margin: 6px 0 0;
+  color: #c8d0dc;
+  font-size: 9px;
+  line-height: 1.25;
+  margin: 4px 0 0;
+  padding: 0 4px 2px;
 }
 .inv-ghost-item {
   position: fixed;
   z-index: 2500;
   pointer-events: none;
   transform: translate(-50%, -50%);
-  font-size: 35px;
+  font-size: 32px;
   filter: drop-shadow(0 4px 6px rgba(0,0,0,.65));
 }
 .inv-toast {
   position: fixed;
   left: 50%;
-  bottom: 22px;
+  bottom: max(22px, env(safe-area-inset-bottom, 22px));
   transform: translateX(-50%) translateY(20px);
   background: #1e2b39;
   border: 1px solid #43536a;
@@ -957,18 +955,18 @@ button { font-family: inherit; }
   opacity: 1;
   transform: translateX(-50%) translateY(0);
 }
-@media (max-height: 650px) {
-  .inventario-caja { max-height: 96dvh; }
-  .inv-header { height: 42px; }
-  .inv-equip-slot { width: 42px; height: 42px; flex-basis: 42px; }
-  .inv-rejilla .slot, #rejilla-mochila .slot { min-height: 40px; }
-  .inv-controls { height: 38px; margin-top: 6px; padding-top: 5px; }
-  .inv-ctrl-btn { height: 31px; }
-  .inv-ayuda { display: none; }
+@media (min-width: 700px) {
+  .inventario-caja {
+    width: 400px;
+    height: min(94dvh, 610px);
+    max-height: 610px;
+  }
+  .inv-equip-slot { width: 46px; height: 46px; flex-basis: 46px; }
+  .inv-rejilla, #rejilla-mochila { gap: 7px; }
+  .inv-ayuda { font-size: 10px; }
 }
 @media (max-width: 360px) {
-  .inv-equip-row, .inv-rejilla, #rejilla-mochila { gap: 5px; }
-  .inv-equip-slot, .inv-rejilla .slot, #rejilla-mochila .slot { border-radius: 8px; }
+  .inv-equip-row, .inv-rejilla, #rejilla-mochila { gap: 4px; }
 }
 .admin-jugadores-tabs {
   display: flex; gap: 8px; padding: 0 14px 10px;
