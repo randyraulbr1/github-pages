@@ -3,7 +3,7 @@
 // guarda todos los archivos en el teléfono (funciona con mala
 // conexión) y va guardando los pedazos de mapa ya visitados.
 // ============================================================
-const CACHE = 'mariel-explorer-v192';
+const CACHE = 'mariel-explorer-v193';
 
 const ARCHIVOS = [
   './',
@@ -164,6 +164,22 @@ self.addEventListener('fetch', evento => {
       evento.respondWith(
         fetch(evento.request, { cache: 'no-store' }).then(respuesta => {
           if (respuesta.ok) {
+            if (ruta.endsWith('/version.json')) {
+              respuesta.clone().text().then(txt => {
+                try {
+                  const j = JSON.parse(txt);
+                  const rem = parseInt(j.version, 10);
+                  const loc = parseInt(String(CACHE).replace('mariel-explorer-v', ''), 10);
+                  if (rem > loc) {
+                    self.clients.matchAll({ includeUncontrolled: true, type: 'window' }).then(cs => {
+                      for (const c of cs) {
+                        c.postMessage({ tipo: 'nueva-version', version: j.version });
+                      }
+                    });
+                  }
+                } catch (e) { /* */ }
+              }).catch(() => {});
+            }
             caches.open(CACHE).then(cache => cache.put(evento.request, respuesta.clone()));
           }
           return respuesta;

@@ -34,7 +34,8 @@ Archivo: `.github/workflows/deploy-pages.yml`
 - `js/online/sync_servidor.js` → Sincronizar falla
 - `js/online/chat.js` → sin chat
 
-Ramas que despliegan: `main` y `claude/web-rpg-gps-game-n3ybow`.
+- Versión canónica: rama **`main`** (`version.json`), no `claude/...` (quedaba en v185 y no avisaba de actualizar).
+- Tras cada merge a `main`, el workflow **sync-claude-from-main** actualiza `claude/web-rpg-gps-game-n3ybow` para que tcodm.com no vuelva a quedar atrás.
 
 ---
 
