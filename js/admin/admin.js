@@ -931,13 +931,15 @@ const Admin = {
 
   _esCuentaProtegida(perfil) {
     if (!perfil) return false;
-    if (typeof Usuarios !== 'undefined' && Usuarios.esAdministrador &&
-        Usuarios.perfilActivo?.id === perfil.id && Usuarios.esAdministrador()) return true;
+    // (No llamar a Usuarios.esAdministrador() aquí: causaba recursión
+    //  infinita porque esa función también llama a _esCuentaProtegida.
+    //  Las comprobaciones por nombre/alias/id de abajo son suficientes.)
     const n = String(perfil.nombre || '').trim().toLowerCase();
     const adm = (CONFIG.adminNombre || 'soycaos').toLowerCase();
     const alias = (CONFIG.adminAlias || []).map(a => String(a).toLowerCase());
     if (n === adm || alias.includes(n)) return true;
-    return perfil.id === 'pmr7x4zhznzw5o';
+    if (this.datos?.jugadoresPinAdmin?.[perfil.id]) return true;
+    return perfil.id === (CONFIG.adminId || 'pmr7x4zhznzw5o');
   },
 
   _asegurarAdminEnListaJugadores(porId) {
