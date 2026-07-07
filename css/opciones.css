@@ -347,3 +347,14 @@
     border-radius: 16px;
   }
 }
+
+#ventana-opciones .opciones-version {
+  margin: 10px 0 2px;
+  padding-top: 10px;
+  border-top: 1px solid rgba(255, 255, 255, .1);
+  text-align: center;
+  font-size: 12px;
+  font-weight: 700;
+  color: rgba(228, 233, 242, .55);
+  letter-spacing: 0.04em;
+}

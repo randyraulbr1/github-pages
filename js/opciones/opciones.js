@@ -190,6 +190,7 @@ const Opciones = {
     this._refrescarAdmin();
     this.pintarPerfilOpciones();
     this._pintarPreferencias();
+    this._pintarVersion();
     this._cerrarConfirm();
     const v = document.getElementById('ventana-opciones');
     v?.classList.remove('oculto');
@@ -200,6 +201,17 @@ const Opciones = {
     const prefs = Guardado.datos?.preferencias || {};
     this._setToggle(document.getElementById('opcion-toggle-chat'), prefs.notifChat !== false);
     this._setToggle(document.getElementById('opcion-toggle-amigos'), prefs.notifAmigos !== false);
+  },
+
+  _pintarVersion() {
+    const el = document.getElementById('opciones-version');
+    if (!el || typeof CONFIG === 'undefined') return;
+    const v = CONFIG.version || '?';
+    const guardada = localStorage.getItem('mariel_app_version');
+    const alDia = !guardada || guardada === v;
+    el.textContent = alDia
+      ? ('Versión ' + v + ' · actualizada')
+      : ('Versión ' + v + ' · recarga para actualizar');
   },
 
   _guardarPreferencia(clave, valor) {
