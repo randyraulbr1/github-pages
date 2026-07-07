@@ -88,8 +88,13 @@ const MarielVersion = {
   },
 
   versionLocal() {
-    if (typeof CONFIG !== 'undefined' && CONFIG.version) return String(CONFIG.version);
-    return this._embebida || localStorage.getItem('mariel_app_version') || '?';
+    const partes = [
+      this._embebida,
+      typeof CONFIG !== 'undefined' ? CONFIG.version : null,
+      localStorage.getItem('mariel_app_version')
+    ].map(v => this._num(v)).filter(n => n > 0);
+    const mejor = partes.length ? Math.max(...partes) : 0;
+    return mejor ? String(mejor) : (this._embebida || '?');
   },
 
   _parseVersionTexto(txt) {
@@ -136,22 +141,46 @@ const MarielVersion = {
     const l = this._num(local);
     const r = this._num(remoto);
     if (!r) return false;
-    if (r > l) return true;
     const emb = this._num(this._embebida);
-    if (emb && r > emb) return true;
-    return false;
+    if (emb >= r) return false;
+    return r > l;
+  },
+
+  _desbloquearActualizacion(version) {
+    const v = String(version || this._embebida || this._remota || '');
+    if (v) localStorage.setItem('mariel_app_version', v);
+    this._bloqueado = false;
+    document.body.classList.remove('mariel-bloqueado-actualizar');
+    document.getElementById('pantalla-actualizar')?.classList.add('oculto');
+    const btn = document.getElementById('btn-actualizar-app');
+    if (btn) {
+      btn.disabled = false;
+      btn.textContent = 'Actualizar ahora';
+    }
   },
 
   revisar() {
     const local = this.versionLocal();
     const remoto = this._remota;
+    const emb = this._num(this._embebida);
+    const r = this._num(remoto);
+
+    if (r && emb >= r) {
+      this._desbloquearActualizacion(String(emb));
+      return false;
+    }
+
     const objetivo = this._versionObjetivo(local, remoto || this._embebida);
-    if (objetivo) {
+    if (objetivo && this._num(objetivo) > this._num(local)) {
       this.mostrarBloqueo(local, objetivo);
       return true;
     }
-    if (!this._bloqueado && remoto && this._num(remoto) === this._num(local)) {
+
+    if (!this._bloqueado && remoto && this._num(remoto) <= this._num(local)) {
       localStorage.setItem('mariel_app_version', remoto);
+    }
+    if (this._bloqueado && r && r <= this._num(local)) {
+      this._desbloquearActualizacion(local);
     }
     return false;
   },
@@ -210,8 +239,9 @@ const MarielVersion = {
       }
     } catch (e) { /* seguir con recarga */ }
 
-    const bust = '?v=' + Date.now();
-    location.replace(location.pathname + bust + location.hash);
+    const bust = 'cb=' + Date.now();
+    const base = location.origin + location.pathname.replace(/\/$/, '') + '/';
+    location.replace(base + '?' + bust + location.hash);
   },
 
   async comprobarRemota() {
