@@ -36,9 +36,21 @@ const GPS = {
     document.getElementById('btn-gps').addEventListener('click', () => this.alternarGpsReal());
 
     setTimeout(() => {
-      Mapa.jugadorSeMovio(this.posicion);
+      this.aplicarPosicionGuardada();
       if (typeof Mapa !== 'undefined' && Mapa.centrarEnJugador) Mapa.centrarEnJugador(false);
     }, 300);
+  },
+
+  aplicarPosicionGuardada() {
+    if (!this.marcador || typeof Guardado === 'undefined' || !Guardado.datos) return;
+    if (typeof Guardado._asegurarPosicionJugador === 'function') {
+      Guardado._asegurarPosicionJugador();
+    }
+    const pos = Guardado.datos.posicionJugador;
+    if (!Array.isArray(pos) || pos.length < 2) return;
+    this.posicion = pos.slice();
+    this.marcador.setLatLng(this.posicion);
+    if (typeof Mapa !== 'undefined') Mapa.jugadorSeMovio(this.posicion);
   },
 
   puedeArrastrar() {

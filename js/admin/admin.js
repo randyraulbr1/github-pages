@@ -370,6 +370,29 @@ const Admin = {
     }
   },
 
+  /** Fusiona partidas/jugadores del servidor sin tocar el mapa publicado. */
+  _fusionarPartidasServidor(m) {
+    if (!m || typeof m !== 'object') return false;
+    if (!this.publicado) this.publicado = {};
+    const partidas = Object.assign({}, this.publicado.partidas || {}, m.partidas || {});
+    if (Object.keys(partidas).length) this.publicado.partidas = partidas;
+    if ((m.jugadores || []).length) {
+      const porId = new Map();
+      for (const j of (this.publicado.jugadores || [])) {
+        if (j?.id) porId.set(j.id, j);
+      }
+      for (const j of m.jugadores) {
+        if (j?.id) porId.set(j.id, Object.assign({}, porId.get(j.id), j));
+      }
+      this.publicado.jugadores = [...porId.values()];
+    }
+    const tsRemoto = m.actualizadoEn || 0;
+    if (tsRemoto > (this.publicado.actualizadoEn || 0)) {
+      this.publicado.actualizadoEn = tsRemoto;
+    }
+    return true;
+  },
+
   /** Tras iniciar sesión, vuelve a cargar el mundo del servidor si es más nuevo. */
   async refrescarMundoTrasLogin() {
     if (!CONFIG.servidorOnline || !this._mundoCargado) return false;
@@ -397,6 +420,21 @@ const Admin = {
         }
         return false;
       }
+
+      // Servidor sin objetos: solo fusionar partidas/jugadores, no vaciar borradores locales
+      if (nRemoto === 0) {
+        if (hayPartidas && tsRemoto > tsLocal) {
+          this._fusionarPartidasServidor(m);
+          if (typeof Guardado !== 'undefined') Guardado._asegurarPosicionJugador?.();
+          if (typeof GPS !== 'undefined') GPS.aplicarPosicionGuardada?.();
+          if (typeof Multijugador !== 'undefined' && Multijugador._sincronizarPinesPartida) {
+            Multijugador._sincronizarPinesPartida();
+          }
+          return true;
+        }
+        return false;
+      }
+
       if (nRemoto === nLocal && tsRemoto <= tsLocal && !hayPartidas) return false;
 
       const json = JSON.stringify(m);

@@ -53,6 +53,7 @@ const Usuarios = {
       if (!forzarLogin) {
         const sesion = this.datos.sesionId && this.datos.lista.find(p => p.id === this.datos.sesionId);
         if (sesion) {
+          this._sincronizarNombreDesdeMundo(sesion);
           this.perfilActivo = sesion;
           this.datos.activo = sesion.id;
           document.body.classList.remove('en-auth');
@@ -137,12 +138,26 @@ const Usuarios = {
     return /^\+?\d{6,15}$/.test(t);
   },
 
+  _sincronizarNombreDesdeMundo(perfil) {
+    if (!perfil?.id || typeof Admin === 'undefined' || !Admin.publicado) return;
+    const g = (Admin.publicado.jugadores || []).find(j => j && j.id === perfil.id);
+    if (g?.nombre) perfil.nombre = g.nombre;
+  },
+
   esAdministrador() {
-    if (!this.perfilActivo || !this.perfilActivo.nombre || !CONFIG.adminNombre) return false;
-    const nom = this.perfilActivo.nombre.trim().toLowerCase();
+    if (!this.perfilActivo || !CONFIG.adminNombre) return false;
+    const p = this.perfilActivo;
+    const adminId = CONFIG.adminId || 'pmr7x4zhznzw5o';
+    if (p.id === adminId) return true;
+    const nom = String(p.nombre || '').trim().toLowerCase();
     const adm = CONFIG.adminNombre.toLowerCase();
-    const alias = (CONFIG.adminAlias || []).map(a => a.toLowerCase());
-    return nom === adm || alias.includes(nom);
+    const alias = (CONFIG.adminAlias || []).map(a => String(a).toLowerCase());
+    if (nom && (nom === adm || alias.includes(nom))) return true;
+    if (typeof Admin !== 'undefined') {
+      if (Admin._esCuentaProtegida?.(p)) return true;
+      if (Admin.datos?.jugadoresPinAdmin?.[p.id]) return true;
+    }
+    return false;
   },
 
   _buscarPorLogin(usuario) {
@@ -403,6 +418,7 @@ const Usuarios = {
       return;
     }
     this._publicarSesionEnFondo(perfil, token);
+    if (typeof Opciones !== 'undefined') Opciones._refrescarAdmin?.();
     if (typeof SyncServidor !== 'undefined') {
       SyncServidor.asegurarSesionServidor({}).then((ok) => {
         if (ok) SyncServidor.registrarCuenta(perfil, null).catch(() => {});
