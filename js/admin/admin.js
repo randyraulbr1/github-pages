@@ -845,6 +845,17 @@ const Admin = {
     return !!(n && borrados.has(n));
   },
 
+  _desmarcarJugadorBorrado(perfil) {
+    if (!this.datos?.jugadoresBorrados?.length || !perfil) return;
+    const nombreKey = String(perfil.nombre || '').trim().toLowerCase();
+    const ids = this._idsJugadorMismaCuenta(perfil);
+    const quitar = new Set([nombreKey, ...[...ids].map(id => String(id).toLowerCase())].filter(Boolean));
+    this.datos.jugadoresBorrados = this.datos.jugadoresBorrados.filter(
+      x => x && !quitar.has(String(x).toLowerCase())
+    );
+    this.guardar();
+  },
+
   _marcarJugadorBorrado(perfil) {
     if (!this.datos) this.datos = {};
     if (!this.datos.jugadoresBorrados) this.datos.jugadoresBorrados = [];
@@ -1036,6 +1047,7 @@ const Admin = {
     }
     if (!this.datos) this.datos = { jugadoresExtra: [], misiones: [], tesoros: [], objetos: [], posiciones: {}, eliminados: [] };
     if (!this.datos.jugadoresExtra) this.datos.jugadoresExtra = [];
+    this._desmarcarJugadorBorrado(perfil);
     const pinClave = perfil.pinClave || this._pinAdminGet(perfil.id) || '';
     const entrada = {
       id: perfil.id,
@@ -1495,7 +1507,14 @@ const Admin = {
     } catch (e) { return; }
 
     if (opts.soloMapa) {
-      if (jugadoresGuardados.length) this.publicado.jugadores = jugadoresGuardados;
+      const porId = new Map();
+      for (const j of jugadoresGuardados) {
+        if (j?.id) porId.set(j.id, j);
+      }
+      for (const j of (remoto.jugadores || [])) {
+        if (j?.id) porId.set(j.id, Object.assign({}, porId.get(j.id), j));
+      }
+      if (porId.size) this.publicado.jugadores = [...porId.values()];
       this.publicado.partidas = Object.assign({}, partidasGuardadas, this.publicado.partidas || {});
     } else if (!(this.publicado.jugadores || []).length && jugadoresGuardados.length) {
       this.publicado.jugadores = jugadoresGuardados;
