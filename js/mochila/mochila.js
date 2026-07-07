@@ -541,19 +541,35 @@ const Mochila = {
     });
   },
 
-  _onSlotPointerDown(e, place, key) {
+  _slotDesdePunto(clientX, clientY) {
+    if (clientX == null || clientY == null) return null;
+    if (this.ghost) this.ghost.style.visibility = 'hidden';
+    const el = document.elementFromPoint(clientX, clientY);
+    if (this.ghost) this.ghost.style.visibility = 'visible';
+    return el ? el.closest('.slot, .inv-equip-slot, .inv-ctrl-btn') : null;
+  },
+
+  _enlazarArrastrePointer(e, place, key) {
     const item = this._getItem(place, key);
     if (!item) return;
 
     e.preventDefault();
+    const origen = e.currentTarget && e.currentTarget.closest
+      ? e.currentTarget.closest('.slot, .inv-equip-slot, .inv-item-drag') || e.currentTarget
+      : e.target;
+    try { origen?.setPointerCapture?.(e.pointerId); } catch (err) { /* */ }
+
     const startX = e.clientX;
     const startY = e.clientY;
     let moved = false;
 
     this.dragFrom = { place, key };
     this.dragging = item;
+    this._dragLastX = startX;
+    this._dragLastY = startY;
 
     const onMove = (ev) => {
+      if (ev.cancelable) ev.preventDefault();
       this._dragLastX = ev.clientX;
       this._dragLastY = ev.clientY;
       const dx = ev.clientX - startX;
@@ -568,20 +584,37 @@ const Mochila = {
       if (moved) this._moveGhost(ev);
     };
 
-    const onUp = (ev) => {
+    const finalizar = (ev) => {
+      origen?.removeEventListener?.('pointermove', onMove);
+      origen?.removeEventListener?.('pointerup', finalizar);
+      origen?.removeEventListener?.('pointercancel', finalizar);
+      origen?.removeEventListener?.('lostpointercapture', finalizar);
       window.removeEventListener('pointermove', onMove);
+      window.removeEventListener('pointerup', finalizar);
+      window.removeEventListener('mousemove', onMove);
+      window.removeEventListener('mouseup', finalizar);
+      try { origen?.releasePointerCapture?.(e.pointerId); } catch (err) { /* */ }
       if (moved) {
-        if (ev && ev.clientX != null) this._moveGhost(ev);
-        else if (this._dragLastX != null) {
-          this._moveGhost({ clientX: this._dragLastX, clientY: this._dragLastY });
-        }
+        const px = ev?.clientX ?? this._dragLastX;
+        const py = ev?.clientY ?? this._dragLastY;
+        if (px != null && py != null) this._moveGhost({ clientX: px, clientY: py });
         this._finishDrop();
       }
       this._cleanupDrag();
     };
 
+    origen?.addEventListener?.('pointermove', onMove);
+    origen?.addEventListener?.('pointerup', finalizar);
+    origen?.addEventListener?.('pointercancel', finalizar);
+    origen?.addEventListener?.('lostpointercapture', finalizar);
     window.addEventListener('pointermove', onMove);
-    window.addEventListener('pointerup', onUp, { once: true });
+    window.addEventListener('pointerup', finalizar, { once: true });
+    window.addEventListener('mousemove', onMove);
+    window.addEventListener('mouseup', finalizar, { once: true });
+  },
+
+  _onSlotPointerDown(e, place, key) {
+    this._enlazarArrastrePointer(e, place, key);
   },
 
   _moveItem(fromPlace, fromKey, toPlace, toKey) {
@@ -661,16 +694,9 @@ const Mochila = {
     document.querySelectorAll('.slot.over, .inv-equip-slot.over, .inv-ctrl-btn.over')
       .forEach(s => s.classList.remove('over'));
 
-    const el = document.elementFromPoint(e.clientX, e.clientY);
-    const target = el ? el.closest('.slot, .inv-equip-slot, .inv-ctrl-btn') : null;
+    const target = this._slotDesdePunto(e.clientX, e.clientY);
     this.hoverTarget = target || null;
     if (target) target.classList.add('over');
-  },
-
-  _slotDesdePunto(clientX, clientY) {
-    if (clientX == null || clientY == null) return null;
-    const el = document.elementFromPoint(clientX, clientY);
-    return el ? el.closest('.slot, .inv-equip-slot, .inv-ctrl-btn') : null;
   },
 
   _finishDrop() {

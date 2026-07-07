@@ -388,7 +388,9 @@ const Multijugador = {
       this.mundoServidorTs = Math.max(this.mundoServidorTs, ts);
       Admin._crudoPublicado = json;
       Admin._ultimoFirmaPublicada = Admin._firmaMundo(json);
-      Admin._aplicarMundoRemoto(json);
+      const esAdmin = typeof Usuarios !== 'undefined' && Usuarios.esAdministrador();
+      Admin._aplicarMundoRemoto(json, { permitirReduccion: !esAdmin });
+      if (typeof Admin.pintarMapaCompleto === 'function') Admin.pintarMapaCompleto();
       if (data.mundo.cuerposMuertos) this._aplicarCuerpos(data.mundo.cuerposMuertos);
       if (typeof Usuarios !== 'undefined') {
         Usuarios.verificarCuentaEnMundo().catch(() => {});
@@ -744,11 +746,13 @@ const Multijugador = {
     const ts = data.actualizadoEn || m.actualizadoEn || Date.now();
     const remotoN = Admin._contarElementosMapa(m);
     const localN = Admin._contarMapaAdminCompleto();
+    const esAdmin = typeof Usuarios !== 'undefined' && Usuarios.esAdministrador();
     if (remotoN < localN) {
-      if (typeof Usuarios !== 'undefined' && Usuarios.esAdministrador()) {
+      if (esAdmin) {
         setTimeout(() => Admin._publicarParaTodos(true), 2500);
+        return false;
       }
-      return false;
+      if (remotoN === 0) return false;
     }
 
     const json = JSON.stringify(m);
@@ -758,7 +762,8 @@ const Multijugador = {
     this.mundoServidorTs = Math.max(this.mundoServidorTs, ts);
     Admin._crudoPublicado = json;
     Admin._ultimoFirmaPublicada = firma;
-    Admin._aplicarMundoRemoto(json, { soloMapa: true });
+    Admin._aplicarMundoRemoto(json, { soloMapa: true, permitirReduccion: !esAdmin });
+    if (typeof Admin.pintarMapaCompleto === 'function') Admin.pintarMapaCompleto();
     if (m.cuerposMuertos) this._aplicarCuerpos(m.cuerposMuertos);
     if (tieneContenido) this._mundoSocketListo = true;
     this._sincronizarPinesPartida();

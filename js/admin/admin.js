@@ -232,6 +232,9 @@ const Admin = {
   },
 
   async asegurarMundoMapaCargado() {
+    if (CONFIG.servidorOnline && typeof Multijugador !== 'undefined' && Multijugador.obtenerMundoServidor) {
+      try { await Multijugador.obtenerMundoServidor(); } catch (e) { /* */ }
+    }
     if (this._mapaLocalCargado()) {
       this.pintarMapaCompleto();
       return true;
@@ -1659,8 +1662,10 @@ const Admin = {
     try { remoto = JSON.parse(texto); } catch (e) { return; }
     const localMapa = this._contarMapaAdminCompleto();
     const remotoMapa = this._contarElementosMapa(remoto);
-    if (!opts.permitirReduccion && remotoMapa < localMapa) return;
-    if (!opts.forzar && localMapa > 0 && remotoMapa === 0) return;
+    const esAdmin = this.esAdminJugador();
+    if (!opts.permitirReduccion && remotoMapa < localMapa && esAdmin) return;
+    if (!opts.forzar && esAdmin && localMapa > 0 && remotoMapa === 0) return;
+    if (!esAdmin && remotoMapa === 0 && localMapa > 0) return;
 
     const jugadoresGuardados = (this.publicado?.jugadores || []).slice();
     const partidasGuardadas = Object.assign({}, this.publicado?.partidas || {});

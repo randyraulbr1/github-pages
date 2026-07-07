@@ -1042,6 +1042,13 @@ button { font-family: inherit; }
   touch-action: none;
   user-select: none;
   -webkit-user-select: none;
+  cursor: grab;
+}
+.inv-rejilla .slot:active, #rejilla-mochila .slot:active {
+  cursor: grabbing;
+}
+.inv-equip-slot {
+  touch-action: none;
 }
 .inv-rejilla .slot.over, #rejilla-mochila .slot.over,
 .inv-equip-slot.over,
