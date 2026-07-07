@@ -85,11 +85,18 @@ async function esperarMundoEnMapa() {
   if (typeof GPS !== 'undefined' && GPS.posicion) {
     await new Promise(resolve => setTimeout(resolve, 350));
   }
-  if (typeof Multijugador !== 'undefined' && Usuarios.perfilActivo && CONFIG.servidorOnline) {
+    if (typeof Multijugador !== 'undefined' && Usuarios.perfilActivo && CONFIG.servidorOnline) {
     MarielBoot.avanzar('Conectando con otros jugadores…');
     await Multijugador.conectarYEsperarMundo(12000);
     if (typeof Admin !== 'undefined' && Admin.pintarMapaCompleto) {
       Admin.pintarMapaCompleto();
+    }
+    if (typeof Admin !== 'undefined' && typeof Notificaciones !== 'undefined' &&
+        !Usuarios.esAdministrador() && Admin._contarElementosMapa(Admin.publicado || {}) === 0) {
+      Notificaciones.mostrar(
+        '🗺️ El mapa aún no tiene objetos publicados. El admin debe colocarlos y sincronizar.',
+        'info', 8000
+      );
     }
   }
 }

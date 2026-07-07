@@ -148,6 +148,13 @@ const Admin = {
       const posPub = Object.keys(this.publicado.posiciones || {}).length;
       if (localN > pubN || posLocal > posPub) {
         setTimeout(() => this._publicarParaTodos(true), 3500);
+      } else if (pubN === 0 && localN === 0 && typeof Notificaciones !== 'undefined') {
+        setTimeout(() => {
+          Notificaciones.mostrar(
+            '🗺️ El mapa del servidor está vacío. Coloca objetos y pulsa Sincronizar para que todos los vean.',
+            'alerta', 10000
+          );
+        }, 2000);
       }
       }
     }

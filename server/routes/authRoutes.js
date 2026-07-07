@@ -21,7 +21,7 @@ const { mergeJugadoresPartidas } = require('../syncMundo');
 const { forzarImportJugadores, leerMundoJson } = require('../importSnapshot');
 const { getJugadoresPublicos, respaldarCuentasEnGitHub, buscarJugadorPublico } = require('../syncCuentas');
 const { leerAdminDesdeArchivo } = require('../adminCuenta');
-const { intentarRecuperarPorLogin } = require('../recoveryCuentas');
+const { intentarRecuperarPorLogin, buscarEnEliminadosRecuperables } = require('../recoveryCuentas');
 const { registrar } = require('../eventLog');
 const { hashContenido } = require('../utils/githubPush');
 const { getSyncStatus } = require('../syncStatus');
@@ -98,6 +98,40 @@ function estaEnListaPublicada(usuario) {
 function resolverNombreLogin(usuario, legacy) {
   if (legacy?.nombre) return String(legacy.nombre).trim();
   return usuario.trim();
+}
+
+/** Vuelve a poner la cuenta en la lista publicada tras login válido. */
+function reinsertarJugadorEnSnapshot(perfil) {
+  if (!perfil?.id || !perfil?.nombre) return;
+  const snap = getWorldSnapshot() || { jugadores: [], partidas: {} };
+  mergeJugadoresPartidas(snap, [{
+    jugadores: [{
+      id: perfil.id,
+      nombre: perfil.nombre,
+      telefono: perfil.telefono || '',
+      pinHash: perfil.pinHash || '',
+      creado: perfil.creado || Date.now()
+    }]
+  }]);
+  snap.actualizadoEn = Date.now();
+  saveWorldSnapshot(snap);
+}
+
+function perfilDesdeSqlite(user, player, clave) {
+  const legacy = buscarJugadorSnapshot(user.username);
+  if (legacy) return legacy;
+  const snap = getWorldSnapshot();
+  const j = (snap?.jugadores || []).find(x =>
+    x?.nombre && x.nombre.toLowerCase() === String(player.name).toLowerCase()
+  );
+  if (j) return j;
+  return {
+    id: 'srv_' + player.id,
+    nombre: player.name,
+    telefono: '',
+    pinHash: sha256Pin(clave),
+    creado: Date.now()
+  };
 }
 
 /** Mundo público (solo lectura) — fuente principal para el cliente */
@@ -186,27 +220,17 @@ router.post('/login-game', (req, res) => {
     return res.status(400).json({ ok: false, error: 'Contraseña mínimo 4 caracteres' });
   }
 
-  const rec = intentarRecuperarPorLogin(usuario);
-  if (rec.accion === 'eliminada') {
+  const snap = getWorldSnapshot();
+  const eliminada = buscarEnEliminadosRecuperables(snap, usuario);
+  if (eliminada) {
     return res.status(401).json({
       ok: false,
       error: 'Tu cuenta fue eliminada. Contacta al admin para restaurarla.',
       codigo: 'cuenta_eliminada'
     });
   }
-  if (rec.accion === 'no_registrado') {
-    return res.status(401).json({ ok: false, error: 'No estás registrado', codigo: 'no_registrado' });
-  }
-  if (rec.accion === 'recuperada') {
-    registrar('login_recovery', `Auto-recuperación en login: ${rec.jugador?.nombre}`);
-  }
 
-  const enLista = estaEnListaPublicada(usuario);
-  if (enLista === false) {
-    return res.status(401).json({ ok: false, error: 'No estás registrado', codigo: 'no_registrado' });
-  }
-
-  const legacy = buscarJugadorSnapshot(usuario) || rec.jugador || null;
+  let legacy = buscarJugadorSnapshot(usuario);
   const nombreLogin = resolverNombreLogin(usuario, legacy);
 
   let user = findUserByUsername(nombreLogin);
@@ -214,28 +238,45 @@ router.post('/login-game', (req, res) => {
   if (user && comparePassword(clave, user.password_hash)) {
     const player = findPlayerByUserId(user.id);
     if (!player) return res.status(500).json({ ok: false, error: 'Jugador no encontrado' });
+    const perfil = perfilDesdeSqlite(user, player, clave);
+    reinsertarJugadorEnSnapshot(perfil);
     updateLastLogin(user.id);
-    const perfil = legacy || buscarJugadorSnapshot(nombreLogin);
     return res.json({
       ok: true,
       token: signPlayerToken(user, player),
       user: { id: user.id, username: user.username },
       player: formatPlayer(player),
-      perfil: perfil || {
-        id: 'srv_' + player.id,
-        nombre: player.name,
-        telefono: '',
-        pinHash: sha256Pin(clave),
-        creado: Date.now()
-      }
+      perfil
     });
   }
 
+  const rec = intentarRecuperarPorLogin(usuario);
+  if (rec.accion === 'recuperada') {
+    registrar('login_recovery', `Auto-recuperación en login: ${rec.jugador?.nombre}`);
+    legacy = rec.jugador || legacy;
+  } else if (rec.accion === 'ok') {
+    legacy = rec.jugador || legacy;
+  }
+
+  const enLista = estaEnListaPublicada(usuario);
+  if (enLista === false && !legacy && !user) {
+    return res.status(401).json({
+      ok: false,
+      error: 'No estás registrado. Crea una cuenta nueva o pide al admin que te restaure.',
+      codigo: 'no_registrado'
+    });
+  }
+
+  legacy = legacy || buscarJugadorSnapshot(usuario) || rec.jugador || null;
+
   if (!legacy) {
+    if (user) {
+      return res.status(401).json({ ok: false, error: 'Contraseña incorrecta' });
+    }
     if (enLista === true) {
       return res.status(401).json({ ok: false, error: 'Contraseña incorrecta' });
     }
-    return res.status(401).json({ ok: false, error: 'No estás registrado' });
+    return res.status(401).json({ ok: false, error: 'No estás registrado', codigo: 'no_registrado' });
   }
   if (!legacy.pinHash) {
     return res.status(401).json({ ok: false, error: 'Cuenta sin contraseña. Pide al admin que la configure.' });
@@ -265,12 +306,8 @@ router.post('/login-game', (req, res) => {
   }
 
   updateLastLogin(user.id);
+  reinsertarJugadorEnSnapshot(legacy);
   const token = signPlayerToken(user, player);
-
-  const snap = getWorldSnapshot() || { jugadores: [], partidas: {} };
-  mergeJugadoresPartidas(snap, [{ jugadores: [legacy] }]);
-  snap.actualizadoEn = Date.now();
-  saveWorldSnapshot(snap);
   respaldarCuentasEnGitHub().catch(() => {});
 
   return res.json({
