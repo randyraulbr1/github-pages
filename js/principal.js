@@ -95,6 +95,8 @@ async function esperarMundoEnMapa() {
 }
 
 (async function arrancar() {
+  if (typeof MarielVersion !== 'undefined' && MarielVersion.revisar()) return;
+
   const ocultarCarga = () => MarielBoot.ocultar();
   const avanzarCarga = (msg) => MarielBoot.avanzar(msg);
   const pasoSeguro = async (nombre, fn) => {
