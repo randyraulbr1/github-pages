@@ -153,30 +153,11 @@ function reconciliarCuentasEnSnapshot(mundoOpt) {
   };
 }
 
+/** Lista publicada por el admin (snapshot). No re-añade SQLite huérfanos tras un borrado. */
 function getJugadoresPublicos() {
   const snap = getWorldSnapshot();
-  const porId = new Map();
-  for (const j of (snap?.jugadores || [])) {
-    if (j?.id) porId.set(j.id, j);
-  }
-
-  for (const r of listUsersWithPlayers()) {
-    const nombre = String(r.name || r.username || '').trim();
-    if (!nombre) continue;
-    const existe = [...porId.values()].some(
-      j => String(j.nombre || '').toLowerCase() === nombre.toLowerCase()
-    );
-    if (existe) continue;
-    const id = 'srv_' + r.player_id;
-    porId.set(id, {
-      id,
-      nombre,
-      telefono: '',
-      creado: Date.parse(String(r.created_at).replace(' ', 'T') + 'Z') || Date.now()
-    });
-  }
-
-  return deduplicarJugadoresPorNombre([...porId.values()]).jugadores;
+  const lista = Array.isArray(snap?.jugadores) ? snap.jugadores : [];
+  return deduplicarJugadoresPorNombre(lista).jugadores;
 }
 
 /** Borra de SQLite usuarios que ya no están en la lista publicada por el admin. */

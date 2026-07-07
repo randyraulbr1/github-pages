@@ -810,7 +810,6 @@ function syncMundoFromJson(mundo, io) {
           }
         }
       }
-      delete mundo.purgarJugadores;
       const dedupe = deduplicarJugadoresPorNombre(mundo.jugadores);
       mundo.jugadores = dedupe.jugadores;
       if (dedupe.aliasIds.size) {
@@ -828,9 +827,12 @@ function syncMundoFromJson(mundo, io) {
     }
   } catch (e) { /* */ }
 
+  const purgarParaGitHub = !!mundo.purgarJugadores;
+  delete mundo.purgarJugadores;
   saveWorldSnapshot(mundo);
 
-  pushMundoToGitHub(mundo).then((r) => {
+  const mundoGitHub = purgarParaGitHub ? Object.assign({}, mundo, { purgarJugadores: true }) : mundo;
+  pushMundoToGitHub(mundoGitHub).then((r) => {
     if (r.ok) console.log('[mundo] Respaldo GitHub OK');
     else if (!r.skipped) console.warn('[mundo] Respaldo GitHub:', r.error || r.reason);
   }).catch((e) => console.warn('[mundo] Respaldo GitHub:', e.message));
