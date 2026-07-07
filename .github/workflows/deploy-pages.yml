@@ -4,7 +4,6 @@ on:
   push:
     branches:
       - main
-      - claude/web-rpg-gps-game-n3ybow
   workflow_dispatch:
 
 permissions:
