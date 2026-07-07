@@ -9,7 +9,7 @@
   <link rel="icon" type="image/png" href="iconos/icono-192.png">
   <link rel="apple-touch-icon" href="iconos/icono-192.png">
   <link rel="stylesheet" href="lib/leaflet/leaflet.css">
-  <link rel="stylesheet" href="css/estilos.css?v=134">
+  <link rel="stylesheet" href="css/estilos.css?v=136">
   <link rel="stylesheet" href="css/chat.css?v=134">
   <link rel="stylesheet" href="css/amigos.css">
   <link rel="stylesheet" href="css/opciones.css?v=116">
@@ -17,7 +17,7 @@
   <script>
     // Aviso temprano en móvil (antes de cargar 20+ archivos JS)
     (function () {
-      var V = '123';
+      var V = '136';
       var texto = document.getElementById('carga-texto');
       if (texto) texto.textContent = 'Conectando…';
       var prev = localStorage.getItem('mariel_app_version');
@@ -320,49 +320,56 @@
   <div id="ventana-mochila" class="ventana oculto">
     <div class="ventana-caja inventario-caja">
       <div class="inv-header">
-        <div class="inv-titulo"><span class="inv-icono-titulo">🎒</span> INVENTARIO</div>
+        <div class="inv-titulo">🎒 INVENTARIO</div>
         <button type="button" class="btn-cerrar inv-cerrar" data-cierra="ventana-mochila" aria-label="Cerrar">✕</button>
       </div>
-      <div class="inv-status-bar">
-        <div class="inv-dinero"><span class="inv-dinero-icono">💰</span> $<span id="inv-dinero-cantidad">100</span></div>
-        <div class="inv-arma-status" id="inv-weapon-status">⚔️ Sin arma</div>
-      </div>
-      <div class="inv-seccion inv-seccion-arma">
-        <div class="inv-seccion-titulo">ARMA EQUIPADA</div>
-        <div class="inv-weapon-box-area">
-          <div id="slot-arma-equipada" class="inv-equip-slot slot" data-type="weapon" title="Arrastra un arma aquí">
-            <span class="inv-arma-placeholder">🗡️</span>
+      <div class="inv-content">
+        <div class="inv-top-row">
+          <div class="inv-dinero">💰 $<span id="inv-dinero-cantidad">100</span></div>
+          <div class="inv-selected-name" id="inv-selected-name">Toca un objeto</div>
+        </div>
+        <div class="inv-seccion-titulo">EQUIPAMIENTO</div>
+        <div class="inv-equip-row" id="inv-equip-row">
+          <div id="slot-arma-equipada" class="inv-equip-slot" data-equip="weapon" data-icon="⚔️" title="Arma">
+            <span class="inv-slot-label">Arma</span>
+          </div>
+          <div class="inv-equip-slot inv-equip-future" data-equip="shield" data-icon="🛡️" title="Próximamente">
+            <span class="inv-slot-label">Escudo</span>
+          </div>
+          <div class="inv-equip-slot inv-equip-future" data-equip="helmet" data-icon="⛑️" title="Próximamente">
+            <span class="inv-slot-label">Casco</span>
+          </div>
+          <div class="inv-equip-slot inv-equip-future" data-equip="armor" data-icon="🎽" title="Próximamente">
+            <span class="inv-slot-label">Chaleco</span>
+          </div>
+          <div class="inv-equip-slot inv-equip-future" data-equip="boots" data-icon="🥾" title="Próximamente">
+            <span class="inv-slot-label">Botas</span>
           </div>
         </div>
-      </div>
-      <div class="inv-seccion">
-        <div class="inv-seccion-titulo-row">
-          <span>MOCHILA</span>
-          <span id="inv-capacidad">0 / 25</span>
+        <div class="inv-bag-head">
+          <div class="inv-seccion-titulo">MOCHILA</div>
+          <div class="inv-count" id="inv-capacidad">0 / 25</div>
         </div>
         <div id="rejilla-mochila" class="inv-rejilla"></div>
-      </div>
-      <div id="detalle-item" class="inv-detalle oculto">
-        <div id="detalle-icono"></div>
-        <div id="detalle-info">
-          <div id="detalle-nombre"></div>
-          <div id="detalle-desc"></div>
-          <div id="detalle-cantidad"></div>
+        <div class="inv-controls" id="inv-controls">
+          <button type="button" class="inv-ctrl-btn" id="inv-minus-btn" title="Quitar 1">−</button>
+          <button type="button" class="inv-ctrl-btn inv-ctrl-delete" id="inv-delete-btn" title="Eliminar">🗑</button>
+          <button type="button" class="inv-ctrl-btn inv-ctrl-use" id="inv-use-btn" title="Usar">✔️</button>
+          <button type="button" class="inv-ctrl-btn inv-ctrl-use-all" id="inv-use-all-btn" title="Usar lo necesario">TODO</button>
         </div>
-        <div id="detalle-botones">
-          <button type="button" id="btn-usar-item">Usar</button>
-          <button type="button" id="btn-equipar-item" style="display:none">Equipar</button>
-          <button type="button" id="btn-escribir-item">Escribir</button>
-          <button type="button" id="btn-eliminar-item">Eliminar</button>
-        </div>
+        <p class="inv-ayuda">Toca un objeto y otra casilla para moverlo · arrastra sobre − o 🗑 para borrar</p>
       </div>
-      <div class="inv-pie">
-        <p class="inv-ayuda">Mantén presionado un objeto <span class="inv-rojo">para moverlo o eliminarlo</span></p>
-        <div id="inv-delete-zone" class="inv-delete-zone" title="Suelta aquí para eliminar">🗑️</div>
+      <div id="inv-weapon-status" class="oculto" aria-hidden="true"></div>
+      <div id="detalle-item" class="oculto" aria-hidden="true">
+        <button type="button" id="btn-usar-item"></button>
+        <button type="button" id="btn-equipar-item"></button>
+        <button type="button" id="btn-escribir-item"></button>
+        <button type="button" id="btn-eliminar-item"></button>
       </div>
       <div id="papelera" class="oculto" aria-hidden="true"></div>
     </div>
   </div>
+  <div id="inv-toast" class="inv-toast" aria-live="polite"></div>
 
   <!-- ============ VENTANA: TIENDA ============ -->
   <div id="ventana-tienda" class="ventana oculto">
@@ -888,17 +895,17 @@
   <script src="lib/leaflet/leaflet.js?v=104"></script>
 
   <!-- MÓDULOS DEL JUEGO (orden importante) -->
-  <script src="js/config/config.js?v=134"></script>
-  <script src="js/nucleo/utilidades.js?v=134"></script>
+  <script src="js/config/config.js?v=136"></script>
+  <script src="js/nucleo/utilidades.js?v=136"></script>
   <script src="js/mundo/mundo_publico.js?v=104"></script>
   <script src="js/notificaciones/notificaciones.js?v=134"></script>
   <script src="js/usuarios/usuarios.js?v=134"></script>
   <script src="js/guardado/guardado.js?v=104"></script>
   <script src="js/historial/historial.js?v=104"></script>
   <script src="js/dinero/dinero.js?v=104"></script>
-  <script src="js/vida/vida.js?v=104"></script>
-  <script src="js/items/items.js?v=104"></script>
-  <script src="js/mochila/mochila.js?v=104"></script>
+  <script src="js/vida/vida.js?v=136"></script>
+  <script src="js/items/items.js?v=136"></script>
+  <script src="js/mochila/mochila.js?v=136"></script>
   <script src="js/mapa/mapa.js?v=104"></script>
   <script src="js/gps/gps.js?v=104"></script>
   <script src="js/tiendas/datos_tiendas.js?v=104"></script>
@@ -923,7 +930,7 @@
     // Registrar la app instalable (PWA)
     if ('serviceWorker' in navigator) {
       const yaTeniaVersion = !!navigator.serviceWorker.controller;
-      navigator.serviceWorker.register('sw.js?v=134', { updateViaCache: 'none' })
+      navigator.serviceWorker.register('sw.js?v=136', { updateViaCache: 'none' })
         .then(function (reg) { reg.update(); })
         .catch(function () {});
       // Cuando llega una versión nueva del juego: avisar y recargar solo

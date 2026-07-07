@@ -160,5 +160,53 @@ const Items = {
     const min = it.nivelMin || 1;
     const max = it.nivelMax || 100;
     return nivel >= min && nivel <= max;
+  },
+
+  /** 'hambre' | 'vida' | 'especial' | null */
+  tipoConsumible(item, id) {
+    if (!item) return null;
+    if (id === 'cofre' || id === 'llave_maestra' || id === 'papel') return 'especial';
+    if (item.curaVida) return 'vida';
+    if (item.tipo === 'comida' && item.cura && !item.curaVida) return 'hambre';
+    if (item.cura && item.tipo !== 'comida') return 'vida';
+    return null;
+  },
+
+  esConsumible(item, id) {
+    return !!this.tipoConsumible(item, id);
+  },
+
+  valorPorUnidad(item, tipo) {
+    if (tipo === 'hambre') return item.cura || 0;
+    if (tipo === 'vida') return item.curaVida || item.cura || 0;
+    return 0;
+  },
+
+  /**
+   * Cuántas unidades hacen falta para llenar hambre/vida (sin pasar del stack).
+   * Ej.: 80/100 con +20 → 1; 79/100 con +20 → 2; 40/100 con +20 → 3.
+   */
+  cantidadOptimaConsumo(item, id, cantidadDisponible, stats) {
+    const tipo = this.tipoConsumible(item, id);
+    if (!tipo || tipo === 'especial') return tipo === 'especial' ? 1 : 0;
+    const disp = Math.max(0, cantidadDisponible || 0);
+    if (!disp) return 0;
+
+    const por = this.valorPorUnidad(item, tipo);
+    if (por <= 0) return 0;
+
+    if (tipo === 'hambre') {
+      const max = stats?.hambreMax ?? CONFIG.hambreMaxima;
+      const actual = stats?.hambre ?? 0;
+      const falta = max - actual;
+      if (falta <= 0) return 0;
+      return Math.min(disp, Math.ceil(falta / por));
+    }
+
+    const maxV = stats?.vidaMax ?? CONFIG.vidaMaxima;
+    const actualV = stats?.vida ?? 0;
+    const faltaV = maxV - actualV;
+    if (faltaV <= 0) return 0;
+    return Math.min(disp, Math.ceil(faltaV / por));
   }
 };
