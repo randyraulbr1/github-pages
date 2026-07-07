@@ -55,15 +55,17 @@ const SyncServidor = {
     }
   },
 
-  async registrarCuenta(perfil, partida) {
+  async registrarCuenta(perfil, partida, clave) {
     const base = (CONFIG.servidorOnline || '').replace(/\/$/, '');
     const token = localStorage.getItem(Multijugador.TOKEN_KEY);
     if (!base || !token || !perfil?.id) return false;
     try {
+      const body = { perfil, partida: partida || null };
+      if (clave) body.clave = clave;
       const r = await fetch(base + '/api/player/registrar-cuenta', {
         method: 'POST',
         headers: this._headers(),
-        body: JSON.stringify({ perfil, partida: partida || null })
+        body: JSON.stringify(body)
       });
       const data = await r.json().catch(() => ({}));
       return !!data.ok;

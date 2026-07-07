@@ -490,12 +490,12 @@ const MundoPublico = {
     } catch (e) { return null; }
   },
 
-  async guardarCuenta(perfil, partidaSnap) {
+  async guardarCuenta(perfil, partidaSnap, clave) {
     if (!perfil?.id) return false;
     if (this.usaFirebase()) return this._guardarCuentaFirebase(perfil, partidaSnap);
 
     if (typeof SyncServidor !== 'undefined' && SyncServidor.puedePublicar()) {
-      return SyncServidor.registrarCuenta(perfil, partidaSnap);
+      return SyncServidor.registrarCuenta(perfil, partidaSnap, clave);
     }
     return false;
   },

@@ -6,9 +6,13 @@ const {
   findPlayerById,
   getPlayerMissions,
   formatPlayer,
-  getWorldSnapshot
+  getWorldSnapshot,
+  findUserByUsername,
+  createUser,
+  createPlayer,
+  findPlayerByUserId
 } = require('../db');
-const { authMiddleware, gameAdminMiddleware } = require('../auth');
+const { authMiddleware, gameAdminMiddleware, hashPassword } = require('../auth');
 const { syncMundoFromJson, actualizarPartidaEnSnapshot, registrarCuentaEnSnapshot } = require('../syncMundo');
 const { respaldarCuentasEnGitHub } = require('../syncCuentas');
 
@@ -59,13 +63,28 @@ router.post('/sync-partida', authMiddleware, (req, res) => {
   res.json({ ok });
 });
 
-/** Registra/actualiza cuenta del juego (pinHash) en el snapshot del servidor */
+/** Registra/actualiza cuenta del juego (pinHash + usuario SQLite) en el snapshot del servidor */
 router.post('/registrar-cuenta', authMiddleware, (req, res) => {
-  const { perfil, partida } = req.body;
+  const { perfil, partida, clave, password } = req.body;
   if (!perfil?.id || !perfil?.nombre) {
     return res.status(400).json({ ok: false, error: 'perfil con id y nombre requerido' });
   }
   const ok = registrarCuentaEnSnapshot(perfil, partida || null);
+  const pass = String(clave || password || '').trim();
+  if (pass.length >= 4) {
+    try {
+      const nombre = String(perfil.nombre).trim();
+      let user = findUserByUsername(nombre);
+      if (!user) {
+        user = createUser(nombre, hashPassword(pass));
+        createPlayer(user.id, nombre);
+      } else if (!findPlayerByUserId(user.id)) {
+        createPlayer(user.id, nombre);
+      }
+    } catch (e) {
+      console.warn('[registrar-cuenta] SQLite:', e.message);
+    }
+  }
   if (ok) {
     respaldarCuentasEnGitHub().catch((e) => {
       console.warn('[registrar-cuenta] Respaldo GitHub:', e.message);
