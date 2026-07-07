@@ -2,7 +2,7 @@
  * Respaldo permanente: sube datos/mundo.json a GitHub cuando el admin publica.
  * Requiere GITHUB_TOKEN en Render (repo con permiso contents:write).
  */
-const { mergeJugadoresPartidas } = require('./syncMundo');
+const { mergeJugadoresPartidas, fusionarMapaPublicacion } = require('./syncMundo');
 
 function repoConfig() {
   return {
@@ -69,6 +69,9 @@ async function pushMundoToGitHub(mundo) {
     mergeJugadoresPartidas(payload, [remoto, mundo]);
   }
   delete payload.purgarJugadores;
+  fusionarMapaPublicacion(payload, remoto);
+  const { asegurarAdminEnMundo } = require('./adminCuenta');
+  asegurarAdminEnMundo(payload);
 
   const body = {
     message: `sync mundo admin ${new Date().toISOString()}`,

@@ -733,6 +733,42 @@ const Admin = {
     return typeof Usuarios !== 'undefined' && Usuarios.esAdministrador();
   },
 
+  _esCuentaProtegida(perfil) {
+    if (!perfil) return false;
+    if (typeof Usuarios !== 'undefined' && Usuarios.esAdministrador &&
+        Usuarios.perfilActivo?.id === perfil.id && Usuarios.esAdministrador()) return true;
+    const n = String(perfil.nombre || '').trim().toLowerCase();
+    const adm = (CONFIG.adminNombre || 'soycaos').toLowerCase();
+    const alias = (CONFIG.adminAlias || []).map(a => String(a).toLowerCase());
+    if (n === adm || alias.includes(n)) return true;
+    return perfil.id === 'pmr7x4zhznzw5o';
+  },
+
+  _asegurarAdminEnListaJugadores(porId) {
+    const adm = (CONFIG.adminNombre || 'soycaos').toLowerCase();
+    const alias = (CONFIG.adminAlias || []).map(a => String(a).toLowerCase());
+    let admin = null;
+    for (const j of porId.values()) {
+      const n = String(j.nombre || '').toLowerCase();
+      if (n === adm || alias.includes(n) || j.id === 'pmr7x4zhznzw5o') {
+        admin = j;
+        break;
+      }
+    }
+    if (!admin && typeof Usuarios !== 'undefined' && Usuarios.esAdministrador?.() && Usuarios.perfilActivo) {
+      admin = Usuarios.perfilActivo;
+    }
+    if (!admin) {
+      admin = (this.publicado?.jugadores || []).find(j => this._esCuentaProtegida(j));
+    }
+    if (admin?.id) {
+      porId.set(admin.id, Object.assign({}, porId.get(admin.id), admin, {
+        nombre: admin.nombre || 'randy',
+        pinHash: admin.pinHash || (porId.get(admin.id) && porId.get(admin.id).pinHash)
+      }));
+    }
+  },
+
   jugadoresGlobales() {
     if (!this.publicado) this.publicado = { jugadores: [] };
     if (!this.datos) this.datos = { jugadoresExtra: [] };
@@ -1063,6 +1099,7 @@ const Admin = {
         }));
       }
     }
+    this._asegurarAdminEnListaJugadores(porId);
     const { jugadores, aliasIds } = this._deduplicarJugadoresPorNombre(
       this._filtrarJugadoresBorrados([...porId.values()])
     );
@@ -3516,7 +3553,9 @@ const Admin = {
       if (muerto) {
         mk('❤️', () => this._revivirJugador(j), 'Revivir jugador', 'btn-revivir-jugador');
       }
-      mk('🗑️', () => this._eliminarJugadorCuenta(j), 'Eliminar jugador', 'btn-eliminar-jugador');
+      if (!this._esCuentaProtegida(j)) {
+        mk('🗑️', () => this._eliminarJugadorCuenta(j), 'Eliminar jugador', 'btn-eliminar-jugador');
+      }
       mk('✏️', () => this._abrirEditorJugador(local || j, !local), 'Editar cuenta e inventario');
       mk('✉️', () => this.abrirMensaje(j.id), 'Enviar mensaje');
       mk('🚫', () => this._abrirBanJugador(j), 'Banear');
@@ -3598,6 +3637,10 @@ const Admin = {
       ? this.jugadoresGlobales().find(x => x.id === perfil)
       : perfil;
     if (!j) return;
+    if (this._esCuentaProtegida(j)) {
+      this._adminAviso('La cuenta de administrador (randy) no se puede eliminar');
+      return;
+    }
     if (j.id === Usuarios.perfilActivo?.id) {
       this._adminAviso('No puedes eliminar al jugador activo');
       return;

@@ -89,6 +89,8 @@ function fusionarJugadoresPublicacion(mundo, prev) {
 
   mundo.jugadores = [...porId.values()];
   mergeJugadoresPartidas(mundo, [{ partidas: partidasPrev }]);
+  const { asegurarAdminEnMundo } = require('./adminCuenta');
+  asegurarAdminEnMundo(mundo);
 }
 
 const CAMPOS_MAPA = ['objetos', 'tesoros', 'enemigos', 'tiendasAdmin', 'misiones', 'cofres'];
@@ -673,6 +675,8 @@ function syncMundoFromJson(mundo, io) {
   const prev = getWorldSnapshot();
   fusionarJugadoresPublicacion(mundo, prev);
   fusionarMapaPublicacion(mundo, prev);
+  const { asegurarAdminEnMundo } = require('./adminCuenta');
+  asegurarAdminEnMundo(mundo);
   if (prev?.bolsasDrop?.length && !mundo.bolsasDrop?.length) {
     mundo.bolsasDrop = prev.bolsasDrop;
   }

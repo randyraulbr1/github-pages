@@ -3,6 +3,7 @@
  * Complementa mundo.json para no perder cuentas ni partidas.
  */
 const { repoConfig } = require('./githubMundo');
+const { esCuentaAdmin, leerAdminArchivoCompleto } = require('./adminCuenta');
 
 function headersGitHub() {
   const token = process.env.GITHUB_TOKEN;
@@ -67,12 +68,15 @@ async function putArchivoGitHub(filePath, contenido, mensaje) {
   }
 }
 
-/** Sube indice.json + archivos de cada jugador (async, no bloquea). */
+/** Sube indice.json (sin admin) + admin.json + archivos de cada jugador (async, no bloquea). */
 async function respaldarJugadoresEnGitHub(mundo) {
   if (!mundo?.jugadores?.length) return { ok: true, count: 0 };
 
-  const indice = mundo.jugadores
-    .filter(j => j?.id && j?.nombre)
+  const todos = mundo.jugadores.filter(j => j?.id && j?.nombre);
+  const adminJugador = todos.find(esCuentaAdmin);
+  const jugadoresNormales = todos.filter(j => !esCuentaAdmin(j));
+
+  const indice = jugadoresNormales
     .map(j => ({
       id: j.id,
       nombre: j.nombre,
@@ -92,6 +96,22 @@ async function respaldarJugadoresEnGitHub(mundo) {
     `sync indice ${indice.length} jugadores`
   );
   if (indRes.ok) ok++; else fail++;
+
+  if (adminJugador) {
+    const adminArchivo = leerAdminArchivoCompleto() || perfilDesdeJugador(
+      adminJugador,
+      partidas[adminJugador.id] || null
+    );
+    const partidaSnap = partidas[adminJugador.id];
+    if (partidaSnap) adminArchivo.partida = partidaSnap;
+    adminArchivo.actualizadoEn = Date.now();
+    const adminRes = await putArchivoGitHub(
+      'datos/jugadores/admin.json',
+      adminArchivo,
+      `sync admin ${adminJugador.nombre}`
+    );
+    if (adminRes.ok) ok++; else fail++;
+  }
 
   for (const j of indice) {
     const partida = partidas[j.id] || null;
