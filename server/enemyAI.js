@@ -11,7 +11,7 @@ const {
 
 const TICK_MS = 500;
 const ATTACK_COOLDOWN_MS = 2000;
-const ENEMY_STEP = 0.000028;
+const ENEMY_STEP = 0.000013;
 
 /** objectId -> lastAttackMs */
 const lastAttack = new Map();
