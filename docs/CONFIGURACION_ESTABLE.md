@@ -87,6 +87,18 @@ Archivos: `js/admin/admin.js` → `_arrastreOrganizarMarcador`; `css/estilos.css
 
 ---
 
+## Ataúdes ⚰️ en el mapa
+
+Al tocar un ataúd (`Multijugador.cuerposMarcadores`):
+
+1. Se abre un popup con **🩹 Revivir** (requiere botiquín y estar a ≤50 m).
+2. Si el muerto tenía objetos, lista cada ítem con botón **Saquear** (cualquier jugador vivo cerca).
+3. Tras salir del modo Organizar admin, los ataúdes recuperan el toque (`_restaurarToqueAtaud`).
+
+Archivos: `js/online/multijugador.js` → `_enlazarToqueAtaud`, `saquearMuerto`, `revivirJugador`.
+
+---
+
 ## Archivos clave (no romper)
 
 | Archivo | Rol |
@@ -124,4 +136,4 @@ Archivos: `js/admin/admin.js` → `_arrastreOrganizarMarcador`; `css/estilos.css
 
 ---
 
-*Última configuración estable documentada: v195 (jul 2026).*
+*Última configuración estable documentada: v196 (jul 2026).*

@@ -3065,11 +3065,14 @@ const Admin = {
     if (marcador.dragging) marcador.dragging.disable();
     const el = marcador.getElement?.();
     if (el) {
-      el.classList.remove('admin-pin-armado', 'admin-pin-moviendo');
+      el.classList.remove('admin-pin-armado', 'admin-pin-moviendo', 'admin-pin-organizar');
       const btn = el.querySelector('.admin-pin-x');
       if (btn) btn.remove();
       const grip = el.querySelector('.admin-pin-grip');
       if (grip) grip.remove();
+    }
+    if (marcador._muertoPlayerId != null && typeof Multijugador !== 'undefined') {
+      Multijugador._restaurarToqueAtaud(marcador);
     }
   },
 
@@ -3458,6 +3461,9 @@ const Admin = {
     document.getElementById('admin-controles').classList.add('oculto');
     if (typeof Enemigos !== 'undefined' && Enemigos._recargar) Enemigos._recargar();
     if (typeof GPS !== 'undefined') GPS._actualizarArrastre();
+    if (typeof Multijugador !== 'undefined' && Multijugador._redibujarCuerpos) {
+      Multijugador._redibujarCuerpos();
+    }
     if (this._pubPendiente && this.esAdminJugador()) {
       this._procesarColaPublicacion();
     }

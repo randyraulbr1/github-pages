@@ -2591,7 +2591,7 @@ body.jugador-muerto #admin-controles { pointer-events: none; opacity: .35; }
 #admin-cesto-borrar {
   display: none !important;
 }
-.admin-pin-organizar {
+body.admin-organizar .admin-pin-organizar {
   cursor: grab;
   touch-action: none;
 }
