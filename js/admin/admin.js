@@ -2383,13 +2383,16 @@ const Admin = {
   },
 
   _refrescarBolsasMapa() {
-    if (typeof Bolsas === 'undefined') return;
+    if (typeof Bolsas === 'undefined' || !GPS.posicion) return;
     for (const b of Bolsas.todas()) {
       if (!b?.pos) continue;
-      if (!b._marcador) this._crearMarcadorBolsa(b);
-      else {
+      const d = Utilidades.distanciaMetros(GPS.posicion, b.pos);
+      if (!b._marcador && Bolsas.visibleCerca(b, d)) this._crearMarcadorBolsa(b, d);
+      else if (b._marcador) {
         b._marcador.setLatLng(b.pos);
-        this._revisarBolsa(b);
+        this._revisarBolsa(b, d);
+      } else {
+        this._revisarBolsa(b, d);
       }
     }
   },
@@ -2423,24 +2426,31 @@ const Admin = {
     }
   },
 
-  _crearMarcadorBolsa(b) {
+  _crearMarcadorBolsa(b, distancia) {
     if (!b?.items?.length || !b.pos) return;
+    const d = typeof distancia === 'number'
+      ? distancia
+      : Utilidades.distanciaMetros(GPS.posicion ? GPS.posicion : CONFIG.centro, b.pos);
     if (!Mapa.puntosInteractivos.find(x => x.id === b.id)) {
       Mapa.registrarPunto({
         id: b.id,
         posicion: b.pos,
         radio: CONFIG.distanciaInteraccion,
         marcador: null,
-        alCambiarDistancia: () => this._revisarBolsa(b)
+        alCambiarDistancia: (dist) => this._revisarBolsa(b, dist)
       });
     }
-    this._revisarBolsa(b);
+    this._revisarBolsa(b, d);
   },
 
-  _revisarBolsa(b) {
+  _revisarBolsa(b, distancia) {
     if (!b?.items?.length) return;
-    const disponible = typeof Bolsas !== 'undefined' && Bolsas.disponible(b);
-    if (disponible && !b._marcador) {
+    const d = typeof distancia === 'number'
+      ? distancia
+      : (GPS.posicion ? Utilidades.distanciaMetros(GPS.posicion, b.pos) : Infinity);
+    const debeVerse = typeof Bolsas !== 'undefined' && Bolsas.visibleCerca(b, d);
+
+    if (debeVerse && !b._marcador) {
       this._liberarMarcadorBolsa(b.id);
       b._marcador = Mapa.crearMarcadorEmoji(b.pos, '🎒', 28);
       const el = b._marcador.getElement?.();
@@ -2449,7 +2459,7 @@ const Admin = {
       b._marcador.on('click', () => {
         if (typeof Bolsas !== 'undefined') void Bolsas.recoger(b);
       });
-    } else if (!disponible) {
+    } else if (!debeVerse) {
       this._liberarMarcadorBolsa(b.id);
     }
   },

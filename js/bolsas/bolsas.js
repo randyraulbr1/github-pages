@@ -1,6 +1,6 @@
 // ============================================================
 // BOLSAS — objetos tirados al eliminar del inventario
-// Todos los ven en el mapa; recogida parcial según espacio en mochila.
+// Visibles solo para jugadores cercanos (~60 m); recogida parcial según mochila.
 // Desaparecen si quedan vacías o tras 5 min sin que nadie recoja nada.
 // ============================================================
 const Bolsas = {
@@ -53,6 +53,20 @@ const Bolsas = {
     for (const b of local) if (b?.id) mapa[b.id] = b;
     for (const b of remoto) if (b?.id) mapa[b.id] = Object.assign({}, mapa[b.id] || {}, b);
     return Object.values(mapa).filter((b) => b?.items?.length);
+  },
+
+  distanciaVer() {
+    return (typeof CONFIG !== 'undefined' && CONFIG.distanciaVerBolsa) || 60;
+  },
+
+  visibleCerca(b, distancia) {
+    if (!this.disponible(b) || !b?.pos) return false;
+    const d = typeof distancia === 'number'
+      ? distancia
+      : (typeof GPS !== 'undefined' && GPS.posicion
+        ? Utilidades.distanciaMetros(GPS.posicion, b.pos)
+        : Infinity);
+    return d <= this.distanciaVer();
   },
 
   disponible(b) {
