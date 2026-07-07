@@ -1461,7 +1461,7 @@ const Admin = {
     enlazar('admin-organizar', () => this.entrarModo('organizar'));
     enlazar('admin-mover-pin', () => this.toggleMoverPinJugador());
     enlazar('admin-opt-visibilidad', () => this.toggleOptimizacionVisibilidad());
-    enlazar('admin-jugadores', () => this._listarCuentasAsync());
+    enlazar('admin-jugadores', () => this._listarCuentasAsync({ abrirPanel: true }));
     enlazar('admin-crear-jugador', () => this._abrirCrearJugador());
     enlazar('admin-limpiar-cuentas', () => this._limpiarCuentasUi());
     enlazar('btn-admin-crear-jugador-guardar', () => this._guardarCrearJugador());
@@ -1884,7 +1884,7 @@ const Admin = {
     await this._guardarPartidaJugador(j, partida);
     this._revivirJugadorOnline(j, partida.vida);
     Notificaciones.mostrar('❤️ ' + j.nombre + ' revivido', 'exito', 5000);
-    this._listarCuentasAsync();
+    this._refrescarListaJugadoresSiAbierta();
   },
 
   async _eliminarJugadorMuerto(perfil) {
@@ -1918,7 +1918,7 @@ const Admin = {
     this.guardar();
     await this._publicarParaTodos(false);
     Notificaciones.mostrar('🗑️ ' + j.nombre + ' eliminado', 'alerta', 5000);
-    this._listarCuentasAsync();
+    this._refrescarListaJugadoresSiAbierta();
   },
 
   _sincronizarMapaRemoto(idsObjetosAntes, idsTesorosAntes, idsMisionesAntes, eliminadosAntes) {
@@ -2019,6 +2019,7 @@ const Admin = {
   // Admin entra directo al panel (sin contraseña en el menú).
   async solicitarAcceso() {
     if (!this.esAdminJugador()) return;
+    if (this._adminAbierto()) return;
     this._marcarPanelDesbloqueado();
     document.getElementById('ventana-admin').classList.remove('oculto');
     this._actualizarEtiquetaMantenimientoNav();
@@ -3859,7 +3860,7 @@ const Admin = {
 
   // ---------- CUENTAS REGISTRADAS (panel admin) ----------
   listarCuentas() {
-    this._listarCuentasAsync();
+    this._listarCuentasAsync({ abrirPanel: true });
   },
 
   async _limpiarCuentasUi() {
@@ -4029,7 +4030,7 @@ const Admin = {
     }
     pintar(buscar?.value || '');
     this._colocacion = null;
-    if (opts.soloRefrescar) return;
+    if (opts.soloRefrescar || !opts.abrirPanel) return;
     this._mostrarPanelDerecho('admin-vista-jugadores', '👥 Jugadores');
   },
 
@@ -4213,7 +4214,7 @@ const Admin = {
     Notificaciones.mostrar(
       (ok ? '✅' : '⚠️') + ' Cuenta de ' + nombre + ' en el servidor. Entra con nombre y contraseña.',
       ok ? 'exito' : 'alerta', 9000);
-    this._listarCuentasAsync();
+    this._refrescarListaJugadoresSiAbierta();
   },
 
   async _obtenerPartidaJugador(perfil) {

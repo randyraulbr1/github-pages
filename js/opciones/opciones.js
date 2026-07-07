@@ -14,7 +14,13 @@ const Opciones = {
     document.getElementById('cerrar-opciones')?.addEventListener('click', () => this.cerrar());
 
     const adminBtn = document.getElementById('btn-admin');
-    if (adminBtn) adminBtn.addEventListener('click', () => Admin.solicitarAcceso());
+    if (adminBtn) {
+      adminBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        e.preventDefault();
+        Admin.solicitarAcceso();
+      });
+    }
 
     document.getElementById('opcion-admin')?.addEventListener('click', () => {
       this.cerrar();

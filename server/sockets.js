@@ -258,7 +258,7 @@ function setupSockets(io) {
         if (payload?.hpMax !== undefined) {
           online.hpMax = Math.max(1, Math.round(payload.hpMax));
         }
-        const dead = payload?.dead === true || data.hp <= 0;
+        const dead = data.hp <= 0;
         online.dead = dead;
         if (dead && payload?.deathX != null && payload?.deathY != null) {
           online.deathX = Number(payload.deathX);
@@ -303,6 +303,8 @@ function setupSockets(io) {
           deadInventory: online?.deadInventory || [],
           level: data.level
         }, io);
+      } else {
+        quitarCuerpoMuerto(socket.playerId, io);
       }
 
       if (payload?.perfilId && payload?.partida) {

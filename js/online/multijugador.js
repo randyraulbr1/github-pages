@@ -18,6 +18,7 @@ const Multijugador = {
   _pollMundo: null,
   _tickCuerposId: null,
   _ataudPlayerId: null,
+  _jugadoresRevividos: new Set(),
   _ultimoPullMundo: 0,
   _mundoPendiente: null,
   _reconectando: false,
@@ -342,8 +343,14 @@ const Multijugador = {
     });
 
     this.socket.on('player:offline', (p) => {
-      this.online = this.online.filter(x => Number(x.playerId) !== Number(p.playerId));
+      const pid = Number(p.playerId);
+      this.online = this.online.filter(x => Number(x.playerId) !== pid);
       this._quitarMarcador(p.playerId);
+      if (this._jugadoresRevividos.has(pid)) {
+        const sid = String(pid);
+        delete this.cuerpos[sid];
+        this._quitarMarcadorCuerpo(sid);
+      }
       this._redibujarCuerpos();
       if (typeof Amigos !== 'undefined') Amigos.refrescar();
     });
@@ -377,7 +384,16 @@ const Multijugador = {
       const i = this.online.findIndex(x => Number(x.playerId) === Number(p.playerId));
       if (i >= 0) {
         Object.assign(this.online[i], p);
-        if (this._estaMuerto(this.online[i])) this._asegurarCuerpoLocal(this.online[i]);
+        const pid = Number(p.playerId);
+        if (this._estaMuerto(this.online[i])) {
+          this._jugadoresRevividos.delete(pid);
+          this._asegurarCuerpoLocal(this.online[i]);
+        } else {
+          this._jugadoresRevividos.add(pid);
+          const sid = String(pid);
+          delete this.cuerpos[sid];
+          this._quitarMarcadorCuerpo(sid);
+        }
         this._actualizarMarcador(this.online[i]);
         this._redibujarCuerpos();
       }
@@ -1142,6 +1158,10 @@ const Multijugador = {
     for (const [id, c] of Object.entries(cuerpos || {})) {
       if (!this._cuerpoVigente(c)) continue;
       if (!this._debeMostrarCuerpoEnMapa(c)) continue;
+      const pid = Number(id);
+      if (this._jugadoresRevividos.has(pid)) continue;
+      const on = this.online.find(x => Number(x.playerId) === pid);
+      if (on && !this._estaMuerto(on)) continue;
       filtrados[id] = c;
     }
     this.cuerpos = filtrados;
@@ -1180,6 +1200,7 @@ const Multijugador = {
     const pid = Number(playerId);
     if (!pid) return;
     const sid = String(pid);
+    this._jugadoresRevividos.add(pid);
     delete this.cuerpos[sid];
     this._quitarMarcadorCuerpo(sid);
     if (typeof Admin !== 'undefined' && Admin.publicado?.cuerposMuertos) {
@@ -1507,7 +1528,9 @@ const Multijugador = {
   },
 
   _estaMuerto(p) {
-    return !!(p && (p.dead || (p.hp != null && p.hp <= 0)));
+    if (!p) return false;
+    if (p.hp != null && p.hp > 0) return false;
+    return !!(p.dead || (p.hp != null && p.hp <= 0));
   },
 
   _posMarcador(p) {
