@@ -474,7 +474,7 @@ function findBolsaDrop(mundo, bolsaId) {
   return mundo.bolsasDrop.find((b) => b && b.id === bolsaId) || null;
 }
 
-function crearBolsaDrop(playerId, x, y, items, io) {
+function crearBolsaDrop(playerId, x, y, items, io, opts) {
   const snapshot = getWorldSnapshot() || { actualizadoEn: Date.now(), bolsasDrop: [] };
   if (!snapshot.bolsasDrop) snapshot.bolsasDrop = [];
   limpiarBolsasExpiradas(snapshot);
@@ -493,6 +493,11 @@ function crearBolsaDrop(playerId, x, y, items, io) {
     dropperPlayerId: playerId || null,
     esBolsa: true
   };
+  const extra = opts || {};
+  if (extra.ocultoHasta) bolsa.ocultoHasta = extra.ocultoHasta;
+  if (extra.ocultoParaPlayerId) bolsa.ocultoParaPlayerId = extra.ocultoParaPlayerId;
+  if (extra.recogibleDesde) bolsa.recogibleDesde = extra.recogibleDesde;
+  if (extra.soloDropper) bolsa.soloDropper = true;
   snapshot.bolsasDrop.push(bolsa);
   snapshot.actualizadoEn = Date.now();
   saveWorldSnapshot(snapshot);
@@ -524,6 +529,12 @@ function recogerBolsaDrop(bolsaId, playerId, recogidos, io) {
   const bolsa = findBolsaDrop(snapshot, bolsaId);
   if (!bolsa) return { ok: false, error: 'Bolsa no encontrada' };
   if (!bolsa.items?.length) return { ok: false, error: 'Bolsa vacía' };
+  if (bolsa.recogibleDesde && Date.now() < bolsa.recogibleDesde) {
+    return { ok: false, error: 'Aún no se pueden recoger (espera 2 min)' };
+  }
+  if (bolsa.soloDropper && bolsa.dropperPlayerId && bolsa.dropperPlayerId !== playerId) {
+    return { ok: false, error: 'Solo quien huyó puede recoger estos objetos' };
+  }
 
   const tomados = aplicarRecogidaBolsa(bolsa, recogidos);
   if (!tomados.length) return { ok: false, error: 'Nada que recoger' };
@@ -683,6 +694,124 @@ function posEnemigo(e, mundo) {
   if (e.pos && e.pos.length >= 2) return e.pos;
   const p = (mundo.posiciones || {})[e.id];
   return p && p.length >= 2 ? p : null;
+}
+
+function distanciaMetros(lat1, lon1, lat2, lon2) {
+  const R = 6371000;
+  const p1 = lat1 * Math.PI / 180;
+  const p2 = lat2 * Math.PI / 180;
+  const dLat = (lat2 - lat1) * Math.PI / 180;
+  const dLon = (lon2 - lon1) * Math.PI / 180;
+  const a = Math.sin(dLat / 2) ** 2 +
+    Math.cos(p1) * Math.cos(p2) * Math.sin(dLon / 2) ** 2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
+
+/** Daño de jugador contra enemigo (aprox. cliente). */
+function danoJugadorVsEnemigo(playerLevel) {
+  const nv = Math.max(1, parseInt(playerLevel, 10) || 1);
+  const lo = Math.max(1, Math.round(5 * (nv / 1)));
+  const hi = Math.max(lo, Math.round(8 * (nv / 1)));
+  return lo + Math.floor(Math.random() * (hi - lo + 1));
+}
+
+/** Probabilidad de fallar ataque según diferencia de nivel. */
+function probFalloAtaque(playerLevel, enemyLevel) {
+  const diff = Math.max(0, (enemyLevel || 1) - (playerLevel || 1));
+  return Math.min(45, 12 + diff * 4);
+}
+
+function registrarAtaqueEnemigo(enemyId, playerId, px, py, playerLevel, io) {
+  const row = findObjectByOrigenId(enemyId);
+  if (!row || row.type !== 'enemy' || row.state !== 'active') {
+    return { ok: false, error: 'Enemigo no encontrado' };
+  }
+
+  const data = parseData(row);
+  const snapshot = getWorldSnapshot() || { actualizadoEn: Date.now() };
+  if (!snapshot.enemigosEstado) snapshot.enemigosEstado = {};
+  const stPrev = snapshot.enemigosEstado[enemyId] || {};
+  if (stPrev.ocultoHasta && Date.now() < stPrev.ocultoHasta) {
+    return { ok: false, error: 'Enemigo no disponible' };
+  }
+
+  const hpMax = data.hpMax || data.vidaMax || data.hp || 30;
+  let hp = stPrev.vida != null ? stPrev.vida : (data.hp != null ? data.hp : hpMax);
+  if (hp <= 0) return { ok: false, error: 'Enemigo ya derrotado' };
+
+  const radioZona = data.radioZona || 40;
+  if (distanciaMetros(px, py, row.x, row.y) > radioZona + 3) {
+    return { ok: false, error: 'Fuera de la zona roja' };
+  }
+
+  const nvEn = data.nivel || data.level || 1;
+  const fallo = Math.random() * 100 < probFalloAtaque(playerLevel, nvEn);
+  if (fallo) {
+    return { ok: true, miss: true, hp, hpMax };
+  }
+
+  const dmg = danoJugadorVsEnemigo(playerLevel);
+  hp = Math.max(0, hp - dmg);
+  const ahora = Date.now();
+  const estado = { vida: hp, ultimoGolpe: ahora, ultimoAtacante: String(playerId) };
+  snapshot.enemigosEstado[enemyId] = estado;
+
+  let muerto = false;
+  let respawnMin = 0;
+  let eliminado = false;
+
+  if (hp <= 0) {
+    muerto = true;
+    const def = (snapshot.enemigos || []).find((e) => e && e.id === enemyId);
+    respawnMin = def?.respawnMin || data.respawnMin || 0;
+    if (respawnMin > 0) {
+      estado.vida = hpMax;
+      estado.ultimoGolpe = 0;
+      estado.ocultoHasta = ahora + respawnMin * 60000;
+      data.hp = hpMax;
+    } else {
+      eliminado = true;
+      data.hp = 0;
+      snapshot.eliminados = snapshot.eliminados || [];
+      if (!snapshot.eliminados.includes(enemyId)) snapshot.eliminados.push(enemyId);
+      deleteWorldObject(row.id);
+      if (io) io.emit('world:removeObject', { id: row.id, origenId: enemyId });
+    }
+  } else {
+    data.hp = hp;
+  }
+
+  if (!eliminado) {
+    data.ocultoHasta = estado.ocultoHasta || 0;
+    const updated = updateWorldObject(row.id, { data_json: JSON.stringify(data) });
+    if (io) io.emit('world:updateObject', formatWorldObject(updated));
+  }
+
+  snapshot.actualizadoEn = ahora;
+  saveWorldSnapshot(snapshot);
+  if (io) {
+    io.emit('mundo:enemyState', {
+      enemyId,
+      estado,
+      eliminado,
+      respawnMin: respawnMin || 0
+    });
+  }
+
+  return {
+    ok: true,
+    miss: false,
+    damage: dmg,
+    hp,
+    hpMax,
+    muerto,
+    eliminado,
+    respawnMin,
+    ocultoHasta: estado.ocultoHasta || 0,
+    xp: muerto ? (data.xp || 0) : 0,
+    dinero: muerto ? (data.dinero || 0) : 0,
+    recItems: muerto ? (data.recItems || []) : []
+  };
 }
 
 function syncMundoFromJson(mundo, io) {
@@ -912,5 +1041,6 @@ module.exports = {
   limpiarBolsasExpiradas,
   crearBolsaDrop,
   recogerBolsaDrop,
-  sincronizarBolsasExpiradas
+  sincronizarBolsasExpiradas,
+  registrarAtaqueEnemigo
 };

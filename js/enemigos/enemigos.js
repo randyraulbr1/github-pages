@@ -24,6 +24,7 @@ const Enemigos = {
   _posViva: {},
   COOLDOWN_ATAQUE_MS: 10000,
   HUIR_INVISIBLE_MS: 120000,
+  PROB_FALLO_BASE: 12,
   _ultimoAtaqueJugador: 0,
   _objetivoHud: null,
 
@@ -227,6 +228,10 @@ const Enemigos = {
     const online = this._online();
     for (const e of this.lista) {
       if (Admin.eliminado && Admin.eliminado(e.id)) continue;
+      if (!this._enemigoEstaVivo(e)) {
+        this._quitarMarcador(e.id);
+        continue;
+      }
       const posAdmin = (typeof Admin._posItem === 'function')
         ? Admin._posItem(e) : Admin.pos(e.id, e.pos);
       const spawn = this._spawnEnemigo(e, posAdmin);
@@ -253,6 +258,10 @@ const Enemigos = {
       }
       const st = this._estadoGlobal()[e.id];
       if (st && st.ocultoHasta && Date.now() < st.ocultoHasta) {
+        this._quitarMarcador(e.id);
+        continue;
+      }
+      if (st && st.vida != null && st.vida <= 0 && !st.ocultoHasta) {
         this._quitarMarcador(e.id);
         continue;
       }
@@ -284,6 +293,86 @@ const Enemigos = {
     const st = this._estadoGlobal()[e.id];
     if (st && typeof st.vida === 'number') return st.vida;
     return e.vidaMax || e.vida || 50;
+  },
+
+  _enemigoEstaVivo(e) {
+    if (!e?.id) return false;
+    if (typeof Admin !== 'undefined' && Admin.eliminado && Admin.eliminado(e.id)) return false;
+    const st = this._estadoGlobal()[e.id];
+    if (st?.ocultoHasta && Date.now() < st.ocultoHasta) return false;
+    return this._vidaActual(e) > 0;
+  },
+
+  _probFalloAtaque(e) {
+    const nvEn = this._nivelEnemigo(e);
+    const nvJug = typeof Vida !== 'undefined' ? Math.max(1, Vida.nivel) : 1;
+    const diff = Math.max(0, nvEn - nvJug);
+    return Math.min(45, this.PROB_FALLO_BASE + diff * 4);
+  },
+
+  _ataqueFallido(e) {
+    return Math.random() * 100 < this._probFalloAtaque(e);
+  },
+
+  _aplicarEstadoEnemigoRemoto(enemyId, estado, eliminado) {
+    if (!enemyId || typeof Admin === 'undefined') return;
+    Admin.publicado.enemigosEstado = Admin.publicado.enemigosEstado || {};
+    if (estado) Admin.publicado.enemigosEstado[enemyId] = Object.assign({}, estado);
+    if (eliminado) {
+      Admin.datos.eliminados = Admin.datos.eliminados || [];
+      if (!Admin.datos.eliminados.includes(enemyId)) Admin.datos.eliminados.push(enemyId);
+      Admin.guardar();
+      this._quitarMarcador(enemyId);
+      return;
+    }
+    if (estado?.ocultoHasta && Date.now() < estado.ocultoHasta) {
+      this._quitarMarcador(enemyId);
+      return;
+    }
+    const e = this.lista.find(x => x.id === enemyId);
+    if (!e) return;
+    if (estado?.vida != null && estado.vida <= 0) {
+      this._quitarMarcador(enemyId);
+    }
+  },
+
+  _procesarMuerteEnemigo(e, opts) {
+    if (!e?.id) return;
+    const est = this._estadoGlobal();
+    const respawn = e.respawnMin || 0;
+    const desdeRemoto = !!opts?.desdeRemoto;
+    const silencioso = !!opts?.silencioso;
+
+    if (!desdeRemoto) {
+      if (e.xp) Vida.ganarXp(e.xp, 'Enemigo derrotado');
+      if (e.dinero) void Dinero.ganar(e.dinero, 'Botín: ' + e.nombre);
+      for (const it of (e.recItems || [])) {
+        Mochila.agregar(it.id, it.cantidad || 1, { silencioso: true });
+      }
+      if (!silencioso) {
+        Notificaciones.mostrar('💀 ¡Derrotaste a ' + (e.nombre || 'Enemigo') + '!', 'exito', 5000);
+      }
+    }
+
+    if (respawn > 0) {
+      est[e.id] = {
+        vida: e.vidaMax || e.vida,
+        ultimoGolpe: 0,
+        ocultoHasta: Date.now() + respawn * 60000
+      };
+      if (e.posOrigen) e.pos = e.posOrigen.slice();
+      this._quitarMarcador(e.id);
+    } else {
+      Admin.datos.eliminados = Admin.datos.eliminados || [];
+      if (!Admin.datos.eliminados.includes(e.id)) Admin.datos.eliminados.push(e.id);
+      delete est[e.id];
+      this._quitarMarcador(e.id);
+    }
+    if (!desdeRemoto) {
+      Admin.guardar();
+      if (!this._online() && Admin._publicarParaTodos) Admin._publicarParaTodos(true);
+    }
+    this._cerrarCombate();
   },
 
   _aplicarEstadoRemoto(e) {
@@ -502,6 +591,24 @@ const Enemigos = {
     if (!e) return;
     if (e._adminMovidoEn && Date.now() - e._adminMovidoEn < 10000) return;
 
+    if (data?.eliminado || (data?.hp != null && data.hp <= 0 && !data?.ocultoHasta)) {
+      if (typeof Admin !== 'undefined') {
+        Admin.datos.eliminados = Admin.datos.eliminados || [];
+        if (!Admin.datos.eliminados.includes(origenId)) Admin.datos.eliminados.push(origenId);
+      }
+      this._quitarMarcador(origenId);
+      return;
+    }
+    if (data?.ocultoHasta && Date.now() < data.ocultoHasta) {
+      Admin.publicado.enemigosEstado = Admin.publicado.enemigosEstado || {};
+      Admin.publicado.enemigosEstado[origenId] = Object.assign(
+        Admin.publicado.enemigosEstado[origenId] || {},
+        { ocultoHasta: data.ocultoHasta, vida: data.hp != null ? data.hp : (e.vidaMax || e.vida) }
+      );
+      this._quitarMarcador(origenId);
+      return;
+    }
+
     this._posViva[origenId] = [lat, lng];
     const desde = this._posDesdeMarcador(e) || e.pos?.slice() || [lat, lng];
     const hasta = [lat, lng];
@@ -520,6 +627,10 @@ const Enemigos = {
           { vida: data.hp }
         );
         e.vida = data.hp;
+        if (data.hp <= 0) {
+          this._quitarMarcador(origenId);
+          return;
+        }
       }
       if (data?.facingDeg != null) {
         e.facingDeg = data.facingDeg;
@@ -660,6 +771,7 @@ const Enemigos = {
     let mejor = null;
     let mejorD = Infinity;
     for (const e of this.lista) {
+      if (!this._enemigoEstaVivo(e)) continue;
       if (!this._marcadorVisible(e.id)) continue;
       const d = Utilidades.distanciaMetros(GPS.posicion, e.pos);
       if (d <= this._radioZona(e) && d < mejorD) {
@@ -676,7 +788,7 @@ const Enemigos = {
     return [lat + dLat, lng + dLng];
   },
 
-  _dejarObjetosAlHuir() {
+  async _dejarObjetosAlHuir() {
     if (!GPS.posicion || typeof Mochila === 'undefined') return 0;
     const indices = [];
     Mochila.slots.forEach((sl, i) => { if (sl?.id) indices.push(i); });
@@ -685,27 +797,52 @@ const Enemigos = {
       const j = Math.floor(Math.random() * (i + 1));
       [indices[i], indices[j]] = [indices[j], indices[i]];
     }
-    const n = Math.min(indices.length, 1 + Math.floor(Math.random() * 3));
-    if (!Guardado.datos.objetosSuelto) Guardado.datos.objetosSuelto = [];
-    let dropped = 0;
+    const n = Math.min(indices.length, 2);
+    const items = [];
     for (let k = 0; k < n; k++) {
       const sl = Mochila.slots[indices[k]];
       if (!sl?.id) continue;
-      const ang = Math.random() * Math.PI * 2;
-      const pos = this._posOffsetMetros(GPS.posicion[0], GPS.posicion[1], 2 + Math.random() * 4, ang);
-      const o = {
-        id: 'suelto_' + Date.now().toString(36) + '_' + k + '_' + Math.random().toString(36).slice(2, 6),
-        pos: [+pos[0].toFixed(6), +pos[1].toFixed(6)],
-        itemId: sl.id,
-        cantidad: sl.cantidad || 1
-      };
-      Guardado.datos.objetosSuelto.push(o);
-      Mochila.quitar(sl.id, sl.cantidad || 1, 'Huir: dejado en el suelo');
-      if (typeof Admin !== 'undefined' && Admin._crearMarcadorObjeto) Admin._crearMarcadorObjeto(o);
-      dropped++;
+      items.push({ id: sl.id, cantidad: sl.cantidad || 1 });
     }
-    if (dropped) Guardado.guardar();
-    return dropped;
+    if (!items.length) return 0;
+
+    const ocultoHasta = Date.now() + this.HUIR_INVISIBLE_MS;
+    const miId = typeof Multijugador !== 'undefined' ? Multijugador._miPlayerId() : -1;
+
+    if (typeof Multijugador !== 'undefined' && Multijugador.activo && CONFIG.servidorOnline) {
+      const bolsa = await Multijugador.soltarBolsa({
+        pos: GPS.posicion.slice(),
+        items,
+        ocultoHasta,
+        ocultoParaPlayerId: miId > 0 ? miId : null,
+        recogibleDesde: ocultoHasta,
+        soloDropper: true
+      });
+      if (bolsa) {
+        if (typeof Bolsas !== 'undefined') Bolsas.aplicarBolsaRemota(bolsa);
+        for (const it of items) Mochila.quitar(it.id, it.cantidad, 'Huir: dejado en el suelo');
+        Guardado.guardar();
+        return items.length;
+      }
+    }
+
+    if (typeof Bolsas !== 'undefined') {
+      for (const it of items) Mochila.quitar(it.id, it.cantidad, 'Huir: dejado en el suelo');
+      const ok = await Bolsas.soltar(items, 'Huir');
+      if (ok) {
+        const lista = Bolsas.todas();
+        const ultima = lista[lista.length - 1];
+        if (ultima) {
+          ultima.ocultoHasta = ocultoHasta;
+          ultima.ocultoParaPlayerId = miId > 0 ? miId : null;
+          ultima.recogibleDesde = ocultoHasta;
+          ultima.soloDropper = true;
+          if (typeof Admin !== 'undefined') Admin._revisarBolsa(ultima);
+        }
+        return items.length;
+      }
+    }
+    return 0;
   },
 
   _actualizarHudCombate() {
@@ -732,7 +869,7 @@ const Enemigos = {
       if (btnAtacar) btnAtacar.classList.add('oculto');
       if (btnHuir) btnHuir.classList.add('oculto');
       if (cooldownBar) cooldownBar.classList.add('oculto');
-      if (hudFlotante) hudFlotante.classList.remove('oculto');
+      if (hudFlotante) hudFlotante.classList.add('oculto');
       return;
     }
 
@@ -740,8 +877,9 @@ const Enemigos = {
     const enemigo = this._enemigoMasCercanoEnZona();
     this._objetivoHud = enemigo;
     const pctVida = this._pctVidaJugador();
-    const puedeHuir = !muerto && pctVida <= 30;
-    const mostrarAtaque = !!enemigo && !muerto;
+    const enZonaRoja = !!enemigo;
+    const puedeHuir = !muerto && enZonaRoja && pctVida <= 30;
+    const mostrarAtaque = enZonaRoja && !muerto;
 
     if (btnAtacar) {
       if (mostrarAtaque) {
@@ -750,7 +888,7 @@ const Enemigos = {
         btnAtacar.classList.toggle('en-cooldown', enCooldown);
         btnAtacar.textContent = enCooldown
           ? '⏳ ' + Math.ceil(restCd / 1000) + ' s'
-          : '⚔️ ' + (enemigo.nombre || 'Enemigo');
+          : '⚔️ ATK';
       } else {
         btnAtacar.classList.add('oculto');
         btnAtacar.disabled = false;
@@ -767,6 +905,7 @@ const Enemigos = {
     }
     if (btnHuir) {
       btnHuir.classList.toggle('oculto', !puedeHuir);
+      if (puedeHuir) btnHuir.textContent = '🏃 HUIR';
     }
     if (cooldownBar && cooldownFill) {
       const showCd = (mostrarAtaque || modalAbierto) && enCooldown;
@@ -797,6 +936,7 @@ const Enemigos = {
   async _huirMapa() {
     if (typeof Vida === 'undefined' || Vida.estaMuerto()) return;
     if (this._pctVidaJugador() > 30) return;
+    if (!this._enemigoMasCercanoEnZona()) return;
     if (!GPS.posicion) return;
     const dropped = this._dejarObjetosAlHuir();
     Guardado.datos.invisibleHasta = Date.now() + this.HUIR_INVISIBLE_MS;
@@ -840,6 +980,10 @@ const Enemigos = {
     const online = this._online();
     const invisible = this._estaInvisible();
     for (const e of this.lista) {
+      if (!this._enemigoEstaVivo(e)) {
+        if (this._marcadores[e.id]) this._quitarMarcador(e.id);
+        continue;
+      }
       const d = Utilidades.distanciaMetros(GPS.posicion, e.pos);
       this._aplicarVisibilidadMarcador(e, d);
       if (!this._marcadorVisible(e.id)) continue;
@@ -955,7 +1099,7 @@ const Enemigos = {
 
   async _atacar() {
     const e = this._enCombate;
-    if (!e) return;
+    if (!e || !this._enemigoEstaVivo(e)) return;
     const restCd = this._cooldownRestante();
     if (restCd > 0) {
       this._actualizarHudCombate();
@@ -968,6 +1112,49 @@ const Enemigos = {
       return;
     }
     this._ultimoAtaqueJugador = Date.now();
+
+    if (this._online()) {
+      const res = await Multijugador.attackEnemy(e.id, GPS.posicion);
+      if (!res?.ok) {
+        Notificaciones.mostrar(res?.error || 'No se pudo atacar', 'alerta', 2500);
+        this._actualizarHudCombate();
+        return;
+      }
+      if (res.miss) {
+        Notificaciones.mostrar('💨 ¡Fallaste el ataque!', 'alerta', 2500);
+        this._actualizarHudCombate();
+        return;
+      }
+      const est = this._estadoGlobal();
+      if (!est[e.id]) est[e.id] = { vida: e.vidaMax || e.vida, ultimoGolpe: 0 };
+      est[e.id].vida = res.hp;
+      est[e.id].ultimoGolpe = Date.now();
+      const max = res.hpMax || e.vidaMax || e.vida || 50;
+      const actual = res.hp;
+      this._actualizarUiCombate(e, actual, max);
+      Notificaciones.mostrar('⚔️ -' + (res.damage || 0) + ' a ' + e.nombre, 'info', 2000);
+      if (res.muerto) {
+        if (e.xp) Vida.ganarXp(e.xp, 'Enemigo derrotado');
+        if (e.dinero) await Dinero.ganar(e.dinero, 'Botín: ' + e.nombre);
+        for (const it of (e.recItems || [])) {
+          Mochila.agregar(it.id, it.cantidad || 1, { silencioso: true });
+        }
+        Notificaciones.mostrar('💀 ¡Derrotaste a ' + (e.nombre || 'Enemigo') + '!', 'exito', 5000);
+        this._procesarMuerteEnemigo(e, { silencioso: true, desdeRemoto: true });
+        return;
+      }
+      const contra = this._danoEnemigo(e);
+      Vida.recibirDano(contra, null, e.nombre || 'Enemigo');
+      this._finAtaque(e);
+      return;
+    }
+
+    if (this._ataqueFallido(e)) {
+      Notificaciones.mostrar('💨 ¡Fallaste el ataque!', 'alerta', 2500);
+      this._actualizarHudCombate();
+      return;
+    }
+
     const golpe = this.danoJugador();
     const est = this._estadoGlobal();
     if (!est[e.id]) est[e.id] = { vida: e.vidaMax || e.vida, ultimoGolpe: 0 };
@@ -977,40 +1164,28 @@ const Enemigos = {
 
     const max = e.vidaMax || e.vida || 50;
     const actual = est[e.id].vida;
-    document.getElementById('combate-vida-texto').textContent = actual + '/' + max;
-    document.getElementById('combate-vida-relleno').style.width = (actual / max * 100) + '%';
-    this._actualizarBarra(e);
+    this._actualizarUiCombate(e, actual, max);
     Notificaciones.mostrar('⚔️ -' + golpe + ' a ' + e.nombre, 'info', 2000);
 
     if (actual <= 0) {
-      Notificaciones.mostrar('💀 ¡Derrotaste a ' + e.nombre + '!', 'exito', 5000);
-      if (e.xp) Vida.ganarXp(e.xp, 'Enemigo derrotado');
-      if (e.dinero) await Dinero.ganar(e.dinero, 'Botín: ' + e.nombre);
-      for (const it of (e.recItems || [])) {
-        Mochila.agregar(it.id, it.cantidad || 1, { silencioso: true });
-      }
-      const respawn = e.respawnMin || 0;
-      if (respawn > 0) {
-        est[e.id] = {
-          vida: e.vidaMax || e.vida,
-          ultimoGolpe: 0,
-          ocultoHasta: Date.now() + respawn * 60000
-        };
-        if (e.posOrigen) e.pos = e.posOrigen.slice();
-        this._quitarMarcador(e.id);
-      } else {
-        Admin.datos.eliminados = Admin.datos.eliminados || [];
-        if (!Admin.datos.eliminados.includes(e.id)) Admin.datos.eliminados.push(e.id);
-        this._quitarMarcador(e.id);
-      }
-      Admin.guardar();
-      if (Admin._publicarParaTodos) Admin._publicarParaTodos(true);
-      this._cerrarCombate();
+      this._procesarMuerteEnemigo(e);
       return;
     }
 
     const contra = this._danoEnemigo(e);
     Vida.recibirDano(contra, null, e.nombre || 'Enemigo');
+    this._finAtaque(e);
+  },
+
+  _actualizarUiCombate(e, actual, max) {
+    const elTxt = document.getElementById('combate-vida-texto');
+    const elBar = document.getElementById('combate-vida-relleno');
+    if (elTxt) elTxt.textContent = actual + '/' + max;
+    if (elBar) elBar.style.width = (actual / max * 100) + '%';
+    this._actualizarBarra(e);
+  },
+
+  _finAtaque(e) {
     if (typeof Admin !== 'undefined') {
       Admin.guardar();
       if (Admin._publicarParaTodos) Admin._publicarParaTodos(true);
