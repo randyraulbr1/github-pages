@@ -211,7 +211,7 @@ const Opciones = {
     const alDia = !guardada || guardada === v;
     el.textContent = alDia
       ? ('Versión ' + v + ' · actualizada')
-      : ('Versión ' + v + ' · pulsa Actualizar en pantalla');
+      : ('Versión ' + v + ' · hay actualización nueva');
     if (typeof MarielVersion !== 'undefined') {
       MarielVersion.comprobarRemota();
     }

@@ -95,7 +95,10 @@ async function esperarMundoEnMapa() {
 }
 
 (async function arrancar() {
-  if (typeof MarielVersion !== 'undefined' && MarielVersion.revisar()) return;
+  if (typeof MarielVersion !== 'undefined') {
+    await MarielVersion.comprobarRemota();
+    if (MarielVersion.estaBloqueado()) return;
+  }
 
   const ocultarCarga = () => MarielBoot.ocultar();
   const avanzarCarga = (msg) => MarielBoot.avanzar(msg);
