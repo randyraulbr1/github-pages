@@ -332,6 +332,9 @@ const Multijugador = {
           actualizadoEn: data.mundoActualizadoEn || data.mundoSnapshot.actualizadoEn || 0
         }, false);
       }
+      if (data.mundoSnapshot?.botinesEnemigo && typeof BotinEnemigo !== 'undefined') {
+        BotinEnemigo.aplicarTodosDesdeMundo(data.mundoSnapshot.botinesEnemigo);
+      }
       this.enviarStats(true);
     });
 
@@ -517,6 +520,21 @@ const Multijugador = {
     this.socket.on('world:bagRemove', (data) => {
       if (!data?.bolsaId || typeof Bolsas === 'undefined') return;
       Bolsas.aplicarBolsaEliminada(data.bolsaId);
+    });
+
+    this.socket.on('world:enemyLoot', (data) => {
+      if (!data?.botin || typeof BotinEnemigo === 'undefined') return;
+      BotinEnemigo.aplicarBotin(data.botin);
+    });
+
+    this.socket.on('world:enemyLootUpdate', (data) => {
+      if (!data?.botin || typeof BotinEnemigo === 'undefined') return;
+      BotinEnemigo.aplicarBotinActualizado(data.botin);
+    });
+
+    this.socket.on('world:enemyLootRemove', (data) => {
+      if (!data?.botinId || typeof BotinEnemigo === 'undefined') return;
+      BotinEnemigo.aplicarBotinEliminado(data.botinId);
     });
 
     this.socket.on('mundo:enemyState', (data) => {
@@ -849,6 +867,9 @@ const Multijugador = {
     Admin._aplicarMundoRemoto(json, { soloMapa: true, permitirReduccion: !esAdmin });
     if (typeof Admin.pintarMapaCompleto === 'function') Admin.pintarMapaCompleto();
     if (m.cuerposMuertos) this._aplicarCuerpos(m.cuerposMuertos);
+    if (m.botinesEnemigo && typeof BotinEnemigo !== 'undefined') {
+      BotinEnemigo.aplicarTodosDesdeMundo(m.botinesEnemigo);
+    }
     if (tieneContenido) this._mundoSocketListo = true;
     this._sincronizarPinesPartida();
     return true;
@@ -1564,6 +1585,17 @@ const Multijugador = {
       this.socket.emit('world:pickupBag', {
         bolsaId,
         recogidos: recogidos || [],
+        x: pos?.[0],
+        y: pos?.[1]
+      }, (res) => resolve(res || { ok: false }));
+    });
+  },
+
+  reclamarBotinEnemigo(botinId, pos) {
+    return new Promise((resolve) => {
+      if (!this.socket || !this.activo || !botinId) return resolve({ ok: false });
+      this.socket.emit('world:claimEnemyLoot', {
+        botinId,
         x: pos?.[0],
         y: pos?.[1]
       }, (res) => resolve(res || { ok: false }));

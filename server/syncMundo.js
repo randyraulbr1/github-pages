@@ -12,7 +12,8 @@ const {
   formatWorldObject,
   formatMission,
   saveWorldSnapshot,
-  getWorldSnapshot
+  getWorldSnapshot,
+  findPlayerById
 } = require('./db');
 
 function parseData(row) {
@@ -723,6 +724,209 @@ function probFalloAtaque(playerLevel, enemyLevel) {
   return Math.min(45, 12 + diff * 4);
 }
 
+const BOTIN_ENEMIGO_TTL_MS = 5 * 60 * 1000;
+
+function dividirProporcional(total, participantes) {
+  const n = Math.max(0, parseInt(total, 10) || 0);
+  const out = {};
+  for (const p of participantes) out[p.id] = 0;
+  if (!n || !participantes.length) return out;
+  const pesoTotal = participantes.reduce((s, p) => s + (p.dano || 0), 0);
+  if (pesoTotal <= 0) return out;
+  const parts = participantes.map((p) => {
+    const exact = (n * p.dano) / pesoTotal;
+    return { id: p.id, exact, floor: Math.floor(exact) };
+  });
+  let assigned = 0;
+  for (const p of parts) {
+    out[p.id] = p.floor;
+    assigned += p.floor;
+  }
+  let rem = n - assigned;
+  const sorted = [...parts].sort((a, b) => b.exact - a.exact);
+  for (let i = 0; rem > 0 && i < sorted.length; i++, rem--) {
+    out[sorted[i].id]++;
+  }
+  return out;
+}
+
+function dividirItemsProporcional(recItems, participantes) {
+  const out = {};
+  for (const p of participantes) out[p.id] = [];
+  const totalDmg = participantes.reduce((s, p) => s + (p.dano || 0), 0);
+  if (!totalDmg || !recItems?.length) return out;
+
+  const stacks = recItems.map((it) => ({
+    id: it.id,
+    cantidad: Math.max(1, parseInt(it.cantidad, 10) || 1)
+  }));
+  const totalUnits = stacks.reduce((s, it) => s + it.cantidad, 0);
+  const quotas = dividirProporcional(totalUnits, participantes);
+  const orden = [...participantes].sort((a, b) => (b.dano || 0) - (a.dano || 0));
+  const remaining = Object.assign({}, quotas);
+
+  for (const stack of stacks) {
+    let qty = stack.cantidad;
+    while (qty > 0) {
+      let best = null;
+      for (const p of orden) {
+        if ((remaining[p.id] || 0) > 0) {
+          if (!best || remaining[p.id] > remaining[best.id]) best = p;
+        }
+      }
+      if (!best) break;
+      const give = Math.min(qty, remaining[best.id]);
+      const existing = out[best.id].find((x) => x.id === stack.id);
+      if (existing) existing.cantidad += give;
+      else out[best.id].push({ id: stack.id, cantidad: give });
+      remaining[best.id] -= give;
+      qty -= give;
+    }
+  }
+  return out;
+}
+
+function calcularBotinEnemigo(enemyData, danoPorJugador, nombres) {
+  const participantes = Object.entries(danoPorJugador || {})
+    .filter(([, d]) => (d || 0) > 0)
+    .map(([id, dano]) => ({
+      id: String(id),
+      dano,
+      nombre: nombres?.[id] || nombres?.[String(id)] || ('Jugador ' + id)
+    }));
+  if (!participantes.length) return null;
+
+  const xpTotal = Math.max(0, parseInt(enemyData.xp, 10) || 0);
+  const dineroTotal = Math.max(0, parseInt(enemyData.dinero, 10) || 0);
+  const recItems = enemyData.recItems || [];
+  const danoTotal = participantes.reduce((s, p) => s + p.dano, 0);
+  const xpDiv = dividirProporcional(xpTotal, participantes);
+  const oroDiv = dividirProporcional(dineroTotal, participantes);
+  const itemsDiv = dividirItemsProporcional(recItems, participantes);
+
+  const recompensas = {};
+  const partMap = {};
+  for (const p of participantes) {
+    recompensas[p.id] = {
+      xp: xpDiv[p.id] || 0,
+      dinero: oroDiv[p.id] || 0,
+      items: itemsDiv[p.id] || []
+    };
+    partMap[p.id] = {
+      playerId: p.id,
+      nombre: p.nombre,
+      dano: p.dano,
+      reclamado: false
+    };
+  }
+  return { participantes: partMap, recompensas, danoTotal };
+}
+
+function limpiarBotinesExpirados(mundo) {
+  if (!mundo?.botinesEnemigo) return;
+  const now = Date.now();
+  for (const [id, b] of Object.entries(mundo.botinesEnemigo)) {
+    if (!b || now > (b.expiraEn || 0)) delete mundo.botinesEnemigo[id];
+  }
+}
+
+function crearBotinEnemigo(enemyId, pos, enemyData, danoPorJugador, io) {
+  const snapshot = getWorldSnapshot() || { actualizadoEn: Date.now(), botinesEnemigo: {} };
+  if (!snapshot.botinesEnemigo) snapshot.botinesEnemigo = {};
+  limpiarBotinesExpirados(snapshot);
+
+  const nombres = {};
+  for (const pid of Object.keys(danoPorJugador || {})) {
+    const pl = findPlayerById(parseInt(pid, 10));
+    if (pl?.name) nombres[pid] = pl.name;
+  }
+
+  const botinCalc = calcularBotinEnemigo(enemyData, danoPorJugador, nombres);
+  if (!botinCalc) return null;
+
+  const tieneAlgo = Object.values(botinCalc.recompensas).some((r) =>
+    (r.xp || 0) > 0 || (r.dinero || 0) > 0 || (r.items || []).length > 0
+  );
+  if (!tieneAlgo) return null;
+
+  const now = Date.now();
+  const botin = {
+    id: 'botin_' + enemyId + '_' + now.toString(36),
+    enemyId,
+    enemyNombre: enemyData.nombre || 'Enemigo',
+    enemyIcono: enemyData.icon || enemyData.icono || '💀',
+    pos: [+pos[0], +pos[1]],
+    creadoEn: now,
+    expiraEn: now + BOTIN_ENEMIGO_TTL_MS,
+    danoTotal: botinCalc.danoTotal,
+    participantes: botinCalc.participantes,
+    recompensas: botinCalc.recompensas
+  };
+
+  snapshot.botinesEnemigo[botin.id] = botin;
+  snapshot.actualizadoEn = now;
+  saveWorldSnapshot(snapshot);
+  if (io) io.emit('world:enemyLoot', { botin });
+  return botin;
+}
+
+function reclamarBotinEnemigo(botinId, playerId, io) {
+  const snapshot = getWorldSnapshot() || { actualizadoEn: Date.now(), botinesEnemigo: {} };
+  if (!snapshot.botinesEnemigo) snapshot.botinesEnemigo = {};
+  limpiarBotinesExpirados(snapshot);
+
+  const botin = snapshot.botinesEnemigo[botinId];
+  if (!botin) return { ok: false, error: 'Botín expirado o no encontrado' };
+  if (Date.now() > botin.expiraEn) {
+    delete snapshot.botinesEnemigo[botinId];
+    snapshot.actualizadoEn = Date.now();
+    saveWorldSnapshot(snapshot);
+    if (io) io.emit('world:enemyLootRemove', { botinId });
+    return { ok: false, error: 'El botín expiró (5 min)' };
+  }
+
+  const pid = String(playerId);
+  const part = botin.participantes?.[pid];
+  if (!part) return { ok: false, error: 'No participaste en este combate' };
+  if (part.reclamado) return { ok: false, error: 'Ya reclamaste tu parte' };
+
+  const rec = botin.recompensas?.[pid];
+  if (!rec) return { ok: false, error: 'Sin recompensa' };
+
+  part.reclamado = true;
+  botin.participantes[pid] = part;
+
+  const todosReclamaron = Object.values(botin.participantes).every((p) => p.reclamado);
+  if (todosReclamaron) {
+    delete snapshot.botinesEnemigo[botinId];
+    snapshot.actualizadoEn = Date.now();
+    saveWorldSnapshot(snapshot);
+    if (io) io.emit('world:enemyLootRemove', { botinId });
+  } else {
+    snapshot.botinesEnemigo[botinId] = botin;
+    snapshot.actualizadoEn = Date.now();
+    saveWorldSnapshot(snapshot);
+    if (io) io.emit('world:enemyLootUpdate', { botin });
+  }
+
+  return { ok: true, recompensa: rec, botinId, todosReclamaron, botin: todosReclamaron ? null : botin };
+}
+
+function sincronizarBotinesExpirados(io) {
+  const snapshot = getWorldSnapshot();
+  if (!snapshot?.botinesEnemigo) return;
+  const antes = Object.keys(snapshot.botinesEnemigo);
+  limpiarBotinesExpirados(snapshot);
+  const despues = new Set(Object.keys(snapshot.botinesEnemigo || {}));
+  const removidos = antes.filter((id) => !despues.has(id));
+  if (!removidos.length) return;
+  snapshot.actualizadoEn = Date.now();
+  saveWorldSnapshot(snapshot);
+  if (io) {
+    for (const botinId of removidos) io.emit('world:enemyLootRemove', { botinId });
+  }
+}
+
 function registrarAtaqueEnemigo(enemyId, playerId, px, py, playerLevel, io) {
   const row = findObjectByOrigenId(enemyId);
   if (!row || row.type !== 'enemy' || row.state !== 'active') {
@@ -757,21 +961,45 @@ function registrarAtaqueEnemigo(enemyId, playerId, px, py, playerLevel, io) {
   const dmg = danoJugadorVsEnemigo(playerLevel);
   hp = Math.max(0, hp - dmg);
   const ahora = Date.now();
-  const estado = { vida: hp, ultimoGolpe: ahora, ultimoAtacante: String(playerId) };
+  const danoPorJugador = Object.assign({}, stPrev.danoPorJugador || {});
+  danoPorJugador[String(playerId)] = (danoPorJugador[String(playerId)] || 0) + dmg;
+  const estado = {
+    vida: hp,
+    ultimoGolpe: ahora,
+    ultimoAtacante: String(playerId),
+    danoPorJugador
+  };
   snapshot.enemigosEstado[enemyId] = estado;
 
   let muerto = false;
   let respawnMin = 0;
   let eliminado = false;
+  let botin = null;
 
   if (hp <= 0) {
     muerto = true;
     const def = (snapshot.enemigos || []).find((e) => e && e.id === enemyId);
     respawnMin = def?.respawnMin || data.respawnMin || 0;
+
+    botin = crearBotinEnemigo(
+      enemyId,
+      [row.x, row.y],
+      {
+        nombre: data.nombre || def?.nombre,
+        icon: data.icon || def?.icono,
+        xp: data.xp != null ? data.xp : (def?.xp || 0),
+        dinero: data.dinero != null ? data.dinero : (def?.dinero || 0),
+        recItems: data.recItems?.length ? data.recItems : (def?.recItems || [])
+      },
+      danoPorJugador,
+      io
+    );
+
     if (respawnMin > 0) {
       estado.vida = hpMax;
       estado.ultimoGolpe = 0;
       estado.ocultoHasta = ahora + respawnMin * 60000;
+      delete estado.danoPorJugador;
       data.hp = hpMax;
     } else {
       eliminado = true;
@@ -784,6 +1012,7 @@ function registrarAtaqueEnemigo(enemyId, playerId, px, py, playerLevel, io) {
   } else {
     data.hp = hp;
     data.hpMax = hpMax;
+    estado.danoPorJugador = danoPorJugador;
   }
 
   if (!eliminado) {
@@ -816,9 +1045,7 @@ function registrarAtaqueEnemigo(enemyId, playerId, px, py, playerLevel, io) {
     eliminado,
     respawnMin,
     ocultoHasta: estado.ocultoHasta || 0,
-    xp: muerto ? (data.xp || 0) : 0,
-    dinero: muerto ? (data.dinero || 0) : 0,
-    recItems: muerto ? (data.recItems || []) : []
+    botin
   };
 }
 
@@ -835,7 +1062,11 @@ function syncMundoFromJson(mundo, io) {
   if (prev?.bolsasDrop?.length && !mundo.bolsasDrop?.length) {
     mundo.bolsasDrop = prev.bolsasDrop;
   }
+  if (prev?.botinesEnemigo && !mundo.botinesEnemigo) {
+    mundo.botinesEnemigo = prev.botinesEnemigo;
+  }
   limpiarBolsasExpiradas(mundo);
+  limpiarBotinesExpirados(mundo);
   if (prev?.cuerposMuertos) {
     mundo.cuerposMuertos = mundo.cuerposMuertos || prev.cuerposMuertos;
     limpiarCuerposExpirados(mundo);
@@ -1043,5 +1274,9 @@ module.exports = {
   crearBolsaDrop,
   recogerBolsaDrop,
   sincronizarBolsasExpiradas,
-  registrarAtaqueEnemigo
+  registrarAtaqueEnemigo,
+  reclamarBotinEnemigo,
+  sincronizarBotinesExpirados,
+  limpiarBotinesExpirados,
+  calcularBotinEnemigo
 };

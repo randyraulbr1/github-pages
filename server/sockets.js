@@ -28,7 +28,7 @@ const {
 } = require('./db');
 const { verifyToken, isGameAdminName } = require('./auth');
 const { startEnemyAI } = require('./enemyAI');
-const { registrarRecogidaObjeto, registrarRecogidaTesoro, registrarCuerpoMuerto, quitarCuerpoMuerto, getCuerpoMuerto, sincronizarCuerposExpirados, sincronizarBolsasExpiradas, actualizarInventarioCuerpo, registrarLootMuerto, actualizarPartidaEnSnapshot, revivirPartidaEnSnapshot, buscarPerfilIdPorNombre, limpiarBolsasExpiradas, crearBolsaDrop, recogerBolsaDrop, registrarAtaqueEnemigo } = require('./syncMundo');
+const { registrarRecogidaObjeto, registrarRecogidaTesoro, registrarCuerpoMuerto, quitarCuerpoMuerto, getCuerpoMuerto, sincronizarCuerposExpirados, sincronizarBolsasExpiradas, sincronizarBotinesExpirados, actualizarInventarioCuerpo, registrarLootMuerto, actualizarPartidaEnSnapshot, revivirPartidaEnSnapshot, buscarPerfilIdPorNombre, limpiarBolsasExpiradas, crearBolsaDrop, recogerBolsaDrop, registrarAtaqueEnemigo, reclamarBotinEnemigo } = require('./syncMundo');
 
 /** Vida al revivir: valor enviado o 40 % de hpMax. */
 function vidaReviveDesdeMax(hpMax, reviveHp) {
@@ -162,6 +162,7 @@ function setupSockets(io) {
 
   setInterval(() => sincronizarCuerposExpirados(io), 120000);
   setInterval(() => sincronizarBolsasExpiradas(io), 60000);
+  setInterval(() => sincronizarBotinesExpirados(io), 60000);
 
   io.on('connection', (socket) => {
     const player = findPlayerById(socket.playerId);
@@ -628,6 +629,21 @@ function setupSockets(io) {
         pl.level || 1,
         io
       );
+      ack?.(result);
+    });
+
+    socket.on('world:claimEnemyLoot', (payload, ack) => {
+      const botinId = (payload?.botinId || '').trim();
+      if (!botinId) return ack?.({ ok: false, error: 'botinId requerido' });
+      const pl = findPlayerById(socket.playerId);
+      if (!pl) return ack?.({ ok: false, error: 'Jugador no encontrado' });
+      const bx = Number(payload?.x ?? payload?.pos?.[0]);
+      const by = Number(payload?.y ?? payload?.pos?.[1]);
+      if (Number.isFinite(bx) && Number.isFinite(by) &&
+          distanciaMetros(pl.x, pl.y, bx, by) > REVIVE_DISTANCE_METERS) {
+        return ack?.({ ok: false, error: 'Demasiado lejos del botín' });
+      }
+      const result = reclamarBotinEnemigo(botinId, socket.playerId, io);
       ack?.(result);
     });
 

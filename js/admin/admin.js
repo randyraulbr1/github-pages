@@ -103,6 +103,7 @@ const Admin = {
     if (!this.publicado.partidas) this.publicado.partidas = {};
     if (!this.publicado.enemigos) this.publicado.enemigos = [];
     if (!this.publicado.enemigosEstado) this.publicado.enemigosEstado = {};
+    if (!this.publicado.botinesEnemigo) this.publicado.botinesEnemigo = {};
     if (!this.publicado.tiendasAdmin) this.publicado.tiendasAdmin = [];
     if (!this.publicado.tiendasStock) this.publicado.tiendasStock = {};
     if (!this.publicado.combate) {
@@ -1857,6 +1858,7 @@ const Admin = {
     if (!this.publicado.objetosEstado) this.publicado.objetosEstado = {};
     if (!this.publicado.tiendasAdmin) this.publicado.tiendasAdmin = [];
     if (!this.publicado.bolsasDrop) this.publicado.bolsasDrop = [];
+    if (!this.publicado.botinesEnemigo) this.publicado.botinesEnemigo = {};
 
     for (const en of (this.publicado.enemigos || [])) {
       if (!en?.id) continue;
@@ -3073,6 +3075,7 @@ const Admin = {
     }
     this._refrescarObjetosMapa();
     if (GPS.posicion) this._refrescarBolsasMapa();
+    if (GPS.posicion) this._refrescarBotinesMapa();
     if (typeof Multijugador !== 'undefined' && Multijugador._sincronizarPinesPartida) {
       Multijugador._sincronizarPinesPartida();
     }
@@ -3157,6 +3160,88 @@ const Admin = {
       });
     } else if (!debeVerse) {
       this._liberarMarcadorBolsa(b.id);
+    }
+  },
+
+  _refrescarBotinesMapa() {
+    if (typeof BotinEnemigo === 'undefined' || !GPS.posicion) return;
+    for (const b of BotinEnemigo.todas()) {
+      if (!b?.pos) continue;
+      const d = Utilidades.distanciaMetros(GPS.posicion, b.pos);
+      if (!b._marcador && BotinEnemigo.visibleParaMi(b) && d <= BotinEnemigo.distanciaVer()) {
+        this._crearMarcadorBotin(b, d);
+      } else if (b._marcador) {
+        b._marcador.setLatLng(b.pos);
+        this._revisarBotin(b, d);
+      } else {
+        this._revisarBotin(b, d);
+      }
+    }
+  },
+
+  _liberarMarcadorBotin(id) {
+    if (!id) return;
+    const m = this._marcadoresBotin?.[id];
+    if (m) {
+      try { m.remove(); } catch (e) { /* */ }
+      delete this._marcadoresBotin[id];
+    }
+    if (typeof BotinEnemigo !== 'undefined') {
+      for (const b of BotinEnemigo.todas()) {
+        if (b && b.id === id) b._marcador = null;
+      }
+    }
+    if (typeof Mapa !== 'undefined') {
+      const p = Mapa.puntosInteractivos.find(x => x.id === id);
+      if (p) p.marcador = null;
+    }
+  },
+
+  _vincularMarcadorBotin(b, marcador) {
+    if (!b?.id || !marcador) return;
+    if (!this._marcadoresBotin) this._marcadoresBotin = {};
+    b._marcador = marcador;
+    this._marcadoresBotin[b.id] = marcador;
+    if (typeof Mapa !== 'undefined') {
+      const p = Mapa.puntosInteractivos.find(x => x.id === b.id);
+      if (p) p.marcador = marcador;
+    }
+  },
+
+  _crearMarcadorBotin(b, distancia) {
+    if (!b?.pos || typeof BotinEnemigo === 'undefined') return;
+    if (!BotinEnemigo.visibleParaMi(b)) return;
+    const d = typeof distancia === 'number'
+      ? distancia
+      : Utilidades.distanciaMetros(GPS.posicion ? GPS.posicion : CONFIG.centro, b.pos);
+    if (!Mapa.puntosInteractivos.find(x => x.id === b.id)) {
+      Mapa.registrarPunto({
+        id: b.id,
+        posicion: b.pos,
+        radio: CONFIG.distanciaInteraccion,
+        marcador: null,
+        alCambiarDistancia: (dist) => this._revisarBotin(b, dist)
+      });
+    }
+    this._revisarBotin(b, d);
+  },
+
+  _revisarBotin(b, distancia) {
+    if (!b?.pos || typeof BotinEnemigo === 'undefined') return;
+    const d = typeof distancia === 'number'
+      ? distancia
+      : (GPS.posicion ? Utilidades.distanciaMetros(GPS.posicion, b.pos) : Infinity);
+    const debeVerse = BotinEnemigo.visibleParaMi(b) && d <= BotinEnemigo.distanciaVer();
+
+    if (debeVerse && !b._marcador) {
+      this._liberarMarcadorBotin(b.id);
+      b._marcador = Mapa.crearMarcadorEmoji(b.pos, '🎁', 30);
+      const el = b._marcador.getElement?.();
+      if (el) el.classList.add('marcador-botin-enemigo');
+      this._vincularMarcadorBotin(b, b._marcador);
+      b._marcador.on('click', () => BotinEnemigo.abrirMenu(b.id));
+    } else if (!debeVerse) {
+      this._liberarMarcadorBotin(b.id);
     }
   },
 

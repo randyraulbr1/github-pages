@@ -3277,3 +3277,118 @@ body.admin-organizar .leaflet-marker-icon {
 }
 .admin-editor-guardar { margin: 0 14px 14px; width: calc(100% - 28px); }
 .admin-editor-botones .admin-editor-guardar { margin: 0; width: 100%; }
+
+/* ============ BOTÍN ENEMIGO COMPARTIDO ============ */
+.overlay-botin {
+  position: fixed; inset: 0; z-index: 2600;
+  display: flex; align-items: center; justify-content: center;
+  padding: 16px;
+  background: rgba(8, 10, 18, .78);
+  backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
+}
+.overlay-botin-caja {
+  width: min(94vw, 400px);
+  max-height: min(92dvh, 620px);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.overlay-botin-scroll {
+  overflow-y: auto;
+  flex: 1;
+  min-height: 0;
+  padding-bottom: 8px;
+}
+.botin-resumen-texto {
+  font-size: 13px;
+  color: #cdd6e6;
+  text-align: center;
+  margin: 0 0 10px;
+  line-height: 1.45;
+}
+.botin-tabla-titulo,
+.botin-otros-titulo {
+  font-size: 12px;
+  font-weight: 700;
+  color: #9aa5bd;
+  margin: 8px 0 6px;
+  text-transform: uppercase;
+  letter-spacing: .04em;
+}
+.botin-tabla {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 12px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: rgba(0, 0, 0, .18);
+  border: 1px solid rgba(255, 255, 255, .08);
+}
+.botin-fila {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 13px;
+  flex-wrap: wrap;
+}
+.botin-fila-yo {
+  color: #ffe28a;
+  font-weight: 700;
+}
+.botin-nombre { flex: 1; min-width: 0; }
+.botin-dano {
+  color: #ff9d96;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+.botin-estado-reclamado {
+  font-size: 11px;
+  color: #8ae6a0;
+  font-weight: 600;
+}
+.botin-stat {
+  font-size: 14px;
+  font-weight: 700;
+  color: #ffe28a;
+  margin: 4px 0;
+}
+.botin-stat-mini {
+  font-size: 12px;
+  color: #cdd6e6;
+  margin: 2px 0;
+}
+.botin-sin-items {
+  font-size: 12px;
+  color: #9aa5bd;
+  margin: 4px 0;
+}
+.botin-otro-bloque {
+  margin-bottom: 10px;
+  padding: 8px 10px;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, .04);
+  border: 1px solid rgba(255, 255, 255, .06);
+}
+.botin-otro-nombre {
+  font-size: 13px;
+  font-weight: 700;
+  color: #cdd6e6;
+  margin-bottom: 4px;
+}
+.overlay-botin-botones {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 12px;
+  padding-top: 4px;
+}
+.marcador-botin-enemigo {
+  animation: botinPulso 1.6s ease-in-out infinite;
+  filter: drop-shadow(0 0 8px #ffd60a) drop-shadow(0 0 16px rgba(255, 180, 0, .7));
+}
+@keyframes botinPulso {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.12); }
+}

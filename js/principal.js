@@ -259,6 +259,7 @@ async function asegurarMapaVisible() {
     Tesoros.iniciar();
     Misiones.iniciar();
     if (typeof Enemigos !== 'undefined') Enemigos.iniciar();
+    if (typeof BotinEnemigo !== 'undefined') BotinEnemigo.iniciar();
     Correo.iniciar();
     Cofres.iniciar();
     await pasoSeguro('admin', () => { Admin.iniciar(); });

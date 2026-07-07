@@ -4,20 +4,20 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
   <title>Kingdom Map</title>
-  <meta name="mariel-version" content="262">
+  <meta name="mariel-version" content="263">
   <link rel="manifest" href="manifest.json">
   <link rel="icon" type="image/png" href="iconos/icono-192.png">
   <link rel="apple-touch-icon" href="iconos/icono-192.png">
   <link rel="stylesheet" href="lib/leaflet/leaflet.css">
-  <link rel="stylesheet" href="css/estilos.css?v=262">
-  <link rel="stylesheet" href="css/chat.css?v=262">
-  <link rel="stylesheet" href="css/amigos.css?v=262">
-  <link rel="stylesheet" href="css/opciones.css?v=262">
+  <link rel="stylesheet" href="css/estilos.css?v=263">
+  <link rel="stylesheet" href="css/chat.css?v=263">
+  <link rel="stylesheet" href="css/amigos.css?v=263">
+  <link rel="stylesheet" href="css/opciones.css?v=263">
   <link rel="stylesheet" href="css/notificaciones.css?v=117">
   <script>
     (function () {
       var metaV = document.querySelector('meta[name="mariel-version"]');
-      var E = (metaV && metaV.getAttribute('content')) || '262';
+      var E = (metaV && metaV.getAttribute('content')) || '263';
       var CANON = 'https://raw.githubusercontent.com/randyraulbr1/github-pages/main/version.json';
       try {
         var fv = sessionStorage.getItem('mariel_force_version');
@@ -76,7 +76,7 @@
     </div>
   </div>
 
-  <script src="js/nucleo/version_app.js?v=262"></script>
+  <script src="js/nucleo/version_app.js?v=263"></script>
   <script>MarielVersion.iniciar(window.__MARIEL_EMBEDDED__);</script>
 
   <!-- PANTALLA DE CARGA (visible desde el primer instante) -->
@@ -542,6 +542,27 @@
             <button type="button" id="btn-combate-atacar" class="btn-combate-atacar">⚔️ Atacar</button>
           </div>
           <button type="button" id="btn-combate-huir" class="btn-combate-huir">🏃 Huir</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ OVERLAY: BOTÍN ENEMIGO COMPARTIDO ============ -->
+  <div id="overlay-botin-enemigo" class="overlay-botin oculto">
+    <div class="overlay-botin-caja inventario-caja">
+      <div class="inv-header">
+        <div class="inv-titulo" id="botin-titulo">🎁 Botín compartido</div>
+        <button type="button" class="btn-cerrar inv-cerrar" id="botin-cerrar" aria-label="Cerrar">✕</button>
+      </div>
+      <div class="overlay-botin-scroll inv-content">
+        <div id="botin-resumen" class="botin-resumen"></div>
+        <div id="botin-participantes" class="botin-participantes"></div>
+        <div id="botin-mi-recompensa" class="botin-mi-recompensa"></div>
+        <div id="botin-otros" class="botin-otros"></div>
+        <div id="botin-aviso-lleno" class="mision-aviso-lleno oculto">🎒 Inventario lleno — libera espacio para reclamar tu parte</div>
+        <div class="overlay-botin-botones">
+          <button type="button" id="btn-botin-reclamar" class="btn-kingdom-entrar">Reclamar mi parte</button>
+          <button type="button" id="btn-botin-cerrar" class="btn-kingdom-secundario">Cerrar (recolectar después)</button>
         </div>
       </div>
     </div>
@@ -1150,18 +1171,18 @@
   <script src="lib/leaflet/leaflet.js?v=104"></script>
 
   <!-- MÓDULOS DEL JUEGO (orden importante) -->
-  <script src="js/config/config.js?v=262"></script>
-  <script src="js/nucleo/utilidades.js?v=262"></script>
+  <script src="js/config/config.js?v=263"></script>
+  <script src="js/nucleo/utilidades.js?v=263"></script>
   <script src="js/mundo/mundo_publico.js?v=104"></script>
-  <script src="js/notificaciones/notificaciones.js?v=262"></script>
-  <script src="js/usuarios/usuarios.js?v=262"></script>
+  <script src="js/notificaciones/notificaciones.js?v=263"></script>
+  <script src="js/usuarios/usuarios.js?v=263"></script>
   <script src="js/guardado/guardado.js?v=149"></script>
   <script src="js/historial/historial.js?v=104"></script>
   <script src="js/dinero/dinero.js?v=104"></script>
-  <script src="js/vida/vida.js?v=262"></script>
+  <script src="js/vida/vida.js?v=263"></script>
   <script src="js/items/items.js?v=140"></script>
-  <script src="js/mochila/mochila.js?v=262"></script>
-  <script src="js/bolsas/bolsas.js?v=262"></script>
+  <script src="js/mochila/mochila.js?v=263"></script>
+  <script src="js/bolsas/bolsas.js?v=263"></script>
   <script src="js/mapa/mapa.js?v=104"></script>
   <script src="js/gps/gps.js?v=150"></script>
   <script src="js/tiendas/datos_tiendas.js?v=104"></script>
@@ -1173,19 +1194,20 @@
   <script src="js/misiones/misiones.js?v=104"></script>
   <script src="js/cofres/cofres.js?v=104"></script>
   <script src="js/correo/correo.js?v=104"></script>
-  <script src="js/enemigos/enemigos.js?v=262"></script>
-  <script src="js/online/sync_servidor.js?v=262"></script>
-  <script src="js/admin/admin.js?v=262"></script>
-  <script src="js/opciones/opciones.js?v=262"></script>
-  <script src="js/online/mundo_online.js?v=262"></script>
-  <script src="js/online/amigos.js?v=262"></script>
-  <script src="js/chat/chat.js?v=262"></script>
-  <script src="js/online/multijugador.js?v=262"></script>
-  <script src="js/principal.js?v=262"></script>
+  <script src="js/enemigos/botin_enemigo.js?v=263"></script>
+  <script src="js/enemigos/enemigos.js?v=263"></script>
+  <script src="js/online/sync_servidor.js?v=263"></script>
+  <script src="js/admin/admin.js?v=263"></script>
+  <script src="js/opciones/opciones.js?v=263"></script>
+  <script src="js/online/mundo_online.js?v=263"></script>
+  <script src="js/online/amigos.js?v=263"></script>
+  <script src="js/chat/chat.js?v=263"></script>
+  <script src="js/online/multijugador.js?v=263"></script>
+  <script src="js/principal.js?v=263"></script>
   <script>
     // Registrar la app instalable (PWA)
     if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.register('sw.js?v=262', { updateViaCache: 'none' })
+      navigator.serviceWorker.register('sw.js?v=263', { updateViaCache: 'none' })
         .then(function (reg) {
           if (typeof MarielVersion !== 'undefined') MarielVersion.registrarServiceWorker(reg);
         })

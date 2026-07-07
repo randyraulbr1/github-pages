@@ -445,14 +445,21 @@ const Enemigos = {
     const silencioso = !!opts?.silencioso;
 
     if (!desdeRemoto) {
-      const xpGanada = this._xpEnemigo(e);
-      if (xpGanada) Vida.ganarXp(xpGanada, 'Enemigo derrotado');
-      if (e.dinero) void Dinero.ganar(e.dinero, 'Botín: ' + e.nombre);
-      for (const it of (e.recItems || [])) {
-        Mochila.agregar(it.id, it.cantidad || 1, { silencioso: true });
+      const danoPorJugador = Object.assign({}, est[e.id]?.danoPorJugador || {});
+      if (!Object.keys(danoPorJugador).length && typeof Usuarios !== 'undefined' && Usuarios.perfilActivo) {
+        danoPorJugador[Usuarios.perfilActivo.id] = this._vidaMaxEnemigo(e);
+      }
+      const pos = this._posDesdeMarcador(e) || e.pos;
+      let botinCreado = false;
+      if (typeof BotinEnemigo !== 'undefined' && pos?.length) {
+        botinCreado = !!BotinEnemigo.crearDesdeEnemigo(e, danoPorJugador, pos);
       }
       if (!silencioso) {
-        Notificaciones.mostrar('💀 ¡Derrotaste a ' + (e.nombre || 'Enemigo') + '!', 'exito', 5000);
+        if (botinCreado) {
+          Notificaciones.mostrar('💀 ¡Enemigo derrotado! Recoge tu botín en el mapa 🎁', 'exito', 5000);
+        } else {
+          Notificaciones.mostrar('💀 ¡Derrotaste a ' + (e.nombre || 'Enemigo') + '!', 'exito', 5000);
+        }
       }
     }
 
@@ -1435,13 +1442,12 @@ const Enemigos = {
       this._actualizarUiCombate(e, actual, max);
       Notificaciones.mostrar('⚔️ -' + (res.damage || 0) + ' a ' + e.nombre, 'info', 2000);
       if (res.muerto) {
-        const xpGanada = this._xpEnemigo(e);
-        if (xpGanada) Vida.ganarXp(xpGanada, 'Enemigo derrotado');
-        if (e.dinero) await Dinero.ganar(e.dinero, 'Botín: ' + e.nombre);
-        for (const it of (e.recItems || [])) {
-          Mochila.agregar(it.id, it.cantidad || 1, { silencioso: true });
+        if (res.botin && typeof BotinEnemigo !== 'undefined') {
+          BotinEnemigo.aplicarBotin(res.botin);
+          Notificaciones.mostrar('💀 ¡Enemigo derrotado! Recoge tu botín en el mapa 🎁', 'exito', 5000);
+        } else {
+          Notificaciones.mostrar('💀 ¡Derrotaste a ' + (e.nombre || 'Enemigo') + '!', 'exito', 5000);
         }
-        Notificaciones.mostrar('💀 ¡Derrotaste a ' + (e.nombre || 'Enemigo') + '!', 'exito', 5000);
         this._procesarMuerteEnemigo(e, { silencioso: true, desdeRemoto: true });
         return;
       }
@@ -1462,7 +1468,10 @@ const Enemigos = {
     if (!est[e.id]) est[e.id] = { vida: this._vidaMaxEnemigo(e), ultimoGolpe: 0 };
     est[e.id].vida = Math.max(0, (est[e.id].vida ?? e.vidaMax) - golpe);
     est[e.id].ultimoGolpe = Date.now();
-    est[e.id].ultimoAtacante = Usuarios.perfilActivo ? Usuarios.perfilActivo.id : '';
+    const miId = Usuarios.perfilActivo ? Usuarios.perfilActivo.id : 'local';
+    est[e.id].ultimoAtacante = miId;
+    est[e.id].danoPorJugador = est[e.id].danoPorJugador || {};
+    est[e.id].danoPorJugador[miId] = (est[e.id].danoPorJugador[miId] || 0) + golpe;
 
     const max = this._vidaMaxEnemigo(e);
     const actual = est[e.id].vida;
