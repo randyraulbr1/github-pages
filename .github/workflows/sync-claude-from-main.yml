@@ -1,0 +1,30 @@
+# Mantiene claude/web-rpg-gps-game-n3ybow al día con main (tcodm.com despliega ambas ramas).
+name: Sync claude branch from main
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Fusionar main en claude/web-rpg-gps-game-n3ybow
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git fetch origin main claude/web-rpg-gps-game-n3ybow
+          git checkout claude/web-rpg-gps-game-n3ybow
+          git merge origin/main -m "chore: sync claude desde main [auto]"
+          git push origin claude/web-rpg-gps-game-n3ybow
