@@ -149,9 +149,11 @@ button { font-family: inherit; }
 #contenedor-hambre .barra-texto-int,
 #contenedor-xp .barra-texto-int {
   font-size: 8px;
-  left: 6px;
-  right: 6px;
-  padding: 0 1px;
+  left: 4px;
+  right: 4px;
+  top: 1px;
+  bottom: 1px;
+  padding: 0 2px;
 }
 
 #contenedor-dinero, #contenedor-vida, #contenedor-hambre, #contenedor-xp {
@@ -167,11 +169,13 @@ button { font-family: inherit; }
   background: rgba(0,0,0,.35);
 }
 #contenedor-hambre, #contenedor-xp {
-  height: 8px;
+  height: 10px;
   border-radius: 2px;
   background: rgba(0,0,0,.35);
   margin-left: -1px;
   margin-right: -1px;
+  padding: 1px 2px;
+  box-sizing: border-box;
 }
 #dinero-relleno {
   position: absolute; inset: 0; width: 0;
@@ -204,7 +208,13 @@ button { font-family: inherit; }
   background: rgba(0,0,0,.35);
 }
 #hambre-relleno {
-  position: absolute; inset: 0; height: 100%; width: 50%;
+  position: absolute;
+  left: 2px;
+  right: 2px;
+  top: 1px;
+  bottom: 1px;
+  height: auto;
+  width: 50%;
   border-radius: 1px;
   background: linear-gradient(90deg, #e8940a, #ffb020, #ffc840);
   transition: width .4s ease;
@@ -213,7 +223,13 @@ button { font-family: inherit; }
   background: rgba(0,0,0,.35);
 }
 #xp-relleno {
-  position: absolute; inset: 0; height: 100%; width: 0;
+  position: absolute;
+  left: 2px;
+  right: 2px;
+  top: 1px;
+  bottom: 1px;
+  height: auto;
+  width: 0;
   border-radius: 1px;
   background: linear-gradient(90deg, #6b4eff, #a78bfa);
   transition: width .4s ease;
@@ -652,6 +668,45 @@ button { font-family: inherit; }
   font-weight: 700;
   text-align: center;
   border: 1px solid rgba(138, 180, 255, .35);
+}
+
+.cartel-servidor-actualizando {
+  position: fixed;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 8500;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  max-width: min(88vw, 300px);
+  padding: 16px 18px;
+  border-radius: 16px;
+  border: 1px solid rgba(251, 191, 36, .55);
+  background: rgba(16, 20, 31, .94);
+  color: #fff;
+  box-shadow: 0 12px 36px rgba(0, 0, 0, .5);
+  cursor: pointer;
+  text-align: center;
+  animation: cartel-servidor-pulso 1.4s ease-in-out infinite;
+}
+.cartel-servidor-actualizando.oculto { display: none !important; }
+.cartel-servidor-icono { font-size: 28px; line-height: 1; }
+.cartel-servidor-texto {
+  font-size: 15px;
+  font-weight: 800;
+  color: #fbbf24;
+}
+.cartel-servidor-sub {
+  font-size: 12px;
+  font-weight: 600;
+  color: #c8d2e4;
+  line-height: 1.35;
+}
+@keyframes cartel-servidor-pulso {
+  0%, 100% { box-shadow: 0 12px 36px rgba(0, 0, 0, .5); }
+  50% { box-shadow: 0 12px 36px rgba(251, 191, 36, .28); }
 }
 .admin-hub-cuerpo {
   padding: 4px 0 12px;
@@ -2130,6 +2185,10 @@ body.en-auth #letrero-misiones,
 body.en-auth #letrero-pin-chat,
 body.en-auth #banner-tesoro,
 body.en-auth #banner-huida,
+body.mariel-bloqueado-actualizar .cartel-servidor-actualizando,
+body.en-auth .cartel-servidor-actualizando {
+  display: none !important;
+}
 body.en-auth #hud-combate-flotante,
 body.en-auth #admin-controles,
 body.en-auth #zona-notificaciones { display: none !important; }
