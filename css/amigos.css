@@ -274,21 +274,31 @@
   overflow: visible;
 }
 
-#ventana-amigos .friend-card {
-  position: relative;
-  background: rgba(0, 0, 0, 0.15);
+#ventana-amigos .friend-item {
   border: 1px solid rgba(255, 255, 255, 0.09);
   border-radius: 12px;
+  background: rgba(0, 0, 0, 0.15);
+  overflow: hidden;
+}
+
+#ventana-amigos .friend-item.favorito {
+  border-color: rgba(255, 233, 133, 0.32);
+}
+
+#ventana-amigos .friend-item.expandido {
+  border-color: rgba(255, 255, 255, 0.16);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.22);
+}
+
+#ventana-amigos .friend-card {
+  position: relative;
+  background: transparent;
+  border: 0;
+  border-radius: 0;
   padding: 9px 10px;
   display: flex;
   align-items: center;
   gap: 10px;
-  overflow: visible;
-  z-index: 1;
-}
-
-#ventana-amigos .friend-card:has(.pop-menu.show) {
-  z-index: 80;
 }
 
 #ventana-amigos .friend-card.pendiente {
@@ -411,22 +421,25 @@
   background: linear-gradient(180deg, #8a919c, #5c6572);
 }
 
-#ventana-amigos .pop-menu {
-  position: absolute;
-  right: 6px;
-  top: calc(100% + 6px);
-  bottom: auto;
-  width: min(188px, 72vw);
-  border-radius: 10px;
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  background: #2a3340;
-  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.55);
-  overflow: hidden;
-  display: none;
-  z-index: 200;
+#ventana-amigos .friend-action.more.activo {
+  border-color: rgba(255, 255, 255, 0.28);
+  background: linear-gradient(180deg, #8a919c, #6a7280);
 }
 
-#ventana-amigos .pop-menu.show { display: block; }
+#ventana-amigos .friend-menu-carpeta {
+  max-height: 0;
+  overflow: hidden;
+  opacity: 0;
+  transition: max-height 0.22s ease, opacity 0.16s ease;
+  border-top: 0 solid rgba(255, 255, 255, 0.08);
+  background: rgba(0, 0, 0, 0.2);
+}
+
+#ventana-amigos .friend-item.expandido .friend-menu-carpeta {
+  max-height: 220px;
+  opacity: 1;
+  border-top-width: 1px;
+}
 
 #ventana-amigos .menu-item {
   min-height: 38px;
@@ -564,39 +577,6 @@
 }
 
 #amigos-toast.oculto:not(.show) { display: block; }
-
-/* Menú ⋮ flotante — capa delante del panel (no se recorta) */
-.amigos-menu-flotante {
-  position: fixed;
-  z-index: 25000;
-  width: min(196px, calc(100vw - 16px));
-  border-radius: 10px;
-  border: 1px solid rgba(255, 255, 255, 0.14);
-  background: #2a3340;
-  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.58);
-  overflow: hidden;
-}
-
-.amigos-menu-flotante.oculto {
-  display: none !important;
-}
-
-.amigos-menu-flotante .menu-item {
-  min-height: 42px;
-  padding: 0 14px;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 14px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
-  cursor: pointer;
-  color: #fff;
-}
-
-.amigos-menu-flotante .menu-item:last-child { border-bottom: 0; }
-.amigos-menu-flotante .menu-item:active { background: rgba(255, 255, 255, 0.08); }
-.amigos-menu-flotante .menu-item.danger { color: #ffb7b7; }
-.amigos-menu-flotante .menu-item.fav-activo { color: #ffe985; }
 
 #ventana-amigos .amigos-close:active,
 #ventana-amigos .add-btn:active,
