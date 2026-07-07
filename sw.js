@@ -3,7 +3,7 @@
 // guarda todos los archivos en el teléfono (funciona con mala
 // conexión) y va guardando los pedazos de mapa ya visitados.
 // ============================================================
-const CACHE = 'mariel-explorer-v163';
+const CACHE = 'mariel-explorer-v164';
 
 const ARCHIVOS = [
   './',
@@ -140,8 +140,27 @@ self.addEventListener('fetch', evento => {
     return;
   }
 
-  // Archivos del juego: caché primero, actualización en segundo plano
+  // Archivos del juego: red primero en index/config (actualizaciones); resto caché primero
   if (evento.request.method === 'GET' && url.startsWith(self.location.origin)) {
+    let ruta;
+    try { ruta = new URL(url).pathname; } catch (e) { ruta = ''; }
+    const redPrimero = ruta.endsWith('/index.html') || ruta.endsWith('/') ||
+      ruta.endsWith('/sw.js') || ruta.endsWith('/js/config/config.js');
+
+    if (redPrimero) {
+      evento.respondWith(
+        fetch(evento.request, { cache: 'no-store' }).then(respuesta => {
+          if (respuesta.ok) {
+            caches.open(CACHE).then(cache => cache.put(evento.request, respuesta.clone()));
+          }
+          return respuesta;
+        }).catch(() =>
+          caches.open(CACHE).then(cache => cache.match(evento.request))
+        )
+      );
+      return;
+    }
+
     evento.respondWith(
       caches.open(CACHE).then(cache =>
         cache.match(evento.request).then(guardado => {
