@@ -15,6 +15,7 @@ const {
   getPlayerMissions,
   getSocialData,
   getBlockedIds,
+  getBlockedByIds,
   getWorldSnapshot,
   getWorldSnapshotPublic,
   formatPlayer,
@@ -104,9 +105,15 @@ function playerSnapshot(p) {
 }
 
 function snapshotOnline(excludeId, viewerId) {
-  const blocked = viewerId ? new Set(getBlockedIds(viewerId)) : new Set();
+  const blockedByMe = viewerId ? new Set(getBlockedIds(viewerId)) : new Set();
+  const blockedMe = viewerId ? new Set(getBlockedByIds(viewerId)) : new Set();
   return [...onlinePlayers.values()]
-    .filter(p => p.playerId !== excludeId && !blocked.has(p.playerId))
+    .filter(p => {
+      const pid = p.playerId;
+      if (pid === excludeId) return false;
+      if (blockedByMe.has(pid) || blockedMe.has(pid)) return false;
+      return true;
+    })
     .map(playerSnapshot);
 }
 
