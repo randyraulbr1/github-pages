@@ -18,6 +18,7 @@ const Tesoros = {
       if (typeof Admin !== 'undefined' && Admin._tesoroDisponiblePorId &&
           !Admin._tesoroDisponiblePorId(t.id, 0)) continue;
       if (Guardado.datos.tesorosRecogidos.includes(t.id)) continue;
+      if (Mapa.puntosInteractivos.some(p => p.id === t.id)) continue;
       const estado = { datos: t, marcador: null };
       this.activos.push(estado);
       Mapa.registrarPunto({
@@ -41,6 +42,10 @@ const Tesoros = {
 
     // El icono solo existe estando MUY cerca; si te alejas, se esconde
     if (distancia <= CONFIG.distanciaVerTesoro && !estado.marcador) {
+      if (estado.marcador) {
+        try { estado.marcador.remove(); } catch (e) { /* */ }
+        estado.marcador = null;
+      }
       estado.marcador = L.marker(estado.datos.posicion, {
         icon: L.divIcon({
           className: '',

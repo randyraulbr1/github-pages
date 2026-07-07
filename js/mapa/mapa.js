@@ -225,7 +225,18 @@ const Mapa = {
   // Registra un punto que reacciona a la cercanía del jugador.
   // alTocar solo funciona si el jugador está a menos de 'radio' metros.
   registrarPunto(punto) {
-    this.puntosInteractivos.push(punto);
+    if (!punto) return;
+    if (punto.id) {
+      const dup = this.puntosInteractivos.findIndex(p => p.id === punto.id);
+      if (dup >= 0) {
+        this.puntosInteractivos[dup] = Object.assign({}, this.puntosInteractivos[dup], punto);
+        punto = this.puntosInteractivos[dup];
+      } else {
+        this.puntosInteractivos.push(punto);
+      }
+    } else {
+      this.puntosInteractivos.push(punto);
+    }
     if (punto.marcador && punto.alTocar) {
       punto.marcador.on('click', () => {
         // En modo administrador (eliminar/organizar) el toque lo maneja el admin

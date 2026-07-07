@@ -21,6 +21,7 @@ const Admin = {
   _colocacion: null,  // { tipo, valores, marcador }
   _fantasmas: [],     // marcadores temporales de tesoros base en modo admin
   _marcadoresObjeto: {}, // id → marcador Leaflet (evita duplicados al sincronizar)
+  _marcadoresTesoro: {}, // id → marcador Leaflet (tesoros admin)
 
   // ---------- CARGA (llamar antes que tiendas/pesca/tesoros/misiones) ----------
   // Carga los borradores locales Y el mundo publicado en GitHub.
@@ -543,6 +544,37 @@ const Admin = {
       const p = Mapa.puntosInteractivos.find(x => x.id === o.id);
       if (p) p.marcador = marcador;
     }
+  },
+
+  _liberarMarcadorTesoro(id) {
+    if (!id) return;
+    const m = this._marcadoresTesoro[id];
+    if (m) {
+      try { m.remove(); } catch (e) { /* */ }
+      delete this._marcadoresTesoro[id];
+    }
+    for (const t of this.tesorosTodos()) {
+      if (t && t.id === id) t._marcador = null;
+    }
+    if (typeof Mapa !== 'undefined') {
+      const p = Mapa.puntosInteractivos.find(x => x.id === id);
+      if (p) p.marcador = null;
+    }
+  },
+
+  _vincularMarcadorTesoro(t, marcador) {
+    if (!t?.id || !marcador) return;
+    t._marcador = marcador;
+    this._marcadoresTesoro[t.id] = marcador;
+    if (typeof Mapa !== 'undefined') {
+      const p = Mapa.puntosInteractivos.find(x => x.id === t.id);
+      if (p) p.marcador = marcador;
+    }
+  },
+
+  _quitarPuntosInteractivos(id) {
+    if (!id || typeof Mapa === 'undefined') return;
+    Mapa.puntosInteractivos = Mapa.puntosInteractivos.filter(p => p.id !== id);
   },
 
   _reaplicarArrastreOrganizar() {
@@ -2065,7 +2097,8 @@ const Admin = {
         this._prepararTesoro(t);
       } else {
         this._actualizarPuntoEnMapa(t.id, t.pos);
-        if (t._marcador) t._marcador.setLatLng(t.pos);
+        const mTes = this._marcadoresTesoro[t.id] || t._marcador;
+        if (mTes) mTes.setLatLng(t.pos);
         if (GPS.posicion) this._revisarTesoro(t, Utilidades.distanciaMetros(GPS.posicion, t.pos));
       }
     }
@@ -2107,10 +2140,8 @@ const Admin = {
 
   _quitarDelMapa(id) {
     this._liberarMarcadorObjeto(id);
-    for (const t of this.tesorosTodos()) {
-      if (t.id !== id) continue;
-      if (t._marcador) { t._marcador.remove(); t._marcador = null; }
-    }
+    this._liberarMarcadorTesoro(id);
+    this._quitarPuntosInteractivos(id);
     if (typeof Misiones !== 'undefined' && Misiones._marcadores[id]) {
       Misiones._marcadores[id].remove();
       delete Misiones._marcadores[id];
@@ -2912,19 +2943,19 @@ const Admin = {
   aplicarRecogidaTesoro(tesoroId, recogidoAt) {
     if (!tesoroId) return;
     this._tesorosEstadoGlobal()[tesoroId] = { recogidoAt: recogidoAt || Date.now() };
+    this._liberarMarcadorTesoro(tesoroId);
+    this._quitarPuntosInteractivos(tesoroId);
     if (typeof Tesoros !== 'undefined') {
       const idx = Tesoros.activos.findIndex(x => x.datos.id === tesoroId);
       if (idx >= 0) {
         const estado = Tesoros.activos[idx];
-        if (estado.marcador) { estado.marcador.remove(); estado.marcador = null; }
+        if (estado.marcador) {
+          try { estado.marcador.remove(); } catch (e) { /* */ }
+          estado.marcador = null;
+        }
         Tesoros.activos.splice(idx, 1);
         if (Tesoros.refrescarBanner) Tesoros.refrescarBanner();
       }
-    }
-    for (const t of this.tesorosTodos()) {
-      if (t.id !== tesoroId) continue;
-      if (t._marcador) { t._marcador.remove(); t._marcador = null; }
-      break;
     }
     if (GPS.posicion) this.refrescarVisibles();
   },
@@ -2936,15 +2967,22 @@ const Admin = {
   },
 
   _prepararTesoro(t) {
-    if (!this._tesoroDisponible(t)) return;
-    t._marcador = null;
-    Mapa.registrarPunto({
-      id: t.id,
-      posicion: t.pos,
-      radio: CONFIG.distanciaInteraccion,
-      marcador: null,
-      alCambiarDistancia: d => this._revisarTesoro(t, d)
-    });
+    if (!t?.id || !t.pos) return;
+    if (!this._tesoroDisponible(t)) {
+      this._liberarMarcadorTesoro(t.id);
+      return;
+    }
+    const existente = this._marcadoresTesoro[t.id];
+    if (existente) t._marcador = existente;
+    if (typeof Mapa !== 'undefined' && !Mapa.puntosInteractivos.find(x => x.id === t.id)) {
+      Mapa.registrarPunto({
+        id: t.id,
+        posicion: t.pos,
+        radio: CONFIG.distanciaInteraccion,
+        marcador: existente || null,
+        alCambiarDistancia: d => this._revisarTesoro(t, d)
+      });
+    }
     this._revisarTesoro(t, Utilidades.distanciaMetros(GPS.posicion ? GPS.posicion : CONFIG.centro, t.pos));
   },
 
@@ -2953,29 +2991,34 @@ const Admin = {
   },
 
   _revisarTesoro(t, distancia) {
+    if (!t?.id) return;
     if (!this._tesoroDisponible(t)) {
-      if (t._marcador) { t._marcador.remove(); t._marcador = null; }
+      this._liberarMarcadorTesoro(t.id);
       return;
     }
     const detecta = this._puedeDetectar(t);
     const icono = t.iconoMapa || this.tesoroIconoMapa();
     const debeVerse = detecta && (!t.invisible || distancia <= CONFIG.distanciaVerTesoro);
+    const marcadorActual = this._marcadoresTesoro[t.id] || t._marcador;
 
-    if (debeVerse && !t._marcador) {
-      t._marcador = L.marker(t.pos, {
+    if (debeVerse && !marcadorActual) {
+      this._liberarMarcadorTesoro(t.id);
+      const marcador = L.marker(t.pos, {
         icon: L.divIcon({
           className: '',
           html: '<div class="icono-tesoro">' + icono + '</div>',
           iconSize: [34, 34], iconAnchor: [17, 17]
         })
       }).addTo(Mapa.mapa);
-      t._marcador.on('click', () => {
+      this._vincularMarcadorTesoro(t, marcador);
+      marcador.on('click', () => {
         if (this.manejarClickPunto({ id: t.id, esTesoroAdmin: t })) return;
         this._recogerTesoro(t);
       });
-    } else if (!debeVerse && t._marcador) {
-      t._marcador.remove();
-      t._marcador = null;
+    } else if (!debeVerse && marcadorActual) {
+      this._liberarMarcadorTesoro(t.id);
+    } else if (marcadorActual && t.pos) {
+      marcadorActual.setLatLng(t.pos);
     }
   },
 
@@ -3133,7 +3176,7 @@ const Admin = {
 
     const punto = Mapa.mapa.latLngToContainerPoint(t.pos);
     Utilidades.volarHaciaMochila(t.iconoMapa || this.tesoroIconoMapa(), punto.x, punto.y);
-    if (t._marcador) { t._marcador.remove(); t._marcador = null; }
+    this._liberarMarcadorTesoro(t.id);
 
     const nombres = items.map(it => Items.seguro(it.id).icono + ' x' + (it.cantidad || 1)).join(', ');
     setTimeout(async () => {
