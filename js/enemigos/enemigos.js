@@ -48,6 +48,23 @@ const Enemigos = {
     return Utilidades.distanciaMetros(GPS.posicion, e.pos);
   },
 
+  /** Distancia al marcador en mapa (más fiable con interpolación del servidor). */
+  _distanciaJugadorEnemigo(e) {
+    if (!GPS.posicion) return Infinity;
+    const pos = this._posDesdeMarcador(e) || e.pos;
+    if (!pos || pos.length < 2) return Infinity;
+    return Utilidades.distanciaMetros(GPS.posicion, pos);
+  },
+
+  /** Histéresis para no parpadear la barra numérica en el borde del círculo. */
+  _jugadorEnZonaParaBarra(e) {
+    const d = this._distanciaJugadorEnemigo(e);
+    const r = this._radioZona(e);
+    const margen = 5;
+    if (e._vidaGrande) return d <= r + margen;
+    return d <= r;
+  },
+
   _marcadorVisible(id) {
     const m = this._marcadores[id];
     return !!(m && Mapa.mapa && Mapa.mapa.hasLayer(m));
@@ -496,6 +513,30 @@ const Enemigos = {
     const m = this._marcadores[e.id];
     if (!m) return;
     m.setIcon(this._iconoMarcador(e));
+    this._actualizarBarra(e);
+    this._actualizarConoDOM(e);
+  },
+
+  /** Actualiza el cono de visión sin recrear el icono Leaflet (evita parpadeo). */
+  _actualizarConoDOM(e) {
+    const m = this._marcadores[e.id];
+    if (!m) return;
+    const el = m.getElement?.();
+    if (!el) return;
+    const pin = el.querySelector('.marcador-enemigo-map') || el;
+    let wrap = pin.querySelector('.enemigo-cono-wrap');
+    const mostrar = e.facingDeg != null && e._enZona;
+    if (!mostrar) {
+      if (wrap) wrap.remove();
+      return;
+    }
+    if (!wrap) {
+      wrap = document.createElement('div');
+      wrap.className = 'enemigo-cono-wrap';
+      wrap.innerHTML = '<div class="enemigo-cono"></div>';
+      pin.insertBefore(wrap, pin.firstChild);
+    }
+    wrap.style.transform = 'rotate(' + Math.round(e.facingDeg) + 'deg)';
   },
 
   _adminOrganizando() {
@@ -570,7 +611,9 @@ const Enemigos = {
       if (e.facingDeg == null && !e._enZona) continue;
       e.facingDeg = null;
       e._enZona = false;
-      this._refrescarIconoMarcador(e);
+      e._vidaGrande = false;
+      this._actualizarConoDOM(e);
+      this._actualizarBarra(e);
     }
   },
 
@@ -701,20 +744,22 @@ const Enemigos = {
       }
       if (data?.facingDeg != null) {
         e.facingDeg = data.facingDeg;
-        if (typeof GPS !== 'undefined' && GPS.posicion && e.pos?.length >= 2) {
-          e._enZona = Utilidades.distanciaMetros(GPS.posicion, e.pos) <= this._radioZona(e);
-        }
-      } else if (data?.targetPlayerId) {
-        if (typeof GPS !== 'undefined' && GPS.posicion && e.pos?.length >= 2) {
-          e._enZona = Utilidades.distanciaMetros(GPS.posicion, e.pos) <= this._radioZona(e);
-        } else {
-          e._enZona = false;
-        }
+      }
+      if (data?.targetPlayerId != null) {
+        e._targetPlayerId = data.targetPlayerId;
+      }
+      if (typeof GPS !== 'undefined' && GPS.posicion) {
+        const dLoc = this._distanciaJugadorEnemigo(e);
+        e._enZona = dLoc <= this._radioZona(e);
+        e._vidaGrande = this._jugadorEnZonaParaBarra(e);
       }
     }
 
     if (!this._marcadores[origenId]) this._crearEnMapa(e);
-    else this._refrescarIconoMarcador(e);
+    else {
+      this._actualizarConoDOM(e);
+      this._actualizarBarra(e);
+    }
   },
 
   _aplicarInterp(e) {
@@ -1091,7 +1136,7 @@ const Enemigos = {
         if (this._marcadores[e.id]) this._quitarMarcador(e.id);
         continue;
       }
-      const d = Utilidades.distanciaMetros(GPS.posicion, e.pos);
+      const d = this._distanciaJugadorEnemigo(e);
       this._aplicarVisibilidadMarcador(e, d);
       if (!this._marcadorVisible(e.id)) continue;
       this._aplicarEstadoRemoto(e);
@@ -1101,12 +1146,12 @@ const Enemigos = {
       const enZona = !invisible && d <= radioZona;
       const enAtaque = !invisible && d <= radioAtaque;
       e._enZona = enZona;
-      // Dentro del círculo rojo dibujado → números; fuera → barra pequeña (sin recrear icono)
-      e._vidaGrande = enZona;
+      e._vidaGrande = !invisible && this._jugadorEnZonaParaBarra(e);
       this._actualizarVisibilidadZonas(e, d);
 
       if (online) {
         if (this._interp[e.id]) this._aplicarInterp(e);
+        this._actualizarConoDOM(e);
         this._actualizarBarra(e);
         continue;
       }
@@ -1115,11 +1160,11 @@ const Enemigos = {
         const nuevoFacing = this._bearingDeg(e.pos[0], e.pos[1], GPS.posicion[0], GPS.posicion[1]);
         if (e.facingDeg == null || this._angulosCercanos(e.facingDeg, nuevoFacing) > 12) {
           e.facingDeg = nuevoFacing;
-          this._refrescarIconoMarcador(e);
+          this._actualizarConoDOM(e);
         }
       } else if (!enZona && e.facingDeg != null) {
         e.facingDeg = null;
-        this._refrescarIconoMarcador(e);
+        this._actualizarConoDOM(e);
       }
 
       if (enZona && d > 3) {
