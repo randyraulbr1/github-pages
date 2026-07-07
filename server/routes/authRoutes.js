@@ -19,7 +19,7 @@ const {
 const { hashPassword, comparePassword, signPlayerToken } = require('../auth');
 const { mergeJugadoresPartidas } = require('../syncMundo');
 const { forzarImportJugadores, leerMundoJson } = require('../importSnapshot');
-const { getJugadoresPublicos, respaldarCuentasEnGitHub, buscarJugadorPublico } = require('../syncCuentas');
+const { getJugadoresPublicos, respaldarCuentasEnGitHub, respaldarCuentasEnGitHubInmediato, buscarJugadorPublico } = require('../syncCuentas');
 const { leerAdminDesdeArchivo } = require('../adminCuenta');
 const { intentarRecuperarPorLogin, buscarEnEliminadosRecuperables } = require('../recoveryCuentas');
 const { registrar } = require('../eventLog');
@@ -308,7 +308,7 @@ router.post('/login-game', (req, res) => {
   updateLastLogin(user.id);
   reinsertarJugadorEnSnapshot(legacy);
   const token = signPlayerToken(user, player);
-  respaldarCuentasEnGitHub().catch(() => {});
+  respaldarCuentasEnGitHubInmediato().catch(() => {});
 
   return res.json({
     ok: true,
@@ -377,7 +377,7 @@ router.post('/register', (req, res) => {
     snap.actualizadoEn = Date.now();
     saveWorldSnapshot(snap);
 
-    respaldarCuentasEnGitHub().catch((e) => {
+    respaldarCuentasEnGitHubInmediato().catch((e) => {
       console.warn('[register] Respaldo GitHub:', e.message);
     });
 

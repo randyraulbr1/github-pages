@@ -14,7 +14,7 @@ const {
 } = require('../db');
 const { authMiddleware, gameAdminMiddleware, hashPassword } = require('../auth');
 const { syncMundoFromJson, actualizarPartidaEnSnapshot, registrarCuentaEnSnapshot } = require('../syncMundo');
-const { respaldarCuentasEnGitHub, dejarSoloAdminEnSnapshot } = require('../syncCuentas');
+const { respaldarCuentasEnGitHub, respaldarCuentasEnGitHubInmediato, dejarSoloAdminEnSnapshot } = require('../syncCuentas');
 const { restaurarJugadorSiExiste } = require('../recoveryCuentas');
 const { forcePushMundoActual } = require('../githubMundo');
 const { getSyncStatus } = require('../syncStatus');
@@ -43,6 +43,10 @@ router.post('/sync-mundo', authMiddleware, gameAdminMiddleware, (req, res) => {
   const io = req.app.get('io');
   const result = syncMundoFromJson(mundo, io);
   if (!result.ok) return res.status(400).json(result);
+  try {
+    const { respaldoInmediato } = require('../respaldoThrottle');
+    respaldoInmediato().catch(() => {});
+  } catch (e) { /* */ }
   res.json(result);
 });
 
@@ -65,6 +69,12 @@ router.post('/sync-partida', authMiddleware, (req, res) => {
   }
   const io = req.app.get('io');
   const ok = actualizarPartidaEnSnapshot(perfilId, partida, io);
+  if (ok) {
+    try {
+      const { pedirRespaldo } = require('../respaldoThrottle');
+      pedirRespaldo();
+    } catch (e) { /* */ }
+  }
   res.json({ ok });
 });
 
@@ -91,7 +101,7 @@ router.post('/registrar-cuenta', authMiddleware, (req, res) => {
     }
   }
   if (ok) {
-    respaldarCuentasEnGitHub().catch((e) => {
+    respaldarCuentasEnGitHubInmediato().catch((e) => {
       console.warn('[registrar-cuenta] Respaldo GitHub:', e.message);
     });
   }
@@ -104,10 +114,8 @@ router.post('/limpiar-cuentas', authMiddleware, gameAdminMiddleware, async (req,
   const r = await dejarSoloAdminEnSnapshot({ io });
   const snap = getWorldSnapshot();
   try {
-    const { pushMundoToGitHub } = require('../githubMundo');
-    const { respaldarJugadoresEnGitHub } = require('../jugadoresBackup');
-    await pushMundoToGitHub(snap, { mensaje: 'purge solo admin' });
-    await respaldarJugadoresEnGitHub(snap);
+    const { respaldoInmediato } = require('../respaldoThrottle');
+    await respaldoInmediato();
   } catch (e) {
     console.warn('[limpiar-cuentas] GitHub:', e.message);
   }
@@ -137,13 +145,13 @@ router.post('/restaurar-cuenta', authMiddleware, gameAdminMiddleware, (req, res)
       const { saveWorldSnapshot } = require('../db');
       saveWorldSnapshot(snap);
       registrar('admin_restore', `Cuenta ${e.datos?.nombre || e.id} restaurada desde papelera`);
-      respaldarCuentasEnGitHub().catch(() => {});
+      respaldarCuentasEnGitHubInmediato().catch(() => {});
       return res.json({ ok: true, jugador: e.datos, origen: 'papelera' });
     }
   }
   const r = restaurarJugadorSiExiste(id);
   if (!r.ok) return res.status(404).json({ ok: false, error: r.reason || 'No encontrada' });
-  respaldarCuentasEnGitHub().catch(() => {});
+  respaldarCuentasEnGitHubInmediato().catch(() => {});
   res.json({ ok: true, jugador: r.jugador, origen: 'backup' });
 });
 

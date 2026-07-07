@@ -14,7 +14,6 @@ const {
   saveWorldSnapshot,
   getWorldSnapshot
 } = require('./db');
-const { pushMundoToGitHub } = require('./githubMundo');
 
 function parseData(row) {
   try { return JSON.parse(row.data_json || '{}'); } catch (e) { return {}; }
@@ -984,7 +983,6 @@ function syncMundoFromJson(mundo, io) {
     }
   } catch (e) { /* */ }
 
-  const purgarParaGitHub = !!mundo.purgarJugadores;
   delete mundo.purgarJugadores;
 
   if (Array.isArray(mundo.eliminados_recuperables)) {
@@ -1001,15 +999,9 @@ function syncMundoFromJson(mundo, io) {
     registrar('publish', `Mundo publicado — ${(mundo.jugadores || []).length} jugadores, ${(mundo.objetos || []).length} objetos`);
   } catch (e) { /* */ }
 
-  const mundoGitHub = purgarParaGitHub ? Object.assign({}, mundo, { purgarJugadores: true }) : mundo;
-  pushMundoToGitHub(mundoGitHub).then((r) => {
-    if (r.ok) console.log('[mundo] Respaldo GitHub OK');
-    else if (!r.skipped) console.warn('[mundo] Respaldo GitHub:', r.error || r.reason);
-  }).catch((e) => console.warn('[mundo] Respaldo GitHub:', e.message));
-
   try {
-    const { respaldarJugadoresEnGitHubAsync } = require('./jugadoresBackup');
-    respaldarJugadoresEnGitHubAsync(mundo);
+    const { pedirRespaldo } = require('./respaldoThrottle');
+    pedirRespaldo();
   } catch (e) { /* */ }
 
   if (io) {

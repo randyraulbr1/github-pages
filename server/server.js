@@ -106,6 +106,14 @@ async function arrancar() {
   }
 
   try {
+    const { iniciarRespaldoThrottle } = require('./respaldoThrottle');
+    iniciarRespaldoThrottle();
+    console.log('   Respaldo GitHub: throttle 10 min activo');
+  } catch (e) {
+    console.warn('   respaldoThrottle:', e.message);
+  }
+
+  try {
     const { restaurarMundoAlArranque, recuperarJugadoresPerdidos, leerMundoJson } = require('./importSnapshot');
     await restaurarMundoAlArranque();
     await recuperarJugadoresPerdidos();

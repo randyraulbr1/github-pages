@@ -212,15 +212,23 @@ function purgarCuentasFueraDeSnapshot(mundo) {
 }
 
 async function respaldarCuentasEnGitHub() {
+  try {
+    const { pedirRespaldo } = require('./respaldoThrottle');
+    pedirRespaldo();
+    return { ok: true, throttled: true };
+  } catch (e) {
+    return { ok: false, error: e.message };
+  }
+}
+
+async function respaldarCuentasEnGitHubInmediato() {
   const snap = getWorldSnapshot();
   if (!snap) return { ok: false, reason: 'sin snapshot' };
   asegurarAdminEnMundo(snap);
   try {
-    const { pushMundoToGitHub } = require('./githubMundo');
-    const { respaldarJugadoresEnGitHubAsync } = require('./jugadoresBackup');
-    const r = await pushMundoToGitHub(snap);
-    respaldarJugadoresEnGitHubAsync(snap);
-    return r;
+    const { respaldoInmediato } = require('./respaldoThrottle');
+    await respaldoInmediato();
+    return { ok: true };
   } catch (e) {
     return { ok: false, error: e.message };
   }
@@ -391,6 +399,7 @@ module.exports = {
   deduplicarJugadoresPorNombre,
   getJugadoresPublicos,
   respaldarCuentasEnGitHub,
+  respaldarCuentasEnGitHubInmediato,
   buscarJugadorPublico,
   asegurarPlayerEnSqlite,
   resolverPlayerIdPorNombre,
