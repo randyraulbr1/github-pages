@@ -135,7 +135,11 @@ const Guardado = {
     this._aplicarSnapshot(nube.datos);
     this.datos.nubeT = nube.t;
     this.datos.nubeFusionada = true;
-    if (typeof Mochila !== 'undefined') Mochila.pintar();
+    if (typeof Mochila !== 'undefined') {
+      Mochila.slots = Guardado.datos.mochila || Mochila.slots;
+      Mochila.pintar();
+      Mochila.pintarArmaHud();
+    }
   },
 
   guardar() {

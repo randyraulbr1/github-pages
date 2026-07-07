@@ -53,7 +53,6 @@ const Mochila = {
     if (typeof Tesoros !== 'undefined' && Tesoros.activos) Tesoros.refrescarBanner();
     if (typeof Admin !== 'undefined' && Admin.datos) Admin.refrescarVisibles();
     if (typeof Misiones !== 'undefined' && Misiones.lista.length) Misiones.refrescar();
-    this.pintarArmaHud();
     this._pintarSlotEquip();
   },
 
@@ -162,6 +161,7 @@ const Mochila = {
 
     this.slots[idx] = null;
     Guardado.datos.armaEquipada = id;
+    this.pintarArmaHud();
     this.guardar();
     this.pintar();
     return true;
@@ -193,6 +193,7 @@ const Mochila = {
     }
 
     this.guardar();
+    this.pintarArmaHud();
     this.pintar();
     return true;
   },
@@ -348,22 +349,31 @@ const Mochila = {
   },
 
   pintarArmaHud() {
-    const id = this.armaEquipadaId();
-    const item = id ? Items.seguro(id) : null;
-    const tiene = !!item;
-    const icon = item ? (item.icono || '🗡️') : null;
-    const nombre = item ? item.nombre : 'Sin arma';
-    const dano = item ? (item.dano || 0) : 0;
-    const titulo = dano > 0 ? nombre + ' (+' + dano + ' daño)' : (tiene ? nombre : 'Sin arma');
     const hud = document.getElementById('hud-arma-equipada');
-    const status = document.getElementById('inv-weapon-status');
-    if (hud) {
-      hud.textContent = tiene ? (icon || '🗡️') : '✋';
-      hud.title = tiene ? ('Arma: ' + titulo) : 'Sin arma equipada';
-      hud.classList.toggle('equipada', !!tiene);
-      hud.setAttribute('aria-hidden', 'false');
+    if (!hud) return;
+
+    const id = this.armaEquipadaId();
+    let icono = '✋';
+    let titulo = 'Sin arma equipada';
+    let equipada = false;
+
+    if (id) {
+      const item = Items.seguro(id);
+      if (Items.esArma(item)) {
+        icono = item.icono || '🗡️';
+        const dano = item.dano || 0;
+        titulo = dano > 0 ? item.nombre + ' (+' + dano + ' daño)' : item.nombre;
+        equipada = true;
+      }
     }
-    if (status) status.textContent = tiene ? ('⚔️ ' + nombre) : '⚔️ Sin arma';
+
+    hud.textContent = icono;
+    hud.title = equipada ? ('Arma: ' + titulo) : titulo;
+    hud.setAttribute('aria-label', equipada ? ('Arma equipada: ' + titulo) : titulo);
+    hud.classList.toggle('equipada', equipada);
+
+    const status = document.getElementById('inv-weapon-status');
+    if (status) status.textContent = equipada ? ('⚔️ ' + Items.seguro(id).nombre) : '⚔️ Sin arma';
   },
 
   _pintarSlotEquip() {
@@ -384,36 +394,37 @@ const Mochila = {
       slot._invSlotOk = true;
       slot.addEventListener('pointerdown', (e) => this._onSlotPointerDown(e, 'equip', 'weapon'));
     }
+    this.pintarArmaHud();
   },
 
   pintar() {
     const rejilla = document.getElementById('rejilla-mochila');
-    if (!rejilla) return;
-    const usados = this.slots.filter(Boolean).length;
-    const cap = document.getElementById('inv-capacidad');
-    if (cap) cap.textContent = usados + ' / ' + this.TOTAL_SLOTS;
-    const dinInv = document.getElementById('inv-dinero-cantidad');
-    if (dinInv && typeof Dinero !== 'undefined') dinInv.textContent = Dinero.saldo;
+    if (rejilla) {
+      const usados = this.slots.filter(Boolean).length;
+      const cap = document.getElementById('inv-capacidad');
+      if (cap) cap.textContent = usados + ' / ' + this.TOTAL_SLOTS;
+      const dinInv = document.getElementById('inv-dinero-cantidad');
+      if (dinInv && typeof Dinero !== 'undefined') dinInv.textContent = Dinero.saldo;
 
-    rejilla.innerHTML = '';
-    this.slots.forEach((sl, i) => {
-      const celda = document.createElement('div');
-      celda.className = 'slot';
-      celda.dataset.place = 'bag';
-      celda.dataset.index = i;
-      if (sl && sl.id !== this.armaEquipadaId()) {
-        const item = Items.seguro(sl.id);
-        celda.innerHTML = this._htmlItem(item.icono, sl.cantidad, true);
-        const dragEl = celda.querySelector('.inv-item-drag');
-        if (dragEl) this._enlazarSlot(dragEl, 'bag', i);
-      }
-      celda.addEventListener('pointerdown', (e) => this._onSlotPointerDown(e, 'bag', i));
-      rejilla.appendChild(celda);
-    });
+      rejilla.innerHTML = '';
+      this.slots.forEach((sl, i) => {
+        const celda = document.createElement('div');
+        celda.className = 'slot';
+        celda.dataset.place = 'bag';
+        celda.dataset.index = i;
+        if (sl && sl.id !== this.armaEquipadaId()) {
+          const item = Items.seguro(sl.id);
+          celda.innerHTML = this._htmlItem(item.icono, sl.cantidad, true);
+          const dragEl = celda.querySelector('.inv-item-drag');
+          if (dragEl) this._enlazarSlot(dragEl, 'bag', i);
+        }
+        celda.addEventListener('pointerdown', (e) => this._onSlotPointerDown(e, 'bag', i));
+        rejilla.appendChild(celda);
+      });
+    }
 
     this._pintarSlotEquip();
     this._actualizarNombreArrastre();
-    this.pintarArmaHud();
   },
 
   _puedeUsarItem(item, id) {

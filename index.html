@@ -9,7 +9,7 @@
   <link rel="icon" type="image/png" href="iconos/icono-192.png">
   <link rel="apple-touch-icon" href="iconos/icono-192.png">
   <link rel="stylesheet" href="lib/leaflet/leaflet.css">
-  <link rel="stylesheet" href="css/estilos.css?v=146">
+  <link rel="stylesheet" href="css/estilos.css?v=147">
   <link rel="stylesheet" href="css/chat.css?v=137">
   <link rel="stylesheet" href="css/amigos.css">
   <link rel="stylesheet" href="css/opciones.css?v=116">
@@ -17,7 +17,7 @@
   <script>
     // Aviso temprano en móvil (antes de cargar 20+ archivos JS)
     (function () {
-      var V = '145';
+      var V = '146';
       var texto = document.getElementById('carga-texto');
       if (texto) texto.textContent = 'Conectando…';
       var prev = localStorage.getItem('mariel_app_version');
@@ -171,7 +171,7 @@
 
   <!-- BOTONES INFERIORES -->
   <div id="botones-inferiores">
-    <span id="hud-arma-equipada" class="hud-arma-equipada" title="Arma equipada" aria-hidden="true">✋</span>
+    <button type="button" id="hud-arma-equipada" class="btn-hud-accion btn-hud-principal hud-arma-equipada" tabindex="-1" aria-label="Sin arma equipada">✋</button>
     <button id="btn-mochila" class="btn-hud-accion btn-hud-principal hud-btn-mochila" type="button" title="Mochila">🎒</button>
     <button id="btn-gps" class="btn-hud-accion btn-hud-principal hud-btn-gps" type="button" title="GPS">📍</button>
     <button id="btn-chat" class="btn-hud-accion btn-hud-principal hud-btn-chat oculto" type="button" title="Chat">💬<span id="badge-chat" class="badge-chat oculto">0</span></button>
@@ -910,7 +910,7 @@
   <script src="lib/leaflet/leaflet.js?v=104"></script>
 
   <!-- MÓDULOS DEL JUEGO (orden importante) -->
-  <script src="js/config/config.js?v=145"></script>
+  <script src="js/config/config.js?v=146"></script>
   <script src="js/nucleo/utilidades.js?v=137"></script>
   <script src="js/mundo/mundo_publico.js?v=104"></script>
   <script src="js/notificaciones/notificaciones.js?v=137"></script>
@@ -920,8 +920,8 @@
   <script src="js/dinero/dinero.js?v=104"></script>
   <script src="js/vida/vida.js?v=137"></script>
   <script src="js/items/items.js?v=140"></script>
-  <script src="js/mochila/mochila.js?v=145"></script>
-  <script src="js/bolsas/bolsas.js?v=145"></script>
+  <script src="js/mochila/mochila.js?v=146"></script>
+  <script src="js/bolsas/bolsas.js?v=146"></script>
   <script src="js/mapa/mapa.js?v=104"></script>
   <script src="js/gps/gps.js?v=104"></script>
   <script src="js/tiendas/datos_tiendas.js?v=104"></script>
@@ -946,7 +946,7 @@
     // Registrar la app instalable (PWA)
     if ('serviceWorker' in navigator) {
       const yaTeniaVersion = !!navigator.serviceWorker.controller;
-      navigator.serviceWorker.register('sw.js?v=145', { updateViaCache: 'none' })
+      navigator.serviceWorker.register('sw.js?v=146', { updateViaCache: 'none' })
         .then(function (reg) { reg.update(); })
         .catch(function () {});
       // Cuando llega una versión nueva del juego: avisar y recargar solo
