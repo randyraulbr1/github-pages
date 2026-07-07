@@ -106,6 +106,8 @@ const Admin = {
     if (!this.publicado.combate) {
       this.publicado.combate = {
         danoMin: 5, danoMax: 8, nivelReferencia: 1,
+        vidaBase: CONFIG.vidaMaxima || 100,
+        vidaExtraPorNivel: CONFIG.vidaExtraPorNivel || 4,
         radioZona: 40, radioPersecucion: 20, curacionMs: 120000
       };
     }
@@ -673,6 +675,8 @@ const Admin = {
   combateConfig() {
     return Object.assign({
       danoMin: 5, danoMax: 8, nivelReferencia: 1,
+      vidaBase: CONFIG.vidaMaxima || 100,
+      vidaExtraPorNivel: CONFIG.vidaExtraPorNivel || 4,
       radioZona: 40, radioPersecucion: 20, curacionMs: 120000
     }, this.publicado.combate || {}, this.datos.combate || {});
   },
@@ -681,7 +685,9 @@ const Admin = {
       danoMin: 5, danoMax: 8, nivelReferencia: 1,
       factorPorNivel: 0.06,
       vidaBase: 60,
-      vidaFactorPorNivel: 0.06
+      vidaFactorPorNivel: 0.06,
+      xpBase: 30,
+      xpFactorPorNivel: 0.06
     }, this.publicado.combateEnemigos || {}, this.datos.combateEnemigos || {});
   },
 
@@ -705,6 +711,24 @@ const Admin = {
     return { lo, hi };
   },
 
+  /** XP al derrotar enemigo según su nivel (tabla global). */
+  xpEnemigoPorNivel(nivel) {
+    const cfg = this.combateEnemigosConfig();
+    const n = Math.max(1, Math.min(CONFIG.nivelMaximo || 100, nivel || 1));
+    const base = Math.max(1, cfg.xpBase ?? 30);
+    const factor = cfg.xpFactorPorNivel ?? cfg.factorPorNivel ?? 0.06;
+    return Math.max(1, Math.round(base * (1 + (n - 1) * factor)));
+  },
+
+  /** Vida máxima de jugador según nivel (reglas globales). */
+  vidaJugadorPorNivel(nivel) {
+    const cfg = this.combateConfig();
+    const n = Math.max(1, Math.min(CONFIG.nivelMaximo || 100, nivel || 1));
+    const base = Math.max(10, cfg.vidaBase ?? CONFIG.vidaMaxima ?? 100);
+    const extra = cfg.vidaExtraPorNivel ?? CONFIG.vidaExtraPorNivel ?? 4;
+    return base + Math.floor((n - 1) * extra);
+  },
+
   _aplicarStatsEnemigoDesdeNivel(nivel) {
     const nv = Math.max(1, Math.min(100, nivel || 1));
     const vidaInp = document.getElementById('af-vida');
@@ -714,6 +738,8 @@ const Admin = {
     const r = this.danoEnemigoPorNivel(nv);
     if (dMinInp) dMinInp.value = r.lo;
     if (dMaxInp) dMaxInp.value = r.hi;
+    const xpInp = document.getElementById('af-xp');
+    if (xpInp) xpInp.value = this.xpEnemigoPorNivel(nv);
   },
   objetosTodos() {
     let lista;
@@ -1366,6 +1392,12 @@ const Admin = {
     enlazar('admin-crear-tienda', () => this.abrirFormulario('tienda_admin'));
     enlazar('admin-combate-config', () => this.abrirCombateConfig());
     enlazar('admin-combate-enemigos', () => this.abrirCombateEnemigosConfig());
+    enlazar('admin-bdd-global', () => this.abrirBddGlobal());
+    enlazar('admin-bdd-jugadores', () => this.abrirCombateConfig());
+    enlazar('admin-bdd-enemigos', () => this.abrirCombateEnemigosConfig());
+    enlazar('admin-catalogo', () => this.abrirCatalogoHub());
+    enlazar('admin-cat-precios', () => this.abrirFormulario('precio'));
+    enlazar('admin-cat-item', () => this.abrirFormulario('item_nuevo'));
     enlazar('btn-admin-combate-guardar', () => this._guardarCombateConfig());
     enlazar('btn-admin-combate-enemigos-guardar', () => this._guardarCombateEnemigosConfig());
     enlazar('btn-admin-cofre-panel', () => this._continuarCofrePanel());
@@ -1379,8 +1411,6 @@ const Admin = {
     enlazar('admin-crear-mision', () => this.abrirFormulario('mision'));
     enlazar('admin-crear-tesoro', () => this.abrirFormulario('tesoro'));
     enlazar('admin-dejar-objeto', () => this.abrirFormulario('objeto'));
-    enlazar('admin-precios', () => this.abrirFormulario('precio'));
-    enlazar('admin-item-nuevo', () => this.abrirFormulario('item_nuevo'));
     enlazar('admin-mantenimiento', () => this.abrirMantenimiento());
     enlazar('admin-sync-github', () => this.abrirSyncGitHub());
     enlazar('btn-admin-sync-github', () => this._forzarSyncGitHubUi());
@@ -4187,6 +4217,14 @@ const Admin = {
       Guardado.datos.dinero = partida.dinero;
       Guardado.datos.vida = partida.vida;
       Guardado.datos.muerto = partida.muerto;
+      if (partida.nivel != null) {
+        Guardado.datos.nivel = partida.nivel;
+        if (typeof Vida !== 'undefined') Vida.nivel = partida.nivel;
+      }
+      if (partida.xp != null) {
+        Guardado.datos.xp = partida.xp;
+        if (typeof Vida !== 'undefined') Vida.xp = partida.xp;
+      }
       if (partida.armaEquipada !== undefined) Guardado.datos.armaEquipada = partida.armaEquipada;
       await Guardado.guardarAhora();
       Mochila.slots = Guardado.datos.mochila;
@@ -4204,6 +4242,7 @@ const Admin = {
         }
         Vida.pintar();
       }
+      if (typeof Multijugador !== 'undefined') Multijugador.enviarStats(true);
       return;
     }
 
@@ -4263,7 +4302,18 @@ const Admin = {
       this._editorJugador.partida.mochila = new Array(25).fill(null);
     }
     document.getElementById('admin-editor-oro').value = this._editorJugador.partida.dinero?.saldo ?? 0;
-    document.getElementById('admin-editor-vida').value = this._editorJugador.partida.vida ?? CONFIG.vidaMaxima;
+    const nv = this._editorJugador.partida.nivel ?? 1;
+    const xp = this._editorJugador.partida.xp ?? 0;
+    const nvEl = document.getElementById('admin-editor-nivel');
+    const xpEl = document.getElementById('admin-editor-xp');
+    if (nvEl) nvEl.value = nv;
+    if (xpEl) xpEl.value = xp;
+    document.getElementById('admin-editor-vida').value = this._editorJugador.partida.vida ?? this.vidaJugadorPorNivel(nv);
+    this._actualizarHintVidaEditor();
+    if (nvEl && !nvEl._nivelEditorOk) {
+      nvEl._nivelEditorOk = true;
+      nvEl.addEventListener('input', () => this._actualizarHintVidaEditor());
+    }
     const nom = document.getElementById('admin-editor-nombre');
     const tel = document.getElementById('admin-editor-telefono');
     const clv = document.getElementById('admin-editor-clave');
@@ -4495,20 +4545,29 @@ const Admin = {
     else this._pintarEditorJugador();
   },
 
+  _actualizarHintVidaEditor() {
+    const nvEl = document.getElementById('admin-editor-nivel');
+    const hint = document.getElementById('admin-editor-vida-max');
+    const nv = Math.max(1, Math.min(100, parseInt(nvEl?.value, 10) || 1));
+    const max = this.vidaJugadorPorNivel(nv);
+    if (hint) hint.textContent = '(máx ' + max + ')';
+  },
+
   async _guardarEditorJugador() {
     const ed = this._editorJugador;
     if (!ed) return;
     const oro = parseInt(document.getElementById('admin-editor-oro').value, 10);
     const vida = parseInt(document.getElementById('admin-editor-vida').value, 10);
+    const nivel = Math.max(1, Math.min(100, parseInt(document.getElementById('admin-editor-nivel')?.value, 10) || 1));
+    const xp = Math.max(0, parseInt(document.getElementById('admin-editor-xp')?.value, 10) || 0);
     const nombre = (document.getElementById('admin-editor-nombre')?.value || '').trim();
     const telefono = (document.getElementById('admin-editor-telefono')?.value || '').trim().replace(/[\s-]/g, '');
     const claveNueva = (document.getElementById('admin-editor-clave')?.value || '').trim();
     const claveAnterior = this._pinAdminGet(ed.perfil.id);
     if (isNaN(oro) || oro < 0) { this._adminAviso('Oro inválido'); return; }
     if (isNaN(vida) || vida < 0) { this._adminAviso('Vida inválida'); return; }
-    const maxVida = (typeof Vida !== 'undefined' && Vida.vidaMaxima)
-      ? Vida.vidaMaxima(ed.partida.nivel || 1) : CONFIG.vidaMaxima;
-    if (vida > maxVida) { this._adminAviso('Vida máxima para ese nivel: ' + maxVida); return; }
+    const maxVida = this.vidaJugadorPorNivel(nivel);
+    if (vida > maxVida) { this._adminAviso('Vida máxima para nivel ' + nivel + ': ' + maxVida); return; }
     if (nombre.length < 2) { this._adminAviso('Nombre mínimo 2 letras'); return; }
     if (telefono && !Usuarios.telefonoValido(telefono)) { this._adminAviso('Teléfono inválido'); return; }
     const errNom = this.validarRegistro(nombre, telefono, ed.perfil.id);
@@ -4523,6 +4582,8 @@ const Admin = {
     ed.partida.dinero = ed.partida.dinero || { saldo: 0 };
     ed.partida.dinero.saldo = oro;
     ed.partida.vida = vida;
+    ed.partida.nivel = nivel;
+    ed.partida.xp = xp;
     ed.partida.muerto = vida <= 0;
     ed.perfil.nombre = nombre;
     ed.perfil.telefono = telefono;
@@ -5415,12 +5476,22 @@ const Admin = {
   },
 
   // ---------- COMBATE GLOBAL ----------
+  abrirBddGlobal() {
+    this._mostrarPanelDerecho('admin-vista-bdd-global', '🗄️ Base de datos global');
+  },
+
+  abrirCatalogoHub() {
+    this._mostrarPanelDerecho('admin-vista-catalogo', '⚙️ Catálogo del juego');
+  },
+
   abrirCombateConfig() {
     const cfg = this.combateConfig();
     const set = (id, v) => { const el = document.getElementById(id); if (el) el.value = v; };
     set('admin-combate-dano-min', cfg.danoMin);
     set('admin-combate-dano-max', cfg.danoMax);
     set('admin-combate-nivel-ref', cfg.nivelReferencia || 1);
+    set('admin-combate-vida-base', cfg.vidaBase ?? CONFIG.vidaMaxima ?? 100);
+    set('admin-combate-vida-extra', cfg.vidaExtraPorNivel ?? CONFIG.vidaExtraPorNivel ?? 4);
     set('admin-combate-radio-zona', cfg.radioZona);
     set('admin-combate-radio-persec', cfg.radioPersecucion);
     set('admin-combate-curacion', Math.round(cfg.curacionMs / 1000));
@@ -5433,7 +5504,7 @@ const Admin = {
         el.addEventListener('input', () => this._pintarGraficaCombate());
       }
     });
-    this._mostrarPanelDerecho('admin-vista-combate', '⚔️ Combate global');
+    this._mostrarPanelDerecho('admin-vista-combate', '⚔️ Reglas de jugadores');
   },
 
   _guardarCombateConfig() {
@@ -5441,6 +5512,8 @@ const Admin = {
       danoMin: Math.max(1, this._numero('admin-combate-dano-min') || 5),
       danoMax: Math.max(1, this._numero('admin-combate-dano-max') || 8),
       nivelReferencia: Math.max(1, this._numero('admin-combate-nivel-ref') || 1),
+      vidaBase: Math.max(10, this._numero('admin-combate-vida-base') || 100),
+      vidaExtraPorNivel: Math.max(0, this._numero('admin-combate-vida-extra') ?? 4),
       radioZona: Math.max(10, this._numero('admin-combate-radio-zona') || 40),
       radioPersecucion: Math.max(5, this._numero('admin-combate-radio-persec') || 20),
       curacionMs: Math.max(30000, this._numero('admin-combate-curacion') * 1000 || 120000)
@@ -5463,16 +5536,19 @@ const Admin = {
     set('admin-enemigo-factor', Math.round((cfg.factorPorNivel || 0.06) * 100));
     set('admin-enemigo-vida-base', cfg.vidaBase ?? 60);
     set('admin-enemigo-vida-factor', Math.round((cfg.vidaFactorPorNivel ?? cfg.factorPorNivel ?? 0.06) * 100));
+    set('admin-enemigo-xp-base', cfg.xpBase ?? 30);
+    set('admin-enemigo-xp-factor', Math.round((cfg.xpFactorPorNivel ?? cfg.factorPorNivel ?? 0.06) * 100));
     this._pintarGraficaCombateEnemigos();
     ['admin-enemigo-dano-min', 'admin-enemigo-dano-max', 'admin-enemigo-nivel-ref',
-      'admin-enemigo-factor', 'admin-enemigo-vida-base', 'admin-enemigo-vida-factor'].forEach(id => {
+      'admin-enemigo-factor', 'admin-enemigo-vida-base', 'admin-enemigo-vida-factor',
+      'admin-enemigo-xp-base', 'admin-enemigo-xp-factor'].forEach(id => {
       const el = document.getElementById(id);
       if (el && !el._graficaEnemigoOk) {
         el._graficaEnemigoOk = true;
         el.addEventListener('input', () => this._pintarGraficaCombateEnemigos());
       }
     });
-    this._mostrarPanelDerecho('admin-vista-combate-enemigos', '👹 Daño enemigos');
+    this._mostrarPanelDerecho('admin-vista-combate-enemigos', '👹 Enemigos y XP');
   },
 
   _pintarGraficaCombateEnemigos() {
@@ -5484,6 +5560,8 @@ const Admin = {
     const factor = Math.max(0.01, (this._numero('admin-enemigo-factor') || 6) / 100);
     const vidaBase = Math.max(10, this._numero('admin-enemigo-vida-base') || 60);
     const vidaFactor = Math.max(0.01, (this._numero('admin-enemigo-vida-factor') || 6) / 100);
+    const xpBase = Math.max(1, this._numero('admin-enemigo-xp-base') || 30);
+    const xpFactor = Math.max(0.01, (this._numero('admin-enemigo-xp-factor') || 6) / 100);
     const vidaNv = (n) => {
       const f = 1 + (n - 1) * vidaFactor;
       return Math.max(10, Math.round(vidaBase * f));
@@ -5495,12 +5573,14 @@ const Admin = {
         hi: Math.round(max * f)
       };
     };
+    const xpNv = (n) => Math.max(1, Math.round(xpBase * (1 + (n - 1) * xpFactor)));
     let html = '<div class="admin-combate-grafica-titulo">Referencia nv enemigo: ' + ref + '</div>';
-    html += '<div class="admin-combate-grafica-titulo">Vida y daño por nivel del enemigo</div>';
+    html += '<div class="admin-combate-grafica-titulo">Vida, daño y XP por nivel</div>';
     for (let n = 1; n <= Math.min(20, CONFIG.nivelMaximo || 100); n += (n < 10 ? 1 : 5)) {
       const d = danoNv(n);
       html += '<div class="admin-combate-fila">Nv ' + n + ': ❤️ ' + vidaNv(n) +
-        ' · ⚔️ ' + d.lo + '–' + Math.max(d.lo, d.hi) + '</div>';
+        ' · ⚔️ ' + d.lo + '–' + Math.max(d.lo, d.hi) +
+        ' · ✨ ' + xpNv(n) + ' XP</div>';
     }
     cont.innerHTML = html;
   },
@@ -5512,7 +5592,9 @@ const Admin = {
       nivelReferencia: Math.max(1, this._numero('admin-enemigo-nivel-ref') || 1),
       factorPorNivel: Math.max(0.01, (this._numero('admin-enemigo-factor') || 6) / 100),
       vidaBase: Math.max(10, this._numero('admin-enemigo-vida-base') || 60),
-      vidaFactorPorNivel: Math.max(0.01, (this._numero('admin-enemigo-vida-factor') || 6) / 100)
+      vidaFactorPorNivel: Math.max(0.01, (this._numero('admin-enemigo-vida-factor') || 6) / 100),
+      xpBase: Math.max(1, this._numero('admin-enemigo-xp-base') || 30),
+      xpFactorPorNivel: Math.max(0.01, (this._numero('admin-enemigo-xp-factor') || 6) / 100)
     };
     if (this.datos.combateEnemigos.danoMax < this.datos.combateEnemigos.danoMin) {
       this.datos.combateEnemigos.danoMax = this.datos.combateEnemigos.danoMin;

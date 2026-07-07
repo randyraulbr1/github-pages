@@ -4,15 +4,15 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
   <title>Mariel Explorer</title>
-  <meta name="mariel-version" content="207">
+  <meta name="mariel-version" content="208">
   <link rel="manifest" href="manifest.json">
   <link rel="icon" type="image/png" href="iconos/icono-192.png">
   <link rel="apple-touch-icon" href="iconos/icono-192.png">
   <link rel="stylesheet" href="lib/leaflet/leaflet.css">
-  <link rel="stylesheet" href="css/estilos.css?v=207">
+  <link rel="stylesheet" href="css/estilos.css?v=208">
   <link rel="stylesheet" href="css/chat.css?v=137">
   <link rel="stylesheet" href="css/amigos.css?v=158">
-  <link rel="stylesheet" href="css/opciones.css?v=207">
+  <link rel="stylesheet" href="css/opciones.css?v=208">
   <link rel="stylesheet" href="css/notificaciones.css?v=117">
   <script>
     (function () {
@@ -65,7 +65,7 @@
     </div>
   </div>
 
-  <script src="js/nucleo/version_app.js?v=207"></script>
+  <script src="js/nucleo/version_app.js?v=208"></script>
   <script>MarielVersion.iniciar(window.__MARIEL_EMBEDDED__);</script>
 
   <!-- PANTALLA DE CARGA (visible desde el primer instante) -->
@@ -198,10 +198,9 @@
   <!-- BOTONES INFERIORES -->
   <div id="barra-inferior-wrap">
     <div id="hud-combate-flotante" class="hud-combate-flotante oculto">
-      <div id="hud-ataque-cooldown" class="hud-ataque-cooldown oculto">
-        <div id="hud-ataque-cooldown-relleno"></div>
+      <div class="btn-hud-atacar-wrap oculto" id="btn-hud-atacar-wrap">
+        <button type="button" id="btn-hud-atacar" class="btn-hud-combate">⚔️ ATK</button>
       </div>
-      <button type="button" id="btn-hud-atacar" class="btn-hud-combate oculto">⚔️ ATK</button>
       <button type="button" id="btn-hud-huir" class="btn-hud-combate btn-hud-combate-huir oculto">🏃 HUIR</button>
     </div>
     <div id="botones-inferiores">
@@ -458,7 +457,9 @@
         <div id="combate-vida-texto" class="combate-vida-texto">—</div>
         <p id="combate-info" class="combate-info"></p>
         <div class="combate-botones">
-          <button type="button" id="btn-combate-atacar" class="btn-combate-atacar">⚔️ Atacar</button>
+          <div class="btn-combate-atacar-wrap" id="btn-combate-atacar-wrap">
+            <button type="button" id="btn-combate-atacar" class="btn-combate-atacar">⚔️ Atacar</button>
+          </div>
           <button type="button" id="btn-combate-huir" class="btn-combate-huir">🏃 Huir</button>
         </div>
       </div>
@@ -671,16 +672,14 @@
           <button class="fila-opcion admin-nav" id="admin-opt-visibilidad"><span class="icono-opcion">👁️</span> <span id="admin-opt-visibilidad-texto">Optimización 500 m: ON</span></button>
 
           <div class="admin-seccion-titulo">⚙️ Catálogo</div>
-          <button class="fila-opcion admin-nav" id="admin-precios"><span class="icono-opcion">💲</span> Precios</button>
-          <button class="fila-opcion admin-nav" id="admin-item-nuevo"><span class="icono-opcion">➕</span> Objeto nuevo</button>
+          <button class="fila-opcion admin-nav" id="admin-catalogo"><span class="icono-opcion">⚙️</span> Catálogo del juego</button>
 
           <div class="admin-seccion-titulo">👥 Jugadores</div>
           <button class="fila-opcion admin-nav" id="admin-jugadores"><span class="icono-opcion">👥</span> Lista</button>
           <button class="fila-opcion admin-nav" id="admin-mensaje"><span class="icono-opcion">✉️</span> Mensaje</button>
 
-          <div class="admin-seccion-titulo">⚔️ Combate</div>
-          <button class="fila-opcion admin-nav" id="admin-combate-config"><span class="icono-opcion">⚔️</span> Reglas globales</button>
-          <button class="fila-opcion admin-nav" id="admin-combate-enemigos"><span class="icono-opcion">👹</span> Daño enemigos</button>
+          <div class="admin-seccion-titulo">🗄️ Base de datos global</div>
+          <button class="fila-opcion admin-nav" id="admin-bdd-global"><span class="icono-opcion">🗄️</span> Reglas y balance</button>
 
           <div class="admin-seccion-titulo">🌍 Servidor</div>
           <button class="fila-opcion admin-nav" id="admin-mantenimiento"><span class="icono-opcion">🚧</span> Mantenimiento: <span id="admin-mant-nav-texto">OFF</span></button>
@@ -776,8 +775,16 @@
                 <input id="admin-editor-oro" type="number" min="0" inputmode="numeric">
               </div>
               <div class="admin-editor-oro">
-                <label for="admin-editor-vida">❤️ Vida (0 = muerto)</label>
-                <input id="admin-editor-vida" type="number" min="0" max="100" inputmode="numeric">
+                <label for="admin-editor-nivel">⭐ Nivel</label>
+                <input id="admin-editor-nivel" type="number" min="1" max="100" inputmode="numeric">
+              </div>
+              <div class="admin-editor-oro">
+                <label for="admin-editor-xp">✨ XP total</label>
+                <input id="admin-editor-xp" type="number" min="0" inputmode="numeric">
+              </div>
+              <div class="admin-editor-oro">
+                <label for="admin-editor-vida">❤️ Vida <span id="admin-editor-vida-max" class="admin-hint-max"></span></label>
+                <input id="admin-editor-vida" type="number" min="0" inputmode="numeric">
               </div>
             </div>
             <div class="admin-editor-horizontal">
@@ -888,10 +895,25 @@
             </div>
           </div>
 
+          <div id="admin-vista-catalogo" class="admin-vista oculto">
+            <div class="admin-hub-cuerpo">
+              <p class="admin-clave-ayuda">Catálogo del juego: precios de tienda y objetos personalizados.</p>
+              <button type="button" class="fila-opcion admin-nav admin-hub-btn" id="admin-cat-precios"><span class="icono-opcion">💲</span> Precios</button>
+              <button type="button" class="fila-opcion admin-nav admin-hub-btn" id="admin-cat-item"><span class="icono-opcion">➕</span> Objeto nuevo</button>
+            </div>
+          </div>
+
+          <div id="admin-vista-bdd-global" class="admin-vista oculto">
+            <div class="admin-hub-cuerpo">
+              <p class="admin-clave-ayuda">Reglas globales de combate, vida de jugadores, enemigos y XP.</p>
+              <button type="button" class="fila-opcion admin-nav admin-hub-btn" id="admin-bdd-jugadores"><span class="icono-opcion">⚔️</span> Reglas de jugadores</button>
+              <button type="button" class="fila-opcion admin-nav admin-hub-btn" id="admin-bdd-enemigos"><span class="icono-opcion">👹</span> Enemigos y XP</button>
+            </div>
+          </div>
+
           <div id="admin-vista-combate" class="admin-vista oculto">
             <div class="admin-clave-cuerpo">
-              <p class="admin-clave-ayuda">Reglas de combate para todos los jugadores al publicar el mundo.</p>
-              <p class="admin-clave-ayuda">Daño de referencia en el nivel indicado (ej. nivel 4: entre mín y máx). Escala en todos los niveles.</p>
+              <p class="admin-clave-ayuda">Daño y vida de jugadores según nivel. Escala en todos los niveles.</p>
               <div class="campo-doble">
                 <div class="campo-admin">
                   <label for="admin-combate-dano-min">Daño mínimo (nivel de referencia)</label>
@@ -905,6 +927,16 @@
               <div class="campo-admin">
                 <label for="admin-combate-nivel-ref">Nivel de referencia (ej. 4 → daño entre mín y máx en nv. 4)</label>
                 <input id="admin-combate-nivel-ref" type="number" min="1" max="100" inputmode="numeric">
+              </div>
+              <div class="campo-doble">
+                <div class="campo-admin">
+                  <label for="admin-combate-vida-base">Vida base (nivel 1)</label>
+                  <input id="admin-combate-vida-base" type="number" min="10" inputmode="numeric">
+                </div>
+                <div class="campo-admin">
+                  <label for="admin-combate-vida-extra">Vida extra por nivel</label>
+                  <input id="admin-combate-vida-extra" type="number" min="0" inputmode="numeric">
+                </div>
               </div>
               <div class="campo-doble">
                 <div class="campo-admin">
@@ -955,6 +987,16 @@
                 <div class="campo-admin">
                   <label for="admin-enemigo-vida-factor">Extra vida por nivel (%)</label>
                   <input id="admin-enemigo-vida-factor" type="number" min="1" max="50" inputmode="numeric">
+                </div>
+              </div>
+              <div class="campo-doble">
+                <div class="campo-admin">
+                  <label for="admin-enemigo-xp-base">XP base (nivel 1)</label>
+                  <input id="admin-enemigo-xp-base" type="number" min="1" inputmode="numeric">
+                </div>
+                <div class="campo-admin">
+                  <label for="admin-enemigo-xp-factor">Extra XP por nivel (%)</label>
+                  <input id="admin-enemigo-xp-factor" type="number" min="1" max="50" inputmode="numeric">
                 </div>
               </div>
               <button type="button" id="btn-admin-combate-enemigos-guardar" class="btn-auth-principal">Guardar reglas enemigos</button>
@@ -1017,18 +1059,18 @@
   <script src="lib/leaflet/leaflet.js?v=104"></script>
 
   <!-- MÓDULOS DEL JUEGO (orden importante) -->
-  <script src="js/config/config.js?v=207"></script>
-  <script src="js/nucleo/utilidades.js?v=207"></script>
+  <script src="js/config/config.js?v=208"></script>
+  <script src="js/nucleo/utilidades.js?v=208"></script>
   <script src="js/mundo/mundo_publico.js?v=104"></script>
   <script src="js/notificaciones/notificaciones.js?v=137"></script>
-  <script src="js/usuarios/usuarios.js?v=207"></script>
+  <script src="js/usuarios/usuarios.js?v=208"></script>
   <script src="js/guardado/guardado.js?v=149"></script>
   <script src="js/historial/historial.js?v=104"></script>
   <script src="js/dinero/dinero.js?v=104"></script>
-  <script src="js/vida/vida.js?v=207"></script>
+  <script src="js/vida/vida.js?v=208"></script>
   <script src="js/items/items.js?v=140"></script>
-  <script src="js/mochila/mochila.js?v=207"></script>
-  <script src="js/bolsas/bolsas.js?v=207"></script>
+  <script src="js/mochila/mochila.js?v=208"></script>
+  <script src="js/bolsas/bolsas.js?v=208"></script>
   <script src="js/mapa/mapa.js?v=104"></script>
   <script src="js/gps/gps.js?v=150"></script>
   <script src="js/tiendas/datos_tiendas.js?v=104"></script>
@@ -1040,19 +1082,19 @@
   <script src="js/misiones/misiones.js?v=104"></script>
   <script src="js/cofres/cofres.js?v=104"></script>
   <script src="js/correo/correo.js?v=104"></script>
-  <script src="js/enemigos/enemigos.js?v=207"></script>
-  <script src="js/online/sync_servidor.js?v=207"></script>
-  <script src="js/admin/admin.js?v=207"></script>
-  <script src="js/opciones/opciones.js?v=207"></script>
-  <script src="js/online/mundo_online.js?v=207"></script>
-  <script src="js/online/amigos.js?v=207"></script>
-  <script src="js/chat/chat.js?v=207"></script>
-  <script src="js/online/multijugador.js?v=207"></script>
-  <script src="js/principal.js?v=207"></script>
+  <script src="js/enemigos/enemigos.js?v=208"></script>
+  <script src="js/online/sync_servidor.js?v=208"></script>
+  <script src="js/admin/admin.js?v=208"></script>
+  <script src="js/opciones/opciones.js?v=208"></script>
+  <script src="js/online/mundo_online.js?v=208"></script>
+  <script src="js/online/amigos.js?v=208"></script>
+  <script src="js/chat/chat.js?v=208"></script>
+  <script src="js/online/multijugador.js?v=208"></script>
+  <script src="js/principal.js?v=208"></script>
   <script>
     // Registrar la app instalable (PWA)
     if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.register('sw.js?v=207', { updateViaCache: 'none' })
+      navigator.serviceWorker.register('sw.js?v=208', { updateViaCache: 'none' })
         .then(function (reg) {
           if (typeof MarielVersion !== 'undefined') MarielVersion.registrarServiceWorker(reg);
         })

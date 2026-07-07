@@ -598,12 +598,39 @@ button { font-family: inherit; }
 .hud-combate-flotante.pos-atk-izq { justify-content: flex-start; }
 .hud-combate-flotante.pos-atk-der { justify-content: flex-end; }
 .hud-combate-flotante > * { pointer-events: auto; }
-.hud-combate-flotante .hud-ataque-cooldown {
+.btn-hud-atacar-wrap,
+.btn-combate-atacar-wrap {
+  position: relative;
+  flex: 0 0 136px;
+  width: 136px;
+  max-width: 136px;
+  box-sizing: border-box;
+}
+.btn-hud-atacar-wrap.oculto { display: none; }
+.btn-hud-atacar-wrap::before,
+.btn-combate-atacar-wrap::before {
+  content: '';
   position: absolute;
-  top: -7px;
-  left: 0;
-  right: 0;
-  width: 100%;
+  inset: -3px;
+  border-radius: 17px;
+  padding: 3px;
+  background: conic-gradient(#ffb020 calc(var(--cd-pct, 0) * 1%), transparent 0);
+  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity .12s;
+}
+.btn-hud-atacar-wrap.mostrando-cd::before,
+.btn-combate-atacar-wrap.mostrando-cd::before {
+  opacity: 1;
+}
+.btn-combate-atacar-wrap {
+  flex: 1 1 auto;
+  width: auto;
+  max-width: none;
 }
 .banner-huida {
   position: fixed;
@@ -621,23 +648,22 @@ button { font-family: inherit; }
   text-align: center;
   border: 1px solid rgba(138, 180, 255, .35);
 }
-.hud-ataque-cooldown {
-  width: 100%;
-  height: 5px;
-  border-radius: 3px;
-  background: rgba(0, 0, 0, .28);
-  overflow: hidden;
+.admin-hub-cuerpo {
+  padding: 4px 0 12px;
 }
-#hud-ataque-cooldown-relleno {
-  height: 100%;
-  width: 0%;
-  background: linear-gradient(90deg, #c8860a, #ffb020);
-  transition: width .15s linear;
+.admin-hub-cuerpo .admin-hub-btn {
+  width: 100%;
+  margin: 0 0 8px;
+  text-align: left;
+  border-radius: 12px;
+}
+.admin-hint-max {
+  font-size: 11px;
+  font-weight: 600;
+  color: #8e8e93;
 }
 .btn-hud-combate {
-  flex: 0 0 136px;
-  width: 136px;
-  max-width: 136px;
+  width: 100%;
   box-sizing: border-box;
   padding: 12px 10px;
   border: none;
