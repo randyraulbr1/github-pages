@@ -168,8 +168,10 @@ const Multijugador = {
       auth: { token },
       transports: ['websocket', 'polling'],
       reconnection: true,
-      reconnectionAttempts: 8,
-      timeout: 20000
+      reconnectionAttempts: 20,
+      reconnectionDelay: 1500,
+      reconnectionDelayMax: 8000,
+      timeout: 25000
     });
 
     this._enlazarEventos();
@@ -186,12 +188,13 @@ const Multijugador = {
 
     this.socket.on('connect_error', () => {
       this.activo = false;
-      this._mostrarReconectando(true);
+      this._actualizarIndicadorConexion('reconectando');
     });
 
     this.socket.on('connect', () => {
       this.activo = true;
-      this._mostrarReconectando(false);
+      this._reconectando = false;
+      this._ocultarAvisoReconexion();
       this._actualizarIndicadorConexion('online');
       if (typeof GPS !== 'undefined' && GPS.posicion) {
         this.enviarPosicion(GPS.posicion[0], GPS.posicion[1], true);
@@ -206,13 +209,34 @@ const Multijugador = {
       }
     });
 
-    this.socket.on('disconnect', () => {
+    this.socket.on('disconnect', (motivo) => {
       this.activo = false;
-      this._mostrarReconectando(true);
+      if (motivo === 'io client disconnect') {
+        this._actualizarIndicadorConexion('offline');
+        return;
+      }
+      this._actualizarIndicadorConexion('reconectando');
       if (this._pollMundo) {
         clearInterval(this._pollMundo);
         this._pollMundo = null;
       }
+    });
+
+    this.socket.io.on('reconnect', () => {
+      this.activo = true;
+      this._reconectando = false;
+      this._ocultarAvisoReconexion();
+      this._actualizarIndicadorConexion('online');
+    });
+
+    this.socket.io.on('reconnect_attempt', () => {
+      this._actualizarIndicadorConexion('reconectando');
+    });
+
+    this.socket.io.on('reconnect_failed', () => {
+      this.activo = false;
+      this._actualizarIndicadorConexion('offline');
+      this._intentarReconectarManual();
     });
 
     this.socket.on('game:init', (data) => {
@@ -444,6 +468,16 @@ const Multijugador = {
         if (typeof Amigos !== 'undefined') Amigos.manejarPopupClick(ev);
       });
     }
+    if (!this._visibilidadOk) {
+      this._visibilidadOk = true;
+      document.addEventListener('visibilitychange', () => {
+        if (document.visibilityState !== 'visible') return;
+        if (this.activo) return;
+        if (typeof Usuarios === 'undefined' || !Usuarios.perfilActivo) return;
+        this._intentarReconectarManual();
+        this._sincronizarPinesPartida();
+      });
+    }
   },
 
   _miPlayerId() {
@@ -468,8 +502,16 @@ const Multijugador = {
     return Utilidades.distanciaMetros(GPS.posicion, [pos.x, pos.y]);
   },
 
+  _estaEnVivo(playerId) {
+    const id = Number(playerId);
+    if (!Number.isFinite(id) || id < 0) return false;
+    return this.online.some(p => Number(p.playerId) === id);
+  },
+
   _debeMostrarJugador(p) {
-    if (!this._visible(p.playerId)) return false;
+    if (!p || !this._visible(p.playerId)) return false;
+    if (this._estaEnVivo(p.playerId)) return true;
+    if (typeof Amigos !== 'undefined' && Amigos.esMarcado(p.playerId)) return true;
     if (typeof Admin !== 'undefined' && Admin.entidadVisibleEnRango) {
       return Admin.entidadVisibleEnRango(this._distanciaJugador(p));
     }
@@ -513,12 +555,32 @@ const Multijugador = {
     }
   },
 
+  _ocultarAvisoReconexion() {
+    if (typeof Notificaciones !== 'undefined' && Notificaciones._ocultarToast) {
+      Notificaciones._ocultarToast();
+    }
+  },
+
+  _intentarReconectarManual() {
+    if (this._reconectarTimer) return;
+    this._reconectarTimer = setTimeout(async () => {
+      this._reconectarTimer = null;
+      if (this.activo || typeof Usuarios === 'undefined' || !Usuarios.perfilActivo) return;
+      if (typeof SyncServidor !== 'undefined') {
+        await SyncServidor.asegurarSesionServidor().catch(() => {});
+      }
+      await this.conectar();
+    }, 4000);
+  },
+
   _mostrarReconectando(activo) {
     this._reconectando = !!activo;
     this._actualizarIndicadorConexion(activo ? 'reconectando' : (this.activo ? 'online' : 'offline'));
     if (typeof Notificaciones === 'undefined') return;
     if (activo) {
-      Notificaciones.mostrar('📡 Reconectando al servidor…', 'alerta', 0);
+      Notificaciones.mostrar('📡 Reconectando al servidor…', 'alerta', 4000);
+    } else {
+      this._ocultarAvisoReconexion();
     }
   },
 
@@ -532,12 +594,12 @@ const Multijugador = {
     el.classList.remove('oculto', 'estado-reconectando', 'estado-offline');
     if (estado === 'reconectando') {
       el.classList.add('estado-reconectando');
-      el.title = 'Reconectando…';
+      el.title = 'Reconectando al servidor…';
     } else if (estado === 'offline') {
       el.classList.add('estado-offline');
       el.title = 'Sin conexión al servidor';
     } else {
-      el.title = 'Conectado al servidor';
+      el.title = 'Conectado al servidor (verde = en vivo)';
     }
   },
 
@@ -1123,7 +1185,11 @@ const Multijugador = {
 
   _nombreEnLinea(nombre) {
     const n = String(nombre || '').trim().toLowerCase();
-    return this.online.some(p => String(p.name || '').trim().toLowerCase() === n);
+    return this.online.some(p => {
+      if (String(p.name || '').trim().toLowerCase() !== n) return false;
+      const id = Number(p.playerId);
+      return !!(this.marcadores[id] || this.cuerposMarcadores[String(id)]);
+    });
   },
 
   _quitarMarcadorPartida(perfilId) {
@@ -1135,6 +1201,14 @@ const Multijugador = {
   },
 
   _jugadorPartidaVisible(j, lat, lng) {
+    if (!j) return false;
+    const enVivo = this.online.find(p =>
+      String(p.name || '').trim().toLowerCase() === String(j.nombre || '').trim().toLowerCase()
+    );
+    if (enVivo) {
+      const fake = { playerId: enVivo.playerId, name: enVivo.name, x: lat, y: lng };
+      return this._debeMostrarJugador(fake);
+    }
     const fake = { playerId: -1, name: j.nombre, x: lat, y: lng };
     if (!this._debeMostrarJugador(fake)) return false;
     return true;

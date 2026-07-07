@@ -238,11 +238,13 @@ async function esperarMundoEnMapa() {
         Notificaciones.mostrar('🌴 ¡Hola ' + Usuarios.perfilActivo.nombre + '! Toca 📍 para usar tu GPS', 'info', 4500);
       }
       if (typeof Multijugador !== 'undefined' && !Multijugador.activo) {
-        Multijugador.conectar().then((ok) => {
-          if (ok && Multijugador.activo && typeof Notificaciones !== 'undefined') {
-            Notificaciones.mostrar('📡 Conectado al servidor en vivo', 'info', 2500);
-          }
-        }).catch(() => {});
+        if (typeof SyncServidor !== 'undefined') {
+          await SyncServidor.asegurarSesionServidor().catch(() => {});
+        }
+        const ok = await Multijugador.conectarYEsperarMundo(15000).catch(() => false);
+        if (ok && Multijugador.activo && typeof Notificaciones !== 'undefined') {
+          Notificaciones.mostrar('📡 Conectado al servidor en vivo', 'info', 2500);
+        }
       }
       Guardado.sincronizarNube(true).catch(() => {});
       if (!Usuarios.perfilActivo.telefono) {
