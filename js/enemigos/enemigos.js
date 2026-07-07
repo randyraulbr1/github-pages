@@ -22,7 +22,7 @@ const Enemigos = {
   _interp: {},
   /** Posición en vivo del servidor (no confundir con spawn en mundo.json) */
   _posViva: {},
-  COOLDOWN_ATAQUE_MS: 10000,
+  COOLDOWN_ATAQUE_MS: 3000,
   HUIR_INVISIBLE_MS: 120000,
   PROB_FALLO_BASE: 12,
   PASO_PERSECUCION_M: 1.5,
@@ -467,8 +467,6 @@ const Enemigos = {
         '<div class="enemigo-cono"></div></div>' : '';
     const calavera = letal
       ? '<span class="mjo-calavera" title="Nv ' + nv + ' · 10× tu nivel">💀</span>' : '';
-    const numVida = grande
-      ? '<span class="mjo-vida-num">' + actual + '/' + max + '</span>' : '';
     return '<div class="marcador-enemigo-map enemigo-pin' + (letal ? ' enemigo-letal' : '') + '">' +
       cono +
       '<div class="mjo-etiqueta">' +
@@ -478,7 +476,8 @@ const Enemigos = {
       '</div>' +
       '<div class="enemigo-barra-wrap">' +
       '<div class="mjo-barra mjo-barra-enemigo' + (grande ? ' mjo-barra-cerca' : '') + '">' +
-      '<div class="mjo-barra-fill" style="width:' + pct + '%"></div>' + numVida + '</div></div>' +
+      '<div class="mjo-barra-fill" style="width:' + pct + '%"></div>' +
+      '<span class="mjo-vida-num">' + actual + '/' + max + '</span></div></div>' +
       '<span class="enemigo-emoji">' + (e.icono || '👹') + '</span>' +
       '</div>';
   },
@@ -768,15 +767,14 @@ const Enemigos = {
     const max = this._vidaMaxEnemigo(e);
     const actual = this._vidaActual(e);
     const pct = Math.max(0, Math.min(100, (actual / max) * 100));
+    const quiereGrande = !!e._vidaGrande;
     if (el) {
       const fill = el.querySelector('.mjo-barra-fill');
       const num = el.querySelector('.mjo-vida-num');
       const barra = el.querySelector('.mjo-barra-enemigo');
       if (fill) fill.style.width = pct + '%';
       if (num) num.textContent = actual + '/' + max;
-      const quiereGrande = !!e._vidaGrande;
-      const tieneGrande = barra?.classList.contains('mjo-barra-cerca');
-      if (quiereGrande !== tieneGrande) this._refrescarIconoMarcador(e);
+      if (barra) barra.classList.toggle('mjo-barra-cerca', quiereGrande);
       return;
     }
     this._refrescarIconoMarcador(e);
@@ -1103,11 +1101,8 @@ const Enemigos = {
       const enZona = !invisible && d <= radioZona;
       const enAtaque = !invisible && d <= radioAtaque;
       e._enZona = enZona;
-      const vidaGrande = enZona && (enAtaque || this._enCombate === e || this._objetivoHud === e);
-      if (e._vidaGrande !== vidaGrande) {
-        e._vidaGrande = vidaGrande;
-        this._refrescarIconoMarcador(e);
-      }
+      // Dentro del círculo rojo dibujado → números; fuera → barra pequeña (sin recrear icono)
+      e._vidaGrande = enZona;
       this._actualizarVisibilidadZonas(e, d);
 
       if (online) {
