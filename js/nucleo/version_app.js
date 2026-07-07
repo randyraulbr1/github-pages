@@ -15,22 +15,21 @@ const MarielVersion = {
   _actualizando: false,
   _arranqueTimers: [],
 
+  _versionPersistida() {
+    try {
+      return this._num(localStorage.getItem('mariel_app_version'));
+    } catch (e) {
+      return 0;
+    }
+  },
+
   _prepararLoginTrasActualizacion() {
     try {
-      sessionStorage.setItem('mariel_forzar_login', '1');
       const adminRaw = localStorage.getItem('mariel_admin_v1');
       if (adminRaw) {
         localStorage.setItem('mariel_admin_backup_v1', adminRaw);
       }
-      const raw = localStorage.getItem('mariel_perfiles_v2');
-      if (raw) {
-        const datos = JSON.parse(raw);
-        if (datos && typeof datos === 'object') {
-          datos.activo = null;
-          datos.sesionId = null;
-          localStorage.setItem('mariel_perfiles_v2', JSON.stringify(datos));
-        }
-      }
+      // Solo invalida el token online; la cuenta local sigue activa.
       localStorage.removeItem('mariel_online_token');
     } catch (e) { /* */ }
   },
@@ -84,12 +83,22 @@ const MarielVersion = {
     for (const t of this._arranqueTimers) clearTimeout(t);
     this._arranqueTimers = [];
     [0, 800, 2000, 5000, 12000].forEach((ms) => {
-      this._arranqueTimers.push(setTimeout(() => this._comprobarRemota(), ms));
+      this._arranqueTimers.push(setTimeout(() => this._comprobarRemota({ bloquear: ms >= 5000 }), ms));
     });
+
+    try {
+      const v = this.versionCargada();
+      if (v) {
+        const prev = this._versionPersistida();
+        if (v > prev) localStorage.setItem('mariel_app_version', String(v));
+      }
+    } catch (e) { /* */ }
   },
 
   iniciar(versionEmbebida) {
-    this._embebida = String(window.__MARIEL_EMBEDDED__ || versionEmbebida || '');
+    const emb = String(window.__MARIEL_EMBEDDED__ || versionEmbebida || '');
+    const persistida = this._versionPersistida();
+    this._embebida = String(Math.max(this._num(emb), persistida) || emb);
     this._aplicarVersionTrasActualizacion();
     const btn = document.getElementById('btn-actualizar-app');
     if (btn && !btn._marielVersionOk) {
@@ -98,32 +107,32 @@ const MarielVersion = {
     }
 
     window.addEventListener('mariel-update-pending', () => {
-      this._aplicarPendienteInline();
-      this._comprobarRemota();
+      this._aplicarPendienteInline({ bloquear: false });
+      this._comprobarRemota({ bloquear: false });
     });
 
-    this._aplicarPendienteInline();
-    this.revisar();
-    this._comprobarRemota();
+    this._aplicarPendienteInline({ bloquear: false });
+    this.revisar({ bloquear: false });
+    this._comprobarRemota({ bloquear: false });
     this._programarComprobacionesArranque();
 
     document.addEventListener('visibilitychange', () => {
-      if (document.visibilityState === 'visible') this._comprobarRemota();
+      if (document.visibilityState === 'visible') this._comprobarRemota({ bloquear: true });
     });
-    window.addEventListener('focus', () => this._comprobarRemota());
-    window.addEventListener('online', () => this._comprobarRemota());
+    window.addEventListener('focus', () => this._comprobarRemota({ bloquear: true }));
+    window.addEventListener('online', () => this._comprobarRemota({ bloquear: true }));
 
     if (this._pollTimer) clearInterval(this._pollTimer);
-    this._pollTimer = setInterval(() => this._comprobarRemota(), this._pollMs);
+    this._pollTimer = setInterval(() => this._comprobarRemota({ bloquear: true }), this._pollMs);
 
     if ('serviceWorker' in navigator) {
       navigator.serviceWorker.addEventListener('controllerchange', () => {
-        this._comprobarRemota();
+        this._comprobarRemota({ bloquear: true });
       });
       navigator.serviceWorker.addEventListener('message', (ev) => {
         if (ev.data?.tipo === 'nueva-version') {
           if (ev.data.version) this._remota = String(ev.data.version);
-          this._comprobarRemota();
+          this._comprobarRemota({ bloquear: true });
         }
       });
     }
@@ -171,17 +180,18 @@ const MarielVersion = {
     return String(this.versionCargada() || this._embebida || '?');
   },
 
-  /** Versión realmente cargada en esta sesión (no localStorage). */
+  /** Versión realmente cargada en esta sesión (meta, config, caché limpia y localStorage). */
   versionCargada() {
     const emb = this._num(this._embebida);
     const cfg = typeof CONFIG !== 'undefined' ? this._num(CONFIG.version) : 0;
+    const persistida = this._versionPersistida();
     let forz = 0;
     try {
       const fv = sessionStorage.getItem('mariel_force_version');
       const t0 = parseInt(sessionStorage.getItem('mariel_actualizado_en') || '0', 10);
       if (fv && t0 && Date.now() - t0 < 120000) forz = this._num(fv);
     } catch (e) { /* */ }
-    return Math.max(emb, cfg, forz) || emb || cfg || forz || 0;
+    return Math.max(emb, cfg, persistida, forz) || emb || cfg || persistida || forz || 0;
   },
 
   _parseVersionTexto(txt) {

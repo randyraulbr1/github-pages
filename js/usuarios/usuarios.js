@@ -501,7 +501,11 @@ const Usuarios = {
           this._incorporarJugadorEnMundo(data.jugador);
           return;
         }
-      } catch (e) { /* sin red */ }
+      } catch (e) {
+        // Sin red: no expulsar si la cuenta sigue en la lista local
+        if (this.datos.lista.some(p => p.id === this.perfilActivo.id)) return;
+        if (tieneToken) return;
+      }
       if (tieneToken) return;
     }
 
