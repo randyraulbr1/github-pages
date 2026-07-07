@@ -3,21 +3,21 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-  <title>Mariel Explorer</title>
-  <meta name="mariel-version" content="261">
+  <title>Kingdom Map</title>
+  <meta name="mariel-version" content="262">
   <link rel="manifest" href="manifest.json">
   <link rel="icon" type="image/png" href="iconos/icono-192.png">
   <link rel="apple-touch-icon" href="iconos/icono-192.png">
   <link rel="stylesheet" href="lib/leaflet/leaflet.css">
-  <link rel="stylesheet" href="css/estilos.css?v=261">
-  <link rel="stylesheet" href="css/chat.css?v=261">
-  <link rel="stylesheet" href="css/amigos.css?v=261">
-  <link rel="stylesheet" href="css/opciones.css?v=261">
+  <link rel="stylesheet" href="css/estilos.css?v=262">
+  <link rel="stylesheet" href="css/chat.css?v=262">
+  <link rel="stylesheet" href="css/amigos.css?v=262">
+  <link rel="stylesheet" href="css/opciones.css?v=262">
   <link rel="stylesheet" href="css/notificaciones.css?v=117">
   <script>
     (function () {
       var metaV = document.querySelector('meta[name="mariel-version"]');
-      var E = (metaV && metaV.getAttribute('content')) || '261';
+      var E = (metaV && metaV.getAttribute('content')) || '262';
       var CANON = 'https://raw.githubusercontent.com/randyraulbr1/github-pages/main/version.json';
       try {
         var fv = sessionStorage.getItem('mariel_force_version');
@@ -76,15 +76,15 @@
     </div>
   </div>
 
-  <script src="js/nucleo/version_app.js?v=261"></script>
+  <script src="js/nucleo/version_app.js?v=262"></script>
   <script>MarielVersion.iniciar(window.__MARIEL_EMBEDDED__);</script>
 
   <!-- PANTALLA DE CARGA (visible desde el primer instante) -->
   <div id="pantalla-carga">
-    <div class="carga-logo">🌴</div>
-    <div class="carga-titulo">Mariel Explorer</div>
+    <div class="carga-logo kingdom-carga-logo">🗺️</div>
+    <div class="carga-titulo">Kingdom Map</div>
     <div class="carga-barra"><div class="carga-progreso"></div></div>
-    <div id="carga-texto" class="carga-texto">Cargando el mundo…</div>
+    <div id="carga-texto" class="carga-texto">Cargando el reino…</div>
   </div>
 
   <!-- PANTALLA: JUGADOR MUERTO (vida 0) -->
@@ -246,41 +246,93 @@
   </div>
 
   <!-- ============ LOGIN ============ -->
-  <div id="pantalla-login" class="pantalla-auth oculto">
-    <div class="auth-caja">
-      <div class="auth-titulo">🌴 Mariel Explorer</div>
-      <div class="auth-sub">Iniciar sesión</div>
-      <input id="login-usuario" maxlength="20" placeholder="Nombre o teléfono" autocomplete="username">
-      <div class="campo-clave">
-        <input id="login-clave" type="password" placeholder="Contraseña (mín. 8, 1 mayúscula, 1 especial)" autocomplete="current-password">
-        <button type="button" class="btn-ojo-clave" data-campo="login-clave">👁️</button>
+  <div id="pantalla-login" class="pantalla-auth kingdom-auth oculto">
+    <div class="kingdom-auth-panel">
+      <header class="kingdom-auth-header">
+        <div class="kingdom-auth-logo" aria-hidden="true">🗺️</div>
+        <h1 class="kingdom-auth-title">Kingdom Map</h1>
+        <p class="kingdom-auth-sub">Inicia sesión para seguir tu aventura</p>
+      </header>
+
+      <div id="login-aviso" class="auth-aviso-mensaje kingdom-auth-alerta oculto" role="alert"></div>
+
+      <div class="kingdom-auth-form">
+        <label class="kingdom-auth-label" for="login-usuario">Nombre o teléfono</label>
+        <div class="kingdom-auth-campo">
+          <span class="kingdom-auth-icono" aria-hidden="true">👤</span>
+          <input id="login-usuario" maxlength="20" placeholder="Tu nombre o número" autocomplete="username">
+        </div>
+
+        <label class="kingdom-auth-label" for="login-clave">Contraseña</label>
+        <div class="kingdom-auth-campo kingdom-auth-campo-clave">
+          <span class="kingdom-auth-icono" aria-hidden="true">🔒</span>
+          <input id="login-clave" type="password" placeholder="Tu contraseña" autocomplete="current-password">
+          <button type="button" class="btn-ojo-clave" data-campo="login-clave" aria-label="Mostrar contraseña" title="Mostrar contraseña">
+            <svg class="ojo-svg ojo-svg-ver" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5c-1.73-4.39-6-7.5-11-7.5zm0 12.5c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5zm0-8c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3-1.34-3-3-3z"/></svg>
+            <svg class="ojo-svg ojo-svg-ocultar" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 7c2.76 0 5 2.24 5 5 0 .65-.13 1.26-.36 1.83l2.92 2.92c1.51-1.26 2.7-2.89 3.43-4.75-1.73-4.39-6-7.5-11-7.5-1.4 0-2.74.25-3.98.7l2.16 2.16C10.74 7.13 11.35 7 12 7zM2 4.27l2.28 2.28.46.46C3.08 8.3 1.78 10.02 1 12c1.73 4.39 6 7.5 11 7.5 1.55 0 3.03-.3 4.38-.84l.42.42L19.73 22 21 20.73 3.27 3 2 4.27zM7.53 9.8l1.55 1.55c-.05.21-.08.43-.08.65 0 1.66 1.34 3 3 3 .22 0 .44-.03.65-.08l1.55 1.55c-.67.33-1.41.53-2.2.53-2.76 0-5-2.24-5-5 0-.79.2-1.53.53-2.2zm4.31-.78l3.15 3.15.02-.16c0-1.66-1.34-3-3-3l-.17.01z"/></svg>
+          </button>
+        </div>
+
+        <button id="btn-iniciar-sesion" class="btn-kingdom-entrar">Entrar al juego</button>
+
+        <div class="kingdom-auth-sep"><span>o</span></div>
+
+        <button type="button" id="btn-ir-registro" class="btn-kingdom-secundario">Crear cuenta nueva</button>
+        <button type="button" id="btn-dev-login-randy" class="btn-kingdom-dev">⚡ Randy (dev)</button>
+
+        <p class="kingdom-auth-pie">Al entrar aceptas jugar limpio y respetar a los demás. 🗺️</p>
+        <p class="kingdom-auth-gps">👥 Verás a otros jugadores en vivo (activa 📍 GPS)</p>
       </div>
-      <div id="login-aviso" class="auth-aviso-mensaje oculto" role="alert"></div>
-      <button id="btn-iniciar-sesion" class="btn-auth-principal">Entrar al juego</button>
-      <button type="button" id="btn-dev-login-randy" class="btn-auth-secundario btn-dev-login-randy">⚡ Randy (dev)</button>
-      <button type="button" id="btn-ir-registro" class="btn-auth-secundario">Crear cuenta nueva</button>
-      <p class="auth-sub" style="margin-top:.75rem;font-size:.85rem;opacity:.85">👥 Al entrar verás a otros jugadores en vivo en el mapa (activa 📍 GPS)</p>
     </div>
   </div>
 
   <!-- ============ REGISTRO ============ -->
-  <div id="pantalla-registro" class="pantalla-auth oculto">
-    <div class="auth-caja">
-      <div class="auth-titulo">🌴 Mariel Explorer</div>
-      <div class="auth-sub">Crear cuenta</div>
-      <input id="registro-nombre" maxlength="20" placeholder="Tu nombre" autocomplete="off">
-      <input id="registro-telefono" inputmode="tel" maxlength="16" placeholder="📱 Teléfono (solo números)" autocomplete="off">
-      <div class="campo-clave">
-        <input id="registro-clave" type="password" placeholder="Contraseña (mín. 8, 1 mayúscula, 1 especial)" autocomplete="new-password">
-        <button type="button" class="btn-ojo-clave" data-campo="registro-clave">👁️</button>
+  <div id="pantalla-registro" class="pantalla-auth kingdom-auth oculto">
+    <div class="kingdom-auth-panel">
+      <header class="kingdom-auth-header">
+        <div class="kingdom-auth-logo" aria-hidden="true">🗺️</div>
+        <h1 class="kingdom-auth-title">Kingdom Map</h1>
+        <p class="kingdom-auth-sub">Crear cuenta nueva</p>
+      </header>
+
+      <div id="registro-aviso" class="auth-aviso-mensaje kingdom-auth-alerta oculto" role="alert"></div>
+
+      <div class="kingdom-auth-form">
+        <label class="kingdom-auth-label" for="registro-nombre">Tu nombre</label>
+        <div class="kingdom-auth-campo">
+          <span class="kingdom-auth-icono" aria-hidden="true">👤</span>
+          <input id="registro-nombre" maxlength="20" placeholder="Nombre en el juego" autocomplete="off">
+        </div>
+
+        <label class="kingdom-auth-label" for="registro-telefono">Teléfono</label>
+        <div class="kingdom-auth-campo">
+          <span class="kingdom-auth-icono" aria-hidden="true">📱</span>
+          <input id="registro-telefono" inputmode="tel" maxlength="16" placeholder="Solo números" autocomplete="off">
+        </div>
+
+        <label class="kingdom-auth-label" for="registro-clave">Contraseña</label>
+        <div class="kingdom-auth-campo kingdom-auth-campo-clave">
+          <span class="kingdom-auth-icono" aria-hidden="true">🔒</span>
+          <input id="registro-clave" type="password" placeholder="Mín. 8, 1 mayúscula, 1 especial" autocomplete="new-password">
+          <button type="button" class="btn-ojo-clave" data-campo="registro-clave" aria-label="Mostrar contraseña" title="Mostrar contraseña">
+            <svg class="ojo-svg ojo-svg-ver" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5c-1.73-4.39-6-7.5-11-7.5zm0 12.5c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5zm0-8c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3-1.34-3-3-3z"/></svg>
+            <svg class="ojo-svg ojo-svg-ocultar" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 7c2.76 0 5 2.24 5 5 0 .65-.13 1.26-.36 1.83l2.92 2.92c1.51-1.26 2.7-2.89 3.43-4.75-1.73-4.39-6-7.5-11-7.5-1.4 0-2.74.25-3.98.7l2.16 2.16C10.74 7.13 11.35 7 12 7zM2 4.27l2.28 2.28.46.46C3.08 8.3 1.78 10.02 1 12c1.73 4.39 6 7.5 11 7.5 1.55 0 3.03-.3 4.38-.84l.42.42L19.73 22 21 20.73 3.27 3 2 4.27zM7.53 9.8l1.55 1.55c-.05.21-.08.43-.08.65 0 1.66 1.34 3 3 3 .22 0 .44-.03.65-.08l1.55 1.55c-.67.33-1.41.53-2.2.53-2.76 0-5-2.24-5-5 0-.79.2-1.53.53-2.2zm4.31-.78l3.15 3.15.02-.16c0-1.66-1.34-3-3-3l-.17.01z"/></svg>
+          </button>
+        </div>
+
+        <label class="kingdom-auth-label" for="registro-clave2">Repetir contraseña</label>
+        <div class="kingdom-auth-campo kingdom-auth-campo-clave">
+          <span class="kingdom-auth-icono" aria-hidden="true">🔒</span>
+          <input id="registro-clave2" type="password" placeholder="Repite la contraseña" autocomplete="new-password">
+          <button type="button" class="btn-ojo-clave" data-campo="registro-clave2" aria-label="Mostrar contraseña" title="Mostrar contraseña">
+            <svg class="ojo-svg ojo-svg-ver" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5c-1.73-4.39-6-7.5-11-7.5zm0 12.5c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5zm0-8c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3-1.34-3-3-3z"/></svg>
+            <svg class="ojo-svg ojo-svg-ocultar" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 7c2.76 0 5 2.24 5 5 0 .65-.13 1.26-.36 1.83l2.92 2.92c1.51-1.26 2.7-2.89 3.43-4.75-1.73-4.39-6-7.5-11-7.5-1.4 0-2.74.25-3.98.7l2.16 2.16C10.74 7.13 11.35 7 12 7zM2 4.27l2.28 2.28.46.46C3.08 8.3 1.78 10.02 1 12c1.73 4.39 6 7.5 11 7.5 1.55 0 3.03-.3 4.38-.84l.42.42L19.73 22 21 20.73 3.27 3 2 4.27zM7.53 9.8l1.55 1.55c-.05.21-.08.43-.08.65 0 1.66 1.34 3 3 3 .22 0 .44-.03.65-.08l1.55 1.55c-.67.33-1.41.53-2.2.53-2.76 0-5-2.24-5-5 0-.79.2-1.53.53-2.2zm4.31-.78l3.15 3.15.02-.16c0-1.66-1.34-3-3-3l-.17.01z"/></svg>
+          </button>
+        </div>
+
+        <button id="btn-crear-perfil" class="btn-kingdom-entrar">Registrarme</button>
+        <button type="button" id="btn-ir-login" class="btn-kingdom-secundario">Ya tengo cuenta</button>
       </div>
-      <div class="campo-clave">
-        <input id="registro-clave2" type="password" placeholder="Repetir contraseña" autocomplete="new-password">
-        <button type="button" class="btn-ojo-clave" data-campo="registro-clave2">👁️</button>
-      </div>
-      <div id="registro-aviso" class="auth-aviso-mensaje oculto" role="alert"></div>
-      <button id="btn-crear-perfil" class="btn-auth-principal">Registrarme</button>
-      <button type="button" id="btn-ir-login" class="btn-auth-secundario">Ya tengo cuenta</button>
     </div>
   </div>
 
@@ -1098,18 +1150,18 @@
   <script src="lib/leaflet/leaflet.js?v=104"></script>
 
   <!-- MÓDULOS DEL JUEGO (orden importante) -->
-  <script src="js/config/config.js?v=261"></script>
-  <script src="js/nucleo/utilidades.js?v=261"></script>
+  <script src="js/config/config.js?v=262"></script>
+  <script src="js/nucleo/utilidades.js?v=262"></script>
   <script src="js/mundo/mundo_publico.js?v=104"></script>
-  <script src="js/notificaciones/notificaciones.js?v=261"></script>
-  <script src="js/usuarios/usuarios.js?v=261"></script>
+  <script src="js/notificaciones/notificaciones.js?v=262"></script>
+  <script src="js/usuarios/usuarios.js?v=262"></script>
   <script src="js/guardado/guardado.js?v=149"></script>
   <script src="js/historial/historial.js?v=104"></script>
   <script src="js/dinero/dinero.js?v=104"></script>
-  <script src="js/vida/vida.js?v=261"></script>
+  <script src="js/vida/vida.js?v=262"></script>
   <script src="js/items/items.js?v=140"></script>
-  <script src="js/mochila/mochila.js?v=261"></script>
-  <script src="js/bolsas/bolsas.js?v=261"></script>
+  <script src="js/mochila/mochila.js?v=262"></script>
+  <script src="js/bolsas/bolsas.js?v=262"></script>
   <script src="js/mapa/mapa.js?v=104"></script>
   <script src="js/gps/gps.js?v=150"></script>
   <script src="js/tiendas/datos_tiendas.js?v=104"></script>
@@ -1121,19 +1173,19 @@
   <script src="js/misiones/misiones.js?v=104"></script>
   <script src="js/cofres/cofres.js?v=104"></script>
   <script src="js/correo/correo.js?v=104"></script>
-  <script src="js/enemigos/enemigos.js?v=261"></script>
-  <script src="js/online/sync_servidor.js?v=261"></script>
-  <script src="js/admin/admin.js?v=261"></script>
-  <script src="js/opciones/opciones.js?v=261"></script>
-  <script src="js/online/mundo_online.js?v=261"></script>
-  <script src="js/online/amigos.js?v=261"></script>
-  <script src="js/chat/chat.js?v=261"></script>
-  <script src="js/online/multijugador.js?v=261"></script>
-  <script src="js/principal.js?v=261"></script>
+  <script src="js/enemigos/enemigos.js?v=262"></script>
+  <script src="js/online/sync_servidor.js?v=262"></script>
+  <script src="js/admin/admin.js?v=262"></script>
+  <script src="js/opciones/opciones.js?v=262"></script>
+  <script src="js/online/mundo_online.js?v=262"></script>
+  <script src="js/online/amigos.js?v=262"></script>
+  <script src="js/chat/chat.js?v=262"></script>
+  <script src="js/online/multijugador.js?v=262"></script>
+  <script src="js/principal.js?v=262"></script>
   <script>
     // Registrar la app instalable (PWA)
     if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.register('sw.js?v=261', { updateViaCache: 'none' })
+      navigator.serviceWorker.register('sw.js?v=262', { updateViaCache: 'none' })
         .then(function (reg) {
           if (typeof MarielVersion !== 'undefined') MarielVersion.registrarServiceWorker(reg);
         })

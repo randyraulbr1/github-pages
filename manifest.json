@@ -1,7 +1,7 @@
 {
-  "name": "Mariel Explorer",
-  "short_name": "Mariel",
-  "description": "Explora Mariel: pesca, tiendas, tesoros ocultos y misiones con GPS real.",
+  "name": "Kingdom Map",
+  "short_name": "Kingdom",
+  "description": "Kingdom Map: explora el mapa, tesoros, misiones y otros jugadores en vivo con GPS.",
   "lang": "es",
   "start_url": "./",
   "scope": "./",

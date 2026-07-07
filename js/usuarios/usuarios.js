@@ -85,7 +85,7 @@ const Usuarios = {
     const el = document.getElementById(id);
     if (!el) return;
     el.textContent = texto;
-    el.className = 'auth-aviso-mensaje ' + (tipo || 'error');
+    el.className = 'auth-aviso-mensaje kingdom-auth-alerta ' + (tipo || 'error');
     el.classList.remove('oculto');
   },
 
@@ -104,7 +104,16 @@ const Usuarios = {
     document.getElementById('pantalla-registro').classList.add('oculto');
     document.getElementById('pantalla-login').classList.remove('oculto');
     document.getElementById('login-usuario').value = '';
-    document.getElementById('login-clave').value = '';
+    const loginClave = document.getElementById('login-clave');
+    if (loginClave) {
+      loginClave.value = '';
+      loginClave.type = 'password';
+    }
+    document.querySelectorAll('#pantalla-login .btn-ojo-clave').forEach(btn => {
+      btn.classList.remove('ojo-muestra');
+      btn.setAttribute('aria-label', 'Mostrar contraseña');
+      btn.title = 'Mostrar contraseña';
+    });
     this._limpiarAvisoAuth('login');
     this._enlazarOjos();
     MundoPublico.descargar().then(t => { if (t) this._mundoCache = t; }).catch(() => {});
@@ -118,6 +127,15 @@ const Usuarios = {
       const el = document.getElementById(id);
       if (el) el.value = '';
     });
+    ['registro-clave', 'registro-clave2'].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.type = 'password';
+    });
+    document.querySelectorAll('#pantalla-registro .btn-ojo-clave').forEach(btn => {
+      btn.classList.remove('ojo-muestra');
+      btn.setAttribute('aria-label', 'Mostrar contraseña');
+      btn.title = 'Mostrar contraseña';
+    });
     this._limpiarAvisoAuth('registro');
     this._enlazarOjos();
   },
@@ -129,7 +147,10 @@ const Usuarios = {
         if (!input) return;
         const oculto = input.type === 'password';
         input.type = oculto ? 'text' : 'password';
-        btn.textContent = oculto ? '🙈' : '👁️';
+        btn.classList.toggle('ojo-muestra', oculto);
+        const etiqueta = oculto ? 'Ocultar contraseña' : 'Mostrar contraseña';
+        btn.setAttribute('aria-label', etiqueta);
+        btn.title = etiqueta;
       };
     });
   },
