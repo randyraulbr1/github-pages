@@ -11,8 +11,8 @@
   <link rel="stylesheet" href="lib/leaflet/leaflet.css">
   <link rel="stylesheet" href="css/estilos.css?v=147">
   <link rel="stylesheet" href="css/chat.css?v=137">
-  <link rel="stylesheet" href="css/amigos.css?v=156">
-  <link rel="stylesheet" href="css/opciones.css?v=152">
+  <link rel="stylesheet" href="css/amigos.css?v=157">
+  <link rel="stylesheet" href="css/opciones.css?v=157">
   <link rel="stylesheet" href="css/notificaciones.css?v=117">
   <script>
     // Aviso temprano en móvil (antes de cargar 20+ archivos JS)
@@ -548,7 +548,10 @@
 
         <button type="button" class="opciones-action" id="opcion-restablecer-pin">
           <div class="opciones-icon">📍</div>
-          <div class="opciones-row-text">Restablecer pin</div>
+          <div class="opciones-row-text-wrap">
+            <div class="opciones-row-text">Restablecer pin</div>
+            <div class="opciones-row-sub">Vuelve al centro de Mariel si quedaste fuera</div>
+          </div>
         </button>
 
         <button type="button" class="opciones-action" id="opcion-tarjeta">
@@ -604,7 +607,7 @@
           <button class="fila-opcion admin-nav" id="admin-crear-enemigo"><span class="icono-opcion">👹</span> Enemigo</button>
           <button class="fila-opcion admin-nav" id="admin-crear-tienda"><span class="icono-opcion">🏪</span> Tienda</button>
           <button class="fila-opcion admin-nav" id="admin-organizar"><span class="icono-opcion">✋</span> Organizar pines</button>
-          <button class="fila-opcion admin-nav" id="admin-mover-pin"><span class="icono-opcion">🎯</span> <span id="admin-mover-pin-texto">Mover pin: OFF</span></button>
+          <button class="fila-opcion admin-nav" id="admin-mover-pin"><span class="icono-opcion">🎯</span> <span id="admin-mover-pin-texto">Arrastrar pin (admin): OFF</span></button>
           <button class="fila-opcion admin-nav" id="admin-opt-visibilidad"><span class="icono-opcion">👁️</span> <span id="admin-opt-visibilidad-texto">Optimización 500 m: ON</span></button>
 
           <div class="admin-seccion-titulo">⚙️ Catálogo</div>
@@ -927,7 +930,7 @@
   <script src="lib/leaflet/leaflet.js?v=104"></script>
 
   <!-- MÓDULOS DEL JUEGO (orden importante) -->
-  <script src="js/config/config.js?v=156"></script>
+  <script src="js/config/config.js?v=157"></script>
   <script src="js/nucleo/utilidades.js?v=137"></script>
   <script src="js/mundo/mundo_publico.js?v=104"></script>
   <script src="js/notificaciones/notificaciones.js?v=137"></script>
@@ -952,18 +955,18 @@
   <script src="js/correo/correo.js?v=104"></script>
   <script src="js/enemigos/enemigos.js?v=137"></script>
   <script src="js/online/sync_servidor.js?v=104"></script>
-  <script src="js/admin/admin.js?v=156"></script>
+  <script src="js/admin/admin.js?v=157"></script>
   <script src="js/opciones/opciones.js?v=152"></script>
   <script src="js/online/mundo_online.js?v=104"></script>
   <script src="js/online/amigos.js?v=107"></script>
   <script src="js/chat/chat.js?v=137"></script>
-  <script src="js/online/multijugador.js?v=156"></script>
+  <script src="js/online/multijugador.js?v=157"></script>
   <script src="js/principal.js?v=104"></script>
   <script>
     // Registrar la app instalable (PWA)
     if ('serviceWorker' in navigator) {
       const yaTeniaVersion = !!navigator.serviceWorker.controller;
-      navigator.serviceWorker.register('sw.js?v=156', { updateViaCache: 'none' })
+      navigator.serviceWorker.register('sw.js?v=157', { updateViaCache: 'none' })
         .then(function (reg) { reg.update(); })
         .catch(function () {});
       // Cuando llega una versión nueva del juego: avisar y recargar solo
