@@ -1,10 +1,25 @@
 // ============================================================
-// CATÁLOGO DE ITEMS DEL JUEGO (50 items)
-// tipo: pez | herramienta | comida | tesoro | material
-// precio: precio de compra en tiendas (se vende a la mitad)
-// cura: puntos de vida que recupera al usarse (solo comida/medicina)
-// rareza (peces): 1 común ... 4 muy raro — afecta la pesca
+// CATÁLOGO DE ITEMS DEL JUEGO
+// tipo: pez | herramienta | comida | tesoro | material | arma | especial
+// cura = hambre · curaVida = vida · dano = arma equipable
 // ============================================================
+
+const TIPOS_ITEM = {
+  comida:      { etiqueta: 'Consumible', categoria: 'consumibles', icono: '🍽️' },
+  arma:        { etiqueta: 'Arma',       categoria: 'armas',       icono: '⚔️' },
+  pez:         { etiqueta: 'Animal',     categoria: 'animales',    icono: '🐟' },
+  herramienta: { etiqueta: 'Herramienta',categoria: 'objetos',     icono: '🔧' },
+  tesoro:      { etiqueta: 'Tesoro',     categoria: 'objetos',     icono: '💎' },
+  material:    { etiqueta: 'Material',   categoria: 'objetos',     icono: '📦' },
+  especial:    { etiqueta: 'Especial',   categoria: 'objetos',     icono: '✨' }
+};
+
+const ITEMS_USO_ESPECIAL = {
+  cofre: 'cofre',
+  llave_maestra: 'llave',
+  papel: 'escribir'
+};
+
 const CATALOGO_ITEMS = {
   // ---------- PECES Y CRIATURAS DEL MAR (15) ----------
   sardina:        { nombre: 'Sardina',           icono: '🐟', tipo: 'pez', precio: 8,   rareza: 1, desc: 'Pez pequeño y común de la bahía.' },
@@ -90,6 +105,71 @@ const Items = {
 
   obtener(id) { return CATALOGO_ITEMS[id]; },
 
+  tiposValidos() { return Object.keys(TIPOS_ITEM); },
+
+  _normalizarDef(it) {
+    if (!it || typeof it !== 'object') return it;
+    const out = Object.assign({}, it);
+    if (out.dano) out.tipo = 'arma';
+    else if (out.curaVida) out.tipo = 'comida';
+    else if (out.cura && !out.curaVida) out.tipo = 'comida';
+    else if (!out.tipo || !TIPOS_ITEM[out.tipo]) out.tipo = 'especial';
+    return out;
+  },
+
+  metaTipo(item) {
+    const t = (item && item.tipo && TIPOS_ITEM[item.tipo]) ? item.tipo : 'especial';
+    return TIPOS_ITEM[t];
+  },
+
+  etiquetaTipo(item) {
+    const m = this.metaTipo(item);
+    return m.icono + ' ' + m.etiqueta;
+  },
+
+  esArma(item) {
+    return !!item && item.tipo === 'arma';
+  },
+
+  esEquipable(item, id) {
+    return this.esArma(item);
+  },
+
+  usoEspecial(id) {
+    return ITEMS_USO_ESPECIAL[id] || null;
+  },
+
+  esUsableEnInventario(item, id) {
+    if (!item || !id) return false;
+    if (this.usoEspecial(id)) return true;
+    const t = this.tipoConsumible(item, id);
+    return t === 'hambre' || t === 'vida';
+  },
+
+  esUsableEnVarios(item, id) {
+    const t = this.tipoConsumible(item, id);
+    return t === 'hambre' || t === 'vida';
+  },
+
+  requiereConfirmBorrar(item, id, desdeEquip) {
+    if (desdeEquip) return true;
+    const t = this.tipoConsumible(item, id);
+    if (t === 'hambre' || t === 'vida') return false;
+    return true;
+  },
+
+  resumenInventario(item, id) {
+    const partes = [this.etiquetaTipo(item)];
+    const tc = this.tipoConsumible(item, id);
+    if (tc === 'hambre') partes.push('+' + (item.cura || 0) + ' hambre');
+    if (tc === 'vida') partes.push('+' + (item.curaVida || item.cura || 0) + ' vida');
+    if (item.dano) partes.push('+' + item.dano + ' daño');
+    if (this.usoEspecial(id) === 'cofre') partes.push('colocar en mapa');
+    if (this.usoEspecial(id) === 'llave') partes.push('abrir cofre');
+    if (this.usoEspecial(id) === 'escribir') partes.push('escribir nota');
+    return partes.join(' · ');
+  },
+
   // Para pintar en pantalla: nunca devuelve vacío aunque el item ya no exista
   seguro(id) {
     return CATALOGO_ITEMS[id] ||
@@ -100,7 +180,7 @@ const Items = {
   aplicarMundo(itemsNuevos, precios) {
     for (const it of (itemsNuevos || [])) {
       if (!it.id) continue;
-      CATALOGO_ITEMS[it.id] = {
+      const norm = this._normalizarDef({
         nombre: it.nombre || it.id,
         icono: it.icono || '📦',
         tipo: it.tipo || 'especial',
@@ -110,8 +190,10 @@ const Items = {
         dano: it.dano || undefined,
         nivelMin: it.nivelMin || undefined,
         nivelMax: it.nivelMax || undefined,
-        desc: it.desc || 'Objeto creado por el administrador.'
-      };
+        desc: it.desc || 'Objeto creado por el administrador.',
+        unico: it.unico || undefined
+      });
+      CATALOGO_ITEMS[it.id] = norm;
     }
     for (const [id, precio] of Object.entries(precios || {})) {
       if (CATALOGO_ITEMS[id]) CATALOGO_ITEMS[id].precio = this._limitarPrecio(precio);
@@ -137,11 +219,7 @@ const Items = {
   },
 
   categoriaAdm(item) {
-    if (!item) return 'objetos';
-    if (item.tipo === 'comida') return 'consumibles';
-    if (item.tipo === 'arma') return 'armas';
-    if (item.tipo === 'pez') return 'animales';
-    return 'objetos';
+    return this.metaTipo(item).categoria;
   },
 
   tituloCategoriaAdm(cat) {
@@ -162,18 +240,20 @@ const Items = {
     return nivel >= min && nivel <= max;
   },
 
-  /** 'hambre' | 'vida' | 'especial' | null */
+  /** 'hambre' | 'vida' | 'especial' | null — el inventario usa esto para usar/borrar */
   tipoConsumible(item, id) {
     if (!item) return null;
-    if (id === 'cofre' || id === 'llave_maestra' || id === 'papel') return 'especial';
+    const uso = this.usoEspecial(id);
+    if (uso) return 'especial';
     if (item.curaVida) return 'vida';
-    if (item.tipo === 'comida' && item.cura && !item.curaVida) return 'hambre';
+    if (item.tipo === 'comida' && item.cura) return 'hambre';
     if (item.cura && item.tipo !== 'comida') return 'vida';
     return null;
   },
 
   esConsumible(item, id) {
-    return !!this.tipoConsumible(item, id);
+    const t = this.tipoConsumible(item, id);
+    return t === 'hambre' || t === 'vida';
   },
 
   valorPorUnidad(item, tipo) {

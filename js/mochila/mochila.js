@@ -372,9 +372,7 @@ const Mochila = {
   },
 
   _puedeUsarItem(item, id) {
-    if (!item || !id) return false;
-    if (id === 'cofre' || id === 'llave_maestra' || id === 'papel') return true;
-    return Items.esConsumible(item, id);
+    return Items.esUsableEnInventario(item, id);
   },
 
   _mostrarControlesArrastre(sl) {
@@ -383,12 +381,11 @@ const Mochila = {
     const useAllBtn = document.getElementById('inv-use-all-btn');
     if (!controls || !sl) return;
     const item = Items.seguro(sl.id);
-    const puedeUsar = this._puedeUsarItem(item, sl.id);
+    const puedeUsar = Items.esUsableEnInventario(item, sl.id);
     controls.classList.add('show');
     if (useBtn) useBtn.style.display = puedeUsar ? '' : 'none';
     if (useAllBtn) {
-      const varios = puedeUsar && sl.cantidad > 1 &&
-        (Items.esConsumible(item, sl.id) || false);
+      const varios = puedeUsar && sl.cantidad > 1 && Items.esUsableEnVarios(item, sl.id);
       useAllBtn.style.display = varios ? '' : 'none';
     }
   },
@@ -398,7 +395,8 @@ const Mochila = {
     if (!el) return;
     if (this.isDragging && this.dragging) {
       const item = Items.seguro(this.dragging.id);
-      el.textContent = item.icono + ' ' + item.nombre + ' x' + this.dragging.cantidad;
+      el.textContent = Items.resumenInventario(item, this.dragging.id) +
+        ' · x' + this.dragging.cantidad;
       return;
     }
     el.textContent = 'Arrastra un objeto';
@@ -459,7 +457,7 @@ const Mochila = {
         return;
       }
       const item = Items.seguro(fromItem.id);
-      if (item.tipo !== 'arma') {
+      if (!Items.esEquipable(item, fromItem.id)) {
         this._toast('Eso no va ahí');
         return;
       }
@@ -585,10 +583,7 @@ const Mochila = {
   },
 
   _requiereConfirmEliminar(item, id, place) {
-    if (place === 'equip') return true;
-    const tipo = Items.tipoConsumible(item, id);
-    if (tipo === 'hambre' || tipo === 'vida') return false;
-    return true;
+    return Items.requiereConfirmBorrar(item, id, place === 'equip');
   },
 
   _confirmarEliminar(texto) {
@@ -656,17 +651,18 @@ const Mochila = {
     if (!sl) return;
     const item = Items.seguro(sl.id);
 
-    if (sl.id === 'cofre') {
+    const uso = Items.usoEspecial(sl.id);
+    if (uso === 'cofre') {
       document.getElementById('ventana-mochila').classList.add('oculto');
       Cofres.usarCofreInventario();
       return;
     }
-    if (sl.id === 'llave_maestra') {
+    if (uso === 'llave') {
       document.getElementById('ventana-mochila').classList.add('oculto');
       Cofres.usarLlaveMaestra();
       return;
     }
-    if (sl.id === 'papel') {
+    if (uso === 'escribir') {
       if (this.tieneItem('lapiz')) {
         this.selected = { place, key };
         this.slotSeleccionado = place === 'bag' ? key : -1;

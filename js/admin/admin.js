@@ -1798,11 +1798,36 @@ const Admin = {
         this._rejillaEmojisHtml() + '</div>' +
         '<div class="campo-doble">' +
           this._campoNumero('af-precio', 'Precio (5 a 5000)', 50) +
-          this._campoNumero('af-cura', 'Cura vida (0 = no se usa)', 0) +
+          this._campoSelect('af-tipo-item', 'Tipo', [
+            { v: 'comida', t: '🍽️ Consumible (comer/beber)' },
+            { v: 'arma', t: '⚔️ Arma' },
+            { v: 'herramienta', t: '🔧 Herramienta' },
+            { v: 'pez', t: '🐟 Animal / pez' },
+            { v: 'tesoro', t: '💎 Tesoro' },
+            { v: 'material', t: '📦 Material' },
+            { v: 'especial', t: '✨ Especial' }
+          ]) +
+        '</div>' +
+        '<div class="campo-doble">' +
+          this._campoNumero('af-cura-hambre', 'Cura hambre (consumible)', 0) +
+          this._campoNumero('af-cura-vida', 'Cura vida (medicina)', 0) +
+        '</div>' +
+        '<div class="campo-doble" id="af-arma-campos" style="display:none">' +
+          this._campoNumero('af-dano', 'Daño arma', 5) +
+          this._campoNumero('af-nivel-min', 'Nivel mín', 1) +
         '</div>' +
         this._campoTexto('af-desc', 'Descripción', 'Ej: Reserva especial del puerto');
       document.getElementById('btn-admin-guardar').textContent = 'Crear objeto';
-      setTimeout(() => this._enlazarEmojisObjeto(), 0);
+      setTimeout(() => {
+        this._enlazarEmojisObjeto();
+        const selTipo = document.getElementById('af-tipo-item');
+        const armaBox = document.getElementById('af-arma-campos');
+        const toggleArma = () => {
+          if (armaBox) armaBox.style.display = selTipo?.value === 'arma' ? '' : 'none';
+        };
+        selTipo?.addEventListener('change', toggleArma);
+        toggleArma();
+      }, 0);
     }
     if (tipo === 'mision' || tipo === 'tesoro' || tipo === 'objeto' || tipo === 'enemigo' || tipo === 'tienda_admin') {
       document.getElementById('btn-admin-guardar').textContent = 'Continuar → colocar en el mapa';
@@ -2063,13 +2088,24 @@ const Admin = {
       if (!icono) { alert('Elige un emoji para el objeto'); return; }
       const id = 'obj_' + nombre.toLowerCase().normalize('NFD').replace(/[^a-z0-9]/g, '').slice(0, 16) +
         '_' + Date.now().toString(36).slice(-4);
+      const tipoItem = this._valor('af-tipo-item') || 'especial';
+      const curaH = this._numero('af-cura-hambre') || 0;
+      const curaV = this._numero('af-cura-vida') || 0;
       const nuevo = {
         id, nombre, icono,
         precio: Items._limitarPrecio(this._numero('af-precio')),
-        cura: this._numero('af-cura') || undefined,
-        tipo: 'especial',
+        tipo: tipoItem,
         desc: this._valor('af-desc').trim()
       };
+      if (curaH > 0) nuevo.cura = curaH;
+      if (curaV > 0) nuevo.curaVida = curaV;
+      if (tipoItem === 'arma') {
+        nuevo.dano = Math.max(1, this._numero('af-dano') || 5);
+        nuevo.nivelMin = Math.max(1, this._numero('af-nivel-min') || 1);
+        nuevo.nivelMax = Math.min(100, (nuevo.nivelMin || 1) + 9);
+      }
+      const norm = Items._normalizarDef(nuevo);
+      Object.assign(nuevo, norm);
       this.datos.itemsNuevos.push(nuevo);
       Items.aplicarMundo([nuevo], {});
       this.guardar();
@@ -3607,10 +3643,7 @@ const Admin = {
         inf.className = 'cantidad infinito';
         inf.textContent = '∞';
         cel.appendChild(inf);
-        let hint = item.nombre;
-        if (item.cura) hint += ' · hambre +' + item.cura;
-        if (item.curaVida) hint += ' · vida +' + item.curaVida;
-        if (item.dano) hint += ' · daño +' + item.dano + ' (nv ' + (item.nivelMin || 1) + '–' + (item.nivelMax || 100) + ')';
+        let hint = Items.resumenInventario(item, id);
         cel.title = hint;
         if (enlazar) enlazar(id, cel);
         else cel.addEventListener('pointerdown', ev => this._editorArrastre(ev, 'infinito', id));
