@@ -3,7 +3,7 @@
 // ============================================================
 const CONFIG = {
   // Cambiar al publicar: obliga al móvil a descartar caché vieja
-  version: '149',
+  version: '150',
   maxPila: 10,
 
   // Nombre reservado del administrador (solo este jugador ve el panel admin)
@@ -24,6 +24,8 @@ const CONFIG = {
   firebaseMundoUrl: '',
   // Centro del pueblo de Mariel, Artemisa, Cuba
   centro: [22.9936, -82.7539],
+  // Posición de rescate si el pin queda fuera del mapa
+  pinRestablecer: [22.988784, -82.754494],
 
   // Cuadrado jugable: no se puede ver ni salir fuera de esta zona
   limites: [

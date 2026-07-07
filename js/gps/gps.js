@@ -116,5 +116,18 @@ const GPS = {
       Notificaciones.mostrar('✋ GPS desactivado. Usa 📍 para volver a seguirte', 'info');
     }
     document.getElementById('btn-gps').classList.remove('activo');
+  },
+
+  restablecerPin(posicion) {
+    const coords = (posicion && posicion.length >= 2)
+      ? posicion.slice(0, 2)
+      : (CONFIG.pinRestablecer || CONFIG.centro.slice());
+    this.dejarDeSeguir();
+    this._actualizar(coords);
+    if (typeof Guardado !== 'undefined' && Guardado.datos?.muerto) {
+      Guardado.datos.muertePos = coords.slice();
+      Guardado.guardar();
+    }
+    if (typeof Mapa !== 'undefined') Mapa.centrarEnJugador(true);
   }
 };

@@ -17,7 +17,7 @@
   <script>
     // Aviso temprano en móvil (antes de cargar 20+ archivos JS)
     (function () {
-      var V = '149';
+      var V = '150';
       var texto = document.getElementById('carga-texto');
       if (texto) texto.textContent = 'Conectando…';
       var prev = localStorage.getItem('mariel_app_version');
@@ -536,6 +536,11 @@
           <div class="opciones-row-text">Centrar mapa</div>
         </button>
 
+        <button type="button" class="opciones-action" id="opcion-restablecer-pin">
+          <div class="opciones-icon">📍</div>
+          <div class="opciones-row-text">Restablecer pin</div>
+        </button>
+
         <button type="button" class="opciones-action" id="opcion-tarjeta">
           <div class="opciones-icon">🎫</div>
           <div class="opciones-row-text">Mi tarjeta</div>
@@ -910,7 +915,7 @@
   <script src="lib/leaflet/leaflet.js?v=104"></script>
 
   <!-- MÓDULOS DEL JUEGO (orden importante) -->
-  <script src="js/config/config.js?v=149"></script>
+  <script src="js/config/config.js?v=150"></script>
   <script src="js/nucleo/utilidades.js?v=137"></script>
   <script src="js/mundo/mundo_publico.js?v=104"></script>
   <script src="js/notificaciones/notificaciones.js?v=137"></script>
@@ -923,7 +928,7 @@
   <script src="js/mochila/mochila.js?v=149"></script>
   <script src="js/bolsas/bolsas.js?v=149"></script>
   <script src="js/mapa/mapa.js?v=104"></script>
-  <script src="js/gps/gps.js?v=104"></script>
+  <script src="js/gps/gps.js?v=150"></script>
   <script src="js/tiendas/datos_tiendas.js?v=104"></script>
   <script src="js/tiendas/tiendas.js?v=104"></script>
   <script src="js/pesca/pesca.js?v=104"></script>
@@ -936,7 +941,7 @@
   <script src="js/enemigos/enemigos.js?v=137"></script>
   <script src="js/online/sync_servidor.js?v=104"></script>
   <script src="js/admin/admin.js?v=140"></script>
-  <script src="js/opciones/opciones.js?v=116"></script>
+  <script src="js/opciones/opciones.js?v=150"></script>
   <script src="js/online/mundo_online.js?v=104"></script>
   <script src="js/online/amigos.js?v=107"></script>
   <script src="js/chat/chat.js?v=137"></script>
@@ -946,7 +951,7 @@
     // Registrar la app instalable (PWA)
     if ('serviceWorker' in navigator) {
       const yaTeniaVersion = !!navigator.serviceWorker.controller;
-      navigator.serviceWorker.register('sw.js?v=149', { updateViaCache: 'none' })
+      navigator.serviceWorker.register('sw.js?v=150', { updateViaCache: 'none' })
         .then(function (reg) { reg.update(); })
         .catch(function () {});
       // Cuando llega una versión nueva del juego: avisar y recargar solo
