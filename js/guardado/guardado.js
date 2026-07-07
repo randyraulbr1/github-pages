@@ -186,6 +186,21 @@ const Guardado = {
     this._syncNubeTimer = setTimeout(() => this.sincronizarNube(true), 2500);
   },
 
+  /** Inventario cambió: subir pronto para que el servidor no pise con stats viejos. */
+  _programarSyncInventario() {
+    if (typeof Usuarios === 'undefined' || !Usuarios.perfilActivo) return;
+    const online = CONFIG.servidorOnline &&
+      typeof Multijugador !== 'undefined' &&
+      localStorage.getItem(Multijugador.TOKEN_KEY);
+    if (!online && !MundoPublico.puedeEscribir()) return;
+    clearTimeout(this._syncInventarioTimer);
+    this._syncInventarioTimer = setTimeout(() => {
+      this.sincronizarNube(true).then((ok) => {
+        if (ok && this.datos) delete this.datos._invPendienteSync;
+      });
+    }, 400);
+  },
+
   async _avisarSinSyncNube() {
     if (this._avisoSinNube) return;
     if (typeof SyncServidor !== 'undefined') {
@@ -218,6 +233,7 @@ const Guardado = {
         if (ok) {
           this._syncFallos = 0;
           this.datos.nubeT = snapshot.t;
+          delete this.datos._invPendienteSync;
           const firma = await Utilidades.sha256(JSON.stringify(this.datos) + this.SAL);
           localStorage.setItem(this._clave(), JSON.stringify({ datos: this.datos, firma }));
         } else {
@@ -244,6 +260,7 @@ const Guardado = {
       if (ok) {
         this._syncFallos = 0;
         this.datos.nubeT = snapshot.t;
+        delete this.datos._invPendienteSync;
         const firma = await Utilidades.sha256(JSON.stringify(this.datos) + this.SAL);
         localStorage.setItem(this._clave(), JSON.stringify({ datos: this.datos, firma }));
       } else {

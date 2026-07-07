@@ -11,6 +11,8 @@ const Mochila = {
   ghost: null,
   isDragging: false,
   hoverTarget: null,
+  _dragLastX: null,
+  _dragLastY: null,
 
   iniciar() {
     if (!Guardado.datos.mochila) {
@@ -61,7 +63,11 @@ const Mochila = {
   guardar() {
     const cambioArma = this._sanearArmaEquipada();
     Guardado.datos.mochila = this.slots;
+    if (Guardado.datos) Guardado.datos._invPendienteSync = Date.now();
     Guardado.guardar();
+    if (typeof Guardado._programarSyncInventario === 'function') {
+      Guardado._programarSyncInventario();
+    }
     if (typeof Tesoros !== 'undefined' && Tesoros.activos) Tesoros.refrescarBanner();
     if (typeof Admin !== 'undefined' && Admin.datos) Admin.refrescarVisibles();
     if (typeof Misiones !== 'undefined' && Misiones.lista.length) Misiones.refrescar();
@@ -548,6 +554,8 @@ const Mochila = {
     this.dragging = item;
 
     const onMove = (ev) => {
+      this._dragLastX = ev.clientX;
+      this._dragLastY = ev.clientY;
       const dx = ev.clientX - startX;
       const dy = ev.clientY - startY;
       if (!moved && Math.hypot(dx, dy) > 8) {
@@ -560,9 +568,15 @@ const Mochila = {
       if (moved) this._moveGhost(ev);
     };
 
-    const onUp = () => {
+    const onUp = (ev) => {
       window.removeEventListener('pointermove', onMove);
-      if (moved) this._finishDrop();
+      if (moved) {
+        if (ev && ev.clientX != null) this._moveGhost(ev);
+        else if (this._dragLastX != null) {
+          this._moveGhost({ clientX: this._dragLastX, clientY: this._dragLastY });
+        }
+        this._finishDrop();
+      }
       this._cleanupDrag();
     };
 
@@ -605,24 +619,27 @@ const Mochila = {
   },
 
   moverSlot(origen, destino) {
-    const o = this.slots[origen];
-    const d = this.slots[destino];
+    const oIdx = Number(origen);
+    const dIdx = Number(destino);
+    if (isNaN(oIdx) || isNaN(dIdx) || oIdx === dIdx) return;
+    const o = this.slots[oIdx];
+    const d = this.slots[dIdx];
     if (!o) return;
     const maxPila = CONFIG.maxPila || 10;
     if (d && d.id === o.id && !Items.seguro(o.id).unico) {
       const espacio = maxPila - d.cantidad;
       if (espacio <= 0) {
-        this.slots[destino] = o;
-        this.slots[origen] = d;
+        this.slots[dIdx] = o;
+        this.slots[oIdx] = d;
       } else {
         const mover = Math.min(o.cantidad, espacio);
         d.cantidad += mover;
         o.cantidad -= mover;
-        if (o.cantidad <= 0) this.slots[origen] = null;
+        if (o.cantidad <= 0) this.slots[oIdx] = null;
       }
     } else {
-      this.slots[destino] = o;
-      this.slots[origen] = d || null;
+      this.slots[dIdx] = o;
+      this.slots[oIdx] = d || null;
     }
     this._sanearArmaEquipada();
     this.guardar();
@@ -650,10 +667,21 @@ const Mochila = {
     if (target) target.classList.add('over');
   },
 
+  _slotDesdePunto(clientX, clientY) {
+    if (clientX == null || clientY == null) return null;
+    const el = document.elementFromPoint(clientX, clientY);
+    return el ? el.closest('.slot, .inv-equip-slot, .inv-ctrl-btn') : null;
+  },
+
   _finishDrop() {
-    const target = this.hoverTarget;
     const from = this.dragFrom;
-    if (!target || !from) return;
+    if (!from) return;
+
+    let target = this.hoverTarget;
+    if (!target && this._dragLastX != null) {
+      target = this._slotDesdePunto(this._dragLastX, this._dragLastY);
+    }
+    if (!target) return;
 
     if (target.id === 'inv-delete-btn') {
       void this._eliminarDesde(from.place, from.key, true).then(() => this.pintar());
@@ -683,7 +711,14 @@ const Mochila = {
       if (eq === 'weapon') this._moveItem(from.place, from.key, 'equip', 'weapon');
     } else if (target.classList.contains('slot')) {
       const idx = Number(target.dataset.index);
-      if (!isNaN(idx)) this._moveItem(from.place, from.key, 'bag', idx);
+      if (!isNaN(idx)) {
+        const origen = Number(from.key);
+        if (from.place === 'bag' && !isNaN(origen) && origen !== idx) {
+          this._moveItem(from.place, origen, 'bag', idx);
+        } else if (from.place !== 'bag' || isNaN(origen)) {
+          this._moveItem(from.place, from.key, 'bag', idx);
+        }
+      }
     }
 
     this.pintar();
@@ -696,6 +731,8 @@ const Mochila = {
     this.dragFrom = null;
     this.isDragging = false;
     this.hoverTarget = null;
+    this._dragLastX = null;
+    this._dragLastY = null;
     const controls = document.getElementById('inv-controls');
     if (controls) controls.classList.remove('show');
     document.getElementById('inv-use-btn')?.classList.remove('on');

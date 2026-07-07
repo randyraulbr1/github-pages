@@ -561,7 +561,18 @@ const Multijugador = {
     if (t <= (Guardado.datos.nubeT || 0)) return;
 
     const d = snap.datos;
+    const invPendiente = Guardado.datos._invPendienteSync;
+    let mochilaLocal;
+    let armaLocal;
+    if (invPendiente) {
+      mochilaLocal = JSON.parse(JSON.stringify(Guardado.datos.mochila || []));
+      armaLocal = Guardado.datos.armaEquipada;
+    }
     Guardado._aplicarSnapshot(d);
+    if (invPendiente) {
+      Guardado.datos.mochila = mochilaLocal;
+      Guardado.datos.armaEquipada = armaLocal;
+    }
     Guardado.datos.nubeT = t;
 
     if (typeof Vida !== 'undefined') {
