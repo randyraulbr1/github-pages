@@ -941,12 +941,41 @@ const Multijugador = {
     return html;
   },
 
+  _esCuerpoPropio(playerId) {
+    const miId = this._miPlayerId();
+    return miId > 0 && Number(playerId) === miId;
+  },
+
+  /** El jugador nunca debe ver su propio ⚰️ en el mapa si ya está vivo. */
+  _debeMostrarCuerpoEnMapa(c) {
+    if (!c || !this._cuerpoVigente(c)) return false;
+    if (this._esCuerpoPropio(c.playerId)) {
+      return typeof Vida !== 'undefined' && Vida.estaMuerto();
+    }
+    return true;
+  },
+
+  _quitarCuerpoPropioSiVivo() {
+    const miId = this._miPlayerId();
+    if (miId <= 0) return;
+    if (typeof Vida !== 'undefined' && Vida.estaMuerto()) return;
+    const sid = String(miId);
+    delete this.cuerpos[sid];
+    this._quitarMarcadorCuerpo(sid);
+    if (typeof Admin !== 'undefined' && Admin.publicado?.cuerposMuertos) {
+      delete Admin.publicado.cuerposMuertos[sid];
+    }
+  },
+
   _aplicarCuerpos(cuerpos) {
     const filtrados = {};
     for (const [id, c] of Object.entries(cuerpos || {})) {
-      if (this._cuerpoVigente(c)) filtrados[id] = c;
+      if (!this._cuerpoVigente(c)) continue;
+      if (!this._debeMostrarCuerpoEnMapa(c)) continue;
+      filtrados[id] = c;
     }
     this.cuerpos = filtrados;
+    this._quitarCuerpoPropioSiVivo();
     const miId = this._miPlayerId();
     const miCuerpo = miId > 0 ? this.cuerpos[String(miId)] : null;
     if (miCuerpo?.muertoAt && typeof Guardado !== 'undefined' && Guardado.datos) {
@@ -986,6 +1015,9 @@ const Multijugador = {
     if (typeof Admin !== 'undefined' && Admin.publicado?.cuerposMuertos) {
       delete Admin.publicado.cuerposMuertos[sid];
     }
+    if (pid === this._miPlayerId()) {
+      this._quitarCuerpoPropioSiVivo();
+    }
     const i = this.online.findIndex(x => Number(x.playerId) === pid);
     if (i >= 0) {
       if (hp != null) this.online[i].hp = hp;
@@ -1023,9 +1055,14 @@ const Multijugador = {
         this._quitarMarcadorCuerpo(id);
         continue;
       }
-      if (!this._cuerpoVigente(c)) continue;
+      if (!this._debeMostrarCuerpoEnMapa(c)) {
+        delete this.cuerpos[id];
+        this._quitarMarcadorCuerpo(id);
+        continue;
+      }
       this._actualizarMarcadorCuerpo(c);
     }
+    this._quitarCuerpoPropioSiVivo();
     this._actualizarLineasAmigo();
   },
 
@@ -1111,6 +1148,10 @@ const Multijugador = {
 
   _actualizarMarcadorCuerpo(c) {
     if (!Mapa.mapa || !c) return;
+    if (!this._debeMostrarCuerpoEnMapa(c)) {
+      this._quitarMarcadorCuerpo(String(c.playerId));
+      return;
+    }
     const id = String(c.playerId);
     const p = {
       playerId: c.playerId,

@@ -257,11 +257,14 @@ const Vida = {
     const pantalla = document.getElementById('pantalla-muerte');
     if (pantalla) pantalla.classList.add('oculto');
     document.body.classList.remove('jugador-muerto');
+    if (typeof Multijugador !== 'undefined') {
+      Multijugador._quitarCuerpoPropioSiVivo?.();
+      Multijugador.enviarStats(true);
+    }
     Notificaciones.mostrar(
       motivo || '❤️ El administrador te revivió. ¡Ya puedes seguir jugando!',
       'exito', 6000
     );
-    if (typeof Multijugador !== 'undefined') Multijugador.enviarStats(true);
     if (typeof Guardado !== 'undefined') Guardado.sincronizarNube(true).catch(() => {});
   },
 
