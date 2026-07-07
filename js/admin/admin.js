@@ -166,7 +166,7 @@ const Admin = {
       } else if (pubN === 0 && localN === 0 && typeof Notificaciones !== 'undefined') {
         setTimeout(() => {
           Notificaciones.mostrar(
-            '🗺️ El mapa del servidor está vacío. Coloca objetos y pulsa Sincronizar para que todos los vean.',
+            '🗺️ El mapa del servidor está vacío. Coloca objetos y pulsa Guardar mapa para que todos los vean.',
             'alerta', 10000
           );
         }, 2000);
@@ -782,7 +782,7 @@ const Admin = {
           this._tempPublicar = setTimeout(() => this._procesarColaPublicacion(), espera);
         } else if (this.esAdminJugador()) {
           Notificaciones.mostrar(
-            '❌ No se pudo subir al servidor. Revisa tu conexión o pulsa Sincronizar.',
+            '❌ No se pudo subir al servidor. Revisa tu conexión o pulsa Guardar mapa.',
             'error', 8000
           );
         }
@@ -2678,7 +2678,7 @@ const Admin = {
     this._pubPendiente = true;
     const ok = await this._syncMapaServidor(false);
     if (!ok && this.esAdminJugador()) {
-      this._adminAviso('No se publicó en el servidor. Revisa tu conexión y pulsa Sincronizar.', 'error');
+      this._adminAviso('No se publicó en el servidor. Revisa tu conexión y pulsa Guardar mapa.', 'error');
     }
     this._colocacion = null;
     this.salirModo();
@@ -3620,7 +3620,7 @@ const Admin = {
       est.className = 'admin-clave-estado';
       const ok = await SyncServidor.asegurarSesionServidor();
       if (!ok) {
-        est.textContent = '⚠️ Pulsa Sincronizar e introduce la contraseña de randy.';
+        est.textContent = '⚠️ Pulsa Guardar mapa e introduce la contraseña de randy.';
         est.className = 'admin-clave-estado';
         if (det) det.textContent = 'En PC hace falta el token del servidor (entra con contraseña una vez).';
         return;
@@ -4790,7 +4790,7 @@ const Admin = {
     this._volverAlPanel();
     this._publicarParaTodos(false).then(ok => {
       if (ok) this._avisoSyncManual('🔑 Token activa · cuentas y mundo en GitHub');
-      else Notificaciones.mostrar('Token guardada aquí. Pulsa Sincronizar en Admin.', 'alerta', 8000);
+      else Notificaciones.mostrar('Token guardada aquí. Pulsa Guardar mapa en Admin.', 'alerta', 8000);
     });
     this._dispararSyncIndiceAccion().catch(() => {});
   },
@@ -4925,14 +4925,14 @@ const Admin = {
   _iniciarIndicadorSync() {
     const btn = document.getElementById('admin-publicar');
     if (btn) btn.disabled = true;
-    this._mostrarIndicadorSync('sync', 'Sincronizando…');
+    this._mostrarIndicadorSync('sync', 'Guardando mapa…');
   },
 
   _finalizarIndicadorSync(ok, mensajeError) {
     const btn = document.getElementById('admin-publicar');
     if (btn) btn.disabled = false;
     if (ok) {
-      this._mostrarIndicadorSync('ok', 'Sincronizado ✓');
+      this._mostrarIndicadorSync('ok', 'Mapa guardado ✓');
     } else if (mensajeError) {
       this._mostrarIndicadorSync('error', mensajeError);
     } else {
@@ -4959,10 +4959,10 @@ const Admin = {
       }
       ok = await this.publicarMundo(false, { soloSync: true, forzar: true });
       if (!ok && this._pubCancelada) errorMsg = '';
-      else if (!ok) errorMsg = this._ultimoErrorPub || 'No se pudo sincronizar';
+      else if (!ok) errorMsg = this._ultimoErrorPub || 'No se pudo guardar el mapa';
     } catch (e) {
       ok = false;
-      errorMsg = 'Error al sincronizar';
+      errorMsg = 'Error al guardar el mapa';
     } finally {
       this._syncManualEnCurso = false;
       this._finalizarIndicadorSync(ok, ok ? '' : errorMsg);
@@ -4984,7 +4984,7 @@ const Admin = {
       return false;
     }
     if (!this.esAdminJugador()) {
-      this._ultimoErrorPub = 'Solo el administrador puede sincronizar';
+      this._ultimoErrorPub = 'Solo el administrador puede guardar el mapa';
       return false;
     }
     if (typeof SyncServidor !== 'undefined') {
@@ -5031,7 +5031,7 @@ const Admin = {
       if (this._esPublicacionDestructiva(adminLocal, referencia)) {
         if (!silencioso) {
           Notificaciones.mostrar(
-            '⚠️ Publicación bloqueada: el mapa no cargó bien. Recarga o pulsa Sincronizar antes de publicar.',
+            '⚠️ Publicación bloqueada: el mapa no cargó bien. Recarga o pulsa Guardar mapa antes de publicar.',
             'alerta', 10000
           );
         }
@@ -5077,7 +5077,7 @@ const Admin = {
     if (enviados > 0 && guardados === 0 && this.esAdminJugador()) {
       this._ultimoErrorPub = 'El servidor no guardó los pins del mapa';
       Notificaciones.mostrar(
-        '⚠️ El servidor no guardó el mapa. Comprueba que entras como Randy y pulsa Sincronizar.',
+        '⚠️ El servidor no guardó el mapa. Comprueba que entras como Randy y pulsa Guardar mapa.',
         'error', 10000
       );
       return false;
