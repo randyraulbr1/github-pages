@@ -47,10 +47,20 @@ button { font-family: inherit; }
   width: 100%;
 }
 .barra-nivel {
-  font-size: 11px; font-weight: 900; color: #111;
-  flex-shrink: 0; width: 34px; text-align: right;
-  text-shadow: 0 0 3px #fff, 0 0 6px rgba(255,255,255,.85);
+  font-size: 11px;
+  font-weight: 900;
+  color: #fff;
+  flex-shrink: 0;
+  min-width: 34px;
+  text-align: center;
   letter-spacing: -.02em;
+  line-height: 1.15;
+  background: rgba(0, 0, 0, 0.35);
+  border: 1px solid rgba(0, 0, 0, 0.4);
+  border-radius: 2px;
+  padding: 2px 4px;
+  box-sizing: border-box;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.9);
 }
 .fila-barra-xp .barra-nivel { margin-right: 3px; }
 
