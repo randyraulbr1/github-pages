@@ -382,12 +382,11 @@ const Mochila = {
     if (!controls || !sl) return;
     const item = Items.seguro(sl.id);
     const puedeUsar = Items.esUsableEnInventario(item, sl.id);
+    const esConsumible = Items.esConsumible(item, sl.id);
     controls.classList.add('show');
-    if (useBtn) useBtn.style.display = puedeUsar ? '' : 'none';
-    if (useAllBtn) {
-      const varios = puedeUsar && sl.cantidad > 1 && Items.esUsableEnVarios(item, sl.id);
-      useAllBtn.style.display = varios ? '' : 'none';
-    }
+    useBtn?.classList.toggle('on', puedeUsar);
+    const varios = puedeUsar && esConsumible && sl.cantidad > 1;
+    useAllBtn?.classList.toggle('on', varios);
   },
 
   _actualizarNombreArrastre() {

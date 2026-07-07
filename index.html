@@ -9,7 +9,7 @@
   <link rel="icon" type="image/png" href="iconos/icono-192.png">
   <link rel="apple-touch-icon" href="iconos/icono-192.png">
   <link rel="stylesheet" href="lib/leaflet/leaflet.css">
-  <link rel="stylesheet" href="css/estilos.css?v=139">
+  <link rel="stylesheet" href="css/estilos.css?v=140">
   <link rel="stylesheet" href="css/chat.css?v=137">
   <link rel="stylesheet" href="css/amigos.css">
   <link rel="stylesheet" href="css/opciones.css?v=116">
@@ -352,10 +352,14 @@
         </div>
         <div id="rejilla-mochila" class="inv-rejilla"></div>
         <div class="inv-controls" id="inv-controls">
-          <button type="button" class="inv-ctrl-btn" id="inv-minus-btn" title="Quitar 1">−</button>
-          <button type="button" class="inv-ctrl-btn inv-ctrl-delete" id="inv-delete-btn" title="Eliminar">🗑</button>
-          <button type="button" class="inv-ctrl-btn inv-ctrl-use" id="inv-use-btn" title="Usar 1">1</button>
-          <button type="button" class="inv-ctrl-btn inv-ctrl-use-all" id="inv-use-all-btn" title="Usar lo necesario">VARIOS</button>
+          <div class="inv-ctrl-left">
+            <button type="button" class="inv-ctrl-btn" id="inv-minus-btn" title="Quitar 1">−</button>
+            <button type="button" class="inv-ctrl-btn inv-ctrl-delete" id="inv-delete-btn" title="Eliminar">🗑</button>
+          </div>
+          <div class="inv-ctrl-right">
+            <button type="button" class="inv-ctrl-btn inv-ctrl-use" id="inv-use-btn" title="Usar 1">1</button>
+            <button type="button" class="inv-ctrl-btn inv-ctrl-use-all" id="inv-use-all-btn" title="Usar todos los necesarios">TODOS</button>
+          </div>
         </div>
         <p class="inv-ayuda">Arrastra para mover · suelta en − o 🗑</p>
       </div>
@@ -905,7 +909,7 @@
   <script src="lib/leaflet/leaflet.js?v=104"></script>
 
   <!-- MÓDULOS DEL JUEGO (orden importante) -->
-  <script src="js/config/config.js?v=139"></script>
+  <script src="js/config/config.js?v=140"></script>
   <script src="js/nucleo/utilidades.js?v=137"></script>
   <script src="js/mundo/mundo_publico.js?v=104"></script>
   <script src="js/notificaciones/notificaciones.js?v=137"></script>
@@ -914,8 +918,8 @@
   <script src="js/historial/historial.js?v=104"></script>
   <script src="js/dinero/dinero.js?v=104"></script>
   <script src="js/vida/vida.js?v=137"></script>
-  <script src="js/items/items.js?v=137"></script>
-  <script src="js/mochila/mochila.js?v=139"></script>
+  <script src="js/items/items.js?v=140"></script>
+  <script src="js/mochila/mochila.js?v=140"></script>
   <script src="js/mapa/mapa.js?v=104"></script>
   <script src="js/gps/gps.js?v=104"></script>
   <script src="js/tiendas/datos_tiendas.js?v=104"></script>
@@ -929,7 +933,7 @@
   <script src="js/correo/correo.js?v=104"></script>
   <script src="js/enemigos/enemigos.js?v=137"></script>
   <script src="js/online/sync_servidor.js?v=104"></script>
-  <script src="js/admin/admin.js?v=137"></script>
+  <script src="js/admin/admin.js?v=140"></script>
   <script src="js/opciones/opciones.js?v=116"></script>
   <script src="js/online/mundo_online.js?v=104"></script>
   <script src="js/online/amigos.js?v=107"></script>
@@ -940,7 +944,7 @@
     // Registrar la app instalable (PWA)
     if ('serviceWorker' in navigator) {
       const yaTeniaVersion = !!navigator.serviceWorker.controller;
-      navigator.serviceWorker.register('sw.js?v=139', { updateViaCache: 'none' })
+      navigator.serviceWorker.register('sw.js?v=140', { updateViaCache: 'none' })
         .then(function (reg) { reg.update(); })
         .catch(function () {});
       // Cuando llega una versión nueva del juego: avisar y recargar solo
