@@ -118,8 +118,7 @@ async function esperarMundoEnMapa() {
 
 (async function arrancar() {
   if (typeof MarielVersion !== 'undefined') {
-    await MarielVersion.comprobarRemota();
-    if (MarielVersion.estaBloqueado()) return;
+    MarielVersion._desbloquearTodo?.();
   }
 
   const ocultarCarga = () => MarielBoot.ocultar();
@@ -299,5 +298,8 @@ async function esperarMundoEnMapa() {
     }
   } finally {
     ocultarCarga();
+    if (typeof MarielVersion !== 'undefined') {
+      MarielVersion._desbloquearTodo?.();
+    }
   }
 })();

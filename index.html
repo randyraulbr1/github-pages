@@ -4,68 +4,45 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
   <title>Mariel Explorer</title>
-  <meta name="mariel-version" content="230">
+  <meta name="mariel-version" content="231">
   <link rel="manifest" href="manifest.json">
   <link rel="icon" type="image/png" href="iconos/icono-192.png">
   <link rel="apple-touch-icon" href="iconos/icono-192.png">
   <link rel="stylesheet" href="lib/leaflet/leaflet.css">
-  <link rel="stylesheet" href="css/estilos.css?v=230">
-  <link rel="stylesheet" href="css/chat.css?v=230">
-  <link rel="stylesheet" href="css/amigos.css?v=230">
-  <link rel="stylesheet" href="css/opciones.css?v=230">
+  <link rel="stylesheet" href="css/estilos.css?v=231">
+  <link rel="stylesheet" href="css/chat.css?v=231">
+  <link rel="stylesheet" href="css/amigos.css?v=231">
+  <link rel="stylesheet" href="css/opciones.css?v=231">
   <link rel="stylesheet" href="css/notificaciones.css?v=117">
   <script>
     (function () {
       var metaV = document.querySelector('meta[name="mariel-version"]');
-      var E = (metaV && metaV.getAttribute('content')) || '197';
-      var CANON = 'https://raw.githubusercontent.com/randyraulbr1/github-pages/main/version.json';
-      try {
-        var fv = sessionStorage.getItem('mariel_force_version');
-        var t0 = parseInt(sessionStorage.getItem('mariel_actualizado_en') || '0', 10);
-        if (fv && t0 && Date.now() - t0 < 120000) E = fv;
-      } catch (e) { /* */ }
-      window.__MARIEL_EMBEDDED__ = E;
-      function revisar(j) {
-        if (!j || !j.version) return;
-        var rem = parseInt(j.version, 10);
-        var loc = parseInt(E, 10);
-        if (rem > loc) window.__MARIEL_UPDATE_PENDING = { local: E, remote: j.version };
+      var V = (metaV && metaV.getAttribute('content')) || '231';
+      window.__MARIEL_EMBEDDED__ = V;
+      var prev = localStorage.getItem('mariel_ultima_version');
+      if (prev && prev !== V) {
+        localStorage.setItem('mariel_ultima_version', V);
+        var recargar = function () { location.replace(location.origin + '/?_=' + Date.now()); };
+        if ('serviceWorker' in navigator) {
+          navigator.serviceWorker.getRegistrations().then(function (rs) {
+            return Promise.all(rs.map(function (r) { return r.unregister(); }));
+          }).then(function () {
+            if ('caches' in window) {
+              return caches.keys().then(function (ks) {
+                return Promise.all(ks.map(function (k) { return caches.delete(k); }));
+              });
+            }
+          }).finally(recargar);
+        } else { recargar(); }
+        return;
       }
-      var ts = Date.now();
-      fetch(location.origin + '/version.json?_=' + ts, { cache: 'no-store' })
-        .then(function (r) { return r.ok ? r.json() : null; })
-        .then(function (j) { if (j) revisar(j); return j; })
-        .catch(function () { return null; })
-        .then(function (prev) {
-          if (prev && parseInt(prev.version, 10) > parseInt(E, 10)) return prev;
-          return fetch(CANON + '?_=' + ts, { cache: 'no-store' })
-            .then(function (r) { return r.ok ? r.json() : null; })
-            .then(revisar);
-        })
-        .catch(function () {
-          fetch('version.json?_=' + ts, { cache: 'no-store' })
-            .then(function (r) { return r.ok ? r.json() : null; })
-            .then(revisar)
-            .catch(function () {});
-        });
+      if (!prev) localStorage.setItem('mariel_ultima_version', V);
     })();
   </script>
 </head>
 <body>
 
-  <!-- ACTUALIZACIÓN OBLIGATORIA (caché PWA desactualizada) -->
-  <div id="pantalla-actualizar" class="pantalla-actualizar oculto" role="dialog" aria-modal="true" aria-labelledby="actualizar-titulo">
-    <div class="actualizar-caja">
-      <div class="actualizar-icono">⬆️</div>
-      <div id="actualizar-titulo" class="actualizar-titulo">Hay una actualización</div>
-      <p id="actualizar-detalle" class="actualizar-detalle">Tu versión no está al día.</p>
-      <p class="actualizar-ayuda">Un solo toque: limpia la caché, descarga la versión nueva y te lleva a iniciar sesión.</p>
-      <p id="actualizar-estado" class="actualizar-estado oculto" aria-live="polite"></p>
-      <button type="button" id="btn-actualizar-app" class="btn-actualizar-app">Actualizar</button>
-    </div>
-  </div>
-
-  <script src="js/nucleo/version_app.js?v=230"></script>
+  <script src="js/nucleo/version_app.js?v=231"></script>
   <script>MarielVersion.iniciar(window.__MARIEL_EMBEDDED__);</script>
 
   <!-- PANTALLA DE CARGA (visible desde el primer instante) -->
@@ -1077,18 +1054,18 @@
   <script src="lib/leaflet/leaflet.js?v=104"></script>
 
   <!-- MÓDULOS DEL JUEGO (orden importante) -->
-  <script src="js/config/config.js?v=230"></script>
-  <script src="js/nucleo/utilidades.js?v=230"></script>
+  <script src="js/config/config.js?v=231"></script>
+  <script src="js/nucleo/utilidades.js?v=231"></script>
   <script src="js/mundo/mundo_publico.js?v=104"></script>
-  <script src="js/notificaciones/notificaciones.js?v=230"></script>
-  <script src="js/usuarios/usuarios.js?v=230"></script>
+  <script src="js/notificaciones/notificaciones.js?v=231"></script>
+  <script src="js/usuarios/usuarios.js?v=231"></script>
   <script src="js/guardado/guardado.js?v=149"></script>
   <script src="js/historial/historial.js?v=104"></script>
   <script src="js/dinero/dinero.js?v=104"></script>
-  <script src="js/vida/vida.js?v=230"></script>
+  <script src="js/vida/vida.js?v=231"></script>
   <script src="js/items/items.js?v=140"></script>
-  <script src="js/mochila/mochila.js?v=230"></script>
-  <script src="js/bolsas/bolsas.js?v=230"></script>
+  <script src="js/mochila/mochila.js?v=231"></script>
+  <script src="js/bolsas/bolsas.js?v=231"></script>
   <script src="js/mapa/mapa.js?v=104"></script>
   <script src="js/gps/gps.js?v=150"></script>
   <script src="js/tiendas/datos_tiendas.js?v=104"></script>
@@ -1100,19 +1077,19 @@
   <script src="js/misiones/misiones.js?v=104"></script>
   <script src="js/cofres/cofres.js?v=104"></script>
   <script src="js/correo/correo.js?v=104"></script>
-  <script src="js/enemigos/enemigos.js?v=230"></script>
-  <script src="js/online/sync_servidor.js?v=230"></script>
-  <script src="js/admin/admin.js?v=230"></script>
-  <script src="js/opciones/opciones.js?v=230"></script>
-  <script src="js/online/mundo_online.js?v=230"></script>
-  <script src="js/online/amigos.js?v=230"></script>
-  <script src="js/chat/chat.js?v=230"></script>
-  <script src="js/online/multijugador.js?v=230"></script>
-  <script src="js/principal.js?v=230"></script>
+  <script src="js/enemigos/enemigos.js?v=231"></script>
+  <script src="js/online/sync_servidor.js?v=231"></script>
+  <script src="js/admin/admin.js?v=231"></script>
+  <script src="js/opciones/opciones.js?v=231"></script>
+  <script src="js/online/mundo_online.js?v=231"></script>
+  <script src="js/online/amigos.js?v=231"></script>
+  <script src="js/chat/chat.js?v=231"></script>
+  <script src="js/online/multijugador.js?v=231"></script>
+  <script src="js/principal.js?v=231"></script>
   <script>
     // Registrar la app instalable (PWA)
     if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.register('sw.js?v=230', { updateViaCache: 'none' })
+      navigator.serviceWorker.register('sw.js?v=231', { updateViaCache: 'none' })
         .then(function (reg) {
           if (typeof MarielVersion !== 'undefined') MarielVersion.registrarServiceWorker(reg);
         })

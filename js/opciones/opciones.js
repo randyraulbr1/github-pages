@@ -249,17 +249,9 @@ const Opciones = {
     const el = document.getElementById('opciones-version');
     if (!el) return;
     const v = window.__MARIEL_EMBEDDED__
-      || (typeof MarielVersion !== 'undefined' && MarielVersion._embebida)
       || (typeof CONFIG !== 'undefined' && CONFIG.version)
       || '?';
-    const guardada = localStorage.getItem('mariel_app_version');
-    const alDia = !guardada || guardada === v;
-    el.textContent = alDia
-      ? ('Versión ' + v + ' · actualizada')
-      : ('Versión ' + v + ' · hay actualización nueva');
-    if (typeof MarielVersion !== 'undefined') {
-      MarielVersion.comprobarRemota();
-    }
+    el.textContent = 'Versión ' + v;
   },
 
   _guardarPreferencia(clave, valor) {
