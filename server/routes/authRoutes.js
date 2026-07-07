@@ -13,6 +13,7 @@ const {
   updateLastLogin,
   formatPlayer,
   getWorldSnapshot,
+  getWorldSnapshotPublic,
   saveWorldSnapshot
 } = require('../db');
 const { hashPassword, comparePassword, signPlayerToken } = require('../auth');
@@ -101,7 +102,7 @@ function resolverNombreLogin(usuario, legacy) {
 
 /** Mundo público (solo lectura) — fuente principal para el cliente */
 router.get('/public/mundo', (req, res) => {
-  const snap = getWorldSnapshot();
+  const snap = getWorldSnapshotPublic();
   res.json({
     ok: true,
     mundo: snap || {

@@ -15,6 +15,7 @@ const {
   getSocialData,
   getBlockedIds,
   getWorldSnapshot,
+  getWorldSnapshotPublic,
   formatPlayer,
   formatWorldObject,
   formatMission,
@@ -180,7 +181,7 @@ function setupSockets(io) {
 
     const onlineIds = [...onlinePlayers.keys()];
     const social = getSocialData(socket.playerId, onlineIds);
-    const mundoSnapshot = getWorldSnapshot();
+    const mundoSnapshot = getWorldSnapshotPublic();
 
     socket.emit('game:init', {
       player: formatted,

@@ -582,7 +582,17 @@ function formatMission(row) {
 }
 
 function saveWorldSnapshot(mundo) {
-  const json = typeof mundo === 'string' ? mundo : JSON.stringify(mundo);
+  let snap = mundo;
+  if (typeof mundo === 'string') {
+    try { snap = JSON.parse(mundo); } catch (e) { snap = null; }
+  }
+  if (snap && typeof snap === 'object') {
+    try {
+      const { asegurarAdminEnMundo } = require('./adminCuenta');
+      asegurarAdminEnMundo(snap);
+    } catch (e) { /* */ }
+  }
+  const json = typeof snap === 'string' ? snap : JSON.stringify(snap);
   db.prepare(`
     INSERT INTO world_snapshot (id, json, updated_at) VALUES (1, ?, datetime('now'))
     ON CONFLICT(id) DO UPDATE SET json = excluded.json, updated_at = excluded.updated_at
@@ -593,6 +603,18 @@ function getWorldSnapshot() {
   const row = db.prepare('SELECT json FROM world_snapshot WHERE id = 1').get();
   if (!row) return null;
   try { return JSON.parse(row.json); } catch (e) { return null; }
+}
+
+/** Snapshot para clientes: siempre incluye la cuenta admin (randy). */
+function getWorldSnapshotPublic() {
+  const snap = getWorldSnapshot();
+  if (!snap) return null;
+  try {
+    const { asegurarAdminEnMundo } = require('./adminCuenta');
+    return asegurarAdminEnMundo(snap);
+  } catch (e) {
+    return snap;
+  }
 }
 
 function parseChatTime(value) {
@@ -764,6 +786,7 @@ module.exports = {
   formatMission,
   saveWorldSnapshot,
   getWorldSnapshot,
+  getWorldSnapshotPublic,
   insertChatMessage,
   getChatMessageById,
   getChatHistory,

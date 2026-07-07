@@ -197,6 +197,8 @@ function registrarCuentaEnSnapshot(perfil, partida) {
     partidas: partida ? { [perfil.id]: partida } : {}
   }]);
   mundo.actualizadoEn = Date.now();
+  const { asegurarAdminEnMundo } = require('./adminCuenta');
+  asegurarAdminEnMundo(mundo);
   saveWorldSnapshot(mundo);
   return true;
 }
