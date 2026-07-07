@@ -3,14 +3,10 @@
  * Requiere GITHUB_TOKEN en Render (repo con permiso contents:write).
  */
 const { mergeJugadoresPartidas, fusionarMapaPublicacion } = require('./syncMundo');
+const { putArchivoGitHubSiCambio, putConReintentos } = require('./utils/githubPush');
+const { registrarSyncOk, registrarSyncError } = require('./syncStatus');
 
-function repoConfig() {
-  return {
-    repo: process.env.GITHUB_REPO || 'randyraulbr1/github-pages',
-    branch: process.env.GITHUB_BRANCH || 'claude/web-rpg-gps-game-n3ybow',
-    path: 'datos/mundo.json'
-  };
-}
+const { repoConfig } = require('./utils/repoConfig');
 
 /** Lee mundo.json desde GitHub (público, sin token). */
 async function fetchMundoFromGitHub() {
@@ -25,36 +21,11 @@ async function fetchMundoFromGitHub() {
   }
 }
 
-async function pushMundoToGitHub(mundo) {
-  const token = process.env.GITHUB_TOKEN;
-  if (!token) return { ok: false, skipped: true, reason: 'GITHUB_TOKEN no configurado' };
-
+async function prepararPayloadMundo(mundo) {
   const { repo, branch, path: filePath } = repoConfig();
-  const apiUrl = `https://api.github.com/repos/${repo}/contents/${filePath}`;
-
-  const headers = {
-    Authorization: `Bearer ${token}`,
-    Accept: 'application/vnd.github+json',
-    'X-GitHub-Api-Version': '2022-11-28'
-  };
-
-  let sha;
-  let remoto = null;
-  try {
-    const getRes = await fetch(`${apiUrl}?ref=${encodeURIComponent(branch)}`, { headers });
-    if (getRes.ok) {
-      const file = await getRes.json();
-      sha = file.sha;
-      try {
-        remoto = JSON.parse(Buffer.from(file.content, 'base64').toString('utf8'));
-      } catch (e) { remoto = null; }
-    } else if (getRes.status !== 404) {
-      const err = await getRes.text();
-      return { ok: false, error: `GET ${getRes.status}: ${err.slice(0, 120)}` };
-    }
-  } catch (e) {
-    return { ok: false, error: e.message };
-  }
+  const { leerArchivoGitHub } = require('./utils/githubPush');
+  const remotoFile = await leerArchivoGitHub(filePath, branch);
+  const remoto = remotoFile?.contenido || null;
 
   const payload = Object.assign({}, mundo);
   if (Array.isArray(mundo.jugadores)) {
@@ -72,26 +43,42 @@ async function pushMundoToGitHub(mundo) {
   fusionarMapaPublicacion(payload, remoto);
   const { asegurarAdminEnMundo } = require('./adminCuenta');
   asegurarAdminEnMundo(payload);
-
-  const body = {
-    message: `sync mundo admin ${new Date().toISOString()}`,
-    content: Buffer.from(JSON.stringify(payload, null, 2), 'utf8').toString('base64'),
-    branch
-  };
-  if (sha) body.sha = sha;
-
-  try {
-    const putRes = await fetch(apiUrl, {
-      method: 'PUT',
-      headers: Object.assign({ 'Content-Type': 'application/json' }, headers),
-      body: JSON.stringify(body)
-    });
-    if (putRes.ok) return { ok: true };
-    const err = await putRes.text();
-    return { ok: false, error: `PUT ${putRes.status}: ${err.slice(0, 200)}` };
-  } catch (e) {
-    return { ok: false, error: e.message };
-  }
+  return payload;
 }
 
-module.exports = { pushMundoToGitHub, fetchMundoFromGitHub, repoConfig };
+async function pushMundoToGitHub(mundo, opts) {
+  const token = process.env.GITHUB_TOKEN;
+  if (!token) {
+    registrarSyncError('GITHUB_TOKEN no configurado', 'mundo');
+    return { ok: false, skipped: true, reason: 'GITHUB_TOKEN no configurado' };
+  }
+
+  const { path: filePath } = repoConfig();
+  const payload = await prepararPayloadMundo(mundo);
+  const mensaje = opts?.mensaje || `sync mundo ${new Date().toISOString()}`;
+  const intentos = opts?.intentos || 3;
+
+  const r = await putConReintentos(filePath, payload, mensaje, intentos);
+  if (r.ok) {
+    if (!r.skipped) registrarSyncOk('mundo');
+    return r;
+  }
+  registrarSyncError(r.error || r.reason, 'mundo');
+  return r;
+}
+
+/** Fuerza volcado SQLite → GitHub (admin). */
+async function forcePushMundoActual() {
+  const { getWorldSnapshot } = require('./db');
+  const snap = getWorldSnapshot();
+  if (!snap) return { ok: false, error: 'Sin snapshot en SQLite' };
+  return pushMundoToGitHub(snap, { mensaje: 'force-git-sync admin', intentos: 3 });
+}
+
+module.exports = {
+  pushMundoToGitHub,
+  fetchMundoFromGitHub,
+  repoConfig,
+  forcePushMundoActual,
+  prepararPayloadMundo
+};

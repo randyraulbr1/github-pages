@@ -20,8 +20,23 @@ const { mergeJugadoresPartidas } = require('../syncMundo');
 const { forzarImportJugadores, leerMundoJson } = require('../importSnapshot');
 const { getJugadoresPublicos, respaldarCuentasEnGitHub, buscarJugadorPublico } = require('../syncCuentas');
 const { leerAdminDesdeArchivo } = require('../adminCuenta');
+const { intentarRecuperarPorLogin } = require('../recoveryCuentas');
+const { registrar } = require('../eventLog');
+const { hashContenido } = require('../utils/githubPush');
+const { getSyncStatus } = require('../syncStatus');
 
 const router = express.Router();
+
+function telefonoEnUso(telefono, excluirId) {
+  const limpio = String(telefono || '').replace(/[\s-]/g, '');
+  if (!limpio) return false;
+  const snap = getWorldSnapshot();
+  return (snap?.jugadores || []).some(j =>
+    j?.id !== excluirId &&
+    j?.telefono &&
+    String(j.telefono).replace(/[\s-]/g, '') === limpio
+  );
+}
 
 function sha256Pin(clave) {
   return crypto.createHash('sha256').update('pin-perfil|' + clave).digest('hex');
@@ -108,6 +123,22 @@ router.get('/public/cuentas', (req, res) => {
   });
 });
 
+/** Diagnóstico ligero del mundo en servidor (hash para comparar con GitHub). */
+router.get('/debug/world', (req, res) => {
+  const snap = getWorldSnapshot();
+  if (!snap) return res.json({ ok: false, error: 'sin snapshot' });
+  res.json({
+    ok: true,
+    jugadores: (snap.jugadores || []).length,
+    objetos: (snap.objetos || []).length,
+    enemigos: (snap.enemigos || []).length,
+    misiones: (snap.misiones || []).length,
+    tesoros: (snap.tesoros || []).length,
+    ultimaActualizacion: snap.actualizadoEn || 0,
+    hash: hashContenido(snap)
+  });
+});
+
 /** Solo versión del mundo (para polling ligero sin descargar todo el JSON). */
 router.get('/public/mundo/version', (req, res) => {
   const snap = getWorldSnapshot();
@@ -154,12 +185,27 @@ router.post('/login-game', (req, res) => {
     return res.status(400).json({ ok: false, error: 'Contraseña mínimo 4 caracteres' });
   }
 
-  const enLista = estaEnListaPublicada(usuario);
-  if (enLista === false) {
-    return res.status(401).json({ ok: false, error: 'No estás registrado' });
+  const rec = intentarRecuperarPorLogin(usuario);
+  if (rec.accion === 'eliminada') {
+    return res.status(401).json({
+      ok: false,
+      error: 'Tu cuenta fue eliminada. Contacta al admin para restaurarla.',
+      codigo: 'cuenta_eliminada'
+    });
+  }
+  if (rec.accion === 'no_registrado') {
+    return res.status(401).json({ ok: false, error: 'No estás registrado', codigo: 'no_registrado' });
+  }
+  if (rec.accion === 'recuperada') {
+    registrar('login_recovery', `Auto-recuperación en login: ${rec.jugador?.nombre}`);
   }
 
-  const legacy = buscarJugadorSnapshot(usuario);
+  const enLista = estaEnListaPublicada(usuario);
+  if (enLista === false) {
+    return res.status(401).json({ ok: false, error: 'No estás registrado', codigo: 'no_registrado' });
+  }
+
+  const legacy = buscarJugadorSnapshot(usuario) || rec.jugador || null;
   const nombreLogin = resolverNombreLogin(usuario, legacy);
 
   let user = findUserByUsername(nombreLogin);
@@ -257,6 +303,9 @@ router.post('/register', (req, res) => {
 
   if (findUserByUsername(username)) {
     return res.status(409).json({ ok: false, error: 'Ese usuario ya existe' });
+  }
+  if (telefono && telefonoEnUso(telefono)) {
+    return res.status(409).json({ ok: false, error: 'Ese teléfono ya está registrado en otra cuenta' });
   }
 
   const legacy = buscarJugadorSnapshot(username);

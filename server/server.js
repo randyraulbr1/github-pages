@@ -94,6 +94,20 @@ setupSockets(io);
 
 async function arrancar() {
   try {
+    const { validarGithubToken } = require('./syncStatus');
+    const tok = await validarGithubToken();
+    if (tok.ok) console.log('   GITHUB_TOKEN: válido');
+    else console.warn('   ⚠️ GITHUB_TOKEN:', tok.reason);
+  } catch (e) { /* */ }
+
+  try {
+    const { programarBackupDiario } = require('./backupDiario');
+    programarBackupDiario();
+  } catch (e) {
+    console.warn('   backupDiario:', e.message);
+  }
+
+  try {
     const { restaurarMundoAlArranque, recuperarJugadoresPerdidos } = require('./importSnapshot');
     await restaurarMundoAlArranque();
     await recuperarJugadoresPerdidos();

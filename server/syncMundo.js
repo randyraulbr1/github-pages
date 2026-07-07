@@ -67,6 +67,22 @@ function fusionarJugadoresPublicacion(mundo, prev) {
   const purgar = !!mundo.purgarJugadores;
 
   if (purgar) {
+    if (!Array.isArray(mundo.eliminados_recuperables)) mundo.eliminados_recuperables = [];
+    const incomingIds = new Set(incoming.filter(j => j?.id).map(j => j.id));
+    const { esCuentaAdmin } = require('./adminCuenta');
+    for (const j of prevJ) {
+      if (!j?.id || incomingIds.has(j.id) || esCuentaAdmin(j)) continue;
+      const ya = mundo.eliminados_recuperables.some(e => e?.tipo === 'jugador' && e.id === j.id);
+      if (!ya) {
+        mundo.eliminados_recuperables.push({
+          tipo: 'jugador',
+          id: j.id,
+          datos: Object.assign({}, j),
+          partida: prev?.partidas?.[j.id] || null,
+          eliminadoEn: Date.now()
+        });
+      }
+    }
     for (const j of incoming) {
       if (j?.id) porId.set(j.id, Object.assign({}, j));
     }
@@ -833,7 +849,20 @@ function syncMundoFromJson(mundo, io) {
 
   const purgarParaGitHub = !!mundo.purgarJugadores;
   delete mundo.purgarJugadores;
+
+  if (Array.isArray(mundo.eliminados_recuperables)) {
+    const limite = Date.now() - 30 * 24 * 60 * 60 * 1000;
+    mundo.eliminados_recuperables = mundo.eliminados_recuperables.filter(e =>
+      !e.eliminadoEn || e.eliminadoEn > limite
+    );
+  }
+
   saveWorldSnapshot(mundo);
+
+  try {
+    const { registrar } = require('./eventLog');
+    registrar('publish', `Mundo publicado — ${(mundo.jugadores || []).length} jugadores, ${(mundo.objetos || []).length} objetos`);
+  } catch (e) { /* */ }
 
   const mundoGitHub = purgarParaGitHub ? Object.assign({}, mundo, { purgarJugadores: true }) : mundo;
   pushMundoToGitHub(mundoGitHub).then((r) => {
