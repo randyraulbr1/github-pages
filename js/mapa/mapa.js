@@ -11,6 +11,9 @@ const Mapa = {
   _mapaMovidoPorUsuario: false,
   _tempRecuperarZoom: null,
   _toqueActivo: false,
+  _capaPrincipal: null,
+  _capaReserva: null,
+  _usandoReserva: false,
 
   _claveVista() {
     const id = (typeof Usuarios !== 'undefined' && Usuarios.perfilActivo?.id) || 'global';
@@ -18,6 +21,14 @@ const Mapa = {
   },
 
   iniciar() {
+    if (typeof L === 'undefined') return false;
+    const cont = document.getElementById('mapa');
+    if (!cont) return false;
+    if (this.mapa) {
+      this.refrescarTamano();
+      return true;
+    }
+
     this.mapa = L.map('mapa', {
       center: CONFIG.centro,
       zoom: CONFIG.zoomInicial,
@@ -30,11 +41,20 @@ const Mapa = {
     });
 
     // Teselas SIN etiquetas (sin nombres de calles ni lugares)
-    L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager_nolabels/{z}/{x}/{y}{r}.png', {
-      attribution: '&copy; OpenStreetMap &copy; CARTO',
-      subdomains: 'abcd',
+    this._capaPrincipal = L.tileLayer(
+      'https://{s}.basemaps.cartocdn.com/rastertiles/voyager_nolabels/{z}/{x}/{y}{r}.png',
+      {
+        attribution: '&copy; OpenStreetMap &copy; CARTO',
+        subdomains: 'abcd',
+        maxZoom: CONFIG.zoomMaximo
+      }
+    );
+    this._capaReserva = L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      attribution: '&copy; OpenStreetMap',
       maxZoom: CONFIG.zoomMaximo
-    }).addTo(this.mapa);
+    });
+    this._capaPrincipal.on('tileerror', () => this._activarCapaReserva());
+    this._capaPrincipal.addTo(this.mapa);
 
     // Máscara: cubre todo el mundo excepto el cuadrado jugable
     const [so, ne] = CONFIG.limites;
@@ -46,7 +66,50 @@ const Mapa = {
 
     this.mapa.on('moveend zoomend', () => this._guardarVista());
     window.addEventListener('pagehide', () => this._guardarVista());
+    window.addEventListener('resize', () => this.refrescarTamano());
+    window.addEventListener('orientationchange', () => {
+      setTimeout(() => this.refrescarTamano(), 300);
+    });
     this._enlazarRecuperacionZoom();
+    this.refrescarTamano();
+    setTimeout(() => this.refrescarTamano(), 400);
+    return true;
+  },
+
+  _activarCapaReserva() {
+    if (!this.mapa || this._usandoReserva || !this._capaReserva) return;
+    this._usandoReserva = true;
+    if (this._capaPrincipal && this.mapa.hasLayer(this._capaPrincipal)) {
+      this.mapa.removeLayer(this._capaPrincipal);
+    }
+    if (!this.mapa.hasLayer(this._capaReserva)) this._capaReserva.addTo(this.mapa);
+    this.refrescarTamano();
+  },
+
+  refrescarTamano() {
+    if (!this.mapa) return;
+    try {
+      this.mapa.invalidateSize({ animate: false, pan: false });
+    } catch (e) { /* */ }
+  },
+
+  async asegurarIniciado() {
+    if (this.mapa) {
+      this.refrescarTamano();
+      return true;
+    }
+    if (typeof L === 'undefined') return false;
+    const ok = this.iniciar();
+    if (!ok || !this.mapa) return false;
+    await new Promise(resolve => {
+      const limite = setTimeout(resolve, 4000);
+      this.mapa.whenReady(() => {
+        this.refrescarTamano();
+        clearTimeout(limite);
+        setTimeout(resolve, 120);
+      });
+    });
+    return !!this.mapa;
   },
 
   _enlazarRecuperacionZoom() {

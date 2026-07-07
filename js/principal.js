@@ -116,6 +116,29 @@ async function esperarMundoEnMapa() {
   }
 }
 
+async function asegurarMapaVisible() {
+  if (typeof Mapa === 'undefined') return false;
+  const ok = await Mapa.asegurarIniciado();
+  if (!ok) return false;
+  Mapa.refrescarTamano();
+  if (typeof Guardado !== 'undefined') Guardado._asegurarPosicionJugador?.();
+  if (typeof GPS !== 'undefined') {
+    if (!GPS.marcador && Mapa.mapa && typeof Guardado !== 'undefined' && Guardado.datos) {
+      try { GPS.iniciar(); } catch (e) { console.warn('GPS fallback:', e); }
+    } else {
+      GPS.aplicarPosicionGuardada?.();
+    }
+  }
+  Mapa.refrescarTamano();
+  if (typeof GPS !== 'undefined' && GPS.posicion) {
+    Mapa.centrarEnJugador(false);
+  } else if (Mapa.restaurarVista) {
+    Mapa.restaurarVista();
+  }
+  setTimeout(() => Mapa.refrescarTamano(), 500);
+  return true;
+}
+
 (async function arrancar() {
   if (typeof MarielVersion !== 'undefined') {
     MarielVersion._desbloquearTodo?.();
@@ -137,6 +160,9 @@ async function esperarMundoEnMapa() {
   try {
     MarielBoot.mostrar('Conectando con la nube…');
 
+    // Mapa visible desde el primer momento (no esperar al servidor)
+    await pasoSeguro('mapa-temprano', () => Mapa.asegurarIniciado());
+
     // —— FASE 1: MUNDO DESDE SERVIDOR (SQLite en Render) ——
     await pasoSeguro('mundo-remoto', async () => {
       const texto = await MundoPublico.descargar();
@@ -147,7 +173,14 @@ async function esperarMundoEnMapa() {
     avanzarCarga('Descargando el mundo…');
     await pasoSeguro('mundo', () => Admin.cargar());
     if (typeof Admin !== 'undefined' && !Admin._mundoCargado) {
-      throw new Error('El mundo no terminó de cargar');
+      Admin._mundoCargado = true;
+      if (!Admin.publicado) {
+        Admin.publicado = {
+          misiones: [], tesoros: [], objetos: [], posiciones: {}, eliminados: [],
+          precios: {}, itemsNuevos: [], jugadores: [], cofres: [], partidas: {}
+        };
+      }
+      console.warn('Mundo incompleto: se continúa con mapa local vacío');
     }
 
     // —— FASE 2: SESIÓN (login si hace falta; el mundo ya está listo) ——
@@ -212,8 +245,8 @@ async function esperarMundoEnMapa() {
     Vida.iniciar();
     Mochila.iniciar();
     if (typeof L === 'undefined') throw new Error('No se cargó el mapa (Leaflet)');
-    Mapa.iniciar();
-    GPS.iniciar();
+    await pasoSeguro('mapa', () => Mapa.asegurarIniciado());
+    await pasoSeguro('gps', () => { if (!GPS.marcador) GPS.iniciar(); });
     Tiendas.iniciar();
     Pesca.iniciar();
     Tesoros.iniciar();
@@ -288,16 +321,8 @@ async function esperarMundoEnMapa() {
     if (typeof Admin !== 'undefined' && Admin.mostrarMensajes) Admin.mostrarMensajes();
     if (typeof Notificaciones !== 'undefined') Notificaciones._actualizarBadge();
 
-    await pasoSeguro('mapa-jugador-final', async () => {
-      if (typeof Guardado !== 'undefined') Guardado._asegurarPosicionJugador?.();
-      if (typeof GPS !== 'undefined') GPS.aplicarPosicionGuardada?.();
-      if (typeof Mapa !== 'undefined' && Mapa.mapa) {
-        Mapa.mapa.invalidateSize();
-        await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
-        Mapa.centrarEnJugador?.(false);
-      }
-      if (typeof Opciones !== 'undefined') Opciones._refrescarAdmin?.();
-    });
+    await pasoSeguro('mapa-jugador-final', () => asegurarMapaVisible());
+    if (typeof Opciones !== 'undefined') Opciones._refrescarAdmin?.();
   } catch (e) {
     console.error('Error arrancando Mariel Explorer:', e);
     MarielBoot.avanzar('Error al cargar. Recarga la página.');
@@ -309,6 +334,8 @@ async function esperarMundoEnMapa() {
     }
   } finally {
     ocultarCarga();
+    await pasoSeguro('mapa-final', () => asegurarMapaVisible());
+    if (typeof Opciones !== 'undefined') Opciones._refrescarAdmin?.();
     if (typeof MarielVersion !== 'undefined') {
       MarielVersion._desbloquearTodo?.();
     }
