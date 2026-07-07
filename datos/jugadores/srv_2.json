@@ -2,9 +2,9 @@
   "id": "srv_2",
   "nombre": "33",
   "telefono": "",
-  "pinHash": "4bdc96ffc0926b62d55708e3c1755ca3f04b8c28bec6fd85777117da67497f11",
-  "creado": 1783379366000,
-  "actualizadoEn": 1783387093059,
+  "pinHash": "",
+  "creado": 1783386052000,
+  "actualizadoEn": 1783387150431,
   "partida": {
     "datos": {
       "mochila": [
@@ -75,6 +75,6 @@
       "muerto": false,
       "armaEquipada": null
     },
-    "t": 1783387090514
+    "t": 1783387147285
   }
 }
