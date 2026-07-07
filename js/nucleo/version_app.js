@@ -1,5 +1,8 @@
 // Detecta actualizaciones al instante y bloquea el juego hasta pulsar Actualizar.
 const MarielVersion = {
+  // Fuente canónica en GitHub (no depende de la caché de tcodm.com)
+  _versionCanonica: 'https://raw.githubusercontent.com/randyraulbr1/github-pages/claude/web-rpg-gps-game-n3ybow/version.json',
+
   _bloqueado: false,
   _embebida: null,
   _remota: null,
@@ -101,13 +104,15 @@ const MarielVersion = {
 
   async obtenerRemota() {
     const ts = Date.now();
-    const intentos = [
-      fetch('version.json?_=' + ts, { cache: 'no-store', headers: { 'Cache-Control': 'no-cache' } }),
-      fetch('js/config/config.js?_=' + ts, { cache: 'no-store', headers: { 'Cache-Control': 'no-cache' } })
+    const opts = { cache: 'no-store', headers: { 'Cache-Control': 'no-cache' } };
+    const urls = [
+      this._versionCanonica + '?_=' + ts,
+      'version.json?_=' + ts,
+      'js/config/config.js?_=' + ts
     ];
-    for (const prom of intentos) {
+    for (const url of urls) {
       try {
-        const r = await prom;
+        const r = await fetch(url, opts);
         if (!r.ok) continue;
         const txt = await r.text();
         const v = this._parseVersionTexto(txt);

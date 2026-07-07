@@ -16,17 +16,25 @@
   <link rel="stylesheet" href="css/notificaciones.css?v=117">
   <script>
     (function () {
-      var E = '167';
+      var E = '168';
+      var CANON = 'https://raw.githubusercontent.com/randyraulbr1/github-pages/claude/web-rpg-gps-game-n3ybow/version.json';
       window.__MARIEL_EMBEDDED__ = E;
-      fetch('version.json?_=' + Date.now(), { cache: 'no-store' })
+      function revisar(j) {
+        if (!j || !j.version) return;
+        var rem = parseInt(j.version, 10);
+        var loc = parseInt(E, 10);
+        if (rem > loc) window.__MARIEL_UPDATE_PENDING = { local: E, remote: j.version };
+      }
+      var ts = Date.now();
+      fetch(CANON + '?_=' + ts, { cache: 'no-store' })
         .then(function (r) { return r.ok ? r.json() : null; })
-        .then(function (j) {
-          if (!j || !j.version) return;
-          var rem = parseInt(j.version, 10);
-          var loc = parseInt(E, 10);
-          if (rem > loc) window.__MARIEL_UPDATE_PENDING = { local: E, remote: j.version };
-        })
-        .catch(function () {});
+        .then(revisar)
+        .catch(function () {
+          fetch('version.json?_=' + ts, { cache: 'no-store' })
+            .then(function (r) { return r.ok ? r.json() : null; })
+            .then(revisar)
+            .catch(function () {});
+        });
     })();
   </script>
 </head>
@@ -43,8 +51,8 @@
     </div>
   </div>
 
-  <script src="js/nucleo/version_app.js?v=167"></script>
-  <script>MarielVersion.iniciar('167');</script>
+  <script src="js/nucleo/version_app.js?v=168"></script>
+  <script>MarielVersion.iniciar('168');</script>
 
   <!-- PANTALLA DE CARGA (visible desde el primer instante) -->
   <div id="pantalla-carga">
@@ -938,7 +946,7 @@
   <script src="lib/leaflet/leaflet.js?v=104"></script>
 
   <!-- MÓDULOS DEL JUEGO (orden importante) -->
-  <script src="js/config/config.js?v=167"></script>
+  <script src="js/config/config.js?v=168"></script>
   <script src="js/nucleo/utilidades.js?v=137"></script>
   <script src="js/mundo/mundo_publico.js?v=104"></script>
   <script src="js/notificaciones/notificaciones.js?v=137"></script>
@@ -973,7 +981,7 @@
   <script>
     // Registrar la app instalable (PWA)
     if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.register('sw.js?v=167', { updateViaCache: 'none' })
+      navigator.serviceWorker.register('sw.js?v=168', { updateViaCache: 'none' })
         .then(function (reg) {
           if (typeof MarielVersion !== 'undefined') MarielVersion.registrarServiceWorker(reg);
         })
