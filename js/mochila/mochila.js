@@ -450,6 +450,11 @@ const Mochila = {
   },
 
   pintar() {
+    // ESCUDO: no redibujar mientras el jugador arrastra un objeto. El
+    // servidor reenvía la partida constantemente y llama a pintar(); si
+    // recreamos las casillas en medio del arrastre, se corta el gesto y
+    // parece que el inventario "no funciona". Se repinta al soltar.
+    if (this.isDragging) { this._repintarPendiente = true; return; }
     const rejilla = document.getElementById('rejilla-mochila');
     if (rejilla) {
       const usados = this.slots.filter(Boolean).length;
@@ -693,6 +698,11 @@ const Mochila = {
     document.querySelectorAll('.slot.over, .inv-equip-slot.over, .inv-ctrl-btn.over')
       .forEach(s => s.classList.remove('over'));
     this._actualizarNombreArrastre();
+    // Si llegó un repintado mientras arrastrábamos, hacerlo ahora
+    if (this._repintarPendiente) {
+      this._repintarPendiente = false;
+      this.pintar();
+    }
   },
 
   _requiereConfirmEliminar(item, id, place) {
