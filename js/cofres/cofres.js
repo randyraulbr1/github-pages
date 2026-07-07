@@ -245,7 +245,8 @@ const Cofres = {
       Admin.datos.cofresExtra = Admin.datos.cofresExtra || [];
       Admin.datos.cofresExtra.push(cofre);
       Admin.guardar();
-      if (Admin._publicarParaTodos) await Admin._publicarParaTodos(true);
+      if (Admin._syncMapaServidor) await Admin._syncMapaServidor(false);
+      else if (Admin._publicarParaTodos) await Admin._publicarParaTodos(false);
     }
     this.cancelarPin(true);
     this._crearMarcador(cofre);
