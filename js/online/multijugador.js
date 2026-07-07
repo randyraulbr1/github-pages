@@ -395,11 +395,7 @@ const Multijugador = {
           this._asegurarCuerpoLocal(this.online[i]);
         } else {
           const sid = String(pid);
-          if (!this.cuerpos[sid]) {
-            this._jugadoresRevividos.add(pid);
-          } else {
-            this._jugadoresRevividos.delete(pid);
-          }
+          this._jugadoresRevividos.add(pid);
           delete this.cuerpos[sid];
           this._quitarMarcadorCuerpo(sid);
         }
@@ -494,10 +490,11 @@ const Multijugador = {
     });
 
     this.socket.on('cuerpos:sync', (data) => {
-      for (const id of Object.keys(data?.cuerpos || {})) {
-        this._jugadoresRevividos.delete(Number(id));
+      const entrantes = data?.cuerpos || {};
+      for (const pid of [...this._jugadoresRevividos]) {
+        if (!entrantes[String(pid)]) this._jugadoresRevividos.delete(pid);
       }
-      this._aplicarCuerpos(data?.cuerpos || {});
+      this._aplicarCuerpos(entrantes);
     });
 
     this.socket.on('world:objetoRecogido', (data) => {
@@ -1145,30 +1142,52 @@ const Multijugador = {
     return html;
   },
 
-  _esCuerpoPropio(playerId) {
+  _esCuerpoPropio(playerId, cuerpo) {
     const miId = this._miPlayerId();
-    return miId > 0 && Number(playerId) === miId;
+    if (miId > 0 && Number(playerId) === miId) return true;
+    const c = cuerpo || this.cuerpos[String(playerId)];
+    if (typeof Usuarios !== 'undefined' && Usuarios.perfilActivo?.nombre && c?.name) {
+      const mio = String(Usuarios.perfilActivo.nombre).trim().toLowerCase();
+      const suyo = String(c.name).trim().toLowerCase();
+      if (mio && suyo === mio) return true;
+    }
+    return false;
   },
 
   /** El jugador nunca debe ver su propio ⚰️ en el mapa si ya está vivo. */
   _debeMostrarCuerpoEnMapa(c) {
     if (!c || !this._cuerpoVigente(c)) return false;
-    if (this._esCuerpoPropio(c.playerId)) {
+    if (this._esCuerpoPropio(c.playerId, c)) {
       return typeof Vida !== 'undefined' && Vida.estaMuerto();
     }
+    const pid = Number(c.playerId);
+    if (this._jugadoresRevividos.has(pid)) return false;
+    const on = this.online.find(x => Number(x.playerId) === pid);
+    if (on && !this._estaMuerto(on)) return false;
     return true;
   },
 
   _quitarCuerpoPropioSiVivo() {
     const miId = this._miPlayerId();
-    if (miId <= 0) return;
+    if (miId <= 0 && (typeof Usuarios === 'undefined' || !Usuarios.perfilActivo?.nombre)) return;
     if (typeof Vida !== 'undefined' && Vida.estaMuerto()) return;
-    const sid = String(miId);
-    delete this.cuerpos[sid];
-    this._quitarMarcadorCuerpo(sid);
-    if (typeof Admin !== 'undefined' && Admin.publicado?.cuerposMuertos) {
-      delete Admin.publicado.cuerposMuertos[sid];
+    const miNombre = typeof Usuarios !== 'undefined' && Usuarios.perfilActivo?.nombre
+      ? String(Usuarios.perfilActivo.nombre).trim().toLowerCase()
+      : '';
+    const quitar = (id) => {
+      delete this.cuerpos[id];
+      this._quitarMarcadorCuerpo(id);
+      if (typeof Admin !== 'undefined' && Admin.publicado?.cuerposMuertos) {
+        delete Admin.publicado.cuerposMuertos[id];
+      }
+    };
+    if (miId > 0) quitar(String(miId));
+    for (const [id, c] of Object.entries(this.cuerpos || {})) {
+      if (miNombre && String(c?.name || '').trim().toLowerCase() === miNombre) {
+        quitar(id);
+      }
     }
+    this._cerrarPanelAtaud();
   },
 
   _aplicarCuerpos(cuerpos) {
@@ -1177,9 +1196,8 @@ const Multijugador = {
       if (!this._cuerpoVigente(c)) continue;
       if (!this._debeMostrarCuerpoEnMapa(c)) continue;
       const pid = Number(id);
-      if (this._jugadoresRevividos.has(pid)) {
-        this._jugadoresRevividos.delete(pid);
-      }
+      if (this._jugadoresRevividos.has(pid)) continue;
+      if (!this._debeMostrarCuerpoEnMapa(c)) continue;
       filtrados[id] = c;
     }
     this.cuerpos = filtrados;

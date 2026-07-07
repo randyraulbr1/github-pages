@@ -335,6 +335,13 @@ const MarielVersion = {
     const pant = document.getElementById('pantalla-actualizar');
     if (pant) pant.classList.remove('oculto');
 
+    document.body.classList.remove('jugador-muerto');
+    const ataud = document.getElementById('ventana-ataud');
+    if (ataud) {
+      ataud.classList.add('oculto');
+      ataud.setAttribute('aria-hidden', 'true');
+    }
+
     [
       'pantalla-carga', 'pantalla-login', 'pantalla-registro', 'pantalla-muerte',
       'pantalla-bloqueo', 'pantalla-sesion-remota', 'pantalla-cuenta-eliminada',

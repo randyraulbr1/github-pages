@@ -1446,7 +1446,7 @@ button { font-family: inherit; }
 
 /* ============ PANTALLA ACTUALIZACIÓN OBLIGATORIA ============ */
 #pantalla-actualizar {
-  position: fixed; inset: 0; z-index: 9999;
+  position: fixed; inset: 0; z-index: 200000;
   background: linear-gradient(170deg, #1a2a4a 0%, #10141f 72%);
   display: flex; align-items: center; justify-content: center; padding: 24px;
 }
@@ -1496,7 +1496,15 @@ body.mariel-bloqueado-actualizar > *:not(#pantalla-actualizar) {
 
 body.mariel-bloqueado-actualizar #pantalla-actualizar {
   pointer-events: auto !important;
-  z-index: 99999 !important;
+  z-index: 200000 !important;
+}
+
+body.mariel-bloqueado-actualizar #pantalla-muerte,
+body.mariel-bloqueado-actualizar #ventana-ataud,
+body.mariel-bloqueado-actualizar .ventana:not(.oculto) {
+  display: none !important;
+  pointer-events: none !important;
+  visibility: hidden !important;
 }
 
 /* ============ AVISOS (últimas notificaciones) ============ */
