@@ -9,7 +9,7 @@
   <link rel="icon" type="image/png" href="iconos/icono-192.png">
   <link rel="apple-touch-icon" href="iconos/icono-192.png">
   <link rel="stylesheet" href="lib/leaflet/leaflet.css">
-  <link rel="stylesheet" href="css/estilos.css?v=147">
+  <link rel="stylesheet" href="css/estilos.css?v=148">
   <link rel="stylesheet" href="css/chat.css?v=137">
   <link rel="stylesheet" href="css/amigos.css?v=158">
   <link rel="stylesheet" href="css/opciones.css?v=158">
@@ -108,7 +108,6 @@
 
   <!-- PANEL HUD IZQUIERDO: barras + botones + misiones debajo -->
   <div id="panel-hud-izq">
-    <span id="indicador-conexion" class="indicador-conexion oculto" title="Conexión al servidor" aria-hidden="true"></span>
     <div id="grupo-barras">
       <div class="fila-barra" title="Vida">
         <div id="contenedor-vida">
@@ -183,12 +182,15 @@
   <div id="admin-cesto-borrar" class="oculto" aria-hidden="true">🗑️</div>
 
   <!-- BOTONES INFERIORES -->
-  <div id="botones-inferiores">
+  <div id="barra-inferior-wrap">
+    <span id="indicador-conexion" class="indicador-conexion oculto" title="Conexión al servidor" aria-hidden="true"></span>
+    <div id="botones-inferiores">
     <button type="button" id="hud-arma-equipada" class="btn-hud-accion btn-hud-principal hud-arma-equipada" tabindex="-1" aria-label="Sin arma equipada">✋</button>
     <button id="btn-mochila" class="btn-hud-accion btn-hud-principal hud-btn-mochila" type="button" title="Mochila">🎒</button>
     <button id="btn-gps" class="btn-hud-accion btn-hud-principal hud-btn-gps" type="button" title="GPS">📍</button>
     <button id="btn-chat" class="btn-hud-accion btn-hud-principal hud-btn-chat oculto" type="button" title="Chat">💬<span id="badge-chat" class="badge-chat oculto">0</span></button>
     <button id="btn-admin" class="btn-hud-accion btn-hud-principal hud-btn-admin oculto" type="button" title="Admin">🛠️</button>
+    </div>
   </div>
 
   <!-- NOTIFICACIONES -->
