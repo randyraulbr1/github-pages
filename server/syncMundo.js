@@ -91,6 +91,68 @@ function fusionarJugadoresPublicacion(mundo, prev) {
   mergeJugadoresPartidas(mundo, [{ partidas: partidasPrev }]);
 }
 
+const CAMPOS_MAPA = ['objetos', 'tesoros', 'enemigos', 'tiendasAdmin', 'misiones', 'cofres'];
+const ESTADOS_MAPA = ['enemigosEstado', 'tesorosEstado', 'objetosEstado', 'tiendasStock'];
+
+function contarElementosMapa(m) {
+  if (!m || typeof m !== 'object') return 0;
+  let n = Object.keys(m.posiciones || {}).length;
+  for (const campo of CAMPOS_MAPA) {
+    if (Array.isArray(m[campo])) n += m[campo].length;
+  }
+  return n;
+}
+
+function arrayMapaVacio(mundo, campo) {
+  return !Array.isArray(mundo[campo]) || mundo[campo].length === 0;
+}
+
+/**
+ * Evita borrar el mapa si la publicación llega con arrays vacíos
+ * (caché borrada, mundo no cargado, etc.).
+ */
+function fusionarMapaPublicacion(mundo, prev) {
+  if (!prev) return;
+
+  for (const campo of CAMPOS_MAPA) {
+    const incoming = mundo[campo];
+    const prevArr = Array.isArray(prev[campo]) ? prev[campo] : [];
+
+    if (!Array.isArray(incoming)) {
+      if (prevArr.length) mundo[campo] = prevArr.slice();
+      continue;
+    }
+
+    if (incoming.length === 0 && prevArr.length > 0) {
+      console.warn('[mundo]', campo + '[] vacío — se conservan', prevArr.length, 'del servidor');
+      mundo[campo] = prevArr.slice();
+    }
+  }
+
+  const posIn = mundo.posiciones && typeof mundo.posiciones === 'object' ? mundo.posiciones : {};
+  const posPrev = prev.posiciones && typeof prev.posiciones === 'object' ? prev.posiciones : {};
+  if (!Object.keys(posIn).length && Object.keys(posPrev).length) {
+    console.warn('[mundo] posiciones vacías — se conservan', Object.keys(posPrev).length, 'del servidor');
+    mundo.posiciones = Object.assign({}, posPrev);
+  } else {
+    mundo.posiciones = Object.assign({}, posPrev, posIn);
+  }
+
+  for (const campo of ESTADOS_MAPA) {
+    mundo[campo] = Object.assign({}, prev[campo] || {}, mundo[campo] || {});
+  }
+}
+
+function debeProtegerTipoEnPurge(mundo, rowType) {
+  switch (rowType) {
+    case 'enemy': return arrayMapaVacio(mundo, 'enemigos');
+    case 'item': return arrayMapaVacio(mundo, 'objetos');
+    case 'treasure': return arrayMapaVacio(mundo, 'tesoros');
+    case 'shop': return arrayMapaVacio(mundo, 'tiendasAdmin');
+    default: return false;
+  }
+}
+
 function registrarCuentaEnSnapshot(perfil, partida) {
   if (!perfil?.id) return false;
   const prev = getWorldSnapshot() || {
@@ -492,6 +554,7 @@ function syncMundoFromJson(mundo, io) {
 
   const prev = getWorldSnapshot();
   fusionarJugadoresPublicacion(mundo, prev);
+  fusionarMapaPublicacion(mundo, prev);
   if (prev?.cuerposMuertos) {
     mundo.cuerposMuertos = mundo.cuerposMuertos || prev.cuerposMuertos;
     limpiarCuerposExpirados(mundo);
@@ -594,7 +657,7 @@ function syncMundoFromJson(mundo, io) {
     const d = parseData(row);
     if (!d.origenId) continue;
     if (seenObjects.has(d.origenId) || eliminados.has(d.origenId)) continue;
-    if (row.type === 'enemy' && (mundo.enemigos || []).length === 0) continue;
+    if (debeProtegerTipoEnPurge(mundo, row.type)) continue;
     deleteWorldObject(row.id);
     if (io) io.emit('world:removeObject', { id: row.id, origenId: d.origenId });
   }
@@ -602,6 +665,7 @@ function syncMundoFromJson(mundo, io) {
   for (const row of getAllMissions()) {
     const reward = JSON.parse(row.reward_json || '{}');
     if (reward.origenId && !seenMissions.has(reward.origenId) && !eliminados.has(reward.origenId)) {
+      if (arrayMapaVacio(mundo, 'misiones')) continue;
       updateMission(row.id, { is_active: 0 });
       if (io) io.emit('mission:update', { id: row.id, isActive: false, deleted: true, origenId: reward.origenId });
     }
@@ -662,6 +726,8 @@ function syncMundoFromJson(mundo, io) {
 
 module.exports = {
   syncMundoFromJson,
+  fusionarMapaPublicacion,
+  contarElementosMapa,
   mergeJugadoresPartidas,
   registrarCuentaEnSnapshot,
   getWorldSnapshot,
