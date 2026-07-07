@@ -141,7 +141,7 @@ async function esperarMundoEnMapa() {
     await Usuarios.iniciar();
     if (Usuarios.perfilActivo && typeof Admin !== 'undefined' && Admin.refrescarMundoTrasLogin) {
       await pasoSeguro('mundo-servidor', () => Admin.refrescarMundoTrasLogin());
-      Usuarios.verificarCuentaEnMundo();
+      await pasoSeguro('cuenta-mundo', () => Usuarios.verificarCuentaEnMundo());
     }
     if (Usuarios._cuentaEliminada) {
       ocultarCarga();

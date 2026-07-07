@@ -279,6 +279,7 @@ const Usuarios = {
         pinHash: srv.perfil.pinHash || await Utilidades.sha256('pin-perfil|' + clave),
         creado: srv.perfil.creado || Date.now()
       };
+      this._incorporarJugadorEnMundo(perfil);
 
       if (typeof Admin !== 'undefined') {
         try {
@@ -417,17 +418,61 @@ const Usuarios = {
     return !!(nom && mio && nom === mio);
   },
 
-  verificarCuentaEnMundo() {
-    if (!this.perfilActivo || this._cuentaEliminada || this.esAdministrador()) return;
-    if (typeof Admin === 'undefined' || !Admin.publicado) return;
-    const remotos = Admin.publicado.jugadores || [];
-    if (!remotos.length && CONFIG.servidorOnline) return;
+  _coincidePerfilJugador(j) {
+    if (!this.perfilActivo || !j) return false;
     const id = this.perfilActivo.id;
     const nom = String(this.perfilActivo.nombre || '').trim().toLowerCase();
-    const sigue = remotos.some(j =>
-      j && (j.id === id || String(j.nombre || '').trim().toLowerCase() === nom)
-    );
-    if (!sigue) this.expulsarCuentaEliminada();
+    return j.id === id || String(j.nombre || '').trim().toLowerCase() === nom;
+  },
+
+  _incorporarJugadorEnMundo(jugador) {
+    if (!jugador?.id || typeof Admin === 'undefined' || !Admin.publicado) return;
+    const lista = Admin.publicado.jugadores || [];
+    const ix = lista.findIndex(j => j && j.id === jugador.id);
+    if (ix >= 0) lista[ix] = Object.assign({}, lista[ix], jugador);
+    else lista.push(Object.assign({}, jugador));
+    Admin.publicado.jugadores = lista;
+    if (Admin._desmarcarJugadorBorrado) Admin._desmarcarJugadorBorrado(jugador);
+  },
+
+  async verificarCuentaEnMundo() {
+    if (!this.perfilActivo || this._cuentaEliminada || this.esAdministrador()) return;
+
+    if (typeof Admin !== 'undefined' && Admin.actualizarJugadoresGlobales) {
+      try { await Admin.actualizarJugadoresGlobales(); } catch (e) { /* */ }
+    }
+
+    if (typeof Admin !== 'undefined') {
+      const globals = Admin.jugadoresGlobales
+        ? Admin.jugadoresGlobales()
+        : (Admin.publicado?.jugadores || []);
+      if (globals.some(j => this._coincidePerfilJugador(j))) return;
+    }
+
+    if (CONFIG.servidorOnline) {
+      const tokenKey = (typeof Multijugador !== 'undefined' && Multijugador.TOKEN_KEY)
+        ? Multijugador.TOKEN_KEY : 'mariel_online_token';
+      const tieneToken = !!localStorage.getItem(tokenKey);
+      try {
+        const base = CONFIG.servidorOnline.replace(/\/$/, '');
+        const q = encodeURIComponent(this.perfilActivo.nombre || this.perfilActivo.id);
+        const r = await Utilidades.fetchConTimeout(
+          base + '/api/public/buscar-cuenta?q=' + q, { cache: 'no-store' }, 8000);
+        const data = await r.json().catch(() => ({}));
+        if (data.ok && data.jugador && this._coincidePerfilJugador(data.jugador)) {
+          this._incorporarJugadorEnMundo(data.jugador);
+          return;
+        }
+      } catch (e) { /* sin red */ }
+      if (tieneToken) return;
+    }
+
+    if (typeof Admin === 'undefined' || !Admin.publicado) return;
+    const remotos = Admin.publicado.jugadores || [];
+    if (!remotos.length) return;
+    if (!remotos.some(j => this._coincidePerfilJugador(j))) {
+      this.expulsarCuentaEliminada();
+    }
   },
 
   expulsarCuentaEliminada() {

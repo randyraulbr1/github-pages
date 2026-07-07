@@ -333,7 +333,7 @@ const Multijugador = {
       Admin._aplicarMundoRemoto(json);
       if (data.mundo.cuerposMuertos) this._aplicarCuerpos(data.mundo.cuerposMuertos);
       if (typeof Usuarios !== 'undefined') {
-        Usuarios.verificarCuentaEnMundo();
+        Usuarios.verificarCuentaEnMundo().catch(() => {});
         if (!Usuarios.esAdministrador() && typeof Notificaciones !== 'undefined') {
           Notificaciones.mostrar('🌍 El admin actualizó el mapa', 'info', 4000);
         }
