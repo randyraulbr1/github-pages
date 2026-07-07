@@ -4,7 +4,7 @@
   "telefono": "",
   "pinHash": "0a22b58a09f93652ac592f9424e5dedbeb450965c0e7ddc5b46f8ab21aa96bb1",
   "creado": 1783446327143,
-  "actualizadoEn": 1783446721022,
+  "actualizadoEn": 1783446721907,
   "partida": {
     "datos": {
       "mochila": [
@@ -35,19 +35,19 @@
         null
       ],
       "dinero": {
-        "saldo": 100,
-        "control": "68e382a3687042dcd0420432d9bf210eada6d12606b6ecd367d18c724c2f4b38"
+        "saldo": 150,
+        "control": "7a66f572a75431dceb4704cea8ae6bba2cf67784b26602d43fcb63f90ce8f28a"
       },
       "vida": 14,
       "hambre": 31,
-      "xp": 180,
+      "xp": 205,
       "nivel": 2,
       "posicionJugador": null,
       "tesorosRecogidos": [],
       "misiones": {},
       "misionesEstado": {
         "admx_m_mray2lpx": {
-          "estado": "lista",
+          "estado": "recolectada",
           "progreso": 0,
           "orden": 1783446630357
         }
@@ -65,6 +65,19 @@
           "pos": null,
           "hashAnterior": "GENESIS",
           "hash": "367dcaa073594b093ab419f0951493da2195375c5ce6ed5d788175e8d0c6b5f9"
+        },
+        {
+          "t": 1783446718965,
+          "detalle": "Misión: hg",
+          "monto": 50,
+          "saldo": 150,
+          "lugar": "campo abierto",
+          "pos": [
+            22.9936,
+            -82.7539
+          ],
+          "hashAnterior": "367dcaa073594b093ab419f0951493da2195375c5ce6ed5d788175e8d0c6b5f9",
+          "hash": "b91caa61f924eab1eaa60526d88171a7550e9dd029bb14d59fb24318ee7b82e5"
         }
       ],
       "historialObjetos": [],
@@ -73,6 +86,6 @@
       "muertePos": null,
       "armaEquipada": null
     },
-    "t": 1783446708935
+    "t": 1783446720944
   }
 }
