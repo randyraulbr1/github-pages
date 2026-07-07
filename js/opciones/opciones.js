@@ -248,10 +248,24 @@ const Opciones = {
   _pintarVersion() {
     const el = document.getElementById('opciones-version');
     if (!el) return;
-    const v = window.__MARIEL_EMBEDDED__
-      || (typeof CONFIG !== 'undefined' && CONFIG.version)
-      || '?';
-    el.textContent = 'Versión ' + v;
+    const local = (typeof MarielVersion !== 'undefined' && MarielVersion.versionCargada)
+      ? MarielVersion.versionCargada()
+      : (window.__MARIEL_EMBEDDED__ || (typeof CONFIG !== 'undefined' && CONFIG.version) || '?');
+    const remota = (typeof MarielVersion !== 'undefined' && MarielVersion._remota)
+      ? MarielVersion._remota
+      : null;
+    const hayNueva = remota && typeof MarielVersion !== 'undefined' &&
+      MarielVersion.necesitaActualizar(local, remota);
+    el.textContent = hayNueva
+      ? ('Versión ' + local + ' · nueva disponible: v' + remota)
+      : ('Versión ' + local + ' · al día');
+    el.classList.toggle('opciones-version-nueva', !!hayNueva);
+    if (typeof MarielVersion !== 'undefined') {
+      MarielVersion.comprobarRemota({ bloquear: false }).then(() => {
+        if (!document.getElementById('ventana-opciones')?.classList.contains('show')) return;
+        this._pintarVersion();
+      }).catch(() => {});
+    }
   },
 
   _guardarPreferencia(clave, valor) {
