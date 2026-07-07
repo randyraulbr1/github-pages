@@ -114,7 +114,9 @@ const Admin = {
       );
     }
     if (this.datos.moverPinJugador === undefined) {
-      this.datos.moverPinJugador = !!this.publicado.moverPinJugador;
+      this.datos.moverPinJugador = this.publicado.moverPinJugador !== undefined
+        ? !!this.publicado.moverPinJugador
+        : true;
     } else {
       this.datos.moverPinJugador = !!this.datos.moverPinJugador;
     }
@@ -341,6 +343,7 @@ const Admin = {
   /** Tras iniciar sesión, vuelve a cargar el mundo del servidor si es más nuevo. */
   async refrescarMundoTrasLogin() {
     if (!CONFIG.servidorOnline || !this._mundoCargado) return false;
+    this._asegurarMoverPinAdminDefault();
     try {
       let data = null;
       if (typeof SyncServidor !== 'undefined' && SyncServidor.obtenerMundo) {
@@ -1337,7 +1340,18 @@ const Admin = {
   },
 
   puedeMoverPinJugador() {
+    this._asegurarMoverPinAdminDefault();
     return this.esAdminJugador() && !!this.datos.moverPinJugador;
+  },
+
+  _asegurarMoverPinAdminDefault() {
+    if (!this.esAdminJugador()) return;
+    if (this.datos.moverPinJugador === undefined) {
+      this.datos.moverPinJugador = true;
+      this.guardar();
+      this._actualizarEtiquetaMoverPin();
+      if (typeof GPS !== 'undefined') GPS._actualizarArrastre();
+    }
   },
 
   optimizacionVisibilidadActiva() {
@@ -4805,9 +4819,9 @@ const Admin = {
           return;
         }
       }
-      ok = await this.publicarMundo(false, { soloSync: true });
+      ok = await this.publicarMundo(false, { soloSync: true, forzar: true });
       if (!ok && this._pubCancelada) errorMsg = '';
-      else if (!ok) errorMsg = 'No se pudo sincronizar';
+      else if (!ok) errorMsg = this._ultimoErrorPub || 'No se pudo sincronizar';
     } catch (e) {
       ok = false;
       errorMsg = 'Error al sincronizar';
@@ -4819,19 +4833,29 @@ const Admin = {
 
   async publicarMundo(silencioso, opts) {
     this._pubCancelada = false;
-    if (!this._mundoCargado) return false;
+    this._ultimoErrorPub = '';
+    if (!this._mundoCargado) {
+      this._ultimoErrorPub = 'Mundo no cargado';
+      return false;
+    }
     if (typeof MarielVersion !== 'undefined' && !MarielVersion.exigirActualizado()) {
       if (!silencioso) {
         Notificaciones.mostrar('⬆️ Actualiza el juego antes de publicar', 'alerta', 7000);
       }
       return false;
     }
-    if (!this.esAdminJugador()) return false;
+    if (!this.esAdminJugador()) {
+      this._ultimoErrorPub = 'Solo el administrador puede sincronizar';
+      return false;
+    }
     if (typeof SyncServidor !== 'undefined' && !SyncServidor.puedePublicar()) {
       const okSesion = await SyncServidor.asegurarSesionServidor(
-        silencioso || opts?.soloSync ? {} : { pedirClave: true }
+        silencioso && !opts?.soloSync ? {} : { pedirClave: true }
       );
-      if (!okSesion) return false;
+      if (!okSesion) {
+        this._ultimoErrorPub = 'No se pudo conectar al servidor';
+        return false;
+      }
     }
     if (!opts?.confiarLocal) {
       try {
@@ -4854,8 +4878,10 @@ const Admin = {
     }
 
     const referencia = this.publicado || {};
-    if (!opts?.forzar && !this._confirmarReduccionPublicacion(adminLocal, referencia)) {
+    const saltarConfirmacion = !!(opts?.forzar || opts?.soloSync);
+    if (!saltarConfirmacion && !this._confirmarReduccionPublicacion(adminLocal, referencia)) {
       this._pubCancelada = true;
+      this._ultimoErrorPub = 'Publicación cancelada';
       return false;
     }
     if (!opts?.forzar && this._esPublicacionDestructiva(adminLocal, referencia)) {
@@ -4867,12 +4893,13 @@ const Admin = {
             'alerta', 10000
           );
         }
+        this._ultimoErrorPub = 'Mapa incompleto';
         return false;
       }
     }
 
     const firma = this._firmaMundo(JSON.stringify(adminLocal));
-    if (firma === this._ultimoFirmaPublicada && !this._pubPendiente) return true;
+    if (firma === this._ultimoFirmaPublicada && !this._pubPendiente && !opts?.forzar) return true;
 
     adminLocal.actualizadoEn = Date.now();
     if (opts?.purgarJugadores) adminLocal.purgarJugadores = true;
@@ -4880,14 +4907,16 @@ const Admin = {
       clave.startsWith('_') ? undefined : valor, 2);
 
     if (!CONFIG.servidorOnline || typeof SyncServidor === 'undefined' || !SyncServidor.puedePublicar()) {
+      this._ultimoErrorPub = 'Sin conexión al servidor';
       return false;
     }
 
     const resultado = await SyncServidor.publicar(json);
     if (!resultado.ok) {
-      if (!silencioso) {
+      this._ultimoErrorPub = resultado.error || 'Error del servidor';
+      if (!silencioso && !opts?.soloSync) {
         Notificaciones.mostrar(
-          '❌ No se pudo publicar: ' + (resultado.error || 'error del servidor'),
+          '❌ No se pudo publicar: ' + this._ultimoErrorPub,
           'error', 9000
         );
       }

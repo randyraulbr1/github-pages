@@ -196,8 +196,13 @@ const Multijugador = {
       this._reconectando = false;
       this._ocultarAvisoReconexion();
       this._actualizarIndicadorConexion('online');
-      if (typeof GPS !== 'undefined' && GPS.posicion) {
-        this.enviarPosicion(GPS.posicion[0], GPS.posicion[1], true);
+      if (typeof GPS !== 'undefined') {
+        if (GPS.posicion) {
+          this.enviarPosicion(GPS.posicion[0], GPS.posicion[1], true);
+        } else if (typeof Guardado !== 'undefined' && Guardado.datos?.posicionJugador?.length >= 2) {
+          const pos = Guardado.datos.posicionJugador;
+          this.enviarPosicion(pos[0], pos[1], true);
+        }
       }
       this.enviarStats(true);
       this._iniciarPollingMundo();
@@ -269,6 +274,7 @@ const Multijugador = {
       if (!this._visible(p.playerId)) return;
       const i = this.online.findIndex(x => Number(x.playerId) === Number(p.playerId));
       if (i >= 0) this.online[i] = p; else this.online.push(p);
+      this._actualizarMarcador(p);
       this._redibujar(false);
     });
 
@@ -1167,7 +1173,26 @@ const Multijugador = {
     if (this._estaMuerto(p) && p.deathX != null && p.deathY != null) {
       return { x: p.deathX, y: p.deathY };
     }
-    return { x: p.x, y: p.y };
+    let x = Number(p.x);
+    let y = Number(p.y);
+    if (Number.isFinite(x) && Number.isFinite(y) && Math.abs(x) > 0.01 && Math.abs(y) > 0.01) {
+      return { x, y };
+    }
+    if (typeof Admin !== 'undefined' && Admin.publicado?.partidas) {
+      const nombre = String(p.name || '').trim().toLowerCase();
+      const jugadores = Admin.jugadoresGlobales ? Admin.jugadoresGlobales() : (Admin.publicado.jugadores || []);
+      const jug = jugadores.find(j => String(j.nombre || '').trim().toLowerCase() === nombre);
+      const pos = jug?.id ? Admin.publicado.partidas[jug.id]?.datos?.posicionJugador : null;
+      if (pos?.length >= 2) {
+        x = Number(pos[0]);
+        y = Number(pos[1]);
+        if (Number.isFinite(x) && Number.isFinite(y)) return { x, y };
+      }
+    }
+    if (typeof GPS !== 'undefined' && GPS.posicion && Number(p.playerId) === this._miPlayerId()) {
+      return { x: GPS.posicion[0], y: GPS.posicion[1] };
+    }
+    return { x: CONFIG.centro[0], y: CONFIG.centro[1] };
   },
 
   _distanciaMarcador(p) {
