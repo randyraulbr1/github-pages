@@ -255,7 +255,8 @@ const MundoPublico = {
     if (!servidor) {
       return this._descargarDesdeGitHub();
     }
-    return servidor;
+    const github = await this._descargarDesdeGitHub();
+    return this._elegirMejorDescarga(servidor, github) || servidor;
   },
 
   _aplicarTokenDesdeTexto(texto) {

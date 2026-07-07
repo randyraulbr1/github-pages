@@ -345,30 +345,29 @@ const Admin = {
     if (!CONFIG.servidorOnline || !this._mundoCargado) return false;
     this._asegurarMoverPinAdminDefault();
     try {
+      if (typeof SyncServidor !== 'undefined' && SyncServidor.despertarServidor) {
+        await SyncServidor.despertarServidor();
+      }
       let data = null;
       if (typeof SyncServidor !== 'undefined' && SyncServidor.obtenerMundo) {
         data = await SyncServidor.obtenerMundo();
       }
       if (!data?.mundo) return false;
-      const tsRemoto = data.actualizadoEn || data.mundo.actualizadoEn || 0;
+      const m = data.mundo;
+      const tsRemoto = data.actualizadoEn || m.actualizadoEn || 0;
       const tsLocal = this.publicado?.actualizadoEn || 0;
-      const remotoMapa = typeof MundoPublico !== 'undefined' && MundoPublico.mundoTieneMapa
-        ? MundoPublico.mundoTieneMapa(data.mundo) : false;
-      const remotoJugadores = (data.mundo.jugadores?.length || 0) > 0 ||
-        Object.keys(data.mundo.partidas || {}).length > 0;
-      const localMapa = this._contarElementosMapa(this.publicado || {}) > 0;
-      if (!remotoMapa && !remotoJugadores) return false;
-      if (tsRemoto < tsLocal && localMapa && !remotoJugadores) return false;
-      const json = JSON.stringify(data.mundo);
+      const nRemoto = this._contarElementosMapa(m);
+      const nLocal = this._contarElementosMapa(this.publicado || {});
+      const hayPartidas = Object.keys(m.partidas || {}).length > 0;
+      if (nRemoto < nLocal && tsRemoto <= tsLocal && !hayPartidas) return false;
+      const json = JSON.stringify(m);
       this._crudoPublicado = json;
       this._ultimoFirmaPublicada = this._firmaMundo(json);
       if (typeof Multijugador !== 'undefined') {
-        Multijugador.mundoServidorTs = tsRemoto;
+        Multijugador.mundoServidorTs = Math.max(Multijugador.mundoServidorTs || 0, tsRemoto);
       }
-      this._aplicarMundoRemoto(json);
-      if (typeof Multijugador !== 'undefined' && Multijugador.aplicarMundoPendiente) {
-        Multijugador.aplicarMundoPendiente();
-      }
+      this._aplicarMundoRemoto(json, { forzar: nRemoto >= nLocal || hayPartidas });
+      this.pintarMapaCompleto();
       if (typeof Multijugador !== 'undefined' && Multijugador._sincronizarPinesPartida) {
         Multijugador._sincronizarPinesPartida();
       }
@@ -1620,6 +1619,9 @@ const Admin = {
     this._aplicarRevivirDesdeNube();
     if (this.modo === 'organizar') this._reaplicarArrastreOrganizar();
     this._refrescarListaJugadoresSiAbierta();
+    if (typeof Multijugador !== 'undefined' && Multijugador._sincronizarPinesPartida) {
+      Multijugador._sincronizarPinesPartida();
+    }
   },
 
   _jugadorEstaMuerto(pd, vida) {
@@ -4952,6 +4954,17 @@ const Admin = {
           'error', 9000
         );
       }
+      return false;
+    }
+
+    const enviados = this._contarElementosMapa(adminLocal);
+    const guardados = (resultado.data?.objetos || 0) + (resultado.data?.misiones || 0);
+    if (enviados > 0 && guardados === 0 && this.esAdminJugador()) {
+      this._ultimoErrorPub = 'El servidor no guardó los pins del mapa';
+      Notificaciones.mostrar(
+        '⚠️ El servidor no guardó el mapa. Comprueba que entras como Randy y pulsa Sincronizar.',
+        'error', 10000
+      );
       return false;
     }
 
