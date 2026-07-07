@@ -78,6 +78,13 @@ const Multijugador = {
     if (!base || typeof Usuarios === 'undefined' || !Usuarios.perfilActivo) return false;
     if (typeof Mapa === 'undefined' || !Mapa.mapa) return false;
 
+    if (typeof SyncServidor !== 'undefined') {
+      await SyncServidor.despertarServidor();
+      if (!localStorage.getItem(this.TOKEN_KEY) || !(await SyncServidor.verificarToken())) {
+        await SyncServidor.asegurarSesionServidor({});
+      }
+    }
+
     let token = localStorage.getItem(this.TOKEN_KEY);
     if (!token) {
       const claves = [];
@@ -516,6 +523,7 @@ const Multijugador = {
 
   _debeMostrarJugador(p) {
     if (!p || !this._visible(p.playerId)) return false;
+    if (this._esAdminMarcador(p)) return true;
     if (this._estaEnVivo(p.playerId)) return true;
     if (typeof Amigos !== 'undefined' && Amigos.esMarcado(p.playerId)) return true;
     if (typeof Admin !== 'undefined' && Admin.entidadVisibleEnRango) {

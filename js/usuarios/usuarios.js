@@ -294,12 +294,11 @@ const Usuarios = {
       this._guardarLista();
 
       await this._activar(perfil);
-      sessionStorage.setItem('mariel_clave_servidor', clave);
-      if (this.esAdministrador()) {
-        localStorage.setItem('mariel_dev_clave_admin', clave);
-      }
-      if (perfil.nombre && perfil.nombre.toLowerCase() === 'randy') {
-        localStorage.setItem('mariel_dev_clave_randy', clave);
+      if (typeof SyncServidor !== 'undefined') {
+        SyncServidor.guardarClavePerfil(perfil.id, clave);
+      } else {
+        sessionStorage.setItem('mariel_clave_servidor', clave);
+        try { localStorage.setItem('mariel_clave_' + perfil.id, clave); } catch (e) { /* */ }
       }
     } catch (e) {
       console.error('Error en login:', e);
@@ -358,7 +357,12 @@ const Usuarios = {
     const snap = await this._partidaInicialRegistro();
     await MundoPublico.guardarCuenta(perfil, snap);
     await this._activar(perfil);
-    sessionStorage.setItem('mariel_clave_servidor', clave);
+    if (typeof SyncServidor !== 'undefined') {
+      SyncServidor.guardarClavePerfil(perfil.id, clave);
+    } else {
+      sessionStorage.setItem('mariel_clave_servidor', clave);
+      try { localStorage.setItem('mariel_clave_' + perfil.id, clave); } catch (e) { /* */ }
+    }
   },
 
   async _activar(perfil) {

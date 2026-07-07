@@ -4812,6 +4812,9 @@ const Admin = {
     let ok = false;
     let errorMsg = '';
     try {
+      if (typeof SyncServidor !== 'undefined') {
+        await SyncServidor.despertarServidor();
+      }
       if (typeof SyncServidor !== 'undefined' && !SyncServidor.puedePublicar()) {
         const okSesion = await SyncServidor.asegurarSesionServidor({ pedirClave: true });
         if (!okSesion) {
@@ -4839,6 +4842,7 @@ const Admin = {
       return false;
     }
     if (typeof MarielVersion !== 'undefined' && !MarielVersion.exigirActualizado()) {
+      this._ultimoErrorPub = 'Actualiza el juego primero';
       if (!silencioso) {
         Notificaciones.mostrar('⬆️ Actualiza el juego antes de publicar', 'alerta', 7000);
       }
