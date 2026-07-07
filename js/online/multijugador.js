@@ -16,6 +16,7 @@ const Multijugador = {
   _animaciones: {},
   _lineasAmigo: {},
   _pollMundo: null,
+  _tickCuerposId: null,
   _ultimoPullMundo: 0,
   _mundoPendiente: null,
   _reconectando: false,
@@ -213,6 +214,7 @@ const Multijugador = {
       }
       this.enviarStats(true);
       this._iniciarPollingMundo();
+      this._iniciarTickCuerpos();
       this.loadWorld();
       if (typeof Amigos !== 'undefined') Amigos.refrescar();
       if (typeof Chat !== 'undefined') Chat.refrescarConversaciones();
@@ -232,6 +234,10 @@ const Multijugador = {
       if (this._pollMundo) {
         clearInterval(this._pollMundo);
         this._pollMundo = null;
+      }
+      if (this._tickCuerposId) {
+        clearInterval(this._tickCuerposId);
+        this._tickCuerposId = null;
       }
     });
 
@@ -433,6 +439,11 @@ const Multijugador = {
       Bolsas.aplicarBolsaEliminada(data.bolsaId);
     });
 
+    this.socket.on('mundo:enemyState', (data) => {
+      if (!data?.enemyId || typeof Enemigos === 'undefined') return;
+      Enemigos._aplicarEstadoEnemigoRemoto(data.enemyId, data.estado, !!data.eliminado);
+    });
+
     this.socket.on('enemy:attack', (data) => {
       if (typeof Vida !== 'undefined' && data.damage) {
         Vida.recibirDano(data.damage, null, data.enemyName || 'Enemigo');
@@ -525,6 +536,23 @@ const Multijugador = {
   _iniciarPollingMundo() {
     if (this._pollMundo) clearInterval(this._pollMundo);
     this._pollMundo = setInterval(() => this._pullMundoServidor(), 4000);
+  },
+
+  _iniciarTickCuerpos() {
+    if (this._tickCuerposId) clearInterval(this._tickCuerposId);
+    this._tickCuerposId = setInterval(() => this._refrescarTimersCuerpos(), 1000);
+  },
+
+  _refrescarTimersCuerpos() {
+    const ids = new Set();
+    for (const pid of Object.keys(this.cuerpos || {})) {
+      const c = this.cuerpos[pid];
+      if (c && this._cuerpoVigente(c)) ids.add(Number(pid));
+    }
+    for (const p of (this.online || [])) {
+      if (this._estaMuerto(p)) ids.add(Number(p.playerId));
+    }
+    for (const pid of ids) this._refrescarPopupsMuertos(pid);
   },
 
   _aplicarPartidaServidor(data) {
@@ -884,9 +912,13 @@ const Multijugador = {
     const ms = (CONFIG.cuerpoMuertoHoras || 1) * 3600000;
     const rest = ms - (Date.now() - c.muertoAt);
     if (rest <= 0) return 'expirado';
-    const mins = Math.ceil(rest / 60000);
-    if (mins < 60) return mins + ' min';
-    return Math.floor(mins / 60) + ' h ' + (mins % 60) + ' min';
+    const totalSeg = Math.ceil(rest / 1000);
+    const h = Math.floor(totalSeg / 3600);
+    const m = Math.floor((totalSeg % 3600) / 60);
+    const s = totalSeg % 60;
+    if (h > 0) return h + ' h ' + String(m).padStart(2, '0') + ' min';
+    if (m > 0) return m + ' min ' + String(s).padStart(2, '0') + ' s';
+    return s + ' s';
   },
 
   _distanciaCuerpo(datos) {
@@ -907,7 +939,7 @@ const Multijugador = {
     html += '<div class="popup-muerto-nombre">' + nombre + '</div>';
     html += '<div class="popup-muerto-nivel">Nv ' + nv + ' · 💀 Muerto</div>';
     if (restante && restante !== 'expirado') {
-      html += '<div class="popup-muerto-expira">⏱️ Desaparece en ' + restante + '</div>';
+      html += '<div class="popup-muerto-expira">⏱️ Restante: ' + restante + '</div>';
     }
     html += '<div class="popup-muerto-ayuda">' +
       (cerca ? '📍 Estás cerca (' + Math.round(dist) + ' m)' : '📍 Acércate a menos de ' + maxDist + ' m (ahora ' + Math.round(dist) + ' m)') +
@@ -1266,10 +1298,25 @@ const Multijugador = {
       this.socket.emit('world:dropBag', {
         x: payload.pos[0],
         y: payload.pos[1],
-        items: payload.items || []
+        items: payload.items || [],
+        ocultoHasta: payload.ocultoHasta || 0,
+        ocultoParaPlayerId: payload.ocultoParaPlayerId || null,
+        recogibleDesde: payload.recogibleDesde || 0,
+        soloDropper: !!payload.soloDropper
       }, (res) => {
         resolve(res?.ok ? res.bolsa : null);
       });
+    });
+  },
+
+  attackEnemy(enemyId, pos) {
+    return new Promise((resolve) => {
+      if (!this.socket || !this.activo || !enemyId) return resolve({ ok: false });
+      this.socket.emit('world:attackEnemy', {
+        enemyId,
+        x: pos?.[0],
+        y: pos?.[1]
+      }, (res) => resolve(res || { ok: false }));
     });
   },
 

@@ -26,7 +26,7 @@ const {
 } = require('./db');
 const { verifyToken, isGameAdminName } = require('./auth');
 const { startEnemyAI } = require('./enemyAI');
-const { registrarRecogidaObjeto, registrarRecogidaTesoro, registrarCuerpoMuerto, quitarCuerpoMuerto, getCuerpoMuerto, sincronizarCuerposExpirados, sincronizarBolsasExpiradas, actualizarInventarioCuerpo, registrarLootMuerto, actualizarPartidaEnSnapshot, revivirPartidaEnSnapshot, buscarPerfilIdPorNombre, limpiarBolsasExpiradas, crearBolsaDrop, recogerBolsaDrop } = require('./syncMundo');
+const { registrarRecogidaObjeto, registrarRecogidaTesoro, registrarCuerpoMuerto, quitarCuerpoMuerto, getCuerpoMuerto, sincronizarCuerposExpirados, sincronizarBolsasExpiradas, actualizarInventarioCuerpo, registrarLootMuerto, actualizarPartidaEnSnapshot, revivirPartidaEnSnapshot, buscarPerfilIdPorNombre, limpiarBolsasExpiradas, crearBolsaDrop, recogerBolsaDrop, registrarAtaqueEnemigo } = require('./syncMundo');
 
 /** playerId -> { socketId, playerId, name, x, y, hp, hpMax, level } */
 const onlinePlayers = new Map();
@@ -511,7 +511,33 @@ function setupSockets(io) {
       if (distanciaMetros(pl.x, pl.y, x, y) > REVIVE_DISTANCE_METERS) {
         return ack?.({ ok: false, error: 'Demasiado lejos para soltar' });
       }
-      const result = crearBolsaDrop(socket.playerId, x, y, payload?.items, io);
+      const result = crearBolsaDrop(socket.playerId, x, y, payload?.items, io, {
+        ocultoHasta: payload?.ocultoHasta || 0,
+        ocultoParaPlayerId: payload?.ocultoParaPlayerId || null,
+        recogibleDesde: payload?.recogibleDesde || 0,
+        soloDropper: !!payload?.soloDropper
+      });
+      ack?.(result);
+    });
+
+    socket.on('world:attackEnemy', (payload, ack) => {
+      const enemyId = (payload?.enemyId || '').trim();
+      if (!enemyId) return ack?.({ ok: false, error: 'enemyId requerido' });
+      const pl = findPlayerById(socket.playerId);
+      if (!pl) return ack?.({ ok: false, error: 'Jugador no encontrado' });
+      const px = Number(payload?.x ?? payload?.pos?.[0] ?? pl.x);
+      const py = Number(payload?.y ?? payload?.pos?.[1] ?? pl.y);
+      if (!Number.isFinite(px) || !Number.isFinite(py)) {
+        return ack?.({ ok: false, error: 'Posición inválida' });
+      }
+      const result = registrarAtaqueEnemigo(
+        enemyId,
+        socket.playerId,
+        px,
+        py,
+        pl.level || 1,
+        io
+      );
       ack?.(result);
     });
 

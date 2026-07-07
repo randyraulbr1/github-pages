@@ -4,12 +4,12 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
   <title>Mariel Explorer</title>
-  <meta name="mariel-version" content="199">
+  <meta name="mariel-version" content="200">
   <link rel="manifest" href="manifest.json">
   <link rel="icon" type="image/png" href="iconos/icono-192.png">
   <link rel="apple-touch-icon" href="iconos/icono-192.png">
   <link rel="stylesheet" href="lib/leaflet/leaflet.css">
-  <link rel="stylesheet" href="css/estilos.css?v=148">
+  <link rel="stylesheet" href="css/estilos.css?v=200">
   <link rel="stylesheet" href="css/chat.css?v=137">
   <link rel="stylesheet" href="css/amigos.css?v=158">
   <link rel="stylesheet" href="css/opciones.css?v=158">
@@ -65,7 +65,7 @@
     </div>
   </div>
 
-  <script src="js/nucleo/version_app.js?v=199"></script>
+  <script src="js/nucleo/version_app.js?v=200"></script>
   <script>MarielVersion.iniciar(window.__MARIEL_EMBEDDED__);</script>
 
   <!-- PANTALLA DE CARGA (visible desde el primer instante) -->
@@ -163,15 +163,8 @@
     <div id="letrero-pin-chat" class="oculto"></div>
   </div>
 
-  <!-- HUD combate (zona roja / huir) -->
-  <div id="hud-combate-flotante" class="hud-combate-flotante oculto">
-    <div id="banner-huida" class="banner-huida oculto"></div>
-    <div id="hud-ataque-cooldown" class="hud-ataque-cooldown oculto">
-      <div id="hud-ataque-cooldown-relleno"></div>
-    </div>
-    <button type="button" id="btn-hud-atacar" class="btn-hud-combate oculto">⚔️ Atacar</button>
-    <button type="button" id="btn-hud-huir" class="btn-hud-combate btn-hud-combate-huir oculto">🏃 Huir</button>
-  </div>
+  <!-- HUD combate: banner invisibilidad (arriba) -->
+  <div id="banner-huida" class="banner-huida oculto"></div>
 
   <!-- BANNER DEL BUSCADOR DE TESOROS -->
   <div id="banner-tesoro" class="oculto">
@@ -204,6 +197,13 @@
 
   <!-- BOTONES INFERIORES -->
   <div id="barra-inferior-wrap">
+    <div id="hud-combate-flotante" class="hud-combate-flotante oculto">
+      <div id="hud-ataque-cooldown" class="hud-ataque-cooldown oculto">
+        <div id="hud-ataque-cooldown-relleno"></div>
+      </div>
+      <button type="button" id="btn-hud-atacar" class="btn-hud-combate oculto">⚔️ ATK</button>
+      <button type="button" id="btn-hud-huir" class="btn-hud-combate btn-hud-combate-huir oculto">🏃 HUIR</button>
+    </div>
     <div id="botones-inferiores">
     <button type="button" id="hud-arma-equipada" class="btn-hud-accion btn-hud-principal hud-arma-equipada" tabindex="-1" aria-label="Sin arma equipada">✋</button>
     <button id="btn-mochila" class="btn-hud-accion btn-hud-principal hud-btn-mochila" type="button" title="Mochila">🎒</button>
@@ -986,18 +986,18 @@
   <script src="lib/leaflet/leaflet.js?v=104"></script>
 
   <!-- MÓDULOS DEL JUEGO (orden importante) -->
-  <script src="js/config/config.js?v=199"></script>
+  <script src="js/config/config.js?v=200"></script>
   <script src="js/nucleo/utilidades.js?v=137"></script>
   <script src="js/mundo/mundo_publico.js?v=104"></script>
   <script src="js/notificaciones/notificaciones.js?v=137"></script>
-  <script src="js/usuarios/usuarios.js?v=199"></script>
+  <script src="js/usuarios/usuarios.js?v=200"></script>
   <script src="js/guardado/guardado.js?v=149"></script>
   <script src="js/historial/historial.js?v=104"></script>
   <script src="js/dinero/dinero.js?v=104"></script>
   <script src="js/vida/vida.js?v=137"></script>
   <script src="js/items/items.js?v=140"></script>
   <script src="js/mochila/mochila.js?v=151"></script>
-  <script src="js/bolsas/bolsas.js?v=149"></script>
+  <script src="js/bolsas/bolsas.js?v=200"></script>
   <script src="js/mapa/mapa.js?v=104"></script>
   <script src="js/gps/gps.js?v=150"></script>
   <script src="js/tiendas/datos_tiendas.js?v=104"></script>
@@ -1009,19 +1009,19 @@
   <script src="js/misiones/misiones.js?v=104"></script>
   <script src="js/cofres/cofres.js?v=104"></script>
   <script src="js/correo/correo.js?v=104"></script>
-  <script src="js/enemigos/enemigos.js?v=137"></script>
-  <script src="js/online/sync_servidor.js?v=199"></script>
-  <script src="js/admin/admin.js?v=199"></script>
+  <script src="js/enemigos/enemigos.js?v=200"></script>
+  <script src="js/online/sync_servidor.js?v=200"></script>
+  <script src="js/admin/admin.js?v=200"></script>
   <script src="js/opciones/opciones.js?v=152"></script>
-  <script src="js/online/mundo_online.js?v=199"></script>
-  <script src="js/online/amigos.js?v=199"></script>
-  <script src="js/chat/chat.js?v=199"></script>
-  <script src="js/online/multijugador.js?v=199"></script>
-  <script src="js/principal.js?v=199"></script>
+  <script src="js/online/mundo_online.js?v=200"></script>
+  <script src="js/online/amigos.js?v=200"></script>
+  <script src="js/chat/chat.js?v=200"></script>
+  <script src="js/online/multijugador.js?v=200"></script>
+  <script src="js/principal.js?v=200"></script>
   <script>
     // Registrar la app instalable (PWA)
     if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.register('sw.js?v=199', { updateViaCache: 'none' })
+      navigator.serviceWorker.register('sw.js?v=200', { updateViaCache: 'none' })
         .then(function (reg) {
           if (typeof MarielVersion !== 'undefined') MarielVersion.registrarServiceWorker(reg);
         })
