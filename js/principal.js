@@ -143,6 +143,10 @@ async function esperarMundoEnMapa() {
       await pasoSeguro('mundo-servidor', () => Admin.refrescarMundoTrasLogin());
       await pasoSeguro('cuenta-mundo', () => Usuarios.verificarCuentaEnMundo());
     }
+    if (Usuarios.perfilActivo && Usuarios.esAdministrador() &&
+        typeof SyncServidor !== 'undefined' && !SyncServidor.puedePublicar()) {
+      await pasoSeguro('token-servidor', () => SyncServidor.asegurarSesionServidor());
+    }
     if (Usuarios._cuentaEliminada) {
       ocultarCarga();
       return;

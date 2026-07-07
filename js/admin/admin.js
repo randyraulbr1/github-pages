@@ -669,17 +669,21 @@ const Admin = {
   _autoPublicar() {
     if (!this._mundoCargado) return;
     if (!this.esAdminJugador()) return;
-    const puedeServidor = typeof SyncServidor !== 'undefined' && SyncServidor.puedePublicar();
-    if (!puedeServidor) {
-      if (!this._avisoSinToken) {
-        this._avisoSinToken = true;
-        Notificaciones.mostrar(
-          '⚠️ Inicia sesión en el juego para publicar al servidor en vivo.',
-          'alerta', 10000
-        );
-      }
+    if (typeof SyncServidor !== 'undefined' && !SyncServidor.puedePublicar()) {
+      SyncServidor.asegurarSesionServidor().then((ok) => {
+        if (ok) this._encolarPublicacion(true);
+        else if (!this._avisoSinToken) {
+          this._avisoSinToken = true;
+          Notificaciones.mostrar(
+            '⚠️ Entra con tu contraseña (randy) para sincronizar con el servidor.',
+            'alerta', 10000
+          );
+        }
+      });
       return;
     }
+    const puedeServidor = typeof SyncServidor !== 'undefined' && SyncServidor.puedePublicar();
+    if (!puedeServidor) return;
     this._encolarPublicacion(true);
   },
 
@@ -726,15 +730,19 @@ const Admin = {
   async _publicarParaTodos(silencioso, opts) {
     if (!this._mundoCargado) return false;
     if (!this.esAdminJugador()) return false;
-    const puedeServidor = typeof SyncServidor !== 'undefined' && SyncServidor.puedePublicar();
-    if (!puedeServidor) {
-      if (!silencioso) {
-        Notificaciones.mostrar(
-          '⚠️ Inicia sesión en el juego para publicar al servidor en vivo.',
-          'alerta', 12000
-        );
+    if (typeof SyncServidor !== 'undefined' && !SyncServidor.puedePublicar()) {
+      const ok = await SyncServidor.asegurarSesionServidor(
+        silencioso ? {} : { pedirClave: true }
+      );
+      if (!ok) {
+        if (!silencioso) {
+          Notificaciones.mostrar(
+            '⚠️ Entra con la contraseña de admin para publicar al servidor.',
+            'alerta', 12000
+          );
+        }
+        return false;
       }
-      return false;
     }
     clearTimeout(this._tempPublicar);
     return this.publicarMundo(silencioso !== false, opts);
@@ -3459,11 +3467,22 @@ const Admin = {
     const est = document.getElementById('admin-sync-estado');
     const det = document.getElementById('admin-sync-detalle');
     if (!est) return;
-    if (typeof SyncServidor === 'undefined' || !SyncServidor.puedePublicar()) {
-      est.textContent = '⚠️ Inicia sesión en el servidor para sincronizar.';
+    if (typeof SyncServidor === 'undefined') {
+      est.textContent = '⚠️ Servidor no configurado.';
       est.className = 'admin-clave-estado';
       if (det) det.textContent = '';
       return;
+    }
+    if (!SyncServidor.puedePublicar()) {
+      est.textContent = 'Conectando con el servidor…';
+      est.className = 'admin-clave-estado';
+      const ok = await SyncServidor.asegurarSesionServidor();
+      if (!ok) {
+        est.textContent = '⚠️ Pulsa Sincronizar e introduce la contraseña de randy.';
+        est.className = 'admin-clave-estado';
+        if (det) det.textContent = 'En PC hace falta el token del servidor (entra con contraseña una vez).';
+        return;
+      }
     }
     est.textContent = 'Consultando servidor…';
     const data = await SyncServidor.obtenerEstadoSync();
@@ -3496,9 +3515,16 @@ const Admin = {
 
   async _forzarSyncGitHubUi() {
     const btn = document.getElementById('btn-admin-sync-github');
-    if (typeof SyncServidor === 'undefined' || !SyncServidor.puedePublicar()) {
-      this._adminAviso('Inicia sesión en el servidor primero.', 'error');
+    if (typeof SyncServidor === 'undefined') {
+      this._adminAviso('Servidor no disponible.', 'error');
       return;
+    }
+    if (!SyncServidor.puedePublicar()) {
+      const ok = await SyncServidor.asegurarSesionServidor({ pedirClave: true });
+      if (!ok) {
+        this._adminAviso('No se pudo conectar al servidor. Comprueba la contraseña.', 'error');
+        return;
+      }
     }
     if (btn) { btn.disabled = true; btn.textContent = 'Sincronizando…'; }
     try {
@@ -3616,9 +3642,16 @@ const Admin = {
   async _limpiarCuentasUi() {
     if (!this.esAdminJugador()) return;
     if (!confirm('¿Borrar TODAS las cuentas excepto randy?\n\nNo se puede deshacer. Luego creas jugadores nuevos desde aquí o desde el teléfono.')) return;
-    if (typeof SyncServidor === 'undefined' || !SyncServidor.puedePublicar()) {
-      this._adminAviso('Inicia sesión en el servidor primero.', 'error');
+    if (typeof SyncServidor === 'undefined') {
+      this._adminAviso('Servidor no disponible.', 'error');
       return;
+    }
+    if (!SyncServidor.puedePublicar()) {
+      const ok = await SyncServidor.asegurarSesionServidor({ pedirClave: true });
+      if (!ok) {
+        this._adminAviso('No se pudo conectar al servidor.', 'error');
+        return;
+      }
     }
     const r = await SyncServidor.limpiarCuentas();
     if (r.ok) {
@@ -4730,6 +4763,18 @@ const Admin = {
       return false;
     }
     if (!this.esAdminJugador()) return false;
+    if (typeof SyncServidor !== 'undefined' && !SyncServidor.puedePublicar()) {
+      const okSesion = await SyncServidor.asegurarSesionServidor(
+        silencioso ? {} : { pedirClave: true }
+      );
+      if (!okSesion && !silencioso) {
+        Notificaciones.mostrar(
+          '⚠️ Entra con la contraseña de admin para sincronizar.',
+          'alerta', 8000
+        );
+        return false;
+      }
+    }
     if (!opts?.confiarLocal) {
       try {
         await this._refrescarPublicadoSiVacio();
