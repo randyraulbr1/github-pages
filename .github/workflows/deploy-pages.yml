@@ -37,7 +37,7 @@ jobs:
             --exclude='scripts' \
             --exclude='docs' \
             --exclude='client' \
-            --exclude='online' \
+            --exclude='/online' \
             --exclude='*.md' \
             --exclude='render.yaml' \
             --exclude='.gitignore' \
