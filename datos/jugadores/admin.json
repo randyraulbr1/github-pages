@@ -49,8 +49,8 @@
       "xp": 175,
       "nivel": 2,
       "posicionJugador": [
-        22.99373447928107,
-        -82.75337263941765
+        22.993583864035646,
+        -82.7537588775158
       ],
       "tesorosRecogidos": [],
       "misiones": {},
@@ -59,6 +59,11 @@
           "estado": "recolectada",
           "progreso": 0,
           "orden": 1783437375034
+        },
+        "admx_m_mray2lpx": {
+          "estado": "lista",
+          "progreso": 0,
+          "orden": 1783446672400
         }
       },
       "correoEnviados": [],
@@ -355,6 +360,6 @@
       "muerto": false,
       "armaEquipada": "arma_nv1"
     },
-    "t": 1783446664980
+    "t": 1783446674995
   }
 }
