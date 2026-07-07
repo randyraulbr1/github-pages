@@ -141,7 +141,7 @@ async function asegurarMapaVisible() {
 
 (async function arrancar() {
   if (typeof MarielVersion !== 'undefined') {
-    MarielVersion._desbloquearTodo?.();
+    await MarielVersion.comprobarRemota({ bloquear: false });
   }
 
   const ocultarCarga = () => MarielBoot.ocultar();
@@ -337,7 +337,7 @@ async function asegurarMapaVisible() {
     await pasoSeguro('mapa-final', () => asegurarMapaVisible());
     if (typeof Opciones !== 'undefined') Opciones._refrescarAdmin?.();
     if (typeof MarielVersion !== 'undefined') {
-      MarielVersion._desbloquearTodo?.();
+      await MarielVersion.aplicarBloqueoTrasArranque();
     }
   }
 })();
