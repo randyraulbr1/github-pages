@@ -3,7 +3,7 @@
 // ============================================================
 const CONFIG = {
   // Cambiar al publicar: obliga al móvil a descartar caché vieja
-  version: '243',
+  version: '244',
   maxPila: 10,
 
   // Nombre reservado del administrador (solo este jugador ve el panel admin)
@@ -50,6 +50,7 @@ const CONFIG = {
   distanciaBolsaDropMetros: 5,   // bolsa al eliminar inventario: ~5 m del pin
   cuerpoMuertoHoras: 1,          // pin ⚰️ visible en mapa (aunque desconecte)
   vidaAlRevivirPct: 40,          // % de vida máxima al revivir (amigo o admin)
+  proteccionRevivirMs: 120000,   // 2 min tras revivir: sin atacar, huir ni daño
   cofreVacioHoras: 1,            // cofre vacío desaparece del mapa tras N horas
   distanciaDetectorTesoro: 150,  // el buscador de tesoros empieza a avisar
   distanciaVerTesoro: 10,

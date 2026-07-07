@@ -1857,7 +1857,7 @@ const Admin = {
     Guardado.datos.nubeT = snap.t;
     Guardado.guardarAhora();
     if (typeof Vida !== 'undefined' && typeof Vida.revivir === 'function') {
-      Vida.revivir(snap.datos.vida, '❤️ El administrador te revivió. ¡Ya puedes seguir jugando!');
+      Vida.revivir(null, '❤️ El administrador te revivió. ¡Ya puedes seguir jugando!');
     }
   },
 
@@ -4288,7 +4288,7 @@ const Admin = {
       Dinero.pintar();
       if (partida.muerto) Vida._activarMuerte();
       else if (typeof Vida.revivir === 'function' && (Guardado.datos.muerto || Vida.estaMuerto())) {
-        Vida.revivir(partida.vida, '❤️ El administrador te revivió. ¡Ya puedes seguir jugando!');
+        Vida.revivir(null, '❤️ El administrador te revivió. ¡Ya puedes seguir jugando!');
       } else {
         Vida.actual = partida.vida;
         if (partida.hambre != null) {

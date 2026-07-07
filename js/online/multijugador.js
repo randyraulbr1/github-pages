@@ -1721,8 +1721,16 @@ const Multijugador = {
         .map(s => ({ id: s.id, cantidad: s.cantidad || 1 }));
       payload.deadLevel = Vida.nivel;
     }
-    if (typeof Guardado !== 'undefined' && Guardado.datos.invisibleHasta > Date.now()) {
-      payload.invisibleUntil = Guardado.datos.invisibleHasta;
+    if (typeof Guardado !== 'undefined') {
+      const invUntil = Math.max(
+        Guardado.datos.invisibleHasta || 0,
+        Guardado.datos.proteccionRevivirHasta || 0
+      );
+      if (invUntil > Date.now()) {
+        payload.invisibleUntil = invUntil;
+      } else {
+        payload.invisibleUntil = 0;
+      }
     } else {
       payload.invisibleUntil = 0;
     }

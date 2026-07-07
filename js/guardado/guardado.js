@@ -80,6 +80,8 @@ const Guardado = {
       correoTiendaLocal: [],
       mensajesVistos: [],
       muerto: false,
+      proteccionRevivirHasta: 0,
+      invisibleHasta: 0,
       armaEquipada: null,
       admin: { misiones: [], tesoros: [], objetos: [] },
       preferencias: { notifChat: true, notifAmigos: true, vibracionCombate: true, posBtnAtacar: 'izq' },

@@ -50,6 +50,25 @@ const Vida = {
     return this._muerto || this.actual <= 0;
   },
 
+  enProteccionRevivir() {
+    if (typeof Guardado === 'undefined' || !Guardado.datos) return false;
+    const hasta = Guardado.datos.proteccionRevivirHasta || 0;
+    if (!hasta) return false;
+    if (hasta <= Date.now()) {
+      Guardado.datos.proteccionRevivirHasta = 0;
+      Guardado.guardar();
+      return false;
+    }
+    return true;
+  },
+
+  _iniciarProteccionRevivir() {
+    if (this._esAdmin()) return;
+    const ms = CONFIG.proteccionRevivirMs ?? 120000;
+    Guardado.datos.proteccionRevivirHasta = Date.now() + ms;
+    Guardado.guardar();
+  },
+
   _esAdmin() {
     return typeof Usuarios !== 'undefined' && Usuarios.esAdministrador();
   },
@@ -151,6 +170,7 @@ const Vida = {
   /** Daño de enemigos — popup flotante en vez de notificación */
   recibirDano(cantidad, motivo, nombreEnemigo) {
     if (this.estaMuerto() || cantidad <= 0) return;
+    if (this.enProteccionRevivir()) return;
     const antes = this.actual;
     let nuevo = Math.max(0, this.actual - cantidad);
     if (this._esAdmin()) nuevo = this.vidaMaxima();
@@ -264,8 +284,12 @@ const Vida = {
     Guardado.datos.muerteInventario = null;
     Guardado.datos.muertoAt = null;
     const max = this.vidaMaxima();
-    this.actual = Math.max(1, Math.min(max, vida || max));
+    const cura = vida != null && vida > 0
+      ? Math.max(1, Math.min(max, Math.round(vida)))
+      : this.vidaAlRevivir(max);
+    this.actual = cura;
     Guardado.datos.vida = this.actual;
+    this._iniciarProteccionRevivir();
     Guardado.guardar();
     this.pintar();
     const pantalla = document.getElementById('pantalla-muerte');
@@ -275,10 +299,16 @@ const Vida = {
       Multijugador._quitarCuerpoPropioSiVivo?.();
       Multijugador.enviarStats(true);
     }
+    const mins = Math.round((CONFIG.proteccionRevivirMs ?? 120000) / 60000);
+    const base = motivo || '❤️ Has revivido. ¡Ya puedes seguir jugando!';
     Notificaciones.mostrar(
-      motivo || '❤️ El administrador te revivió. ¡Ya puedes seguir jugando!',
-      'exito', 6000
+      base + ' Vida al ' + (CONFIG.vidaAlRevivirPct ?? 40) + '%. ' +
+        mins + ' min sin atacar, huir ni recibir daño.',
+      'exito', 7000
     );
+    if (typeof Enemigos !== 'undefined' && Enemigos._actualizarHudCombate) {
+      Enemigos._actualizarHudCombate();
+    }
     if (typeof Guardado !== 'undefined') Guardado.sincronizarNube(true).catch(() => {});
   },
 

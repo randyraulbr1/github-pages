@@ -58,7 +58,7 @@ const Enemigos = {
 
   /** Histéresis: barra grande solo con jugador en zona roja; pequeña al salir o enemigo en spawn. */
   _estadoBarraEnemigo(e) {
-    if (this._estaInvisible() || !GPS.posicion) {
+    if (this._jugadorImuneEnemigos() || !GPS.posicion) {
       return { enZona: false, vidaGrande: false };
     }
     const d = this._distanciaJugadorEnemigo(e);
@@ -859,7 +859,7 @@ const Enemigos = {
     this._aplicarVisibilidadMarcador(e, dMarcador);
     if (!this._marcadorVisible(e.id)) return;
     this._actualizarVisibilidadZonas(e, dMarcador);
-    if (this._estaInvisible()) return;
+    if (this._jugadorImuneEnemigos()) return;
     const enExterior = dMarcador <= this._radioExterior(e);
     if (enExterior && !e._avisoZona) {
       e._avisoZona = true;
@@ -933,6 +933,14 @@ const Enemigos = {
     return false;
   },
 
+  _enProteccionRevivir() {
+    return typeof Vida !== 'undefined' && Vida.enProteccionRevivir && Vida.enProteccionRevivir();
+  },
+
+  _jugadorImuneEnemigos() {
+    return this._estaInvisible() || this._enProteccionRevivir();
+  },
+
   _pctVidaJugador() {
     if (typeof Vida === 'undefined') return 100;
     const max = Vida.vidaMaxima();
@@ -944,7 +952,7 @@ const Enemigos = {
   },
 
   _enemigoMasCercanoEnZona() {
-    if (!GPS.posicion || this._estaInvisible()) return null;
+    if (!GPS.posicion || this._jugadorImuneEnemigos()) return null;
     let mejor = null;
     let mejorD = Infinity;
     for (const e of this.lista) {
@@ -1066,6 +1074,23 @@ const Enemigos = {
       return;
     }
 
+    if (this._enProteccionRevivir()) {
+      if (bannerHuida) {
+        bannerHuida.classList.remove('oculto');
+        const rest = Math.max(0, (Guardado.datos.proteccionRevivirHasta || 0) - Date.now());
+        const seg = Math.ceil(rest / 1000);
+        const m = Math.floor(seg / 60);
+        const s = seg % 60;
+        bannerHuida.textContent = '🩹 Recuperándote · sin atacar ni huir · ' + m + ':' + String(s).padStart(2, '0');
+      }
+      if (wrapHud) wrapHud.classList.add('oculto');
+      if (btnHuir) btnHuir.classList.add('oculto');
+      this._aplicarCooldownAnillo(wrapHud, 0, false);
+      this._aplicarCooldownAnillo(wrapModal, 0, false);
+      if (hudFlotante) hudFlotante.classList.add('oculto');
+      return;
+    }
+
     if (bannerHuida) bannerHuida.classList.add('oculto');
     const enemigo = this._enemigoMasCercanoEnZona();
     this._objetivoHud = enemigo;
@@ -1118,6 +1143,7 @@ const Enemigos = {
   },
 
   _atacarHud() {
+    if (this._enProteccionRevivir()) return;
     if (this._cooldownRestante() > 0) return;
     const e = this._objetivoHud || this._enemigoMasCercanoEnZona();
     if (!e || typeof Vida !== 'undefined' && Vida.estaMuerto()) return;
@@ -1131,6 +1157,7 @@ const Enemigos = {
   },
 
   async _huirMapa() {
+    if (typeof Vida !== 'undefined' && Vida.enProteccionRevivir && Vida.enProteccionRevivir()) return;
     if (typeof Vida === 'undefined' || Vida.estaMuerto()) return;
     if (this._pctVidaJugador() > 30) return;
     if (!this._enemigoMasCercanoEnZona()) return;
@@ -1151,6 +1178,7 @@ const Enemigos = {
 
   _golpeAutomatico(e) {
     if (Vida.estaMuerto()) return;
+    if (this._jugadorImuneEnemigos()) return;
     if (this._enCombate) return;
     const ahora = Date.now();
     const ultimo = this._ultimoGolpeAuto[e.id] || 0;
@@ -1175,7 +1203,7 @@ const Enemigos = {
 
     if (!GPS.posicion) return;
     const online = this._online();
-    const invisible = this._estaInvisible();
+    const invisible = this._jugadorImuneEnemigos();
     for (const e of this.lista) {
       if (!this._enemigoEstaVivo(e)) {
         if (this._marcadores[e.id]) this._quitarMarcador(e.id);
@@ -1278,6 +1306,7 @@ const Enemigos = {
   },
 
   _huir() {
+    if (this._enProteccionRevivir()) return;
     const e = this._enCombate;
     if (!e) return;
     const coste = 60 + Math.floor(Math.random() * 21);
@@ -1290,6 +1319,7 @@ const Enemigos = {
   },
 
   async _atacar() {
+    if (this._enProteccionRevivir()) return;
     const e = this._enCombate;
     if (!e || !this._enemigoEstaVivo(e)) return;
     const restCd = this._cooldownRestante();
