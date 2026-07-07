@@ -100,9 +100,11 @@ const Bolsas = {
       }
       return false;
     }
+    const distDrop = (typeof CONFIG !== 'undefined' && CONFIG.distanciaBolsaDropMetros) || 5;
+    const dropPos = Utilidades.desplazarMetros(pos, distDrop);
 
     const payload = {
-      pos,
+      pos: dropPos,
       items: lista.map((it) => ({ id: it.id, cantidad: it.cantidad || 1 }))
     };
 
@@ -115,7 +117,7 @@ const Bolsas = {
 
     const bolsa = {
       id: 'bolsa_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2, 7),
-      pos: [+pos[0].toFixed(6), +pos[1].toFixed(6)],
+      pos: [+dropPos[0].toFixed(6), +dropPos[1].toFixed(6)],
       items: payload.items,
       creadoEn: Date.now(),
       esBolsa: true

@@ -1099,10 +1099,14 @@ const Multijugador = {
   },
 
   _jugadorMuertoParaPopup(p) {
+    const nv = p.deadLevel || p.level || 1;
+    const hpMax = Math.max(1, p.hpMax || (typeof Vida !== 'undefined' && Vida.vidaMaxima
+      ? Vida.vidaMaxima(nv) : 100));
     return {
       playerId: p.playerId,
       name: p.name,
-      deadLevel: p.deadLevel || p.level,
+      deadLevel: nv,
+      hpMax,
       deadInventory: p.deadInventory || [],
       deathX: p.deathX,
       deathY: p.deathY,
@@ -1116,10 +1120,13 @@ const Multijugador = {
     if (online && this._estaMuerto(online)) return this._jugadorMuertoParaPopup(online);
     const c = this.cuerpos[String(pid)];
     if (c) {
+      const nv = c.deadLevel || 1;
       return {
         playerId: c.playerId,
         name: c.name,
-        deadLevel: c.deadLevel,
+        deadLevel: nv,
+        hpMax: Math.max(1, c.hpMax || (typeof Vida !== 'undefined' && Vida.vidaMaxima
+          ? Vida.vidaMaxima(nv) : 100)),
         deadInventory: c.deadInventory || [],
         deathX: c.deathX,
         deathY: c.deathY,
@@ -1542,8 +1549,13 @@ const Multijugador = {
       Notificaciones.mostrar('🩹 Necesitas un botiquín en la mochila ($300 en la farmacia)', 'alerta', 4500);
       return;
     }
-    const cura = CONFIG.vidaAlRevivir || 40;
-    const hpMax = typeof Vida !== 'undefined' ? Vida.vidaMaxima() : 100;
+    const nv = datos.deadLevel || p.level || 1;
+    const targetHpMax = Math.max(1, datos.hpMax || p.hpMax || (typeof Vida !== 'undefined' && Vida.vidaMaxima
+      ? Vida.vidaMaxima(nv) : 100));
+    const cura = typeof Vida !== 'undefined' && Vida.vidaAlRevivir
+      ? Vida.vidaAlRevivir(targetHpMax)
+      : Math.max(1, Math.round(targetHpMax * 0.4));
+    const hpMax = targetHpMax;
     if (btn) {
       btn.disabled = true;
       btn.classList.add('cargando');

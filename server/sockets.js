@@ -28,7 +28,15 @@ const { verifyToken, isGameAdminName } = require('./auth');
 const { startEnemyAI } = require('./enemyAI');
 const { registrarRecogidaObjeto, registrarRecogidaTesoro, registrarCuerpoMuerto, quitarCuerpoMuerto, getCuerpoMuerto, sincronizarCuerposExpirados, sincronizarBolsasExpiradas, actualizarInventarioCuerpo, registrarLootMuerto, actualizarPartidaEnSnapshot, revivirPartidaEnSnapshot, buscarPerfilIdPorNombre, limpiarBolsasExpiradas, crearBolsaDrop, recogerBolsaDrop, registrarAtaqueEnemigo } = require('./syncMundo');
 
-/** playerId -> { socketId, playerId, name, x, y, hp, hpMax, level } */
+/** Vida al revivir: valor enviado o 40 % de hpMax. */
+function vidaReviveDesdeMax(hpMax, reviveHp) {
+  const max = Math.max(1, Math.round(hpMax || 100));
+  const cura = reviveHp != null && reviveHp > 0
+    ? Math.round(reviveHp)
+    : Math.max(1, Math.round(max * 0.4));
+  return Math.max(1, Math.min(max, cura));
+}
+
 const onlinePlayers = new Map();
 /** socketId -> playerId */
 const socketToPlayer = new Map();
@@ -327,7 +335,7 @@ function setupSockets(io) {
       if (!isDead) return ack?.({ ok: false, error: 'Ese jugador no está muerto' });
 
       const hpMax = Math.max(1, Math.round(payload?.hpMax || targetOnline?.hpMax || 100));
-      const cura = Math.max(1, Math.min(hpMax, Math.round(payload?.reviveHp || 40)));
+      const cura = vidaReviveDesdeMax(hpMax, payload?.reviveHp);
       const invRestante = (targetOnline?.deadInventory || cuerpo?.deadInventory || []).map(x => ({ ...x }));
       updatePlayer(targetId, { hp: cura });
       if (targetOnline) {
@@ -421,7 +429,7 @@ function setupSockets(io) {
       }
 
       const hpMax = Math.max(1, Math.round(payload?.hpMax || targetOnline?.hpMax || 100));
-      const cura = Math.max(1, Math.min(hpMax, Math.round(payload?.reviveHp || 40)));
+      const cura = vidaReviveDesdeMax(hpMax, payload?.reviveHp);
       const invRestante = (targetOnline?.deadInventory || cuerpo?.deadInventory || []).map(x => ({ ...x }));
       updatePlayer(targetId, { hp: cura });
       if (targetOnline) {

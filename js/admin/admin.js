@@ -1780,9 +1780,13 @@ const Admin = {
     if (typeof Multijugador === 'undefined' || !Multijugador.socket || !Multijugador.activo) return;
     const online = this._estadoOnlinePorNombre(perfil.nombre);
     if (!online) return;
+    const maxV = online.hpMax || this._vidaMaximaJugador({ nivel: online.level || online.deadLevel || 1 });
+    const cura = hp != null ? hp : (typeof Vida !== 'undefined' && Vida.vidaAlRevivir
+      ? Vida.vidaAlRevivir(maxV) : Math.round(maxV * 0.4));
     Multijugador.socket.emit('admin:revivePlayer', {
       targetPlayerId: online.playerId,
-      reviveHp: hp || CONFIG.vidaAlRevivir || 40,
+      reviveHp: cura,
+      hpMax: maxV,
       perfilId: perfil.id
     }, () => {});
   },
@@ -1824,7 +1828,9 @@ const Admin = {
       return;
     }
 
-    partida.vida = CONFIG.vidaAlRevivir || 40;
+    const maxV = this._vidaMaximaJugador(partida);
+    partida.vida = typeof Vida !== 'undefined' && Vida.vidaAlRevivir
+      ? Vida.vidaAlRevivir(maxV) : Math.max(1, Math.round(maxV * 0.4));
     partida.muerto = false;
     if (partida.hambre == null || partida.hambre < CONFIG.hambreInicial) {
       partida.hambre = CONFIG.hambreInicial;

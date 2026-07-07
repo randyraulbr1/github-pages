@@ -19,6 +19,13 @@ const Vida = {
     return CONFIG.vidaMaxima + Math.floor((n - 1) * extra);
   },
 
+  /** Vida al revivir: porcentaje de la vida máxima del jugador revivido. */
+  vidaAlRevivir(hpMax) {
+    const max = Math.max(1, hpMax != null ? hpMax : this.vidaMaxima());
+    const pct = CONFIG.vidaAlRevivirPct ?? 40;
+    return Math.max(1, Math.round(max * pct / 100));
+  },
+
   iniciar() {
     this.xp = Guardado.datos.xp ?? 0;
     this.nivel = Guardado.datos.nivel ?? 1;

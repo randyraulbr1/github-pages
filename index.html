@@ -9,10 +9,10 @@
   <link rel="icon" type="image/png" href="iconos/icono-192.png">
   <link rel="apple-touch-icon" href="iconos/icono-192.png">
   <link rel="stylesheet" href="lib/leaflet/leaflet.css">
-  <link rel="stylesheet" href="css/estilos.css?v=212">
+  <link rel="stylesheet" href="css/estilos.css?v=213">
   <link rel="stylesheet" href="css/chat.css?v=137">
   <link rel="stylesheet" href="css/amigos.css?v=158">
-  <link rel="stylesheet" href="css/opciones.css?v=212">
+  <link rel="stylesheet" href="css/opciones.css?v=213">
   <link rel="stylesheet" href="css/notificaciones.css?v=117">
   <script>
     (function () {
@@ -65,7 +65,7 @@
     </div>
   </div>
 
-  <script src="js/nucleo/version_app.js?v=212"></script>
+  <script src="js/nucleo/version_app.js?v=213"></script>
   <script>MarielVersion.iniciar(window.__MARIEL_EMBEDDED__);</script>
 
   <!-- PANTALLA DE CARGA (visible desde el primer instante) -->
@@ -275,24 +275,34 @@
       </div>
 
       <div class="panel-content">
-        <div class="section-title">➕ Agregar amigo</div>
-        <div class="add-box">
-          <div class="add-row">
-            <input id="amigos-buscar" type="text" maxlength="20" placeholder="Nombre del jugador..." autocomplete="off">
-            <button type="button" class="add-btn" id="btn-amigos-agregar" title="Agregar amigo" aria-label="Agregar amigo">+</button>
+        <details class="amigos-carpeta amigos-carpeta-compact">
+          <summary class="amigos-carpeta-sum">➕ Agregar amigo</summary>
+          <div class="amigos-carpeta-inner">
+            <div class="add-row">
+              <input id="amigos-buscar" type="text" maxlength="20" placeholder="Nombre del jugador..." autocomplete="off">
+              <button type="button" class="add-btn" id="btn-amigos-agregar" title="Agregar amigo" aria-label="Agregar amigo">+</button>
+            </div>
+          </div>
+        </details>
+
+        <div class="amigos-seccion-lista">
+          <div class="section-title amigos-titulo-lista">
+            👥 Mis amigos <span class="count-inline" id="amigos-count">0 amigos</span>
+          </div>
+
+          <details class="amigos-carpeta amigos-carpeta-compact amigos-carpeta-buscar">
+            <summary class="amigos-carpeta-sum">🔍 Buscar entre amigos</summary>
+            <div class="amigos-carpeta-inner">
+              <input id="amigos-buscar-filtro" type="text" placeholder="Nombre..." autocomplete="off">
+            </div>
+          </details>
+
+          <div class="amigos-lista-scroll">
+            <div id="amigos-pendientes" class="amigos-pendientes oculto"></div>
+            <div id="amigos-lista" class="friends-list"></div>
+            <div id="amigos-bloqueados" class="amigos-bloqueados oculto"></div>
           </div>
         </div>
-
-        <div class="section-title">👥 Mis amigos</div>
-        <div class="count" id="amigos-count">0 amigos</div>
-
-        <div class="search-row">
-          <input id="amigos-buscar-filtro" type="text" placeholder="Buscar entre amigos..." autocomplete="off">
-        </div>
-
-        <div id="amigos-pendientes" class="amigos-pendientes oculto"></div>
-        <div id="amigos-lista" class="friends-list"></div>
-        <div id="amigos-bloqueados" class="amigos-bloqueados oculto"></div>
       </div>
     </div>
   </div>
@@ -1059,18 +1069,18 @@
   <script src="lib/leaflet/leaflet.js?v=104"></script>
 
   <!-- MÓDULOS DEL JUEGO (orden importante) -->
-  <script src="js/config/config.js?v=212"></script>
-  <script src="js/nucleo/utilidades.js?v=212"></script>
+  <script src="js/config/config.js?v=213"></script>
+  <script src="js/nucleo/utilidades.js?v=213"></script>
   <script src="js/mundo/mundo_publico.js?v=104"></script>
   <script src="js/notificaciones/notificaciones.js?v=137"></script>
-  <script src="js/usuarios/usuarios.js?v=212"></script>
+  <script src="js/usuarios/usuarios.js?v=213"></script>
   <script src="js/guardado/guardado.js?v=149"></script>
   <script src="js/historial/historial.js?v=104"></script>
   <script src="js/dinero/dinero.js?v=104"></script>
-  <script src="js/vida/vida.js?v=212"></script>
+  <script src="js/vida/vida.js?v=213"></script>
   <script src="js/items/items.js?v=140"></script>
-  <script src="js/mochila/mochila.js?v=212"></script>
-  <script src="js/bolsas/bolsas.js?v=212"></script>
+  <script src="js/mochila/mochila.js?v=213"></script>
+  <script src="js/bolsas/bolsas.js?v=213"></script>
   <script src="js/mapa/mapa.js?v=104"></script>
   <script src="js/gps/gps.js?v=150"></script>
   <script src="js/tiendas/datos_tiendas.js?v=104"></script>
@@ -1082,19 +1092,19 @@
   <script src="js/misiones/misiones.js?v=104"></script>
   <script src="js/cofres/cofres.js?v=104"></script>
   <script src="js/correo/correo.js?v=104"></script>
-  <script src="js/enemigos/enemigos.js?v=212"></script>
-  <script src="js/online/sync_servidor.js?v=212"></script>
-  <script src="js/admin/admin.js?v=212"></script>
-  <script src="js/opciones/opciones.js?v=212"></script>
-  <script src="js/online/mundo_online.js?v=212"></script>
-  <script src="js/online/amigos.js?v=212"></script>
-  <script src="js/chat/chat.js?v=212"></script>
-  <script src="js/online/multijugador.js?v=212"></script>
-  <script src="js/principal.js?v=212"></script>
+  <script src="js/enemigos/enemigos.js?v=213"></script>
+  <script src="js/online/sync_servidor.js?v=213"></script>
+  <script src="js/admin/admin.js?v=213"></script>
+  <script src="js/opciones/opciones.js?v=213"></script>
+  <script src="js/online/mundo_online.js?v=213"></script>
+  <script src="js/online/amigos.js?v=213"></script>
+  <script src="js/chat/chat.js?v=213"></script>
+  <script src="js/online/multijugador.js?v=213"></script>
+  <script src="js/principal.js?v=213"></script>
   <script>
     // Registrar la app instalable (PWA)
     if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.register('sw.js?v=212', { updateViaCache: 'none' })
+      navigator.serviceWorker.register('sw.js?v=213', { updateViaCache: 'none' })
         .then(function (reg) {
           if (typeof MarielVersion !== 'undefined') MarielVersion.registrarServiceWorker(reg);
         })
