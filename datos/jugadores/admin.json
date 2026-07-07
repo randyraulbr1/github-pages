@@ -49,7 +49,7 @@
       },
       "vida": 104,
       "hambre": 50,
-      "xp": 145,
+      "xp": 175,
       "nivel": 2,
       "posicionJugador": [
         22.99330362046794,
@@ -306,6 +306,6 @@
       "muerto": false,
       "armaEquipada": "arma_nv1"
     },
-    "t": 1783443434904
+    "t": 1783443446262
   }
 }
