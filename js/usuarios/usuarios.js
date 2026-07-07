@@ -295,6 +295,9 @@ const Usuarios = {
 
       await this._activar(perfil);
       sessionStorage.setItem('mariel_clave_servidor', clave);
+      if (this.esAdministrador()) {
+        localStorage.setItem('mariel_dev_clave_admin', clave);
+      }
       if (perfil.nombre && perfil.nombre.toLowerCase() === 'randy') {
         localStorage.setItem('mariel_dev_clave_randy', clave);
       }
