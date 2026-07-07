@@ -10,11 +10,11 @@
       "mochila": [
         {
           "id": "agua",
-          "cantidad": 2
+          "cantidad": 4
         },
         {
           "id": "pan",
-          "cantidad": 1
+          "cantidad": 2
         },
         null,
         null,
@@ -83,12 +83,38 @@
           ],
           "hashAnterior": "GENESIS",
           "hash": "1f67cace6a0018e72cf5a3ef9382c1555a7c2c2046425b6ba683581c10be805e"
+        },
+        {
+          "t": 1783437054071,
+          "detalle": "Obtenido: Botella de agua",
+          "monto": 2,
+          "saldo": null,
+          "lugar": "campo abierto",
+          "pos": [
+            22.99346,
+            -82.753841
+          ],
+          "hashAnterior": "1f67cace6a0018e72cf5a3ef9382c1555a7c2c2046425b6ba683581c10be805e",
+          "hash": "9ff2e972162da4f334341e182211e8dea49a63deb319ab9e97caa7b18ef20cf4"
+        },
+        {
+          "t": 1783437055035,
+          "detalle": "Obtenido: Pan",
+          "monto": 1,
+          "saldo": null,
+          "lugar": "campo abierto",
+          "pos": [
+            22.99346,
+            -82.753841
+          ],
+          "hashAnterior": "9ff2e972162da4f334341e182211e8dea49a63deb319ab9e97caa7b18ef20cf4",
+          "hash": "3593751b2279f4c5118e912b949ec65f787d6db1a3afb571433185f2d75bf93a"
         }
       ],
       "mensajesVistos": [],
       "muerto": false,
       "armaEquipada": "arma_nv1"
     },
-    "t": 1783437046640
+    "t": 1783437058648
   }
 }
