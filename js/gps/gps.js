@@ -12,6 +12,12 @@ const GPS = {
   _idVigilancia: null,
 
   iniciar() {
+    if (this.marcador && this.posicion) {
+      this.aplicarPosicionGuardada();
+      return;
+    }
+    if (typeof Guardado === 'undefined' || !Guardado.datos || typeof Mapa === 'undefined' || !Mapa.mapa) return;
+
     this.posicion = Guardado.datos.posicionJugador || CONFIG.centro.slice();
 
     this.marcador = L.marker(this.posicion, {
