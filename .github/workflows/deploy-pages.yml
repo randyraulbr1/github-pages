@@ -27,6 +27,7 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Preparar sitio estático
+        # '/online' con barra = solo carpeta raíz. Sin barra borra js/online/ (Amigos, sync, multijugador).
         run: |
           mkdir -p _site
           rsync -a \
@@ -37,7 +38,6 @@ jobs:
             --exclude='scripts' \
             --exclude='docs' \
             --exclude='client' \
-            # IMPORTANTE: '/online' con barra = solo carpeta raíz. Sin barra borra js/online/ (Amigos, sync, multijugador).
             --exclude='/online' \
             --exclude='*.md' \
             --exclude='render.yaml' \

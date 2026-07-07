@@ -3065,11 +3065,14 @@ const Admin = {
     if (marcador.dragging) marcador.dragging.disable();
     const el = marcador.getElement?.();
     if (el) {
-      el.classList.remove('admin-pin-armado', 'admin-pin-moviendo');
+      el.classList.remove('admin-pin-armado', 'admin-pin-moviendo', 'admin-pin-organizar');
       const btn = el.querySelector('.admin-pin-x');
       if (btn) btn.remove();
       const grip = el.querySelector('.admin-pin-grip');
       if (grip) grip.remove();
+    }
+    if (marcador._muertoPlayerId != null && typeof Multijugador !== 'undefined') {
+      Multijugador._restaurarToqueAtaud(marcador);
     }
   },
 
@@ -3174,6 +3177,23 @@ const Admin = {
           grip.classList.add('oculto');
           marcador.options.draggable = true;
           if (marcador.dragging) marcador.dragging.enable();
+          // Móvil: mismo gesto desde el cuadrito azul inicia el arrastre Leaflet
+          if (ev.type === 'touchstart' && pinEl) {
+            const t = ev.touches?.[0];
+            if (t) {
+              requestAnimationFrame(() => {
+                pinEl.dispatchEvent(new MouseEvent('mousedown', {
+                  bubbles: true,
+                  cancelable: true,
+                  view: window,
+                  clientX: t.clientX,
+                  clientY: t.clientY,
+                  button: 0,
+                  buttons: 1
+                }));
+              });
+            }
+          }
         };
         grip.addEventListener('mousedown', armar);
         grip.addEventListener('touchstart', armar, { passive: false });
@@ -3272,7 +3292,7 @@ const Admin = {
     for (const t of DATOS_TESOROS) {
       if (this.eliminado(t.id)) continue;
       const fantasma = L.marker(t.posicion, {
-        draggable: modo === 'organizar',
+        draggable: false,
         opacity: 0.75,
         icon: L.divIcon({ className: '', html: '<div class="icono-tesoro">✨</div>', iconSize: [30, 30], iconAnchor: [15, 15] })
       }).addTo(Mapa.mapa);
@@ -3291,7 +3311,7 @@ const Admin = {
     for (const t of this.tesorosTodos()) {
       if (t._marcador) continue;
       const fantasma = L.marker(t.pos, {
-        draggable: modo === 'organizar',
+        draggable: false,
         opacity: 0.75,
         icon: L.divIcon({ className: '', html: '<div class="icono-tesoro">🎁</div>', iconSize: [30, 30], iconAnchor: [15, 15] })
       }).addTo(Mapa.mapa);
@@ -3441,6 +3461,9 @@ const Admin = {
     document.getElementById('admin-controles').classList.add('oculto');
     if (typeof Enemigos !== 'undefined' && Enemigos._recargar) Enemigos._recargar();
     if (typeof GPS !== 'undefined') GPS._actualizarArrastre();
+    if (typeof Multijugador !== 'undefined' && Multijugador._redibujarCuerpos) {
+      Multijugador._redibujarCuerpos();
+    }
     if (this._pubPendiente && this.esAdminJugador()) {
       this._procesarColaPublicacion();
     }

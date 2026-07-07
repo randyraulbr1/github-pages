@@ -982,7 +982,9 @@ const Multijugador = {
       deathX: pos.x,
       deathY: pos.y,
       deadLevel: p.deadLevel || p.level || prev?.deadLevel || 1,
-      deadInventory: Array.isArray(p.deadInventory) ? p.deadInventory : (prev?.deadInventory || []),
+      deadInventory: (Array.isArray(p.deadInventory) && p.deadInventory.length)
+        ? p.deadInventory
+        : (prev?.deadInventory || p.deadInventory || []),
       muertoAt: prev?.muertoAt || Date.now()
     };
   },
@@ -1047,6 +1049,42 @@ const Multijugador = {
     this._enlazarPopupMuerto(m, playerId);
   },
 
+  _enlazarToqueAtaud(m) {
+    if (!m) return;
+    m.off('click');
+    m.off('touchstart');
+    m.off('touchmove');
+    m.off('touchend');
+    let toqueMovido = false;
+    m.on('touchstart', () => { toqueMovido = false; });
+    m.on('touchmove', () => { toqueMovido = true; });
+    const abrir = (ev) => {
+      if (typeof Admin !== 'undefined' && Admin.modo === 'organizar') return;
+      if (ev?.type === 'touchend') {
+        if (toqueMovido) return;
+        if (ev.cancelable) ev.preventDefault();
+      }
+      if (typeof L !== 'undefined' && L.DomEvent) L.DomEvent.stopPropagation(ev);
+      m.openPopup();
+    };
+    m.on('click', abrir);
+    m.on('touchend', abrir);
+  },
+
+  _restaurarToqueAtaud(m) {
+    if (!m || m._muertoPlayerId == null) return;
+    const el = m.getElement?.();
+    if (el) {
+      el.classList.remove('admin-pin-organizar', 'admin-pin-armado', 'admin-pin-moviendo');
+      el.querySelector('.admin-pin-x')?.remove();
+      el.querySelector('.admin-pin-grip')?.remove();
+    }
+    m.options.draggable = false;
+    if (m.dragging) m.dragging.disable();
+    this._enlazarToqueAtaud(m);
+    this._bindPopupMuerto(m, m._muertoPlayerId);
+  },
+
   _actualizarMarcadorCuerpo(c) {
     if (!Mapa.mapa || !c) return;
     const id = String(c.playerId);
@@ -1068,17 +1106,16 @@ const Multijugador = {
         interactive: true,
         zIndexOffset: 10050
       }).addTo(Mapa.mapa);
-      m.on('click', () => m.openPopup());
       this._bindPopupMuerto(m, c.playerId);
+      this._enlazarToqueAtaud(m);
       this.cuerposMarcadores[id] = m;
     } else {
       m.setLatLng([pos.x, pos.y]);
       m.setIcon(icon);
       m.options.interactive = true;
       if (typeof m.setInteractive === 'function') m.setInteractive(true);
-      m.off('click');
-      m.on('click', () => m.openPopup());
       this._bindPopupMuerto(m, c.playerId);
+      this._enlazarToqueAtaud(m);
     }
   },
 
@@ -1383,7 +1420,7 @@ const Multijugador = {
   revivirJugador(p, btn) {
     if (!this.socket || !this.activo || !p?.playerId) return;
     const datos = this._datosPopupMuerto(p.playerId);
-    const d = this._distanciaMarcador(datos);
+    const d = this._distanciaCuerpo(datos);
     const maxDist = CONFIG.distanciaVerMuerto || 50;
     if (d > maxDist) {
       Notificaciones.mostrar('📍 Demasiado lejos para revivir (' + Math.round(d) + ' m). Máx. ' + maxDist + ' m', 'info', 3500);
