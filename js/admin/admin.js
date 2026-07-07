@@ -43,6 +43,7 @@ const Admin = {
     if (!this.datos.eliminados) this.datos.eliminados = [];
     if (!this.datos.partidasExtra) this.datos.partidasExtra = {};
     if (!this.datos.jugadoresPinAdmin) this.datos.jugadoresPinAdmin = {};
+    if (!this.datos.jugadoresBorrados) this.datos.jugadoresBorrados = [];
     if (localStorage.getItem('mariel_cuentas_reset_v') !== '56') {
       localStorage.setItem('mariel_cuentas_reset_v', '56');
     }
@@ -71,7 +72,7 @@ const Admin = {
         for (const j of indice) {
           porId.set(j.id, Object.assign({}, porId.get(j.id), j));
         }
-        this.publicado.jugadores = [...porId.values()];
+        this.publicado.jugadores = this._filtrarJugadoresBorrados([...porId.values()]);
       }
     } catch (e) { /* sin indice remoto */ }
     if (!this.publicado.precios) this.publicado.precios = {};
@@ -699,7 +700,76 @@ const Admin = {
         }));
       }
     }
-    return this._deduplicarJugadoresPorNombre([...porId.values()]).jugadores;
+    return this._filtrarJugadoresBorrados(
+      this._deduplicarJugadoresPorNombre([...porId.values()]).jugadores
+    );
+  },
+
+  _setJugadoresBorrados() {
+    if (!this.datos?.jugadoresBorrados) return new Set();
+    return new Set(this.datos.jugadoresBorrados.map(x => String(x).toLowerCase()));
+  },
+
+  _esJugadorBorrado(j) {
+    if (!j) return false;
+    const borrados = this._setJugadoresBorrados();
+    if (j.id && borrados.has(String(j.id).toLowerCase())) return true;
+    const n = String(j.nombre || '').trim().toLowerCase();
+    return !!(n && borrados.has(n));
+  },
+
+  _marcarJugadorBorrado(perfil) {
+    if (!this.datos) this.datos = {};
+    if (!this.datos.jugadoresBorrados) this.datos.jugadoresBorrados = [];
+    const borrados = this._setJugadoresBorrados();
+    const nombreKey = String(perfil?.nombre || '').trim().toLowerCase();
+    if (nombreKey && !borrados.has(nombreKey)) {
+      this.datos.jugadoresBorrados.push(nombreKey);
+      borrados.add(nombreKey);
+    }
+    const fuentes = [
+      ...(this.publicado?.jugadores || []),
+      ...(this.datos?.jugadoresExtra || []),
+      ...(typeof Usuarios !== 'undefined' ? (Usuarios.datos?.lista || []) : []),
+      perfil
+    ].filter(Boolean);
+    for (const x of fuentes) {
+      const nk = String(x.nombre || '').trim().toLowerCase();
+      if (nombreKey && nk !== nombreKey) continue;
+      if (x.id && !borrados.has(String(x.id).toLowerCase())) {
+        this.datos.jugadoresBorrados.push(x.id);
+      }
+    }
+  },
+
+  _filtrarJugadoresBorrados(lista) {
+    if (!Array.isArray(lista)) return [];
+    const borrados = this._setJugadoresBorrados();
+    if (!borrados.size) return lista;
+    return lista.filter(j => {
+      if (!j) return false;
+      if (j.id && borrados.has(String(j.id).toLowerCase())) return false;
+      const n = String(j.nombre || '').trim().toLowerCase();
+      return !(n && borrados.has(n));
+    });
+  },
+
+  _idsJugadorMismaCuenta(perfil) {
+    const nombreKey = String(perfil?.nombre || '').trim().toLowerCase();
+    const tel = String(perfil?.telefono || '').replace(/[\s-]/g, '');
+    const ids = new Set();
+    if (perfil?.id) ids.add(perfil.id);
+    for (const x of [
+      ...(this.publicado?.jugadores || []),
+      ...(this.datos?.jugadoresExtra || []),
+      ...(typeof Usuarios !== 'undefined' ? (Usuarios.datos?.lista || []) : [])
+    ]) {
+      if (!x?.id) continue;
+      const nk = String(x.nombre || '').trim().toLowerCase();
+      const xt = String(x.telefono || '').replace(/[\s-]/g, '');
+      if ((nombreKey && nk === nombreKey) || (tel && xt && xt === tel)) ids.add(x.id);
+    }
+    return ids;
   },
 
   _prioridadJugador(j) {
@@ -774,7 +844,9 @@ const Admin = {
           }));
         }
       }
-      this.publicado.jugadores = this._deduplicarJugadoresPorNombre([...porId.values()]).jugadores;
+      this.publicado.jugadores = this._filtrarJugadoresBorrados(
+        this._deduplicarJugadoresPorNombre([...porId.values()]).jugadores
+      );
       this._jugadoresListaCache = this.publicado.jugadores.slice();
       this._jugadoresListaCacheTs = Date.now();
       return;
@@ -790,7 +862,7 @@ const Admin = {
         if (!j?.id) continue;
         porId.set(j.id, Object.assign({}, porId.get(j.id), j));
       }
-      this.publicado.jugadores = [...porId.values()];
+      this.publicado.jugadores = this._filtrarJugadoresBorrados([...porId.values()]);
     };
     try {
       const texto = await MundoPublico.descargar();
@@ -935,7 +1007,9 @@ const Admin = {
         }));
       }
     }
-    const { jugadores, aliasIds } = this._deduplicarJugadoresPorNombre([...porId.values()]);
+    const { jugadores, aliasIds } = this._deduplicarJugadoresPorNombre(
+      this._filtrarJugadoresBorrados([...porId.values()])
+    );
     this._aliasJugadoresPublicar = aliasIds;
     return jugadores.map(j => {
       const copia = Object.assign({}, j);
@@ -3317,7 +3391,9 @@ const Admin = {
     const cont = document.getElementById('admin-lista-jugadores');
     const buscar = document.getElementById('admin-buscar-jugador');
 
-    await this.actualizarJugadoresGlobales();
+    if (!opts.sinServidor) {
+      await this.actualizarJugadoresGlobales();
+    }
     await this._actualizarPartidasDesdeServidor();
     if (!opts.soloRefrescar && buscar) buscar.value = '';
 
@@ -3468,22 +3544,36 @@ const Admin = {
       : '¿Eliminar a ' + j.nombre + '? Está VIVO — se borrará su cuenta y partida.';
     if (!confirm(aviso)) return;
 
-    Usuarios.datos.lista = Usuarios.datos.lista.filter(p => p.id !== j.id);
+    const idsEliminar = this._idsJugadorMismaCuenta(j);
+    const nombreKey = String(j.nombre || '').trim().toLowerCase();
+
+    Usuarios.datos.lista = Usuarios.datos.lista.filter(p => !idsEliminar.has(p.id));
     Usuarios._guardarLista();
-    localStorage.removeItem(CONFIG.claveGuardado + '::' + j.id);
+    for (const id of idsEliminar) {
+      localStorage.removeItem(CONFIG.claveGuardado + '::' + id);
+    }
 
     if (this.publicado.jugadores) {
-      this.publicado.jugadores = this.publicado.jugadores.filter(x => x.id !== j.id);
+      this.publicado.jugadores = this.publicado.jugadores.filter(x => {
+        if (x?.id && idsEliminar.has(x.id)) return false;
+        return String(x?.nombre || '').trim().toLowerCase() !== nombreKey;
+      });
     }
     if (this.datos.jugadoresExtra) {
-      this.datos.jugadoresExtra = this.datos.jugadoresExtra.filter(x => x.id !== j.id);
+      this.datos.jugadoresExtra = this.datos.jugadoresExtra.filter(x => {
+        if (x?.id && idsEliminar.has(x.id)) return false;
+        return String(x?.nombre || '').trim().toLowerCase() !== nombreKey;
+      });
     }
-    delete (this.publicado.partidas || {})[j.id];
-    delete (this.datos.partidasExtra || {})[j.id];
+    for (const id of idsEliminar) {
+      delete (this.publicado.partidas || {})[id];
+      delete (this.datos.partidasExtra || {})[id];
+    }
+    this._marcarJugadorBorrado(j);
     this.guardar();
     await this._publicarParaTodos(false, { confiarLocal: true, purgarJugadores: true });
     Notificaciones.mostrar('🗑️ ' + j.nombre + ' eliminado', 'alerta', 5000);
-    this._listarCuentasAsync({ soloRefrescar: true });
+    this._listarCuentasAsync({ soloRefrescar: true, sinServidor: true });
   },
 
   listarJugadores() { this.listarCuentas(); },
@@ -4390,7 +4480,7 @@ const Admin = {
           const porId = new Map();
           for (const j of this._jugadoresParaPublicar()) porId.set(j.id, j);
           for (const j of indice) porId.set(j.id, Object.assign({}, porId.get(j.id), j));
-          this.publicado.jugadores = [...porId.values()];
+          this.publicado.jugadores = this._filtrarJugadoresBorrados([...porId.values()]);
         }
       } catch (e) { /* seguir con jugadores locales */ }
     }
