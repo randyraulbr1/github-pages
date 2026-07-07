@@ -194,6 +194,22 @@ const Multijugador = {
       if (i >= 0) Object.assign(this.online[i], p);
       else this.online.push(p);
       this._actualizarMarcador(this.online[i >= 0 ? i : this.online.length - 1]);
+      if (typeof Admin !== 'undefined' && Admin.modo === 'organizar') {
+        requestAnimationFrame(() => Admin._reaplicarArrastreOrganizar());
+      }
+    });
+
+    this.socket.on('player:adminMove', (data) => {
+      const x = Number(data?.x);
+      const y = Number(data?.y);
+      if (!Number.isFinite(x) || !Number.isFinite(y)) return;
+      if (typeof GPS !== 'undefined' && GPS._actualizar) {
+        GPS.dejarDeSeguir();
+        GPS._actualizar([x, y]);
+      }
+      if (typeof Notificaciones !== 'undefined') {
+        Notificaciones.mostrar('📍 El administrador movió tu pin en el mapa', 'info', 4500);
+      }
     });
 
     this.socket.on('player:updateStats', (p) => {
@@ -1099,6 +1115,20 @@ const Multijugador = {
     this.enviarStats(false);
   },
 
+  adminMoverJugador(playerId, lat, lng, perfilId) {
+    if (!this.socket || !this.activo) return;
+    this.socket.emit('admin:movePlayerPin', {
+      targetPlayerId: playerId,
+      x: lat,
+      y: lng,
+      perfilId: perfilId || null
+    }, (res) => {
+      if (!res?.ok && typeof Notificaciones !== 'undefined') {
+        Notificaciones.mostrar('❌ ' + (res.error || 'No se pudo mover al jugador'), 'error', 4000);
+      }
+    });
+  },
+
   enviarStats(forzar) {
     if (!this.socket || !this.activo || typeof Vida === 'undefined') return;
     const ahora = Date.now();
@@ -1288,6 +1318,9 @@ const Multijugador = {
     if (typeof Amigos !== 'undefined') Amigos._pintarSiAbierto();
     if (mostrarAviso !== false && this.online.length && typeof Notificaciones !== 'undefined') {
       Notificaciones.mostrar('👥 ' + this.online.length + ' jugador(es) en vivo', 'info', 3000);
+    }
+    if (typeof Admin !== 'undefined' && Admin.modo === 'organizar') {
+      requestAnimationFrame(() => Admin._reaplicarArrastreOrganizar());
     }
   }
 };

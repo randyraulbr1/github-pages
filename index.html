@@ -17,7 +17,7 @@
   <script>
     // Aviso temprano en móvil (antes de cargar 20+ archivos JS)
     (function () {
-      var V = '152';
+      var V = '153';
       var texto = document.getElementById('carga-texto');
       if (texto) texto.textContent = 'Conectando…';
       var prev = localStorage.getItem('mariel_app_version');
@@ -917,7 +917,7 @@
   <script src="lib/leaflet/leaflet.js?v=104"></script>
 
   <!-- MÓDULOS DEL JUEGO (orden importante) -->
-  <script src="js/config/config.js?v=152"></script>
+  <script src="js/config/config.js?v=153"></script>
   <script src="js/nucleo/utilidades.js?v=137"></script>
   <script src="js/mundo/mundo_publico.js?v=104"></script>
   <script src="js/notificaciones/notificaciones.js?v=137"></script>
@@ -942,18 +942,18 @@
   <script src="js/correo/correo.js?v=104"></script>
   <script src="js/enemigos/enemigos.js?v=137"></script>
   <script src="js/online/sync_servidor.js?v=104"></script>
-  <script src="js/admin/admin.js?v=140"></script>
+  <script src="js/admin/admin.js?v=153"></script>
   <script src="js/opciones/opciones.js?v=152"></script>
   <script src="js/online/mundo_online.js?v=104"></script>
   <script src="js/online/amigos.js?v=107"></script>
   <script src="js/chat/chat.js?v=137"></script>
-  <script src="js/online/multijugador.js?v=137"></script>
+  <script src="js/online/multijugador.js?v=153"></script>
   <script src="js/principal.js?v=104"></script>
   <script>
     // Registrar la app instalable (PWA)
     if ('serviceWorker' in navigator) {
       const yaTeniaVersion = !!navigator.serviceWorker.controller;
-      navigator.serviceWorker.register('sw.js?v=152', { updateViaCache: 'none' })
+      navigator.serviceWorker.register('sw.js?v=153', { updateViaCache: 'none' })
         .then(function (reg) { reg.update(); })
         .catch(function () {});
       // Cuando llega una versión nueva del juego: avisar y recargar solo

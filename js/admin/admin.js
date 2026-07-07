@@ -462,6 +462,20 @@ const Admin = {
           this._moverCuerpoAdmin(p.playerId, +ll.lat.toFixed(6), +ll.lng.toFixed(6));
         });
       }
+      for (const p of (Multijugador.online || [])) {
+        if (Multijugador._estaMuerto(p)) continue;
+        const m = Multijugador.marcadores[p.playerId];
+        if (!m) continue;
+        this._arrastreOrganizarMarcador(m, {
+          id: 'jugador_' + p.playerId,
+          marcador: m,
+          _jugadorPlayerId: p.playerId,
+          nombre: p.name || 'Jugador'
+        }, (marc) => {
+          const ll = marc.getLatLng();
+          this._moverJugadorAdmin(p.playerId, +ll.lat.toFixed(6), +ll.lng.toFixed(6));
+        });
+      }
     }
   },
 
@@ -1156,7 +1170,7 @@ const Admin = {
     if (typeof GPS !== 'undefined') GPS._actualizarArrastre();
     Notificaciones.mostrar(
       this.datos.moverPinJugador
-        ? '🎯 Puedes arrastrar el pin azul del jugador'
+        ? '🎯 Puedes arrastrar tu pin y el de otros jugadores (modo Organizar)'
         : '🎯 Pin del jugador bloqueado (solo GPS 📍)',
       'info', 4000
     );
@@ -2769,6 +2783,33 @@ const Admin = {
     this._publicarParaTodos(true);
   },
 
+  _moverJugadorAdmin(playerId, lat, lng) {
+    const pid = Number(playerId);
+    if (!pid || !Number.isFinite(lat) || !Number.isFinite(lng)) return;
+
+    if (typeof Multijugador !== 'undefined') {
+      const p = Multijugador.online.find(x => Number(x.playerId) === pid);
+      if (p) {
+        p.x = lat;
+        p.y = lng;
+        const m = Multijugador.marcadores[pid];
+        if (m) m.setLatLng([lat, lng]);
+      }
+      const perfil = p
+        ? this.jugadoresGlobales().find(j =>
+          (j.nombre || '').trim().toLowerCase() === (p.name || '').trim().toLowerCase())
+        : null;
+      Multijugador.adminMoverJugador(pid, lat, lng, perfil?.id || null);
+    }
+
+    if (typeof Notificaciones !== 'undefined') {
+      Notificaciones.mostrar('📍 Jugador movido en el mapa', 'exito', 2000);
+    }
+    if (this.modo === 'organizar') {
+      requestAnimationFrame(() => this._reaplicarArrastreOrganizar());
+    }
+  },
+
   _arrastreOrganizarMarcador(marcador, punto, alMoverPos, alArrastrar) {
     if (!marcador) return;
     this._limpiarPinOrganizar(marcador, punto);
@@ -2795,6 +2836,7 @@ const Admin = {
             this._eliminarCuerpoAdmin(punto._cuerpoPlayerId);
             return;
           }
+          if (punto._jugadorPlayerId) return;
           this._eliminarPin(punto, true);
         });
         el.appendChild(btn);

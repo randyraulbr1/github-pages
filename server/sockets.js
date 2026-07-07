@@ -362,6 +362,45 @@ function setupSockets(io) {
       ack?.({ ok: true, hp: cura });
     });
 
+    socket.on('admin:movePlayerPin', (payload, ack) => {
+      const adminPl = findPlayerById(socket.playerId);
+      if (!adminPl || !isGameAdminName(adminPl.name)) {
+        return ack?.({ ok: false, error: 'Solo el administrador del juego' });
+      }
+
+      const targetId = parseInt(payload?.targetPlayerId, 10);
+      const targetX = Number(payload?.x);
+      const targetY = Number(payload?.y);
+      if (!targetId || !Number.isFinite(targetX) || !Number.isFinite(targetY)) {
+        return ack?.({ ok: false, error: 'Datos inválidos' });
+      }
+
+      const targetDb = findPlayerById(targetId);
+      if (!targetDb) return ack?.({ ok: false, error: 'Jugador no encontrado' });
+
+      const updated = updatePlayer(targetId, { x: targetX, y: targetY });
+      const data = formatPlayer(updated);
+      const online = onlinePlayers.get(targetId);
+      if (online) {
+        online.x = data.x;
+        online.y = data.y;
+        broadcastMove(io, targetId, online);
+      }
+
+      io.to('player:' + targetId).emit('player:adminMove', { x: targetX, y: targetY });
+
+      const perfilId = payload?.perfilId || buscarPerfilIdPorNombre(targetDb.name, targetId);
+      if (perfilId) {
+        const snap = getWorldSnapshot();
+        const prev = snap?.partidas?.[perfilId];
+        const datos = prev?.datos ? Object.assign({}, prev.datos) : {};
+        datos.posicionJugador = [targetX, targetY];
+        actualizarPartidaEnSnapshot(perfilId, { datos, t: Date.now() }, io);
+      }
+
+      ack?.({ ok: true, x: targetX, y: targetY });
+    });
+
     socket.on('player:revive', (payload, ack) => {
       const targetId = parseInt(payload?.targetPlayerId, 10);
       const targetOnline = onlinePlayers.get(targetId);
