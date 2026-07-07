@@ -117,6 +117,9 @@ const Admin = {
     } else {
       this.datos.moverPinJugador = !!this.datos.moverPinJugador;
     }
+    if (this.datos.optimizarVisibilidad === undefined) {
+      this.datos.optimizarVisibilidad = this.publicado.optimizarVisibilidad !== false;
+    }
     this.guardar();
 
     // Posiciones únicas del mundo: lo publicado es la verdad, el local solo añade lo no publicado aún
@@ -1057,6 +1060,7 @@ const Admin = {
     enlazar('admin-mensaje', () => this.abrirMensaje());
     enlazar('admin-organizar', () => this.entrarModo('organizar'));
     enlazar('admin-mover-pin', () => this.toggleMoverPinJugador());
+    enlazar('admin-opt-visibilidad', () => this.toggleOptimizacionVisibilidad());
     enlazar('admin-jugadores', () => this._listarCuentasAsync());
     enlazar('admin-crear-jugador', () => this._abrirCrearJugador());
     enlazar('btn-admin-crear-jugador-guardar', () => this._guardarCrearJugador());
@@ -1090,6 +1094,7 @@ const Admin = {
     enlazar('admin-ban-perm', () => this._aplicarBan(0));
     enlazar('admin-ban-quitar', () => this._aplicarBan(null));
     this._actualizarEtiquetaMoverPin();
+    this._actualizarEtiquetaOptimizacionVisibilidad();
     this._actualizarEtiquetaVerCofresOcultos();
     this._actualizarEtiquetaMantenimientoNav();
     if (typeof Cofres !== 'undefined') {
@@ -1101,6 +1106,45 @@ const Admin = {
 
   puedeMoverPinJugador() {
     return this.esAdminJugador() && !!this.datos.moverPinJugador;
+  },
+
+  optimizacionVisibilidadActiva() {
+    if (this.publicado?.optimizarVisibilidad === false) return false;
+    if (this.esAdminJugador() && this.datos?.optimizarVisibilidad === false) return false;
+    return CONFIG.optimizarVisibilidad !== false;
+  },
+
+  /** Jugadores/enemigos visibles según distancia (admin ve todo si la optimización está ON). */
+  entidadVisibleEnRango(distancia) {
+    if (!this.optimizacionVisibilidadActiva()) return true;
+    if (this.esAdminJugador()) return true;
+    return distancia <= (CONFIG.distanciaVerEntidades || 500);
+  },
+
+  toggleOptimizacionVisibilidad() {
+    if (!this.esAdminJugador()) return;
+    const activa = this.optimizacionVisibilidadActiva();
+    this.datos.optimizarVisibilidad = !activa;
+    this.guardar();
+    this._encolarPublicacion(true);
+    this._actualizarEtiquetaOptimizacionVisibilidad();
+    if (typeof Multijugador !== 'undefined') Multijugador.refrescarMarcadoresDistancia();
+    if (typeof Enemigos !== 'undefined') Enemigos.refrescarVisibilidadDistancia();
+    Notificaciones.mostrar(
+      this.datos.optimizarVisibilidad
+        ? '👁️ Optimización 500 m activada (tú ves todo el mapa)'
+        : '👁️ Optimización desactivada: todos ven jugadores y enemigos lejanos',
+      'info', 4500
+    );
+  },
+
+  _actualizarEtiquetaOptimizacionVisibilidad() {
+    const el = document.getElementById('admin-opt-visibilidad-texto');
+    if (!el) return;
+    const on = this.optimizacionVisibilidadActiva();
+    el.textContent = 'Optimización 500 m: ' + (on ? 'ON' : 'OFF');
+    const btn = document.getElementById('admin-opt-visibilidad');
+    if (btn) btn.classList.toggle('admin-toggle-on', on);
   },
 
   toggleMoverPinJugador() {
@@ -1282,6 +1326,7 @@ const Admin = {
       this.publicado.moverPinJugador = true;
     }
     this._actualizarEtiquetaMoverPin();
+    this._actualizarEtiquetaOptimizacionVisibilidad();
     if (typeof GPS !== 'undefined') GPS._actualizarArrastre();
 
     this.refrescarVisibles();
@@ -4457,6 +4502,7 @@ const Admin = {
       combate: this.combateConfig(),
       combateEnemigos: this.combateEnemigosConfig(),
       moverPinJugador: !!this.datos.moverPinJugador,
+      optimizarVisibilidad: this.optimizacionVisibilidadActiva(),
       adminPinClaves: Object.assign(
         {}, this.publicado.adminPinClaves || {}, this.datos.jugadoresPinAdmin || {}
       )

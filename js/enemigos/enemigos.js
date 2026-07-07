@@ -31,6 +31,56 @@ const Enemigos = {
     return typeof Multijugador !== 'undefined' && Multijugador.activo;
   },
 
+  _entidadVisibleEnRango(distancia) {
+    if (typeof Admin !== 'undefined' && Admin.entidadVisibleEnRango) {
+      return Admin.entidadVisibleEnRango(distancia);
+    }
+    const max = CONFIG.distanciaVerEntidades || 500;
+    return CONFIG.optimizarVisibilidad === false || distancia <= max;
+  },
+
+  _distanciaEnemigo(e) {
+    if (!GPS.posicion || !e?.pos) return Infinity;
+    return Utilidades.distanciaMetros(GPS.posicion, e.pos);
+  },
+
+  _marcadorVisible(id) {
+    const m = this._marcadores[id];
+    return !!(m && Mapa.mapa && Mapa.mapa.hasLayer(m));
+  },
+
+  _ocultarMarcadorEnemigo(e) {
+    const id = e.id;
+    const m = this._marcadores[id];
+    if (m && Mapa.mapa && Mapa.mapa.hasLayer(m)) Mapa.mapa.removeLayer(m);
+    this._actualizarVisibilidadZonas(e, Infinity);
+  },
+
+  _mostrarMarcadorEnemigo(e) {
+    if (!this._marcadores[e.id]) {
+      this._crearEnMapa(e);
+      return;
+    }
+    const m = this._marcadores[e.id];
+    if (Mapa.mapa && !Mapa.mapa.hasLayer(m)) m.addTo(Mapa.mapa);
+    this._actualizarMarcador(e);
+  },
+
+  _aplicarVisibilidadMarcador(e, distancia) {
+    if (!e?.id) return;
+    const d = typeof distancia === 'number' ? distancia : this._distanciaEnemigo(e);
+    if (this._entidadVisibleEnRango(d)) this._mostrarMarcadorEnemigo(e);
+    else this._ocultarMarcadorEnemigo(e);
+  },
+
+  refrescarVisibilidadDistancia() {
+    if (!GPS.posicion) return;
+    for (const e of this.lista) {
+      if (!e?.pos) continue;
+      this._aplicarVisibilidadMarcador(e, this._distanciaEnemigo(e));
+    }
+  },
+
   _spawnEnemigo(e, posAdmin) {
     if (e.posOrigen?.length >= 2) return e.posOrigen.slice();
     if (e.origenX != null && e.origenY != null) return [e.origenX, e.origenY];
@@ -213,8 +263,10 @@ const Enemigos = {
         if (e.posOrigen) e.pos = e.posOrigen.slice();
       }
       this._aplicarEstadoRemoto(e);
-      if (!this._marcadores[e.id]) this._crearEnMapa(e);
-      else if (!this._adminOrganizando()) {
+      const dVis = GPS.posicion ? this._distanciaEnemigo(e) : Infinity;
+      this._aplicarVisibilidadMarcador(e, dVis);
+      if (!this._marcadorVisible(e.id)) continue;
+      if (!this._adminOrganizando()) {
         this._sincronizarZonas(e);
         this._actualizarMarcador(e);
       }
@@ -535,6 +587,8 @@ const Enemigos = {
   },
 
   _alCambiarDistancia(e, dMarcador) {
+    this._aplicarVisibilidadMarcador(e, dMarcador);
+    if (!this._marcadorVisible(e.id)) return;
     this._actualizarVisibilidadZonas(e, dMarcador);
     if (this._estaInvisible()) return;
     const enExterior = dMarcador <= this._radioExterior(e);
@@ -606,7 +660,7 @@ const Enemigos = {
     let mejor = null;
     let mejorD = Infinity;
     for (const e of this.lista) {
-      if (!this._marcadores[e.id]) continue;
+      if (!this._marcadorVisible(e.id)) continue;
       const d = Utilidades.distanciaMetros(GPS.posicion, e.pos);
       if (d <= this._radioZona(e) && d < mejorD) {
         mejorD = d;
@@ -786,10 +840,11 @@ const Enemigos = {
     const online = this._online();
     const invisible = this._estaInvisible();
     for (const e of this.lista) {
-      if (!this._marcadores[e.id]) continue;
+      const d = Utilidades.distanciaMetros(GPS.posicion, e.pos);
+      this._aplicarVisibilidadMarcador(e, d);
+      if (!this._marcadorVisible(e.id)) continue;
       this._aplicarEstadoRemoto(e);
 
-      const d = Utilidades.distanciaMetros(GPS.posicion, e.pos);
       const radioZona = this._radioZona(e);
       const radioAtaque = this._radioAtaque(e);
       const enZona = !invisible && d <= radioZona;

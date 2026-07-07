@@ -371,6 +371,21 @@ const Multijugador = {
     return true;
   },
 
+  _distanciaJugador(p) {
+    if (!GPS.posicion || !p) return Infinity;
+    const pos = this._posMarcador(p);
+    return Utilidades.distanciaMetros(GPS.posicion, [pos.x, pos.y]);
+  },
+
+  _debeMostrarJugador(p) {
+    if (!this._visible(p.playerId)) return false;
+    if (typeof Admin !== 'undefined' && Admin.entidadVisibleEnRango) {
+      return Admin.entidadVisibleEnRango(this._distanciaJugador(p));
+    }
+    const max = CONFIG.distanciaVerEntidades || 500;
+    return CONFIG.optimizarVisibilidad === false || this._distanciaJugador(p) <= max;
+  },
+
   _iniciarPollingMundo() {
     if (this._pollMundo) clearInterval(this._pollMundo);
     this._pollMundo = setInterval(() => this._pullMundoServidor(), 4000);
@@ -1221,6 +1236,10 @@ const Multijugador = {
       this._quitarMarcador(id);
       const c = this.cuerpos[String(id)];
       if (c) this._actualizarMarcadorCuerpo(c);
+      return;
+    }
+    if (!this._debeMostrarJugador(p)) {
+      this._quitarMarcador(id);
       return;
     }
     const pos = this._posMarcador(p);

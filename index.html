@@ -9,7 +9,7 @@
   <link rel="icon" type="image/png" href="iconos/icono-192.png">
   <link rel="apple-touch-icon" href="iconos/icono-192.png">
   <link rel="stylesheet" href="lib/leaflet/leaflet.css">
-  <link rel="stylesheet" href="css/estilos.css?v=143">
+  <link rel="stylesheet" href="css/estilos.css?v=144">
   <link rel="stylesheet" href="css/chat.css?v=137">
   <link rel="stylesheet" href="css/amigos.css">
   <link rel="stylesheet" href="css/opciones.css?v=116">
@@ -17,7 +17,7 @@
   <script>
     // Aviso temprano en móvil (antes de cargar 20+ archivos JS)
     (function () {
-      var V = '143';
+      var V = '144';
       var texto = document.getElementById('carga-texto');
       if (texto) texto.textContent = 'Conectando…';
       var prev = localStorage.getItem('mariel_app_version');
@@ -588,6 +588,7 @@
           <button class="fila-opcion admin-nav" id="admin-crear-tienda"><span class="icono-opcion">🏪</span> Tienda</button>
           <button class="fila-opcion admin-nav" id="admin-organizar"><span class="icono-opcion">✋</span> Organizar pines</button>
           <button class="fila-opcion admin-nav" id="admin-mover-pin"><span class="icono-opcion">🎯</span> <span id="admin-mover-pin-texto">Mover pin: OFF</span></button>
+          <button class="fila-opcion admin-nav" id="admin-opt-visibilidad"><span class="icono-opcion">👁️</span> <span id="admin-opt-visibilidad-texto">Optimización 500 m: ON</span></button>
 
           <div class="admin-seccion-titulo">⚙️ Catálogo</div>
           <button class="fila-opcion admin-nav" id="admin-precios"><span class="icono-opcion">💲</span> Precios</button>
@@ -909,7 +910,7 @@
   <script src="lib/leaflet/leaflet.js?v=104"></script>
 
   <!-- MÓDULOS DEL JUEGO (orden importante) -->
-  <script src="js/config/config.js?v=142"></script>
+  <script src="js/config/config.js?v=144"></script>
   <script src="js/nucleo/utilidades.js?v=137"></script>
   <script src="js/mundo/mundo_publico.js?v=104"></script>
   <script src="js/notificaciones/notificaciones.js?v=137"></script>
@@ -919,8 +920,8 @@
   <script src="js/dinero/dinero.js?v=104"></script>
   <script src="js/vida/vida.js?v=137"></script>
   <script src="js/items/items.js?v=140"></script>
-  <script src="js/mochila/mochila.js?v=142"></script>
-  <script src="js/bolsas/bolsas.js?v=142"></script>
+  <script src="js/mochila/mochila.js?v=144"></script>
+  <script src="js/bolsas/bolsas.js?v=144"></script>
   <script src="js/mapa/mapa.js?v=104"></script>
   <script src="js/gps/gps.js?v=104"></script>
   <script src="js/tiendas/datos_tiendas.js?v=104"></script>
@@ -945,7 +946,7 @@
     // Registrar la app instalable (PWA)
     if ('serviceWorker' in navigator) {
       const yaTeniaVersion = !!navigator.serviceWorker.controller;
-      navigator.serviceWorker.register('sw.js?v=142', { updateViaCache: 'none' })
+      navigator.serviceWorker.register('sw.js?v=144', { updateViaCache: 'none' })
         .then(function (reg) { reg.update(); })
         .catch(function () {});
       // Cuando llega una versión nueva del juego: avisar y recargar solo

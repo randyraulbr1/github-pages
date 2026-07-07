@@ -3,7 +3,7 @@
 // ============================================================
 const CONFIG = {
   // Cambiar al publicar: obliga al móvil a descartar caché vieja
-  version: '143',
+  version: '144',
   maxPila: 10,
 
   // Nombre reservado del administrador (solo este jugador ve el panel admin)
@@ -41,6 +41,8 @@ const CONFIG = {
   distanciaInteraccion: 20,      // distancia para poder tocar tiendas, pesca, etc.
   bolsaDropMinutos: 5,           // bolsa en el suelo sin recoger nada
   distanciaVerBolsa: 60,         // ver bolsas de objetos eliminados en el mapa
+  distanciaVerEntidades: 500,    // jugadores y enemigos en el mapa (optimización)
+  optimizarVisibilidad: true,    // ocultar entidades lejanas (admin puede desactivar)
   distanciaVerMuerto: 50,        // distancia para revivir/saquear
   cuerpoMuertoHoras: 1,          // pin ⚰️ visible en mapa (aunque desconecte)
   vidaAlRevivir: 40,             // vida al ser revivido (amigo o admin)
