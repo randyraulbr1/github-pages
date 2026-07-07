@@ -109,12 +109,38 @@
           ],
           "hashAnterior": "9ff2e972162da4f334341e182211e8dea49a63deb319ab9e97caa7b18ef20cf4",
           "hash": "3593751b2279f4c5118e912b949ec65f787d6db1a3afb571433185f2d75bf93a"
+        },
+        {
+          "t": 1783437064345,
+          "detalle": "Obtenido: Botiquín",
+          "monto": 1,
+          "saldo": null,
+          "lugar": "campo abierto",
+          "pos": [
+            22.99346,
+            -82.753841
+          ],
+          "hashAnterior": "3593751b2279f4c5118e912b949ec65f787d6db1a3afb571433185f2d75bf93a",
+          "hash": "b9f296cfb625ecf4cffaa4008abe7536432c0b5ece708304ad450581c5086237"
+        },
+        {
+          "t": 1783437066090,
+          "detalle": "Revivió a 33: Botiquín",
+          "monto": -1,
+          "saldo": null,
+          "lugar": "campo abierto",
+          "pos": [
+            22.99346,
+            -82.753841
+          ],
+          "hashAnterior": "b9f296cfb625ecf4cffaa4008abe7536432c0b5ece708304ad450581c5086237",
+          "hash": "8e7f553b3b30856606716bb7edbaef175fa0472b34b1e9947314cb83132c41af"
         }
       ],
       "mensajesVistos": [],
       "muerto": false,
       "armaEquipada": "arma_nv1"
     },
-    "t": 1783437058648
+    "t": 1783437070641
   }
 }
