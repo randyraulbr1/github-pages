@@ -3,6 +3,7 @@
  */
 const {
   findPlayerById,
+  findPlayerByName,
   updatePlayer,
   getAllWorldObjects,
   getActiveMissions,
@@ -327,7 +328,25 @@ function setupSockets(io) {
         return ack?.({ ok: false, error: 'Solo el administrador del juego' });
       }
 
-      const targetId = parseInt(payload?.targetPlayerId, 10);
+      let targetId = parseInt(payload?.targetPlayerId, 10);
+      if (!Number.isFinite(targetId) || targetId <= 0) {
+        const perfilId = payload?.perfilId;
+        if (perfilId && String(perfilId).startsWith('srv_')) {
+          targetId = parseInt(String(perfilId).slice(4), 10);
+        }
+        if (!Number.isFinite(targetId) || targetId <= 0) {
+          const snapshot = getWorldSnapshot();
+          const jug = snapshot?.jugadores?.find(j => j && j.id === perfilId);
+          if (jug?.nombre) {
+            const p = findPlayerByName(jug.nombre);
+            if (p) targetId = p.id;
+          }
+        }
+      }
+      if (!Number.isFinite(targetId) || targetId <= 0) {
+        return ack?.({ ok: false, error: 'Jugador no encontrado' });
+      }
+
       const targetOnline = onlinePlayers.get(targetId);
       const targetDb = findPlayerById(targetId);
       const cuerpo = getCuerpoMuerto(targetId, io);
@@ -359,6 +378,7 @@ function setupSockets(io) {
         hpMax,
         reviverId: socket.playerId,
         reviverName: adminPl.name,
+        fromAdmin: true,
         deadInventory: invRestante
       });
       io.emit('player:updateStats', {
@@ -407,6 +427,10 @@ function setupSockets(io) {
       const perfilId = payload?.perfilId || buscarPerfilIdPorNombre(targetDb.name, targetId);
       if (perfilId && payload?.partidaSnap) {
         actualizarPartidaEnSnapshot(perfilId, payload.partidaSnap, io);
+      }
+
+      if (!dead && hp > 0) {
+        quitarCuerpoMuerto(targetId, io);
       }
 
       io.emit('player:updateStats', {

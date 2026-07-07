@@ -380,6 +380,11 @@ const Multijugador = {
     });
 
     this.socket.on('player:updateStats', (p) => {
+      const pidSelf = Number(p?.playerId);
+      if (pidSelf === this._miPlayerId() && p.dead === false && typeof Vida !== 'undefined' && Vida.estaMuerto()) {
+        Vida.revivir(p.hp, '❤️ El administrador te revivió. ¡Ya puedes seguir jugando!');
+        return;
+      }
       if (!this._visible(p.playerId)) return;
       const i = this.online.findIndex(x => Number(x.playerId) === Number(p.playerId));
       if (i >= 0) {
@@ -405,11 +410,11 @@ const Multijugador = {
       if (pid === this._miPlayerId()) {
         if (data.deadInventory) this._aplicarInventarioMuerto(data.deadInventory);
         if (typeof Vida !== 'undefined') {
-          const nombre = (data.reviverName || 'Un jugador').replace(/</g, '');
-          Vida.revivir(
-            data.hp,
-            '❤️ ' + nombre + ' te revivió con un botiquín. ¡Ya puedes seguir jugando!'
-          );
+          const motivo = data.fromAdmin
+            ? '❤️ El administrador te revivió. ¡Ya puedes seguir jugando!'
+            : '❤️ ' + (data.reviverName || 'Un jugador').replace(/</g, '') +
+              ' te revivió con un botiquín. ¡Ya puedes seguir jugando!';
+          Vida.revivir(data.hp, motivo);
         }
       }
       this._aplicarJugadorRevivido(pid, data.hp, data.hpMax);
@@ -641,11 +646,15 @@ const Multijugador = {
     }
     Guardado.datos.nubeT = t;
 
+    let revivido = false;
     if (typeof Vida !== 'undefined') {
       if (d.nivel != null) Vida.nivel = d.nivel;
       if (d.xp != null) Vida.xp = d.xp;
       if (d.muerto) {
         Vida._activarMuerte();
+      } else if (Vida.estaMuerto() || Guardado.datos.muerto) {
+        Vida.revivir(d.vida, '❤️ El administrador te revivió. ¡Ya puedes seguir jugando!');
+        revivido = true;
       } else {
         if (d.vida != null) Vida.actual = d.vida;
         if (d.hambre != null) Vida.hambre = d.hambre;
@@ -661,7 +670,7 @@ const Multijugador = {
       Dinero.pintar();
     }
     Guardado.guardarAhora();
-    this.enviarStats(true);
+    if (!revivido) this.enviarStats(true);
     // (Sin notificación: el servidor reenvía la partida a menudo con hora
     //  nueva, así que el aviso "El administrador actualizó tu personaje"
     //  salía en bucle. Se aplica el cambio en silencio.)

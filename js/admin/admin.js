@@ -1822,18 +1822,29 @@ const Admin = {
   },
 
   _revivirJugadorOnline(perfil, hp) {
-    if (typeof Multijugador === 'undefined' || !Multijugador.socket || !Multijugador.activo) return;
-    const online = this._estadoOnlinePorNombre(perfil.nombre);
-    if (!online) return;
-    const maxV = online.hpMax || this._vidaMaximaJugador({ nivel: online.level || online.deadLevel || 1 });
-    const cura = hp != null ? hp : (typeof Vida !== 'undefined' && Vida.vidaAlRevivir
-      ? Vida.vidaAlRevivir(maxV) : Math.round(maxV * 0.4));
-    Multijugador.socket.emit('admin:revivePlayer', {
-      targetPlayerId: online.playerId,
-      reviveHp: cura,
-      hpMax: maxV,
-      perfilId: perfil.id
-    }, () => {});
+    return new Promise((resolve) => {
+      if (typeof Multijugador === 'undefined' || !Multijugador.socket || !Multijugador.activo) {
+        resolve({ ok: false, error: 'Sin conexión multijugador' });
+        return;
+      }
+      const online = this._estadoOnlinePorNombre(perfil.nombre);
+      let targetPlayerId = online?.playerId;
+      if (!targetPlayerId && perfil.id && String(perfil.id).startsWith('srv_')) {
+        const n = parseInt(String(perfil.id).slice(4), 10);
+        if (Number.isFinite(n) && n > 0) targetPlayerId = n;
+      }
+      const maxV = online?.hpMax || this._vidaMaximaJugador({
+        nivel: online?.level || online?.deadLevel || 1
+      });
+      const cura = hp != null ? hp : (typeof Vida !== 'undefined' && Vida.vidaAlRevivir
+        ? Vida.vidaAlRevivir(maxV) : Math.round(maxV * 0.4));
+      Multijugador.socket.emit('admin:revivePlayer', {
+        targetPlayerId: targetPlayerId || undefined,
+        reviveHp: cura,
+        hpMax: maxV,
+        perfilId: perfil.id
+      }, (res) => resolve(res || { ok: false }));
+    });
   },
 
   _vidaMaximaJugador(partida) {
@@ -1851,7 +1862,7 @@ const Admin = {
 
     const snap = (this.publicado.partidas || {})[Usuarios.perfilActivo.id];
     if (!snap?.datos || snap.datos.muerto) return;
-    if ((snap.t || 0) <= (Guardado.datos.nubeT || 0)) return;
+    if ((snap.t || 0) < (Guardado.datos.nubeT || 0)) return;
 
     Guardado._aplicarSnapshot(snap.datos);
     Guardado.datos.nubeT = snap.t;
@@ -1881,8 +1892,8 @@ const Admin = {
       partida.hambre = CONFIG.hambreInicial;
     }
 
+    await this._revivirJugadorOnline(j, partida.vida);
     await this._guardarPartidaJugador(j, partida);
-    this._revivirJugadorOnline(j, partida.vida);
     Notificaciones.mostrar('❤️ ' + j.nombre + ' revivido', 'exito', 5000);
     this._refrescarListaJugadoresSiAbierta();
   },
