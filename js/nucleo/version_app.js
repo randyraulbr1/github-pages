@@ -6,13 +6,14 @@ const MarielVersion = {
   _bloqueado: false,
   _embebida: null,
   _remota: null,
-  _pollMs: 12000,
-  _swPollMs: 25000,
+  _pollMs: 8000,
+  _swPollMs: 20000,
   _pollTimer: null,
   _swTimer: null,
   _comprobando: false,
   _swReg: null,
   _actualizando: false,
+  _arranqueTimers: [],
 
   _prepararLoginTrasActualizacion() {
     try {
@@ -64,6 +65,26 @@ const MarielVersion = {
     } catch (e) { /* */ }
   },
 
+  /** Aplica aviso temprano del script inline en index.html (evita condición de carrera). */
+  _aplicarPendienteInline() {
+    const p = window.__MARIEL_UPDATE_PENDING;
+    if (!p?.remote) return false;
+    const rem = this._num(p.remote);
+    const loc = this.versionCargada();
+    if (rem <= loc) return false;
+    this._remota = String(p.remote);
+    this.mostrarBloqueo(String(loc || p.local || '?'), String(p.remote));
+    return true;
+  },
+
+  _programarComprobacionesArranque() {
+    for (const t of this._arranqueTimers) clearTimeout(t);
+    this._arranqueTimers = [];
+    [0, 800, 2000, 5000, 12000].forEach((ms) => {
+      this._arranqueTimers.push(setTimeout(() => this._comprobarRemota(), ms));
+    });
+  },
+
   iniciar(versionEmbebida) {
     this._embebida = String(window.__MARIEL_EMBEDDED__ || versionEmbebida || '');
     this._aplicarVersionTrasActualizacion();
@@ -73,14 +94,15 @@ const MarielVersion = {
       btn.addEventListener('click', () => this.actualizar());
     }
 
-    const pendiente = window.__MARIEL_UPDATE_PENDING;
-    if (pendiente?.remote) {
-      this._remota = String(pendiente.remote);
-      this.mostrarBloqueo(pendiente.local || this._embebida, pendiente.remote);
-    }
+    window.addEventListener('mariel-update-pending', () => {
+      this._aplicarPendienteInline();
+      this._comprobarRemota();
+    });
 
+    this._aplicarPendienteInline();
     this.revisar();
     this._comprobarRemota();
+    this._programarComprobacionesArranque();
 
     document.addEventListener('visibilitychange', () => {
       if (document.visibilityState === 'visible') this._comprobarRemota();
@@ -173,23 +195,23 @@ const MarielVersion = {
     const ts = Date.now();
     const opts = { cache: 'no-store', headers: { 'Cache-Control': 'no-cache', Pragma: 'no-cache' } };
     const origen = (typeof location !== 'undefined' && location.origin) ? location.origin : '';
-    const urls = [];
+    const urls = [this._versionCanonica + '?_=' + ts];
     if (origen) urls.push(origen + '/version.json?_=' + ts);
-    urls.push(
-      this._versionCanonica + '?_=' + ts,
-      'version.json?_=' + ts,
-      'js/config/config.js?_=' + ts
-    );
-    for (const url of urls) {
+    urls.push('version.json?_=' + ts, 'js/config/config.js?_=' + ts);
+
+    const nums = await Promise.all(urls.map(async (url) => {
       try {
         const r = await fetch(url, opts);
-        if (!r.ok) continue;
-        const txt = await r.text();
-        const v = this._parseVersionTexto(txt);
-        if (v) return v;
-      } catch (e) { /* siguiente fuente */ }
-    }
-    return null;
+        if (!r.ok) return 0;
+        const v = this._parseVersionTexto(await r.text());
+        return this._num(v);
+      } catch (e) {
+        return 0;
+      }
+    }));
+
+    const max = Math.max(0, ...nums);
+    return max > 0 ? String(max) : null;
   },
 
   necesitaActualizar(local, remoto) {
@@ -203,8 +225,10 @@ const MarielVersion = {
     if (v && v !== '?') localStorage.setItem('mariel_app_version', v);
     this._bloqueado = false;
     this._actualizando = false;
+    window.__MARIEL_UPDATE_PENDING = null;
     document.body.classList.remove('mariel-bloqueado-actualizar');
-    document.getElementById('pantalla-actualizar')?.classList.add('oculto');
+    const pant = document.getElementById('pantalla-actualizar');
+    if (pant) pant.classList.add('oculto');
     const btn = document.getElementById('btn-actualizar-app');
     if (btn) {
       btn.disabled = false;
@@ -214,6 +238,8 @@ const MarielVersion = {
   },
 
   revisar() {
+    if (this._aplicarPendienteInline()) return true;
+
     const cargada = this.versionCargada();
     const remoto = this._remota;
     const r = this._num(remoto);
@@ -228,24 +254,18 @@ const MarielVersion = {
       return true;
     }
 
-    if (this._bloqueado && r && r <= cargada) {
-      this._desbloquearActualizacion(String(cargada));
-    }
-    return false;
+    return this._bloqueado;
   },
 
   mostrarBloqueo(local, remoto) {
-    if (this._bloqueado) {
-      const det = document.getElementById('actualizar-detalle');
-      if (det) det.textContent = 'Tu versión: ' + local + ' · Nueva: ' + remoto;
-      return;
-    }
+    const loc = String(local || this.versionCargada() || '?');
+    const rem = String(remoto || this._remota || '');
     this._bloqueado = true;
-    this._remota = String(remoto || this._remota || '');
+    this._remota = rem;
     document.body.classList.add('mariel-bloqueado-actualizar');
 
     const det = document.getElementById('actualizar-detalle');
-    if (det) det.textContent = 'Tu versión: ' + local + ' · Nueva: ' + remoto;
+    if (det) det.textContent = 'Tu versión: ' + loc + ' · Nueva: ' + rem;
     this._estadoActualizar('', false);
 
     const pant = document.getElementById('pantalla-actualizar');
@@ -254,7 +274,7 @@ const MarielVersion = {
     [
       'pantalla-carga', 'pantalla-login', 'pantalla-registro', 'pantalla-muerte',
       'pantalla-bloqueo', 'pantalla-sesion-remota', 'pantalla-cuenta-eliminada',
-      'chatPanel', 'ventana-amigos', 'ventana-opciones', 'ventana-mochila'
+      'chatPanel', 'ventana-amigos', 'ventana-opciones', 'ventana-mochila', 'ventana-admin'
     ].forEach(id => document.getElementById(id)?.classList.add('oculto'));
 
     document.querySelectorAll('.chat-panel.show, .ventana:not(.oculto)').forEach(el => {
@@ -292,7 +312,7 @@ const MarielVersion = {
     ];
     const opts = {
       cache: 'no-store',
-      headers: { 'Cache-Control': 'no-cache', 'Pragma': 'no-cache' }
+      headers: { 'Cache-Control': 'no-cache', Pragma: 'no-cache' }
     };
     await Promise.all(urls.map(u => fetch(u, opts).catch(() => null)));
   },
@@ -364,6 +384,7 @@ const MarielVersion = {
     if (this._comprobando) return;
     this._comprobando = true;
     try {
+      if (this._aplicarPendienteInline()) return;
       const remoto = await this.obtenerRemota();
       if (remoto) this._remota = remoto;
       this.revisar();
