@@ -237,6 +237,33 @@
   color: transparent;
 }
 
+#ventana-opciones .opciones-row-segmented {
+  align-items: center;
+}
+
+#ventana-opciones .opciones-segmented {
+  display: flex;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+#ventana-opciones .opciones-seg {
+  min-width: 42px;
+  padding: 6px 10px;
+  border: none;
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 800;
+  cursor: pointer;
+  background: linear-gradient(180deg, #858b96, #59616d);
+  color: #eef3fb;
+}
+
+#ventana-opciones .opciones-seg.activo {
+  background: linear-gradient(180deg, #5ce883, #30a858);
+  color: #05310f;
+}
+
 #ventana-opciones .opciones-action {
   font-weight: 900;
 }

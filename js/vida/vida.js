@@ -97,6 +97,7 @@ const Vida = {
         '⭐ ¡Subiste al nivel ' + this.nivel + '! Vida restaurada a ' + this.vidaMaxima(),
         'exito', 5000
       );
+      if (typeof Mochila !== 'undefined' && Mochila._pintarDanoAtaque) Mochila._pintarDanoAtaque();
     }
   },
 
@@ -150,6 +151,9 @@ const Vida = {
       this.pintar();
       if (nombreEnemigo || cantidad > 0) {
         this._mostrarDanoFlotante(cantidad);
+        if (nombreEnemigo && typeof Utilidades !== 'undefined') {
+          Utilidades.vibrar(120 + Math.min(80, cantidad * 8));
+        }
       } else if (motivo) {
         Notificaciones.mostrar(motivo, 'alerta', 2200);
       }
