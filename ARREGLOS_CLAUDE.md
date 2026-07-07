@@ -109,3 +109,77 @@ Probado en navegador (ratón y táctil): MOVER y USAR objetos FUNCIONAN.
 Si un jugador dice que "no funciona", casi seguro tiene la versión ROTA
 en caché (la recursión de v235 impedía que se enchufaran los controles).
 Solución: actualizar del todo (cerrar app, abrir 2 veces, o borrar caché).
+
+---
+
+# 📢 PARA CURSOR — Estado y única tarea pendiente
+
+## ✅ YA ESTÁ TODO ARREGLADO (por Claude, en `main` v238)
+
+- v234: mapa no cargaba (variable `txt` duplicada en notificaciones.js) → resuelto
+- v235: botones muertos (recursión `esAdministrador ↔ _esCuentaProtegida`) → resuelto
+- v236: notificación "El administrador actualizó tu personaje" en bucle → quitada
+- v237: escudo anti-repetición de notificaciones (12s, salvo recoger/recompensas)
+- v238: inventario no se podía mover/usar en el móvil → **resuelto**
+  (el redibujado del servidor cortaba el arrastre; ahora `Mochila.pintar()`
+   no redibuja mientras `isDragging`)
+- `main` unificado con la rama de trabajo, versiones consistentes (238),
+  sintaxis verificada en los 33 archivos del cliente y 24 del servidor.
+
+**No hace falta re-arreglar nada de lo anterior. Todo está en `main`.**
+
+## 🔴 ÚNICA TAREA PENDIENTE — bajar los respaldos del servidor
+
+**Problema:** el servidor hace ~4.373 commits/día a GitHub (~3/min) porque
+respalda en CADA acción del jugador (y se mueven por GPS constantemente).
+Esto gasta minutos de Actions, ensucia el historial y puede hacer que
+**GitHub bloquee los push por exceso**. Fue la raíz de los bugs de hoy.
+
+**Solución — respaldo con freno (throttle):** respaldar como mucho cada
+10 minutos, no en cada acción. Solo respaldar al instante los eventos
+importantes (registro de cuenta, admin publica mundo, borrar cuenta).
+
+**Pasos concretos:**
+
+1. Crear `server/respaldoThrottle.js`:
+```js
+let pendiente = false;
+const MIN_MS = 10 * 60 * 1000; // 10 min
+
+function pedirRespaldo() { pendiente = true; }
+
+async function _ejecutar() {
+  if (!pendiente) return;
+  pendiente = false;
+  try {
+    const { getWorldSnapshot } = require('./db');
+    const snap = getWorldSnapshot();
+    if (!snap) return;
+    const { pushMundoToGitHub } = require('./githubMundo');
+    const { respaldarJugadoresEnGitHub } = require('./jugadoresBackup');
+    await pushMundoToGitHub(snap).catch(() => {});
+    await respaldarJugadoresEnGitHub(snap).catch(() => {});
+  } catch (e) { /* */ }
+}
+
+function iniciarRespaldoThrottle() { setInterval(_ejecutar, MIN_MS); }
+async function respaldoInmediato() { pendiente = true; await _ejecutar(); }
+
+module.exports = { pedirRespaldo, iniciarRespaldoThrottle, respaldoInmediato };
+```
+
+2. En `server/server.js` (arranque): llamar `iniciarRespaldoThrottle()`.
+
+3. En las rutas/paths FRECUENTES (movimiento, stats, `sync-partida`,
+   `syncMundoFromJson` en `syncMundo.js`): cambiar las llamadas directas
+   `respaldarJugadoresEnGitHubAsync(mundo)` / `pushMundoToGitHub(mundo)`
+   por `pedirRespaldo()`.
+
+4. Dejar respaldo INMEDIATO (`respaldoInmediato()` o la llamada directa)
+   SOLO en: registro de cuenta nueva (authRoutes), admin publica el mundo
+   (`/api/player/sync-mundo`), y borrar cuenta.
+
+**Resultado:** de ~4.373 commits/día a máximo ~144/día, y solo cuando algo
+cambió de verdad. (Extra recomendado: que la partida se reenvíe al cliente
+con una hora `t` estable, que solo cambie cuando el admin edita, no en cada
+ciclo — así se evita todo repintado innecesario.)
