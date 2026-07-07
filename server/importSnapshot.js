@@ -45,8 +45,7 @@ function leerJugadoresDesdeCarpeta() {
       if (!f.endsWith('.json') || f === 'indice.json' || f === 'admin.json') continue;
       try {
         const data = JSON.parse(fs.readFileSync(path.join(dir, f), 'utf8'));
-        if (!data?.id || !idsIndice.has(data.id)) continue;
-        const idx = jugadores.findIndex(j => j.id === data.id);
+        if (!data?.id) continue;
         const perfil = {
           id: data.id,
           nombre: data.nombre,
@@ -54,7 +53,13 @@ function leerJugadoresDesdeCarpeta() {
           pinHash: data.pinHash || '',
           creado: data.creado || Date.now()
         };
-        if (idx >= 0) jugadores[idx] = Object.assign({}, jugadores[idx], perfil);
+        if (!idsIndice.has(data.id)) {
+          jugadores.push(perfil);
+          idsIndice.add(data.id);
+        } else {
+          const idx = jugadores.findIndex(j => j.id === data.id);
+          if (idx >= 0) jugadores[idx] = Object.assign({}, jugadores[idx], perfil);
+        }
         if (data.partida) partidas[data.id] = data.partida;
       } catch (e) { /* */ }
     }

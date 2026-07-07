@@ -15,6 +15,11 @@ const {
 const { authMiddleware, gameAdminMiddleware, hashPassword } = require('../auth');
 const { syncMundoFromJson, actualizarPartidaEnSnapshot, registrarCuentaEnSnapshot } = require('../syncMundo');
 const { respaldarCuentasEnGitHub } = require('../syncCuentas');
+const { restaurarJugadorSiExiste } = require('../recoveryCuentas');
+const { forcePushMundoActual } = require('../githubMundo');
+const { getSyncStatus } = require('../syncStatus');
+const { getEventos } = require('../eventLog');
+const { registrar } = require('../eventLog');
 
 const router = express.Router();
 
@@ -91,6 +96,55 @@ router.post('/registrar-cuenta', authMiddleware, (req, res) => {
     });
   }
   res.json({ ok });
+});
+
+/** Admin del juego: restaurar cuenta desde backup o papelera */
+router.post('/restaurar-cuenta', authMiddleware, gameAdminMiddleware, (req, res) => {
+  const id = (req.body.id || req.body.usuario || '').trim();
+  if (!id) return res.status(400).json({ ok: false, error: 'id o usuario requerido' });
+  const snap = getWorldSnapshot();
+  if (snap?.eliminados_recuperables) {
+    const idx = snap.eliminados_recuperables.findIndex(e => e?.tipo === 'jugador' && (e.id === id || e.datos?.nombre === id));
+    if (idx >= 0) {
+      const e = snap.eliminados_recuperables[idx];
+      snap.eliminados_recuperables.splice(idx, 1);
+      if (!snap.jugadores) snap.jugadores = [];
+      if (!snap.jugadores.some(j => j.id === e.id)) {
+        snap.jugadores.push(Object.assign({}, e.datos));
+      }
+      if (e.partida) {
+        if (!snap.partidas) snap.partidas = {};
+        snap.partidas[e.id] = e.partida;
+      }
+      snap.actualizadoEn = Date.now();
+      const { saveWorldSnapshot } = require('../db');
+      saveWorldSnapshot(snap);
+      registrar('admin_restore', `Cuenta ${e.datos?.nombre || e.id} restaurada desde papelera`);
+      respaldarCuentasEnGitHub().catch(() => {});
+      return res.json({ ok: true, jugador: e.datos, origen: 'papelera' });
+    }
+  }
+  const r = restaurarJugadorSiExiste(id);
+  if (!r.ok) return res.status(404).json({ ok: false, error: r.reason || 'No encontrada' });
+  respaldarCuentasEnGitHub().catch(() => {});
+  res.json({ ok: true, jugador: r.jugador, origen: 'backup' });
+});
+
+/** Admin: forzar volcado SQLite → GitHub */
+router.post('/force-git-sync', authMiddleware, gameAdminMiddleware, async (req, res) => {
+  const r = await forcePushMundoActual();
+  if (r.ok) {
+    registrar('force_sync', 'Sync forzada a GitHub OK');
+    const snap = getWorldSnapshot();
+    const { respaldarJugadoresEnGitHub } = require('../jugadoresBackup');
+    await respaldarJugadoresEnGitHub(snap).catch(() => {});
+  }
+  res.json(r);
+});
+
+/** Admin: estado de sincronización GitHub */
+router.get('/sync-status', authMiddleware, gameAdminMiddleware, (req, res) => {
+  res.json({ ok: true, status: getSyncStatus(), eventos: getEventos(30) });
 });
 
 module.exports = router;

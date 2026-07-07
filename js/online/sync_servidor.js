@@ -20,21 +20,30 @@ const SyncServidor = {
     if (!base || !token) {
       return { ok: false, error: 'Sin sesión en el servidor. Inicia sesión de nuevo.' };
     }
-    try {
-      const mundo = typeof jsonStr === 'string' ? JSON.parse(jsonStr) : jsonStr;
-      const r = await fetch(base + '/api/player/sync-mundo', {
-        method: 'POST',
-        headers: this._headers(),
-        body: JSON.stringify(mundo)
-      });
-      const data = await r.json().catch(() => ({}));
-      if (!r.ok || !data.ok) {
+    const body = typeof jsonStr === 'string' ? jsonStr : JSON.stringify(jsonStr);
+    for (let intento = 0; intento < 3; intento++) {
+      try {
+        const r = await Utilidades.fetchConTimeout(base + '/api/player/sync-mundo', {
+          method: 'POST',
+          headers: this._headers(),
+          body: body
+        }, 12000);
+        const data = await r.json().catch(() => ({}));
+        if (r.ok && data.ok) return { ok: true, data };
+        if (intento < 2) {
+          await new Promise(res => setTimeout(res, 1500 * (intento + 1)));
+          continue;
+        }
         return { ok: false, error: data.error || ('Error ' + r.status) };
+      } catch (e) {
+        if (intento < 2) {
+          await new Promise(res => setTimeout(res, 1500 * (intento + 1)));
+          continue;
+        }
+        return { ok: false, error: 'Sin conexión al servidor' };
       }
-      return { ok: true, data };
-    } catch (e) {
-      return { ok: false, error: 'Sin conexión al servidor' };
     }
+    return { ok: false, error: 'Sin conexión al servidor' };
   },
 
   /** Sube vida/muerto de la partida al snapshot del servidor. */

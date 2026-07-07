@@ -166,6 +166,7 @@ const Multijugador = {
     this.socket.on('connect', () => {
       this.activo = true;
       this._mostrarReconectando(false);
+      this._actualizarIndicadorConexion('online');
       if (typeof GPS !== 'undefined' && GPS.posicion) {
         this.enviarPosicion(GPS.posicion[0], GPS.posicion[1], true);
       }
@@ -488,9 +489,29 @@ const Multijugador = {
 
   _mostrarReconectando(activo) {
     this._reconectando = !!activo;
+    this._actualizarIndicadorConexion(activo ? 'reconectando' : (this.activo ? 'online' : 'offline'));
     if (typeof Notificaciones === 'undefined') return;
     if (activo) {
       Notificaciones.mostrar('📡 Reconectando al servidor…', 'alerta', 0);
+    }
+  },
+
+  _actualizarIndicadorConexion(estado) {
+    const el = document.getElementById('indicador-conexion');
+    if (!el) return;
+    if (!CONFIG.servidorOnline || !Usuarios?.perfilActivo) {
+      el.classList.add('oculto');
+      return;
+    }
+    el.classList.remove('oculto', 'estado-reconectando', 'estado-offline');
+    if (estado === 'reconectando') {
+      el.classList.add('estado-reconectando');
+      el.title = 'Reconectando…';
+    } else if (estado === 'offline') {
+      el.classList.add('estado-offline');
+      el.title = 'Sin conexión al servidor';
+    } else {
+      el.title = 'Conectado al servidor';
     }
   },
 

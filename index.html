@@ -16,7 +16,7 @@
   <link rel="stylesheet" href="css/notificaciones.css?v=117">
   <script>
     (function () {
-      var E = '168';
+      var E = '169';
       var CANON = 'https://raw.githubusercontent.com/randyraulbr1/github-pages/claude/web-rpg-gps-game-n3ybow/version.json';
       window.__MARIEL_EMBEDDED__ = E;
       function revisar(j) {
@@ -51,8 +51,8 @@
     </div>
   </div>
 
-  <script src="js/nucleo/version_app.js?v=168"></script>
-  <script>MarielVersion.iniciar('168');</script>
+  <script src="js/nucleo/version_app.js?v=169"></script>
+  <script>MarielVersion.iniciar('169');</script>
 
   <!-- PANTALLA DE CARGA (visible desde el primer instante) -->
   <div id="pantalla-carga">
@@ -108,6 +108,7 @@
 
   <!-- PANEL HUD IZQUIERDO: barras + botones + misiones debajo -->
   <div id="panel-hud-izq">
+    <span id="indicador-conexion" class="indicador-conexion oculto" title="Conexión al servidor" aria-hidden="true"></span>
     <div id="grupo-barras">
       <div class="fila-barra" title="Vida">
         <div id="contenedor-vida">
@@ -946,7 +947,7 @@
   <script src="lib/leaflet/leaflet.js?v=104"></script>
 
   <!-- MÓDULOS DEL JUEGO (orden importante) -->
-  <script src="js/config/config.js?v=168"></script>
+  <script src="js/config/config.js?v=169"></script>
   <script src="js/nucleo/utilidades.js?v=137"></script>
   <script src="js/mundo/mundo_publico.js?v=104"></script>
   <script src="js/notificaciones/notificaciones.js?v=137"></script>
@@ -981,7 +982,7 @@
   <script>
     // Registrar la app instalable (PWA)
     if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.register('sw.js?v=168', { updateViaCache: 'none' })
+      navigator.serviceWorker.register('sw.js?v=169', { updateViaCache: 'none' })
         .then(function (reg) {
           if (typeof MarielVersion !== 'undefined') MarielVersion.registrarServiceWorker(reg);
         })

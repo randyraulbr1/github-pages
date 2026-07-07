@@ -193,24 +193,28 @@ const Usuarios = {
     this._registrarEnAdminLocal(perfil);
   },
 
-  async _loginServidor(usuario, clave) {
+  async _loginServidor(usuario, clave, intento) {
     const base = (CONFIG.servidorOnline || '').replace(/\/$/, '');
     if (!base) return null;
     try {
-      const r = await fetch(base + '/api/login-game', {
+      const r = await Utilidades.fetchConTimeout(base + '/api/login-game', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ usuario, clave })
-      });
+      }, 10000);
       const data = await r.json().catch(() => ({}));
-      if (!r.ok || !data.ok || !data.token) return { error: data.error || 'No se pudo entrar' };
+      if (!r.ok || !data.ok || !data.token) return { error: data.error || 'No se pudo entrar', codigo: data.codigo };
       localStorage.setItem(
         (typeof Multijugador !== 'undefined' && Multijugador.TOKEN_KEY) || 'mariel_online_token',
         data.token
       );
       return data;
     } catch (e) {
-      return { error: 'Sin conexión al servidor' };
+      if ((intento || 0) < 2) {
+        await new Promise(res => setTimeout(res, 1500));
+        return this._loginServidor(usuario, clave, (intento || 0) + 1);
+      }
+      return { error: 'Sin conexión al servidor. Puede tardar si el servidor estaba dormido — inténtalo otra vez.' };
     }
   },
 
@@ -243,7 +247,7 @@ const Usuarios = {
     if (!clave) { this._mostrarAvisoAuth('login', 'Escribe tu contraseña'); return; }
     this._limpiarAvisoAuth('login');
 
-    if (btn) { btn.disabled = true; btn.textContent = 'Entrando…'; }
+    if (btn) { btn.disabled = true; btn.textContent = 'Conectando…'; }
 
     try {
       if (!CONFIG.servidorOnline) {
@@ -251,7 +255,7 @@ const Usuarios = {
         return;
       }
 
-      const srv = await this._loginServidor(usuario, clave);
+      const srv = await this._loginServidor(usuario, clave, 0);
       if (srv?.error) {
         this._mostrarAvisoAuth('login', srv.error);
         return;
@@ -512,16 +516,13 @@ const Usuarios = {
   },
 
   _claveDevRandy() {
-    const cfg = CONFIG.devLoginRandy || {};
-    return String(cfg.clave || '').trim()
-      || localStorage.getItem('mariel_dev_clave_randy')
+    return localStorage.getItem('mariel_dev_clave_randy')
       || sessionStorage.getItem('mariel_clave_servidor')
       || '';
   },
 
   async entrarComoRandyDev() {
-    const cfg = CONFIG.devLoginRandy || {};
-    const usuario = String(cfg.usuario || 'randy').trim();
+    const usuario = 'randy';
     let clave = this._claveDevRandy();
     if (!clave) {
       clave = prompt('Contraseña de randy (se guarda solo en este navegador):', '') || '';

@@ -29,6 +29,24 @@ button { font-family: inherit; }
 }
 #panel-hud-izq > * { pointer-events: auto; }
 
+.indicador-conexion {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: #4caf50;
+  box-shadow: 0 0 6px rgba(76, 175, 80, 0.8);
+  align-self: flex-start;
+  margin-bottom: 2px;
+}
+.indicador-conexion.estado-reconectando {
+  background: #ffc107;
+  box-shadow: 0 0 6px rgba(255, 193, 7, 0.8);
+}
+.indicador-conexion.estado-offline {
+  background: #f44336;
+  box-shadow: 0 0 6px rgba(244, 67, 54, 0.8);
+}
+
 #grupo-barras {
   display: flex;
   flex-direction: column;

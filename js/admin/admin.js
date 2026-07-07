@@ -242,6 +242,29 @@ const Admin = {
     return a < Math.max(1, Math.floor(r * 0.25));
   },
 
+  _resumirReduccionPublicacion(nuevo, referencia) {
+    const nj = (nuevo.jugadores || []).length;
+    const rj = (referencia.jugadores || []).length;
+    const no = (nuevo.objetos || []).length;
+    const ro = (referencia.objetos || []).length;
+    const ne = (nuevo.enemigos || []).length;
+    const re = (referencia.enemigos || []).length;
+    const partes = [];
+    if (nj < rj) partes.push((rj - nj) + ' jugador(es)');
+    if (no < ro) partes.push((ro - no) + ' objeto(s)');
+    if (ne < re) partes.push((re - ne) + ' enemigo(s)');
+    return partes;
+  },
+
+  _confirmarReduccionPublicacion(nuevo, referencia) {
+    const partes = this._resumirReduccionPublicacion(nuevo, referencia);
+    if (!partes.length) return true;
+    return confirm(
+      '⚠️ Esta publicación reduciría: ' + partes.join(', ') +
+      '.\n\n¿Confirmar de todos modos?'
+    );
+  },
+
   async _refrescarPublicadoSiVacio() {
     const n = this._contarElementosMapa(this.publicado);
     if (n >= 3) return true;
@@ -4606,6 +4629,9 @@ const Admin = {
     }
 
     const referencia = this.publicado || {};
+    if (!opts?.forzar && !this._confirmarReduccionPublicacion(adminLocal, referencia)) {
+      return false;
+    }
     if (!opts?.forzar && this._esPublicacionDestructiva(adminLocal, referencia)) {
       adminLocal = await this._fusionarMapaConServidor(adminLocal);
       if (this._esPublicacionDestructiva(adminLocal, referencia)) {
