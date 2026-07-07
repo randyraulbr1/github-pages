@@ -11,7 +11,8 @@ const {
 
 const TICK_MS = 500;
 const ATTACK_COOLDOWN_MS = 2000;
-const ENEMY_STEP = 0.000013;
+const ENEMY_STEP_CHASE = 0.0000135;
+const ENEMY_STEP_ATTACK = 0.000018;
 
 /** objectId -> lastAttackMs */
 const lastAttack = new Map();
@@ -73,6 +74,10 @@ function pickTarget(objId, obj, inZone) {
     enemyTargets.delete(objId);
     return null;
   }
+  if (inZone.length === 1) {
+    enemyTargets.set(objId, inZone[0].playerId);
+    return inZone[0];
+  }
   const prevId = enemyTargets.get(objId);
   const prev = prevId ? inZone.find(p => p.playerId === prevId) : null;
   if (prev) return prev;
@@ -113,9 +118,10 @@ function startEnemyAI(io, onlinePlayers) {
         const dx = target.x - obj.x;
         const dy = target.y - obj.y;
         const distDeg = Math.sqrt(dx * dx + dy * dy);
+        const step = closestDist <= data.radioAtaque ? ENEMY_STEP_ATTACK : ENEMY_STEP_CHASE;
         if (distDeg > 0.000001) {
-          newX = obj.x + (dx / distDeg) * ENEMY_STEP;
-          newY = obj.y + (dy / distDeg) * ENEMY_STEP;
+          newX = obj.x + (dx / distDeg) * step;
+          newY = obj.y + (dy / distDeg) * step;
         }
 
         const inAttack = inZone.filter(p =>
@@ -127,7 +133,8 @@ function startEnemyAI(io, onlinePlayers) {
           const prev = lastAttack.get(obj.id) || 0;
           if (now - prev >= ATTACK_COOLDOWN_MS) {
             lastAttack.set(obj.id, now);
-            const victim = pickClosest(obj, inAttack);
+            const victim = inAttack.find(p => p.playerId === target.playerId)
+              || (inAttack.length === 1 ? inAttack[0] : pickClosest(obj, inAttack));
             enemyTargets.set(obj.id, victim.playerId);
             facingDeg = bearingDeg(obj.x, obj.y, victim.x, victim.y);
             targetPlayerId = victim.playerId;
@@ -180,8 +187,8 @@ function startEnemyAI(io, onlinePlayers) {
         const distDeg = Math.sqrt(dx * dx + dy * dy);
         const distOrigenM = distanceMeters(obj.x, obj.y, data.origenX, data.origenY);
         if (distDeg > 0.00001 && distOrigenM > 2) {
-          newX = obj.x + (dx / distDeg) * ENEMY_STEP;
-          newY = obj.y + (dy / distDeg) * ENEMY_STEP;
+          newX = obj.x + (dx / distDeg) * ENEMY_STEP_CHASE;
+          newY = obj.y + (dy / distDeg) * ENEMY_STEP_CHASE;
         }
       }
 
