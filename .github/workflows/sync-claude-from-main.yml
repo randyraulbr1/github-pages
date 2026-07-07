@@ -26,5 +26,12 @@ jobs:
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git fetch origin main claude/web-rpg-gps-game-n3ybow
           git checkout claude/web-rpg-gps-game-n3ybow
+          git pull --rebase origin claude/web-rpg-gps-game-n3ybow
           git merge origin/main -m "chore: sync claude desde main [auto]"
-          git push origin claude/web-rpg-gps-game-n3ybow
+          for i in 1 2 3 4 5 6; do
+            git push origin claude/web-rpg-gps-game-n3ybow && exit 0
+            git pull --rebase origin claude/web-rpg-gps-game-n3ybow
+            sleep $((i * 2))
+          done
+          echo "No se pudo hacer push a claude tras varios intentos"
+          exit 1
