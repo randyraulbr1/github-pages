@@ -3396,9 +3396,9 @@ const Admin = {
     if (!marcador) return;
     this._limpiarPinOrganizar(marcador, punto);
 
-    const ORG_DESARMAR_MS = 1100;
+    const ORG_VENTANA_MS = 10000;
     const ORG_HOLD_MS = 420;
-    const ORG_IGNORAR_CLICK_MS = 700;
+    const ORG_IGNORAR_CLICK_MS = ORG_VENTANA_MS;
 
     marcador.options.draggable = false;
     if (marcador.dragging) marcador.dragging.disable();
@@ -3434,10 +3434,14 @@ const Admin = {
       const pinEl = marcador.getElement?.();
       if (!pinEl || pinEl.classList.contains('admin-pin-moviendo')) return;
       ignorarClicsBreves();
-      pinEl.classList.add('admin-pin-armado');
-      pinEl.classList.remove('admin-pin-controles-ocultos');
+      punto._orgVentanaHasta = Date.now() + ORG_VENTANA_MS;
+      pinEl.classList.add('admin-pin-armado', 'admin-pin-controles-ocultos');
+      pinEl.querySelector('.admin-pin-x')?.classList.add('oculto');
+      pinEl.querySelector('.admin-pin-grip')?.classList.add('oculto');
       marcador.options.draggable = true;
       if (marcador.dragging) marcador.dragging.enable();
+      clearTimeout(punto._orgDesarmarTimer);
+      punto._orgDesarmarTimer = setTimeout(() => desarmar(), ORG_VENTANA_MS);
       if (desdeIcono || ev.type === 'touchstart') {
         iniciarArrastreDesdePuntero(ev);
       }
@@ -3527,8 +3531,14 @@ const Admin = {
     };
 
     const desarmar = () => {
+      if (Date.now() < (punto._orgVentanaHasta || 0)) {
+        clearTimeout(punto._orgDesarmarTimer);
+        punto._orgDesarmarTimer = setTimeout(() => desarmar(), (punto._orgVentanaHasta || 0) - Date.now());
+        return;
+      }
       clearTimeout(punto._orgDesarmarTimer);
       punto._orgDesarmarTimer = null;
+      punto._orgVentanaHasta = 0;
       const el = marcador.getElement?.();
       if (el) {
         el.classList.remove('admin-pin-armado', 'admin-pin-moviendo');
@@ -3560,7 +3570,8 @@ const Admin = {
       if (alMoverPos) alMoverPos(marcador);
       ignorarClicsBreves();
       clearTimeout(punto._orgDesarmarTimer);
-      punto._orgDesarmarTimer = setTimeout(() => desarmar(), ORG_DESARMAR_MS);
+      const espera = Math.max(0, (punto._orgVentanaHasta || 0) - Date.now());
+      punto._orgDesarmarTimer = setTimeout(() => desarmar(), espera || ORG_VENTANA_MS);
     };
 
     marcador.on('dragstart', punto._orgDragStart);

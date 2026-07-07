@@ -565,6 +565,39 @@
 
 #amigos-toast.oculto:not(.show) { display: block; }
 
+/* Menú ⋮ flotante — capa delante del panel (no se recorta) */
+.amigos-menu-flotante {
+  position: fixed;
+  z-index: 25000;
+  width: min(196px, calc(100vw - 16px));
+  border-radius: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  background: #2a3340;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.58);
+  overflow: hidden;
+}
+
+.amigos-menu-flotante.oculto {
+  display: none !important;
+}
+
+.amigos-menu-flotante .menu-item {
+  min-height: 42px;
+  padding: 0 14px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  cursor: pointer;
+  color: #fff;
+}
+
+.amigos-menu-flotante .menu-item:last-child { border-bottom: 0; }
+.amigos-menu-flotante .menu-item:active { background: rgba(255, 255, 255, 0.08); }
+.amigos-menu-flotante .menu-item.danger { color: #ffb7b7; }
+.amigos-menu-flotante .menu-item.fav-activo { color: #ffe985; }
+
 #ventana-amigos .amigos-close:active,
 #ventana-amigos .add-btn:active,
 #ventana-amigos .friend-action:active,

@@ -365,6 +365,7 @@ const Amigos = {
   },
 
   cerrar() {
+    this._cerrarMenus();
     document.getElementById('ventana-amigos')?.classList.add('oculto');
   },
 
@@ -441,6 +442,92 @@ const Amigos = {
 
   _cerrarMenus() {
     document.querySelectorAll('#ventana-amigos .pop-menu.show').forEach(m => m.classList.remove('show'));
+    this._cerrarMenuFlotante();
+  },
+
+  _menuFlotanteEl() {
+    let el = document.getElementById('amigos-menu-flotante');
+    if (!el) {
+      el = document.createElement('div');
+      el.id = 'amigos-menu-flotante';
+      el.className = 'amigos-menu-flotante oculto';
+      el.setAttribute('role', 'menu');
+      document.body.appendChild(el);
+      if (!this._menuFlotanteOk) {
+        this._menuFlotanteOk = true;
+        const cerrar = (e) => {
+          if (e.target.closest('#amigos-menu-flotante, [data-amigo-menu]')) return;
+          this._cerrarMenuFlotante();
+        };
+        document.addEventListener('click', cerrar, true);
+        document.addEventListener('touchstart', cerrar, { capture: true, passive: true });
+        window.addEventListener('scroll', () => this._cerrarMenuFlotante(), true);
+        window.addEventListener('resize', () => this._cerrarMenuFlotante());
+      }
+    }
+    return el;
+  },
+
+  _cerrarMenuFlotante() {
+    const el = document.getElementById('amigos-menu-flotante');
+    if (el) el.classList.add('oculto');
+  },
+
+  _mostrarMenuFlotante(btn, playerId) {
+    const id = Number(playerId);
+    const f = this.friends.find(x => Number(x.playerId) === id);
+    if (!f) return;
+    const fav = this.favoritos.includes(id);
+    const menu = this._menuFlotanteEl();
+    menu.innerHTML =
+      '<div class="menu-item invite" data-amigo-invite="' + id + '">👥 Invitar grupo</div>' +
+      '<div class="menu-item fav' + (fav ? ' fav-activo' : '') + '" data-amigo-fav="' + id + '">⭐ Favorito</div>' +
+      '<div class="menu-item block danger" data-amigo-block="' + id + '">🚫 Bloquear</div>' +
+      '<div class="menu-item remove danger" data-amigo-quitar="' + id + '">🗑️ Eliminar</div>';
+    menu.classList.remove('oculto');
+    const r = btn.getBoundingClientRect();
+    const ancho = Math.min(196, window.innerWidth - 16);
+    let left = r.right - ancho;
+    left = Math.max(8, Math.min(left, window.innerWidth - ancho - 8));
+    let top = r.bottom + 6;
+    menu.style.width = ancho + 'px';
+    menu.style.left = left + 'px';
+    menu.style.top = top + 'px';
+    menu.style.maxHeight = '';
+    const alto = menu.offsetHeight;
+    if (top + alto > window.innerHeight - 8) {
+      top = Math.max(8, r.top - alto - 6);
+      menu.style.top = top + 'px';
+    }
+    menu.querySelectorAll('[data-amigo-quitar]').forEach(el => {
+      el.onclick = (e) => {
+        e.stopPropagation();
+        this._cerrarMenus();
+        this.eliminar(Number(el.dataset.amigoQuitar));
+      };
+    });
+    menu.querySelectorAll('[data-amigo-block]').forEach(el => {
+      el.onclick = (e) => {
+        e.stopPropagation();
+        this._cerrarMenus();
+        this.bloquear(Number(el.dataset.amigoBlock));
+      };
+    });
+    menu.querySelectorAll('[data-amigo-fav]').forEach(el => {
+      el.onclick = (e) => {
+        e.stopPropagation();
+        this._cerrarMenus();
+        this.toggleFavorito(Number(el.dataset.amigoFav));
+      };
+    });
+    menu.querySelectorAll('[data-amigo-invite]').forEach(el => {
+      el.onclick = (e) => {
+        e.stopPropagation();
+        this._cerrarMenus();
+        const nombre = this.friends.find(x => Number(x.playerId) === Number(el.dataset.amigoInvite))?.name || 'amigo';
+        this._toast('Invitación a grupo — ' + nombre + ' (próximamente)');
+      };
+    });
   },
 
   _pedirConfirm(titulo, texto, accion) {
@@ -763,11 +850,11 @@ const Amigos = {
       el.onclick = (e) => {
         e.stopPropagation();
         const id = el.dataset.amigoMenu;
-        const menu = contenedor.querySelector('[data-menu-for="' + id + '"]');
-        if (!menu) return;
-        const abierto = menu.classList.contains('show');
+        const menu = document.getElementById('amigos-menu-flotante');
+        const yaAbierto = menu && !menu.classList.contains('oculto') &&
+          menu.querySelector('[data-amigo-invite="' + id + '"]');
         this._cerrarMenus();
-        if (!abierto) menu.classList.add('show');
+        if (!yaAbierto) this._mostrarMenuFlotante(el, id);
       };
     });
     contenedor.querySelectorAll('[data-amigo-quitar]').forEach(el => {
