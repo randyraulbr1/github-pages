@@ -840,7 +840,7 @@ function xpEnemigoSnapshot(enemyData, snapshot) {
   return Math.round(base * (1 + (nv - 1) * factor));
 }
 
-function crearBotinEnemigo(enemyId, pos, enemyData, danoPorJugador, io) {
+function crearBotinEnemigo(enemyId, pos, enemyData, danoPorJugador, io, opts) {
   const snapshot = getWorldSnapshot() || { actualizadoEn: Date.now(), botinesEnemigo: {} };
   if (!snapshot.botinesEnemigo) snapshot.botinesEnemigo = {};
   limpiarBotinesExpirados(snapshot);
@@ -879,7 +879,7 @@ function crearBotinEnemigo(enemyId, pos, enemyData, danoPorJugador, io) {
 
   snapshot.botinesEnemigo[botin.id] = botin;
   snapshot.actualizadoEn = now;
-  saveWorldSnapshot(snapshot);
+  if (!opts?.sinGuardar) saveWorldSnapshot(snapshot);
   if (io) io.emit('world:enemyLoot', { botin });
   return botin;
 }
@@ -995,6 +995,10 @@ function registrarAtaqueEnemigo(enemyId, playerId, px, py, playerLevel, io) {
     const def = (snapshot.enemigos || []).find((e) => e && e.id === enemyId);
     respawnMin = def?.respawnMin || data.respawnMin || 0;
 
+    const latest = getWorldSnapshot();
+    const danoPrev = latest?.enemigosEstado?.[enemyId]?.danoPorJugador || {};
+    const danoFinal = Object.assign({}, danoPrev, danoPorJugador);
+
     botin = crearBotinEnemigo(
       enemyId,
       [row.x, row.y],
@@ -1005,9 +1009,15 @@ function registrarAtaqueEnemigo(enemyId, playerId, px, py, playerLevel, io) {
         dinero: data.dinero != null ? data.dinero : (def?.dinero || 0),
         recItems: data.recItems?.length ? data.recItems : (def?.recItems || [])
       },
-      danoPorJugador,
-      io
+      danoFinal,
+      io,
+      { sinGuardar: true }
     );
+
+    if (botin) {
+      snapshot.botinesEnemigo = snapshot.botinesEnemigo || {};
+      snapshot.botinesEnemigo[botin.id] = botin;
+    }
 
     if (respawnMin > 0) {
       estado.vida = hpMax;
@@ -1045,7 +1055,8 @@ function registrarAtaqueEnemigo(enemyId, playerId, px, py, playerLevel, io) {
       enemyId,
       estado,
       eliminado,
-      respawnMin: respawnMin || 0
+      respawnMin: respawnMin || 0,
+      botin: botin || null
     });
   }
 

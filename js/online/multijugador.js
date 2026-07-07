@@ -539,7 +539,7 @@ const Multijugador = {
 
     this.socket.on('mundo:enemyState', (data) => {
       if (!data?.enemyId || typeof Enemigos === 'undefined') return;
-      Enemigos._aplicarEstadoEnemigoRemoto(data.enemyId, data.estado, !!data.eliminado);
+      Enemigos._aplicarEstadoEnemigoRemoto(data.enemyId, data.estado, !!data.eliminado, data.botin);
     });
 
     this.socket.on('enemy:attack', (data) => {

@@ -45,8 +45,17 @@ const BotinEnemigo = {
     for (const id of candidatos) {
       if (parts[id]) return id;
     }
-    const nombre = this._miNombre().trim().toLowerCase();
-    if (nombre) {
+    const nombres = new Set();
+    if (typeof Usuarios !== 'undefined' && Usuarios.perfilActivo?.nombre) {
+      nombres.add(Usuarios.perfilActivo.nombre.trim().toLowerCase());
+    }
+    if (typeof Multijugador !== 'undefined' && Multijugador._miPlayerId) {
+      const pid = Multijugador._miPlayerId();
+      const p = (Multijugador.online || []).find(x => Number(x.playerId) === pid);
+      if (p?.name) nombres.add(String(p.name).trim().toLowerCase());
+    }
+    for (const nombre of nombres) {
+      if (!nombre) continue;
       for (const [k, p] of Object.entries(parts)) {
         if (String(p?.nombre || '').trim().toLowerCase() === nombre) return k;
       }

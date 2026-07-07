@@ -412,10 +412,13 @@ const Enemigos = {
     return Math.random() * 100 < this._probFalloAtaque(e);
   },
 
-  _aplicarEstadoEnemigoRemoto(enemyId, estado, eliminado) {
+  _aplicarEstadoEnemigoRemoto(enemyId, estado, eliminado, botin) {
     if (!enemyId || typeof Admin === 'undefined') return;
     Admin.publicado.enemigosEstado = Admin.publicado.enemigosEstado || {};
     if (estado) Admin.publicado.enemigosEstado[enemyId] = Object.assign({}, estado);
+    if (botin?.id && typeof BotinEnemigo !== 'undefined') {
+      BotinEnemigo.aplicarBotin(botin);
+    }
     if (eliminado) {
       Admin.datos.eliminados = Admin.datos.eliminados || [];
       if (!Admin.datos.eliminados.includes(enemyId)) Admin.datos.eliminados.push(enemyId);
@@ -1444,10 +1447,10 @@ const Enemigos = {
       if (res.muerto) {
         if (res.botin && typeof BotinEnemigo !== 'undefined') {
           BotinEnemigo.aplicarBotin(res.botin);
-          Notificaciones.mostrar('💀 ¡Enemigo derrotado! Recoge el botín 📦 en el mapa', 'exito', 5000);
-        } else {
-          Notificaciones.mostrar('💀 ¡Derrotaste a ' + (e.nombre || 'Enemigo') + '!', 'exito', 5000);
+        } else if (typeof BotinEnemigo !== 'undefined') {
+          BotinEnemigo.refrescarMapa();
         }
+        Notificaciones.mostrar('💀 ¡Enemigo derrotado! Recoge el botín 📦 en el mapa', 'exito', 5000);
         this._procesarMuerteEnemigo(e, { silencioso: true, desdeRemoto: true });
         return;
       }

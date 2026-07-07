@@ -1803,6 +1803,7 @@ const Admin = {
     const partidasGuardadas = Object.assign({}, this.publicado?.partidas || {});
     const tesorosEstadoPrev = Object.assign({}, this.publicado?.tesorosEstado || {});
     const objetosEstadoPrev = Object.assign({}, this.publicado?.objetosEstado || {});
+    const botinesEnemigoPrev = Object.assign({}, this.publicado?.botinesEnemigo || {});
     const idsObjetosAntes = new Set(this.objetosTodos().map(o => o.id));
     const idsTesorosAntes = new Set(this.tesorosTodos().map(t => t.id));
     const idsMisionesAntes = new Set(this.misionesTodas().map(m => m.id));
@@ -1858,7 +1859,13 @@ const Admin = {
     if (!this.publicado.objetosEstado) this.publicado.objetosEstado = {};
     if (!this.publicado.tiendasAdmin) this.publicado.tiendasAdmin = [];
     if (!this.publicado.bolsasDrop) this.publicado.bolsasDrop = [];
-    if (!this.publicado.botinesEnemigo) this.publicado.botinesEnemigo = {};
+    const botinesRemotos = this.publicado.botinesEnemigo || {};
+    const botinesFusionados = Object.assign({}, botinesEnemigoPrev, botinesRemotos);
+    const ahoraBotin = Date.now();
+    for (const [id, b] of Object.entries(botinesFusionados)) {
+      if (!b || ahoraBotin > (b.expiraEn || 0)) delete botinesFusionados[id];
+    }
+    this.publicado.botinesEnemigo = botinesFusionados;
 
     for (const en of (this.publicado.enemigos || [])) {
       if (!en?.id) continue;
@@ -1906,6 +1913,7 @@ const Admin = {
     if (typeof GPS !== 'undefined') GPS._actualizarArrastre();
 
     this.refrescarVisibles();
+    if (typeof BotinEnemigo !== 'undefined') BotinEnemigo.refrescarMapa();
     this.mostrarMensajes();
     if (typeof Notificaciones !== 'undefined') Notificaciones._actualizarBadge();
     this._aplicarRevivirDesdeNube();
