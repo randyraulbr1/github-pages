@@ -218,15 +218,15 @@ const Usuarios = {
     }
   },
 
-  async _registrarServidor(nombre, telefono, clave, perfilId) {
+  async _registrarServidor(nombre, telefono, clave, perfilId, intento) {
     const base = (CONFIG.servidorOnline || '').replace(/\/$/, '');
     if (!base) return null;
     try {
-      const r = await fetch(base + '/api/register', {
+      const r = await Utilidades.fetchConTimeout(base + '/api/register', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ username: nombre, password: clave, telefono, perfilId })
-      });
+      }, 12000);
       const data = await r.json().catch(() => ({}));
       if (!r.ok || !data.ok || !data.token) return { error: data.error || 'No se pudo registrar' };
       localStorage.setItem(
@@ -235,7 +235,11 @@ const Usuarios = {
       );
       return data;
     } catch (e) {
-      return { error: 'Sin conexión al servidor' };
+      if ((intento || 0) < 2) {
+        await new Promise(res => setTimeout(res, 2000));
+        return this._registrarServidor(nombre, telefono, clave, perfilId, (intento || 0) + 1);
+      }
+      return { error: 'Sin conexión al servidor. Si estaba dormido, espera unos segundos e inténtalo otra vez.' };
     }
   },
 
@@ -257,7 +261,13 @@ const Usuarios = {
 
       const srv = await this._loginServidor(usuario, clave, 0);
       if (srv?.error) {
-        this._mostrarAvisoAuth('login', srv.error);
+        let msg = srv.error;
+        if (srv.codigo === 'no_registrado') {
+          msg = 'No estás registrado. Si te borraron la cuenta, créala de nuevo o pide al admin que te restaure.';
+        } else if (srv.codigo === 'cuenta_eliminada') {
+          msg = 'Tu cuenta fue eliminada por el admin. Pídele que te restaure desde el panel.';
+        }
+        this._mostrarAvisoAuth('login', msg);
         return;
       }
 
