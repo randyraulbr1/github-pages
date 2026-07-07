@@ -14,7 +14,6 @@ const { Server } = require('socket.io');
 const { initDb } = require('./db');
 const { setupSockets } = require('./sockets');
 const authRoutes = require('./routes/authRoutes');
-const adminRoutes = require('./routes/adminRoutes');
 const playerRoutes = require('./routes/playerRoutes');
 const worldRoutes = require('./routes/worldRoutes');
 const friendRoutes = require('./routes/friendRoutes');
@@ -63,15 +62,14 @@ app.use(cors({
 app.use(express.json({ limit: '15mb' }));
 
 app.use('/api', authRoutes);
-app.use('/api/admin', adminRoutes);
 app.use('/api/player', playerRoutes);
 app.use('/api/world', worldRoutes);
 app.use('/api/friends', friendRoutes);
 app.use('/api/chat', chatRoutes);
 
-app.use('/admin', express.static(path.join(__dirname, 'public')));
+// Panel admin web retirado: el admin del juego es el botón 🛠️ en tcodm.com (cuenta Randy/SoyCaos).
 app.get('/admin', (req, res) => {
-  res.sendFile(path.join(__dirname, 'public', 'admin.html'));
+  res.redirect(302, 'https://tcodm.com');
 });
 
 app.use('/client', express.static(path.join(__dirname, '..', 'client')));
@@ -154,7 +152,6 @@ async function arrancar() {
     console.log('');
     console.log('🌍 Mariel Online Server (plan gratis — cuentas en GitHub)');
     console.log('   Juego:  http://localhost:' + PORT + '/');
-    console.log('   Admin:  http://localhost:' + PORT + '/admin');
     console.log('   API:    http://localhost:' + PORT + '/api');
     console.log('   CORS:   ' + CORS_ORIGINS.join(', '));
     console.log('');
