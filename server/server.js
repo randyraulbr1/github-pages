@@ -116,7 +116,7 @@ async function arrancar() {
   try {
     const { restaurarMundoAlArranque, recuperarJugadoresPerdidos, leerMundoJson } = require('./importSnapshot');
     await restaurarMundoAlArranque();
-    await recuperarJugadoresPerdidos();
+    await recuperarJugadoresPerdidos(io);
     const archivo = leerMundoJson();
     if (archivo?.soloAdmin) {
       const { dejarSoloAdminEnSnapshot } = require('./syncCuentas');

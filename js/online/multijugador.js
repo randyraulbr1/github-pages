@@ -394,8 +394,12 @@ const Multijugador = {
           this._jugadoresRevividos.delete(pid);
           this._asegurarCuerpoLocal(this.online[i]);
         } else {
-          this._jugadoresRevividos.add(pid);
           const sid = String(pid);
+          if (!this.cuerpos[sid]) {
+            this._jugadoresRevividos.add(pid);
+          } else {
+            this._jugadoresRevividos.delete(pid);
+          }
           delete this.cuerpos[sid];
           this._quitarMarcadorCuerpo(sid);
         }
@@ -490,6 +494,9 @@ const Multijugador = {
     });
 
     this.socket.on('cuerpos:sync', (data) => {
+      for (const id of Object.keys(data?.cuerpos || {})) {
+        this._jugadoresRevividos.delete(Number(id));
+      }
       this._aplicarCuerpos(data?.cuerpos || {});
     });
 
@@ -1105,8 +1112,10 @@ const Multijugador = {
       html += '<div class="popup-muerto-expira">⏱️ Restante: ' + restante + '</div>';
     }
     html += '<div class="popup-muerto-ayuda">' +
-      (cerca ? '📍 Estás cerca (' + Math.round(dist) + ' m)' : '📍 Acércate a menos de ' + maxDist + ' m (ahora ' + Math.round(dist) + ' m)') +
-      '<br>🎒 Cualquier jugador puede <b>saquear</b>.<br>🩹 <b>Revivir</b> requiere botiquín en tu mochila.</div>';
+      (cerca
+        ? '📍 Estás cerca (' + Math.round(dist) + ' m)'
+        : '📍 Puedes abrir el ataúd desde aquí. Para saquear o revivir con botiquín acércate a menos de ' + maxDist + ' m (ahora ' + Math.round(dist) + ' m)') +
+      '<br>🎒 Cualquier jugador puede <b>saquear</b> cerca del cuerpo.<br>🩹 <b>Revivir</b> con botiquín requiere estar cerca.</div>';
     const items = datos.deadInventory || [];
     if (items.length) {
       html += '<div class="popup-muerto-items">';
@@ -1168,9 +1177,9 @@ const Multijugador = {
       if (!this._cuerpoVigente(c)) continue;
       if (!this._debeMostrarCuerpoEnMapa(c)) continue;
       const pid = Number(id);
-      if (this._jugadoresRevividos.has(pid)) continue;
-      const on = this.online.find(x => Number(x.playerId) === pid);
-      if (on && !this._estaMuerto(on)) continue;
+      if (this._jugadoresRevividos.has(pid)) {
+        this._jugadoresRevividos.delete(pid);
+      }
       filtrados[id] = c;
     }
     this.cuerpos = filtrados;
@@ -1588,11 +1597,20 @@ const Multijugador = {
 
   _nombreEnLinea(nombre) {
     const n = String(nombre || '').trim().toLowerCase();
-    return this.online.some(p => {
-      if (String(p.name || '').trim().toLowerCase() !== n) return false;
-      const id = Number(p.playerId);
-      return !!(this.marcadores[id] || this.cuerposMarcadores[String(id)]);
-    });
+    const on = this.online.find(p => String(p.name || '').trim().toLowerCase() === n);
+    if (on) {
+      const id = String(on.playerId);
+      if (this.cuerpos[id] || this.cuerposMarcadores[id] || this._estaMuerto(on)) {
+        return !!(this.cuerposMarcadores[id] || this.cuerpos[id]);
+      }
+      return !!this.marcadores[on.playerId];
+    }
+    for (const [id, c] of Object.entries(this.cuerpos || {})) {
+      if (c && String(c.name || '').trim().toLowerCase() === n) {
+        return !!this.cuerposMarcadores[id];
+      }
+    }
+    return false;
   },
 
   _quitarMarcadorPartida(perfilId) {
@@ -1603,8 +1621,23 @@ const Multijugador = {
     delete this._marcadoresPartida[perfilId];
   },
 
+  _cuerpoPorNombre(nombre) {
+    const key = String(nombre || '').trim().toLowerCase();
+    if (!key) return null;
+    for (const c of Object.values(this.cuerpos || {})) {
+      if (c && String(c.name || '').trim().toLowerCase() === key) return c;
+    }
+    if (typeof Admin !== 'undefined' && Admin.publicado?.cuerposMuertos) {
+      for (const c of Object.values(Admin.publicado.cuerposMuertos)) {
+        if (c && String(c.name || '').trim().toLowerCase() === key) return c;
+      }
+    }
+    return null;
+  },
+
   _jugadorPartidaVisible(j, lat, lng) {
     if (!j) return false;
+    if (this._cuerpoPorNombre(j.nombre)) return false;
     const enVivo = this.online.find(p =>
       String(p.name || '').trim().toLowerCase() === String(j.nombre || '').trim().toLowerCase()
     );
@@ -1951,6 +1984,12 @@ const Multijugador = {
     if (!Mapa.mapa || !p) return;
     const id = p.playerId;
     const sid = String(id);
+    const cuerpoActivo = this.cuerpos[sid];
+    if (cuerpoActivo && this._cuerpoVigente(cuerpoActivo) && this._debeMostrarCuerpoEnMapa(cuerpoActivo)) {
+      this._quitarMarcador(id);
+      this._actualizarMarcadorCuerpo(cuerpoActivo);
+      return;
+    }
     const muerto = this._estaMuerto(p);
     if (muerto) {
       this._asegurarCuerpoLocal(p);

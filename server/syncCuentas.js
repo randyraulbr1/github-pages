@@ -9,10 +9,18 @@ const {
   findUserByUsername,
   findPlayerByUserId,
   findPlayerByName,
+  findPlayerById,
+  updatePlayer,
   createUser,
   createPlayer
 } = require('./db');
-const { mergeJugadoresPartidas } = require('./syncMundo');
+const {
+  mergeJugadoresPartidas,
+  quitarCuerpoMuerto,
+  revivirPartidaEnSnapshot,
+  registrarCuerpoMuerto,
+  buscarPerfilIdPorNombre
+} = require('./syncMundo');
 const { hashPassword } = require('./auth');
 const {
   esNombreAdmin,
@@ -159,8 +167,208 @@ function reconciliarCuentasEnSnapshot(mundoOpt) {
   };
 }
 
+function _nombreJugadorDesdeCuerpos(snap, perfilId) {
+  if (!snap?.cuerposMuertos) return null;
+  if (String(perfilId).startsWith('srv_')) {
+    const pid = parseInt(String(perfilId).slice(4), 10);
+    const c = snap.cuerposMuertos[String(pid)];
+    if (c?.name) return String(c.name).trim();
+  }
+  for (const c of Object.values(snap.cuerposMuertos)) {
+    if (!c?.name) continue;
+    const pid = Number(c.playerId);
+    const srvId = 'srv_' + pid;
+    if (srvId === perfilId || buscarPerfilIdPorNombre(c.name, pid) === perfilId) {
+      return String(c.name).trim();
+    }
+  }
+  return null;
+}
+
+/** Reincorpora cuentas con partida o ataúd pero fuera de jugadores[]. */
+function asegurarJugadoresEnSnapshot(snap) {
+  if (!snap) return false;
+  let changed = false;
+  const { leerJugadoresDesdeCarpeta } = require('./importSnapshot');
+  const carpeta = leerJugadoresDesdeCarpeta();
+  const porId = new Map();
+  const porNombre = new Map();
+  for (const j of (snap.jugadores || [])) {
+    if (!j?.id) continue;
+    porId.set(j.id, j);
+    if (j.nombre) porNombre.set(String(j.nombre).trim().toLowerCase(), j);
+  }
+
+  const agregar = (perfil) => {
+    if (!perfil?.id || porId.has(perfil.id)) return;
+    snap.jugadores = snap.jugadores || [];
+    snap.jugadores.push(Object.assign({}, perfil));
+    porId.set(perfil.id, perfil);
+    if (perfil.nombre) porNombre.set(String(perfil.nombre).trim().toLowerCase(), perfil);
+    changed = true;
+  };
+
+  for (const perfilId of Object.keys(snap.partidas || {})) {
+    if (porId.has(perfilId)) continue;
+    const fromFile = (carpeta.jugadores || []).find(j => j.id === perfilId);
+    if (fromFile) {
+      agregar(fromFile);
+      continue;
+    }
+    const nombre = _nombreJugadorDesdeCuerpos(snap, perfilId);
+    if (nombre) agregar({ id: perfilId, nombre, telefono: '', creado: Date.now() });
+  }
+
+  for (const c of Object.values(snap.cuerposMuertos || {})) {
+    const nombre = String(c?.name || '').trim();
+    if (!nombre) continue;
+    const key = nombre.toLowerCase();
+    if (porNombre.has(key)) continue;
+    const srvId = 'srv_' + Number(c.playerId);
+    const fromFile = (carpeta.jugadores || []).find(j =>
+      j.id === srvId || String(j.nombre || '').trim().toLowerCase() === key
+    );
+    const perfilId = fromFile?.id
+      || buscarPerfilIdPorNombre(nombre, c.playerId)
+      || srvId;
+    if (!porId.has(perfilId)) {
+      agregar(fromFile || { id: perfilId, nombre, telefono: '', creado: Date.now() });
+    }
+  }
+  return changed;
+}
+
+/** Alinea ataúd ↔ partida ↔ SQLite (evita limbo tras revive admin). */
+function reconciliarMuertoCuerpo(snap, io) {
+  if (!snap?.partidas) return false;
+  let changed = false;
+  for (const [perfilId, partida] of Object.entries(snap.partidas)) {
+    const datos = partida?.datos || partida;
+    if (!datos) continue;
+    const jug = (snap.jugadores || []).find(j => j.id === perfilId);
+    const nombre = jug?.nombre || _nombreJugadorDesdeCuerpos(snap, perfilId);
+    let playerId = null;
+    if (String(perfilId).startsWith('srv_')) {
+      playerId = parseInt(String(perfilId).slice(4), 10);
+    } else if (nombre) {
+      const pl = findPlayerByName(nombre);
+      if (pl) playerId = pl.id;
+    }
+    const cuerpo = playerId != null ? snap.cuerposMuertos?.[String(playerId)] : null;
+    const muerto = !!datos.muerto || (datos.vida != null && datos.vida <= 0);
+
+    if (!muerto && datos.vida > 0) {
+      if (playerId != null && cuerpo) {
+        quitarCuerpoMuerto(playerId, io);
+        changed = true;
+      }
+      if (playerId != null) {
+        const pl = findPlayerById(playerId);
+        if (pl && pl.hp <= 0) {
+          updatePlayer(playerId, { hp: Math.max(1, Math.round(datos.vida)) });
+          changed = true;
+        }
+      }
+    } else if (muerto && playerId != null && !cuerpo && datos.muertePos?.length >= 2) {
+      registrarCuerpoMuerto(playerId, {
+        name: nombre || 'Jugador',
+        deathX: datos.muertePos[0],
+        deathY: datos.muertePos[1],
+        deadLevel: datos.nivel || 1,
+        deadInventory: datos.muerteInventario || [],
+        level: datos.nivel || 1
+      }, io);
+      changed = true;
+    }
+  }
+  return changed;
+}
+
+function vidaReviveDesdeMax(hpMax, reviveHp) {
+  const max = Math.max(1, Math.round(hpMax || 100));
+  const cura = reviveHp != null && reviveHp > 0 ? Math.round(reviveHp) : Math.max(1, Math.round(max * 0.4));
+  return Math.max(1, Math.min(max, cura));
+}
+
+/** Revive por nombre (admin / reparación). */
+function revivirJugadorPorNombre(snap, nombre, io) {
+  if (!snap || !nombre) return false;
+  const key = String(nombre).trim().toLowerCase();
+  let perfilId = (snap.jugadores || []).find(j =>
+    String(j.nombre || '').trim().toLowerCase() === key
+  )?.id;
+  if (!perfilId) {
+    for (const [id] of Object.entries(snap.partidas || {})) {
+      const n = _nombreJugadorDesdeCuerpos(snap, id);
+      if (n && n.toLowerCase() === key) { perfilId = id; break; }
+    }
+  }
+  if (!perfilId) {
+    for (const c of Object.values(snap.cuerposMuertos || {})) {
+      if (String(c.name || '').trim().toLowerCase() === key) {
+        perfilId = buscarPerfilIdPorNombre(c.name, c.playerId) || ('srv_' + c.playerId);
+        break;
+      }
+    }
+  }
+  if (!perfilId) return false;
+
+  const partida = snap.partidas?.[perfilId];
+  const datos = partida?.datos || partida;
+  const muerto = !datos || !!datos.muerto || (datos.vida != null && datos.vida <= 0);
+  let playerId = null;
+  if (String(perfilId).startsWith('srv_')) {
+    playerId = parseInt(String(perfilId).slice(4), 10);
+  } else {
+    const pl = findPlayerByName(nombre);
+    if (pl) playerId = pl.id;
+  }
+  const cuerpo = playerId != null ? snap.cuerposMuertos?.[String(playerId)] : null;
+  if (!muerto && !cuerpo) return false;
+
+  const nivel = datos?.nivel || cuerpo?.deadLevel || 1;
+  const hpMax = Math.max(1, 80 + (nivel - 1) * 20);
+  const cura = vidaReviveDesdeMax(hpMax, datos?.vida > 0 ? datos.vida : null);
+  const inv = (cuerpo?.deadInventory || datos?.muerteInventario || []).map(x => ({ ...x }));
+
+  revivirPartidaEnSnapshot(perfilId, cura, io, inv);
+  if (playerId != null) {
+    updatePlayer(playerId, { hp: cura });
+    quitarCuerpoMuerto(playerId, io);
+  }
+  return true;
+}
+
+let _ultimaReparacion = 0;
+
+function repararSnapshotMundo(io, opts) {
+  const snap = getWorldSnapshot();
+  if (!snap) return { ok: false, reason: 'sin snapshot' };
+  const ahora = Date.now();
+  if (!opts?.forzar && ahora - _ultimaReparacion < 8000) {
+    return { ok: true, skipped: true };
+  }
+  _ultimaReparacion = ahora;
+
+  const c1 = asegurarJugadoresEnSnapshot(snap);
+  const c2 = reconciliarMuertoCuerpo(snap, io);
+  let c3 = false;
+  if (opts?.revivirNombres?.length) {
+    for (const nombre of opts.revivirNombres) {
+      if (revivirJugadorPorNombre(snap, nombre, io)) c3 = true;
+    }
+  }
+  if (c1 || c2 || c3) {
+    snap.actualizadoEn = Date.now();
+    asegurarAdminEnMundo(snap);
+    saveWorldSnapshot(snap);
+  }
+  return { ok: true, changed: c1 || c2 || c3 };
+}
+
 /** Lista publicada por el admin (snapshot). No re-añade SQLite huérfanos tras un borrado. */
-function getJugadoresPublicos() {
+function getJugadoresPublicos(io) {
+  repararSnapshotMundo(io);
   const snap = getWorldSnapshot();
   const porId = new Map();
   for (const j of (snap?.jugadores || [])) {
@@ -403,5 +611,9 @@ module.exports = {
   buscarJugadorPublico,
   asegurarPlayerEnSqlite,
   resolverPlayerIdPorNombre,
-  dejarSoloAdminEnSnapshot
+  dejarSoloAdminEnSnapshot,
+  asegurarJugadoresEnSnapshot,
+  reconciliarMuertoCuerpo,
+  revivirJugadorPorNombre,
+  repararSnapshotMundo
 };

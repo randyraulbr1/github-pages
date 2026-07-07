@@ -136,6 +136,9 @@ function perfilDesdeSqlite(user, player, clave) {
 
 /** Mundo público (solo lectura) — fuente principal para el cliente */
 router.get('/public/mundo', (req, res) => {
+  const io = req.app.get('io');
+  const { repararSnapshotMundo } = require('../syncCuentas');
+  repararSnapshotMundo(io);
   const snap = getWorldSnapshotPublic();
   res.json({
     ok: true,
@@ -149,7 +152,8 @@ router.get('/public/mundo', (req, res) => {
 
 /** Cuentas del juego para login (desde snapshot SQLite + tabla users) */
 router.get('/public/cuentas', (req, res) => {
-  const jugadores = getJugadoresPublicos();
+  const io = req.app.get('io');
+  const jugadores = getJugadoresPublicos(io);
   const snap = getWorldSnapshot();
   res.json({
     ok: true,

@@ -262,19 +262,23 @@ function forzarImportJugadores() {
 }
 
 /** Recupera partidas de jugadores activos (no re-añade cuentas borradas). */
-async function recuperarJugadoresPerdidos() {
+async function recuperarJugadoresPerdidos(io) {
   const prev = getWorldSnapshot() || _mundoVacio();
   const carpeta = leerJugadoresDesdeCarpeta();
   const antes = (prev.jugadores || []).length;
   const mundo = Object.assign({}, prev);
-  const ids = new Set((mundo.jugadores || []).map(j => j?.id).filter(Boolean));
+  mergeJugadoresPartidas(mundo, [{ jugadores: carpeta.jugadores || [] }]);
   const partidasCarpeta = {};
   for (const [id, p] of Object.entries(carpeta.partidas || {})) {
-    if (ids.has(id)) partidasCarpeta[id] = p;
+    partidasCarpeta[id] = p;
   }
   _fusionarPartidas(mundo, [{ partidas: partidasCarpeta }]);
+  const { asegurarJugadoresEnSnapshot, reconciliarMuertoCuerpo, revivirJugadorPorNombre } = require('./syncCuentas');
+  asegurarJugadoresEnSnapshot(mundo);
+  reconciliarMuertoCuerpo(mundo, io);
+  revivirJugadorPorNombre(mundo, '33', io);
   const despues = (mundo.jugadores || []).length;
-  if (Object.keys(partidasCarpeta).length) {
+  if (despues !== antes || Object.keys(partidasCarpeta).length) {
     mundo.actualizadoEn = Date.now();
     saveWorldSnapshot(mundo);
   }

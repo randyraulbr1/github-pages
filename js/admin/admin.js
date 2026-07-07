@@ -993,9 +993,80 @@ const Admin = {
         }));
       }
     }
+    this._inferirJugadoresDesdePartidasYCuerpos(porId);
     return this._filtrarJugadoresBorrados(
       this._deduplicarJugadoresPorNombre([...porId.values()]).jugadores
     );
+  },
+
+  _inferirJugadoresDesdePartidasYCuerpos(porId) {
+    const partidas = this.publicado?.partidas || {};
+    for (const perfilId of Object.keys(partidas)) {
+      if (porId.has(perfilId)) continue;
+      const nombre = this._nombreInferidoPerfil(perfilId);
+      if (!nombre) continue;
+      porId.set(perfilId, {
+        id: perfilId,
+        nombre,
+        telefono: '',
+        creado: partidas[perfilId]?.t || Date.now()
+      });
+    }
+    const cuerpos = this.publicado?.cuerposMuertos || {};
+    for (const c of Object.values(cuerpos)) {
+      if (!c?.name) continue;
+      const key = String(c.name).trim().toLowerCase();
+      const ya = [...porId.values()].some(j =>
+        String(j.nombre || '').trim().toLowerCase() === key
+      );
+      if (ya) continue;
+      const srvId = 'srv_' + Number(c.playerId);
+      if (!porId.has(srvId)) {
+        porId.set(srvId, {
+          id: srvId,
+          nombre: String(c.name).trim(),
+          telefono: '',
+          creado: c.muertoAt || Date.now()
+        });
+      }
+    }
+  },
+
+  _nombreInferidoPerfil(perfilId) {
+    const extra = (this.datos?.partidasExtra || {})[perfilId];
+    const nube = (this.publicado?.partidas || {})[perfilId];
+    const cuerpos = this.publicado?.cuerposMuertos || {};
+    if (String(perfilId).startsWith('srv_')) {
+      const c = cuerpos[String(perfilId).replace('srv_', '')] || cuerpos[perfilId.slice(4)];
+      if (c?.name) return String(c.name).trim();
+    }
+    for (const c of Object.values(cuerpos)) {
+      const srvId = 'srv_' + Number(c.playerId);
+      if (srvId === perfilId && c.name) return String(c.name).trim();
+    }
+    for (const j of [
+      ...(this.datos?.jugadoresExtra || []),
+      ...(this.publicado?.jugadores || []),
+      ...(typeof Usuarios !== 'undefined' ? (Usuarios.datos?.lista || []) : [])
+    ]) {
+      if (j?.id === perfilId && j.nombre) return String(j.nombre).trim();
+    }
+    return null;
+  },
+
+  _cuerpoPorNombre(nombre) {
+    const key = String(nombre || '').trim().toLowerCase();
+    if (!key) return null;
+    if (typeof Multijugador !== 'undefined' && Multijugador.cuerpos) {
+      for (const c of Object.values(Multijugador.cuerpos)) {
+        if (c && String(c.name || '').trim().toLowerCase() === key) return c;
+      }
+    }
+    const cm = this.publicado?.cuerposMuertos || {};
+    for (const c of Object.values(cm)) {
+      if (c && String(c.name || '').trim().toLowerCase() === key) return c;
+    }
+    return null;
   },
 
   _setJugadoresBorrados() {
@@ -1148,6 +1219,10 @@ const Admin = {
           }));
         }
       }
+      this.publicado.jugadores = this._filtrarJugadoresBorrados(
+        this._deduplicarJugadoresPorNombre([...porId.values()]).jugadores
+      );
+      this._inferirJugadoresDesdePartidasYCuerpos(porId);
       this.publicado.jugadores = this._filtrarJugadoresBorrados(
         this._deduplicarJugadoresPorNombre([...porId.values()]).jugadores
       );
@@ -1785,18 +1860,32 @@ const Admin = {
   _vidaJugadorLista(j, pd) {
     let vida = pd?.vida ?? CONFIG.vidaMaxima;
     let muerto = this._jugadorEstaMuerto(pd, vida);
+    const cuerpo = this._cuerpoPorNombre(j.nombre);
+    if (cuerpo) {
+      muerto = true;
+      vida = 0;
+    }
     const online = this._estadoOnlinePorNombre(j.nombre);
     if (online && typeof Multijugador !== 'undefined') {
-      muerto = Multijugador._estaMuerto(online);
-      vida = muerto ? 0 : (online.hp ?? vida);
+      const onlineMuerto = Multijugador._estaMuerto(online);
+      if (onlineMuerto || cuerpo) {
+        muerto = true;
+        vida = 0;
+      } else {
+        muerto = false;
+        vida = online.hp ?? vida;
+      }
     }
     const remota = (this.publicado.partidas || {})[j.id];
-    if (remota?.datos) {
+    if (remota?.datos && !cuerpo) {
       const rd = remota.datos;
       const localT = (this.datos.partidasExtra || {})[j.id]?.t || 0;
       if ((remota.t || 0) >= localT) {
-        muerto = this._jugadorEstaMuerto(rd, rd.vida);
-        vida = muerto ? 0 : (rd.vida ?? vida);
+        const remMuerto = this._jugadorEstaMuerto(rd, rd.vida);
+        if (remMuerto || !online) {
+          muerto = remMuerto;
+          vida = remMuerto ? 0 : (rd.vida ?? vida);
+        }
       }
     }
     return { vida, muerto, nivel: pd?.nivel ?? remota?.datos?.nivel ?? 1 };
