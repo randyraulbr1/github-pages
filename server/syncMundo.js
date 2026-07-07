@@ -707,11 +707,14 @@ function distanciaMetros(lat1, lon1, lat2, lon2) {
   return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 }
 
-/** Daño de jugador contra enemigo (aprox. cliente). */
-function danoJugadorVsEnemigo(playerLevel) {
+/** Daño de jugador contra enemigo según reglas globales del mundo. */
+function danoJugadorVsEnemigo(playerLevel, snapshot) {
+  const combate = snapshot?.combate || {};
+  const ref = Math.max(1, parseInt(combate.nivelReferencia, 10) || 1);
   const nv = Math.max(1, parseInt(playerLevel, 10) || 1);
-  const lo = Math.max(1, Math.round(5 * (nv / 1)));
-  const hi = Math.max(lo, Math.round(8 * (nv / 1)));
+  const f = nv / ref;
+  const lo = Math.max(1, Math.round((combate.danoMin || 5) * f));
+  const hi = Math.max(lo, Math.round((combate.danoMax || 8) * f));
   return lo + Math.floor(Math.random() * (hi - lo + 1));
 }
 

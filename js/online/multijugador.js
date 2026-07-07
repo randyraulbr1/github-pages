@@ -1610,7 +1610,7 @@ const Multijugador = {
     const payload = {
       hp: esAdmin ? hpMax : Math.round(Vida.actual),
       hpMax,
-      level: esAdmin ? 999 : Vida.nivel,
+      level: Vida.nivel,
       hunger: Math.round(Vida.hambre),
       xp: Vida.xp,
       dead: muerto

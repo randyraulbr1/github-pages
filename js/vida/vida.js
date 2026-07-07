@@ -12,6 +12,9 @@ const Vida = {
 
   vidaMaxima(nivel) {
     const n = Math.max(1, Math.min(CONFIG.nivelMaximo, nivel != null ? nivel : this.nivel));
+    if (typeof Admin !== 'undefined' && Admin.vidaJugadorPorNivel) {
+      return Admin.vidaJugadorPorNivel(n);
+    }
     const extra = CONFIG.vidaExtraPorNivel || 4;
     return CONFIG.vidaMaxima + Math.floor((n - 1) * extra);
   },

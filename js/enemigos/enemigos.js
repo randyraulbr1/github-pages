@@ -168,19 +168,18 @@ const Enemigos = {
 
   aplicarLayoutCombate() {
     const hud = document.getElementById('hud-combate-flotante');
+    const wrapAtk = document.getElementById('btn-hud-atacar-wrap');
     const btnAtk = document.getElementById('btn-hud-atacar');
     const btnHuir = document.getElementById('btn-hud-huir');
-    const cd = document.getElementById('hud-ataque-cooldown');
-    if (!hud || !btnAtk || !btnHuir) return;
+    if (!hud || !wrapAtk || !btnAtk || !btnHuir) return;
     const pos = (Guardado.datos?.preferencias?.posBtnAtacar === 'der') ? 'der' : 'izq';
     hud.classList.toggle('pos-atk-izq', pos === 'izq');
     hud.classList.toggle('pos-atk-der', pos === 'der');
-    if (cd) hud.insertBefore(cd, hud.firstChild);
     if (pos === 'der') {
       hud.appendChild(btnHuir);
-      hud.appendChild(btnAtk);
+      hud.appendChild(wrapAtk);
     } else {
-      hud.appendChild(btnAtk);
+      hud.appendChild(wrapAtk);
       hud.appendChild(btnHuir);
     }
   },
@@ -422,7 +421,8 @@ const Enemigos = {
     const silencioso = !!opts?.silencioso;
 
     if (!desdeRemoto) {
-      if (e.xp) Vida.ganarXp(e.xp, 'Enemigo derrotado');
+      const xpGanada = this._xpEnemigo(e);
+      if (xpGanada) Vida.ganarXp(xpGanada, 'Enemigo derrotado');
       if (e.dinero) void Dinero.ganar(e.dinero, 'Botín: ' + e.nombre);
       for (const it of (e.recItems || [])) {
         Mochila.agregar(it.id, it.cantidad || 1, { silencioso: true });
@@ -994,14 +994,29 @@ const Enemigos = {
     return 0;
   },
 
+  _xpEnemigo(e) {
+    if (e?.xp != null && e.xp > 0) return e.xp;
+    if (typeof Admin !== 'undefined' && Admin.xpEnemigoPorNivel) {
+      return Admin.xpEnemigoPorNivel(this._nivelEnemigo(e));
+    }
+    return 30;
+  },
+
+  _aplicarCooldownAnillo(wrap, restCd, mostrar) {
+    if (!wrap) return;
+    const pct = mostrar ? ((1 - restCd / this.COOLDOWN_ATAQUE_MS) * 100) : 0;
+    wrap.style.setProperty('--cd-pct', String(Math.max(0, Math.min(100, pct))));
+    wrap.classList.toggle('mostrando-cd', mostrar);
+  },
+
   _actualizarHudCombate() {
     const btnAtacar = document.getElementById('btn-hud-atacar');
+    const wrapHud = document.getElementById('btn-hud-atacar-wrap');
+    const wrapModal = document.getElementById('btn-combate-atacar-wrap');
     const btnHuir = document.getElementById('btn-hud-huir');
     const btnModalAtacar = document.getElementById('btn-combate-atacar');
     const bannerHuida = document.getElementById('banner-huida');
     const hudFlotante = document.getElementById('hud-combate-flotante');
-    const cooldownBar = document.getElementById('hud-ataque-cooldown');
-    const cooldownFill = document.getElementById('hud-ataque-cooldown-relleno');
     const muerto = typeof Vida !== 'undefined' && Vida.estaMuerto();
     const restCd = this._cooldownRestante();
     const enCooldown = restCd > 0;
@@ -1015,9 +1030,10 @@ const Enemigos = {
         const s = seg % 60;
         bannerHuida.textContent = '👻 Invisible para enemigos · ' + m + ':' + String(s).padStart(2, '0');
       }
-      if (btnAtacar) btnAtacar.classList.add('oculto');
+      if (wrapHud) wrapHud.classList.add('oculto');
       if (btnHuir) btnHuir.classList.add('oculto');
-      if (cooldownBar) cooldownBar.classList.add('oculto');
+      this._aplicarCooldownAnillo(wrapHud, 0, false);
+      this._aplicarCooldownAnillo(wrapModal, 0, false);
       if (hudFlotante) hudFlotante.classList.add('oculto');
       return;
     }
@@ -1029,39 +1045,38 @@ const Enemigos = {
     const enZonaRoja = !!enemigo;
     const puedeHuir = !muerto && enZonaRoja && pctVida <= 30;
     const mostrarAtaque = enZonaRoja && !muerto;
+    const modalAbierto = !document.getElementById('ventana-combate')?.classList.contains('oculto');
+    const showCd = (mostrarAtaque || modalAbierto) && enCooldown;
 
-    if (btnAtacar) {
+    if (wrapHud && btnAtacar) {
       if (mostrarAtaque) {
-        btnAtacar.classList.remove('oculto');
+        wrapHud.classList.remove('oculto');
         btnAtacar.disabled = enCooldown;
         btnAtacar.classList.toggle('en-cooldown', enCooldown);
         btnAtacar.textContent = enCooldown
           ? '⏳ ' + Math.ceil(restCd / 1000) + ' s'
           : '⚔️ ATK';
+        this._aplicarCooldownAnillo(wrapHud, restCd, showCd);
       } else {
-        btnAtacar.classList.add('oculto');
+        wrapHud.classList.add('oculto');
         btnAtacar.disabled = false;
         btnAtacar.classList.remove('en-cooldown');
+        this._aplicarCooldownAnillo(wrapHud, 0, false);
       }
     }
-    const modalAbierto = !document.getElementById('ventana-combate')?.classList.contains('oculto');
     if (btnModalAtacar && modalAbierto) {
       btnModalAtacar.disabled = enCooldown;
       btnModalAtacar.classList.toggle('en-cooldown', enCooldown);
       btnModalAtacar.textContent = enCooldown
         ? '⏳ ' + Math.ceil(restCd / 1000) + ' s'
         : '⚔️ Atacar';
+      this._aplicarCooldownAnillo(wrapModal, restCd, showCd);
+    } else {
+      this._aplicarCooldownAnillo(wrapModal, 0, false);
     }
     if (btnHuir) {
       btnHuir.classList.toggle('oculto', !puedeHuir);
       if (puedeHuir) btnHuir.textContent = '🏃 HUIR';
-    }
-    if (cooldownBar && cooldownFill) {
-      const showCd = (mostrarAtaque || modalAbierto) && enCooldown;
-      cooldownBar.classList.toggle('oculto', !showCd);
-      if (showCd) {
-        cooldownFill.style.width = ((1 - restCd / this.COOLDOWN_ATAQUE_MS) * 100) + '%';
-      }
     }
     if (hudFlotante) {
       const visible = mostrarAtaque || puedeHuir;
@@ -1285,7 +1300,8 @@ const Enemigos = {
       this._actualizarUiCombate(e, actual, max);
       Notificaciones.mostrar('⚔️ -' + (res.damage || 0) + ' a ' + e.nombre, 'info', 2000);
       if (res.muerto) {
-        if (e.xp) Vida.ganarXp(e.xp, 'Enemigo derrotado');
+        const xpGanada = this._xpEnemigo(e);
+        if (xpGanada) Vida.ganarXp(xpGanada, 'Enemigo derrotado');
         if (e.dinero) await Dinero.ganar(e.dinero, 'Botín: ' + e.nombre);
         for (const it of (e.recItems || [])) {
           Mochila.agregar(it.id, it.cantidad || 1, { silencioso: true });
