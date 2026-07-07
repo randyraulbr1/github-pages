@@ -2862,6 +2862,8 @@ body.admin-organizar .admin-pin-organizar {
 .admin-pin-moviendo .admin-pin-x { display: none !important; }
 .admin-pin-controles-ocultos .admin-pin-x,
 .admin-pin-controles-ocultos .admin-pin-grip { display: none !important; }
+.admin-pin-armado .admin-pin-x,
+.admin-pin-armado .admin-pin-grip { opacity: 1; }
 .leaflet-marker-icon.admin-pin-organizar:has(.enemigo-pin) .admin-pin-grip {
   bottom: -18px;
   left: -16px;

@@ -3313,7 +3313,17 @@ const Admin = {
     if (punto._orgDragStart) marcador.off('dragstart', punto._orgDragStart);
     if (punto._movOrg) marcador.off('drag', punto._movOrg);
     if (punto._finOrg) marcador.off('dragend', punto._finOrg);
+    if (punto._orgIconDown) marcador.off('mousedown', punto._orgIconDown);
+    if (punto._orgIconUp) marcador.off('mouseup', punto._orgIconUp);
+    if (punto._orgIconTouchStart) marcador.off('touchstart', punto._orgIconTouchStart);
+    if (punto._orgIconTouchEnd) marcador.off('touchend', punto._orgIconTouchEnd);
+    if (punto._orgIconTouchCancel) marcador.off('touchcancel', punto._orgIconTouchCancel);
+    clearTimeout(punto._orgDesarmarTimer);
+    clearTimeout(punto._orgHoldTimer);
     punto._orgArm = punto._orgToggle = punto._orgDragStart = punto._movOrg = punto._finOrg = null;
+    punto._orgIconDown = punto._orgIconUp = punto._orgIconTouchStart = null;
+    punto._orgIconTouchEnd = punto._orgIconTouchCancel = null;
+    punto._orgDesarmarTimer = punto._orgHoldTimer = null;
     marcador.options.draggable = false;
     if (marcador.dragging) marcador.dragging.disable();
     const el = marcador.getElement?.();
@@ -3386,9 +3396,52 @@ const Admin = {
     if (!marcador) return;
     this._limpiarPinOrganizar(marcador, punto);
 
+    const ORG_DESARMAR_MS = 1100;
+    const ORG_HOLD_MS = 420;
+    const ORG_IGNORAR_CLICK_MS = 700;
+
     marcador.options.draggable = false;
     if (marcador.dragging) marcador.dragging.disable();
     marcador.setZIndexOffset(13000);
+
+    const ignorarClicsBreves = () => {
+      punto._orgIgnorarClickHasta = Date.now() + ORG_IGNORAR_CLICK_MS;
+    };
+
+    const iniciarArrastreDesdePuntero = (ev) => {
+      const pinEl = marcador.getElement?.();
+      if (!pinEl) return;
+      const t = ev.touches?.[0] || ev;
+      if (!t || typeof t.clientX !== 'number') return;
+      requestAnimationFrame(() => {
+        pinEl.dispatchEvent(new MouseEvent('mousedown', {
+          bubbles: true,
+          cancelable: true,
+          view: window,
+          clientX: t.clientX,
+          clientY: t.clientY,
+          button: 0,
+          buttons: 1
+        }));
+      });
+    };
+
+    const armar = (ev, opts) => {
+      const desdeIcono = !!opts?.desdeIcono;
+      L.DomEvent.stopPropagation(ev);
+      if (ev.cancelable) ev.preventDefault();
+      if (this.modo !== 'organizar') return;
+      const pinEl = marcador.getElement?.();
+      if (!pinEl || pinEl.classList.contains('admin-pin-moviendo')) return;
+      ignorarClicsBreves();
+      pinEl.classList.add('admin-pin-armado');
+      pinEl.classList.remove('admin-pin-controles-ocultos');
+      marcador.options.draggable = true;
+      if (marcador.dragging) marcador.dragging.enable();
+      if (desdeIcono || ev.type === 'touchstart') {
+        iniciarArrastreDesdePuntero(ev);
+      }
+    };
 
     const asegurarControlesPin = () => {
       const el = marcador.getElement?.();
@@ -3404,6 +3457,7 @@ const Admin = {
         btn.addEventListener('click', (ev) => {
           L.DomEvent.stopPropagation(ev);
           ev.preventDefault();
+          ignorarClicsBreves();
           if (punto._cuerpoPlayerId) {
             this._eliminarCuerpoAdmin(punto._cuerpoPlayerId);
             return;
@@ -3418,46 +3472,19 @@ const Admin = {
         grip = document.createElement('button');
         grip.type = 'button';
         grip.className = 'admin-pin-grip';
-        grip.title = 'Arrastrar pin';
+        grip.title = 'Mantén y arrastra';
         grip.textContent = '⊞';
-        const armar = (ev) => {
-          L.DomEvent.stopPropagation(ev);
-          if (ev.cancelable) ev.preventDefault();
-          if (this.modo !== 'organizar') return;
-          const pinEl = marcador.getElement?.();
-          if (pinEl) {
-            pinEl.classList.add('admin-pin-armado');
-            pinEl.classList.remove('admin-pin-controles-ocultos');
-          }
-          btn?.classList.add('oculto');
-          grip.classList.add('oculto');
-          marcador.options.draggable = true;
-          if (marcador.dragging) marcador.dragging.enable();
-          // Móvil: mismo gesto desde el cuadrito azul inicia el arrastre Leaflet
-          if (ev.type === 'touchstart' && pinEl) {
-            const t = ev.touches?.[0];
-            if (t) {
-              requestAnimationFrame(() => {
-                pinEl.dispatchEvent(new MouseEvent('mousedown', {
-                  bubbles: true,
-                  cancelable: true,
-                  view: window,
-                  clientX: t.clientX,
-                  clientY: t.clientY,
-                  button: 0,
-                  buttons: 1
-                }));
-              });
-            }
-          }
+        const armarGrip = (ev) => {
+          armar(ev, { desdeIcono: false });
         };
-        grip.addEventListener('mousedown', armar);
-        grip.addEventListener('touchstart', armar, { passive: false });
+        grip.addEventListener('mousedown', armarGrip);
+        grip.addEventListener('touchstart', armarGrip, { passive: false });
         el.appendChild(grip);
       }
       if (!punto._orgToggle) {
         punto._orgToggle = (ev) => {
           if (this.modo !== 'organizar') return;
+          if (Date.now() < (punto._orgIgnorarClickHasta || 0)) return;
           if (ev.target?.closest?.('.admin-pin-x, .admin-pin-grip')) return;
           const pinEl = marcador.getElement?.();
           if (!pinEl || pinEl.classList.contains('admin-pin-armado') ||
@@ -3467,21 +3494,58 @@ const Admin = {
         };
         marcador.on('click', punto._orgToggle);
       }
+
+      const cancelarHold = () => {
+        clearTimeout(punto._orgHoldTimer);
+        punto._orgHoldTimer = null;
+      };
+      const iniciarHoldIcono = (ev) => {
+        if (this.modo !== 'organizar') return;
+        if (ev.target?.closest?.('.admin-pin-x, .admin-pin-grip')) return;
+        const pinEl = marcador.getElement?.();
+        if (!pinEl || pinEl.classList.contains('admin-pin-moviendo')) return;
+        cancelarHold();
+        punto._orgHoldTimer = setTimeout(() => {
+          punto._orgHoldTimer = null;
+          armar(ev, { desdeIcono: true });
+        }, ORG_HOLD_MS);
+      };
+      if (!punto._orgIconDown) {
+        punto._orgIconDown = iniciarHoldIcono;
+        punto._orgIconUp = cancelarHold;
+        punto._orgIconTouchStart = iniciarHoldIcono;
+        punto._orgIconTouchEnd = cancelarHold;
+        punto._orgIconTouchCancel = cancelarHold;
+        marcador.on('mousedown', punto._orgIconDown);
+        marcador.on('mouseup', punto._orgIconUp);
+        marcador.on('touchstart', punto._orgIconTouchStart);
+        marcador.on('touchend', punto._orgIconTouchEnd);
+        marcador.on('touchcancel', punto._orgIconTouchCancel);
+      }
+
       return { btn, grip };
     };
 
     const desarmar = () => {
+      clearTimeout(punto._orgDesarmarTimer);
+      punto._orgDesarmarTimer = null;
       const el = marcador.getElement?.();
-      if (el) el.classList.remove('admin-pin-armado', 'admin-pin-moviendo');
+      if (el) {
+        el.classList.remove('admin-pin-armado', 'admin-pin-moviendo');
+        el.classList.remove('admin-pin-controles-ocultos');
+      }
       marcador.options.draggable = false;
       if (marcador.dragging) marcador.dragging.disable();
       asegurarControlesPin();
     };
 
     punto._orgDragStart = () => {
+      clearTimeout(punto._orgHoldTimer);
+      punto._orgHoldTimer = null;
+      ignorarClicsBreves();
       const el = marcador.getElement?.();
       if (el) {
-        el.classList.add('admin-pin-moviendo');
+        el.classList.add('admin-pin-moviendo', 'admin-pin-controles-ocultos');
         el.classList.remove('admin-pin-armado');
       }
       el?.querySelector('.admin-pin-x')?.classList.add('oculto');
@@ -3494,7 +3558,9 @@ const Admin = {
 
     punto._finOrg = () => {
       if (alMoverPos) alMoverPos(marcador);
-      desarmar();
+      ignorarClicsBreves();
+      clearTimeout(punto._orgDesarmarTimer);
+      punto._orgDesarmarTimer = setTimeout(() => desarmar(), ORG_DESARMAR_MS);
     };
 
     marcador.on('dragstart', punto._orgDragStart);
