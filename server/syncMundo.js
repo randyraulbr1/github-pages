@@ -830,10 +830,24 @@ function limpiarBotinesExpirados(mundo) {
   }
 }
 
+function xpEnemigoSnapshot(enemyData, snapshot) {
+  const xp = parseInt(enemyData?.xp, 10);
+  if (Number.isFinite(xp) && xp > 0) return xp;
+  const cfg = snapshot?.combateEnemigos || {};
+  const nv = Math.max(1, parseInt(enemyData?.nivel, 10) || 1);
+  const base = parseInt(cfg.xpBase, 10) || 30;
+  const factor = cfg.xpFactorPorNivel != null ? cfg.xpFactorPorNivel : 0.06;
+  return Math.round(base * (1 + (nv - 1) * factor));
+}
+
 function crearBotinEnemigo(enemyId, pos, enemyData, danoPorJugador, io) {
   const snapshot = getWorldSnapshot() || { actualizadoEn: Date.now(), botinesEnemigo: {} };
   if (!snapshot.botinesEnemigo) snapshot.botinesEnemigo = {};
   limpiarBotinesExpirados(snapshot);
+
+  const datosEnemigo = Object.assign({}, enemyData, {
+    xp: xpEnemigoSnapshot(enemyData, snapshot)
+  });
 
   const nombres = {};
   for (const pid of Object.keys(danoPorJugador || {})) {
@@ -841,7 +855,7 @@ function crearBotinEnemigo(enemyId, pos, enemyData, danoPorJugador, io) {
     if (pl?.name) nombres[pid] = pl.name;
   }
 
-  const botinCalc = calcularBotinEnemigo(enemyData, danoPorJugador, nombres);
+  const botinCalc = calcularBotinEnemigo(datosEnemigo, danoPorJugador, nombres);
   if (!botinCalc) return null;
 
   const tieneAlgo = Object.values(botinCalc.recompensas).some((r) =>

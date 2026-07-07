@@ -456,7 +456,7 @@ const Enemigos = {
       }
       if (!silencioso) {
         if (botinCreado) {
-          Notificaciones.mostrar('💀 ¡Enemigo derrotado! Recoge tu botín en el mapa 🎁', 'exito', 5000);
+          Notificaciones.mostrar('💀 ¡Enemigo derrotado! Recoge el botín 📦 en el mapa', 'exito', 5000);
         } else {
           Notificaciones.mostrar('💀 ¡Derrotaste a ' + (e.nombre || 'Enemigo') + '!', 'exito', 5000);
         }
@@ -1444,7 +1444,7 @@ const Enemigos = {
       if (res.muerto) {
         if (res.botin && typeof BotinEnemigo !== 'undefined') {
           BotinEnemigo.aplicarBotin(res.botin);
-          Notificaciones.mostrar('💀 ¡Enemigo derrotado! Recoge tu botín en el mapa 🎁', 'exito', 5000);
+          Notificaciones.mostrar('💀 ¡Enemigo derrotado! Recoge el botín 📦 en el mapa', 'exito', 5000);
         } else {
           Notificaciones.mostrar('💀 ¡Derrotaste a ' + (e.nombre || 'Enemigo') + '!', 'exito', 5000);
         }

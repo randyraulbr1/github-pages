@@ -3075,7 +3075,7 @@ const Admin = {
     }
     this._refrescarObjetosMapa();
     if (GPS.posicion) this._refrescarBolsasMapa();
-    if (GPS.posicion) this._refrescarBotinesMapa();
+    this._refrescarBotinesMapa();
     if (typeof Multijugador !== 'undefined' && Multijugador._sincronizarPinesPartida) {
       Multijugador._sincronizarPinesPartida();
     }
@@ -3164,18 +3164,13 @@ const Admin = {
   },
 
   _refrescarBotinesMapa() {
-    if (typeof BotinEnemigo === 'undefined' || !GPS.posicion) return;
+    if (typeof BotinEnemigo === 'undefined') return;
     for (const b of BotinEnemigo.todas()) {
       if (!b?.pos) continue;
-      const d = Utilidades.distanciaMetros(GPS.posicion, b.pos);
-      if (!b._marcador && BotinEnemigo.visibleParaMi(b) && d <= BotinEnemigo.distanciaVer()) {
-        this._crearMarcadorBotin(b, d);
-      } else if (b._marcador) {
+      if (b._marcador) {
         b._marcador.setLatLng(b.pos);
-        this._revisarBotin(b, d);
-      } else {
-        this._revisarBotin(b, d);
       }
+      this._revisarBotin(b);
     }
   },
 
@@ -3208,34 +3203,28 @@ const Admin = {
     }
   },
 
-  _crearMarcadorBotin(b, distancia) {
+  _crearMarcadorBotin(b) {
     if (!b?.pos || typeof BotinEnemigo === 'undefined') return;
     if (!BotinEnemigo.visibleParaMi(b)) return;
-    const d = typeof distancia === 'number'
-      ? distancia
-      : Utilidades.distanciaMetros(GPS.posicion ? GPS.posicion : CONFIG.centro, b.pos);
     if (!Mapa.puntosInteractivos.find(x => x.id === b.id)) {
       Mapa.registrarPunto({
         id: b.id,
         posicion: b.pos,
         radio: CONFIG.distanciaInteraccion,
         marcador: null,
-        alCambiarDistancia: (dist) => this._revisarBotin(b, dist)
+        alCambiarDistancia: () => this._revisarBotin(b)
       });
     }
-    this._revisarBotin(b, d);
+    this._revisarBotin(b);
   },
 
-  _revisarBotin(b, distancia) {
+  _revisarBotin(b) {
     if (!b?.pos || typeof BotinEnemigo === 'undefined') return;
-    const d = typeof distancia === 'number'
-      ? distancia
-      : (GPS.posicion ? Utilidades.distanciaMetros(GPS.posicion, b.pos) : Infinity);
-    const debeVerse = BotinEnemigo.visibleParaMi(b) && d <= BotinEnemigo.distanciaVer();
+    const debeVerse = BotinEnemigo.visibleParaMi(b);
 
     if (debeVerse && !b._marcador) {
       this._liberarMarcadorBotin(b.id);
-      b._marcador = Mapa.crearMarcadorEmoji(b.pos, '🎁', 30);
+      b._marcador = Mapa.crearMarcadorEmoji(b.pos, '📦', 32);
       const el = b._marcador.getElement?.();
       if (el) el.classList.add('marcador-botin-enemigo');
       this._vincularMarcadorBotin(b, b._marcador);

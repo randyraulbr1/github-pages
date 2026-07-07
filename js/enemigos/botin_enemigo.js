@@ -10,15 +10,48 @@ const BotinEnemigo = {
     return 5 * 60 * 1000;
   },
 
-  _miId() {
-    if (typeof Multijugador !== 'undefined' && Multijugador.activo) {
+  _playerIdOnline() {
+    if (typeof Multijugador !== 'undefined') {
       const id = Multijugador._miPlayerId();
       if (id > 0) return String(id);
     }
+    try {
+      const key = (typeof SyncServidor !== 'undefined' && SyncServidor.SESION_PLAYER_KEY) || 'mariel_online_player_id';
+      const guardado = localStorage.getItem(key);
+      if (guardado) return String(guardado);
+    } catch (e) { /* */ }
+    return null;
+  },
+
+  _miId() {
+    const online = this._playerIdOnline();
+    if (online) return online;
     if (typeof Usuarios !== 'undefined' && Usuarios.perfilActivo?.id) {
       return String(Usuarios.perfilActivo.id);
     }
     return 'local';
+  },
+
+  /** Clave en botin.participantes que corresponde al jugador actual */
+  _claveEnBotin(botin) {
+    if (!botin?.participantes) return null;
+    const parts = botin.participantes;
+    const candidatos = new Set();
+    const online = this._playerIdOnline();
+    if (online) candidatos.add(online);
+    if (typeof Usuarios !== 'undefined' && Usuarios.perfilActivo?.id) {
+      candidatos.add(String(Usuarios.perfilActivo.id));
+    }
+    for (const id of candidatos) {
+      if (parts[id]) return id;
+    }
+    const nombre = this._miNombre().trim().toLowerCase();
+    if (nombre) {
+      for (const [k, p] of Object.entries(parts)) {
+        if (String(p?.nombre || '').trim().toLowerCase() === nombre) return k;
+      }
+    }
+    return null;
   },
 
   _miNombre() {
@@ -83,13 +116,12 @@ const BotinEnemigo = {
   },
 
   participa(botin) {
-    if (!botin?.participantes) return false;
-    return !!botin.participantes[this._miId()];
+    return !!this._claveEnBotin(botin);
   },
 
   yaReclamo(botin) {
-    const p = botin?.participantes?.[this._miId()];
-    return !!p?.reclamado;
+    const k = this._claveEnBotin(botin);
+    return k ? !!botin.participantes[k].reclamado : false;
   },
 
   visibleParaMi(botin) {
@@ -212,7 +244,14 @@ const BotinEnemigo = {
   aplicarBotin(botin) {
     if (!botin?.id) return;
     this._guardarLocal(botin);
-    if (this.visibleParaMi(botin)) this._crearMarcador(botin);
+    if (this.visibleParaMi(botin)) {
+      this._crearMarcador(botin);
+      if (typeof Admin !== 'undefined' && Admin.refrescarVisibles) {
+        Admin.refrescarVisibles();
+      } else {
+        this.refrescarMapa();
+      }
+    }
   },
 
   aplicarBotinActualizado(botin) {
@@ -304,13 +343,13 @@ const BotinEnemigo = {
         this._tiempoRestante(botin) + '</b></p>';
     }
 
-    const miId = this._miId();
+    const clave = this._claveEnBotin(botin);
     const parts = Object.values(botin.participantes || {}).sort((a, b) => (b.dano || 0) - (a.dano || 0));
     if (participantes) {
       let html = '<div class="botin-tabla-titulo">⚔️ Daño en el combate</div><div class="botin-tabla">';
       for (const p of parts) {
         const pct = botin.danoTotal > 0 ? Math.round((p.dano / botin.danoTotal) * 100) : 0;
-        const yo = p.playerId === miId ? ' botin-fila-yo' : '';
+        const yo = p.playerId === clave ? ' botin-fila-yo' : '';
         const estado = p.reclamado ? ' <span class="botin-estado-reclamado">✓ reclamó</span>' : '';
         html += '<div class="botin-fila' + yo + '"><span class="botin-nombre">' + p.nombre + '</span>' +
           '<span class="botin-dano">-' + p.dano + ' (' + pct + '%)</span>' + estado + '</div>';
@@ -319,7 +358,7 @@ const BotinEnemigo = {
       participantes.innerHTML = html;
     }
 
-    const recMi = botin.recompensas?.[miId];
+    const recMi = clave ? botin.recompensas?.[clave] : null;
     const lleno = !this._puedeRecibir(recMi);
     const yaReclamo = this.yaReclamo(botin);
 
@@ -336,7 +375,7 @@ const BotinEnemigo = {
     if (otros) {
       let html = '<div class="botin-otros-titulo">👥 Partes de los demás</div>';
       for (const p of parts) {
-        if (p.playerId === miId) continue;
+        if (p.playerId === clave) continue;
         const rec = botin.recompensas?.[p.playerId];
         html += '<div class="botin-otro-bloque"><div class="botin-otro-nombre">' + p.nombre +
           (p.reclamado ? ' ✓' : '') + '</div>';
@@ -368,7 +407,9 @@ const BotinEnemigo = {
     if (!b?.id) return false;
     if (!this.participa(b) || this.yaReclamo(b)) return false;
 
-    const rec = b.recompensas?.[this._miId()];
+    const clave = this._claveEnBotin(b);
+    if (!clave) return false;
+    const rec = b.recompensas?.[clave];
     if (!this._puedeRecibir(rec)) {
       Notificaciones.mostrar('🎒 Inventario lleno — libera espacio para reclamar', 'alerta', 5000);
       this.abrirMenu(b.id);
@@ -389,12 +430,12 @@ const BotinEnemigo = {
         this.aplicarBotinActualizado(res.botin);
       }
       this.cerrarMenu();
-      Notificaciones.mostrar('🎁 Reclamaste tu parte del botín', 'exito', 4000);
+      Notificaciones.mostrar('📦 Reclamaste tu parte del botín', 'exito', 4000);
       return true;
     }
 
     const miId = this._miId();
-    b.participantes[miId].reclamado = true;
+    b.participantes[clave].reclamado = true;
     await this._aplicarRecompensa(rec, b.enemyNombre);
     const todos = Object.values(b.participantes).every((p) => p.reclamado);
     if (todos) this.aplicarBotinEliminado(b.id);
@@ -440,7 +481,7 @@ const BotinEnemigo = {
     }
 
     if (typeof Mapa === 'undefined') return;
-    const marcador = Mapa.crearMarcadorEmoji(botin.pos, '🎁', 30);
+    const marcador = Mapa.crearMarcadorEmoji(botin.pos, '📦', 32);
     const el = marcador.getElement?.();
     if (el) el.classList.add('marcador-botin-enemigo');
     this._marcadores[botin.id] = marcador;

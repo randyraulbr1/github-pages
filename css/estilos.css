@@ -3386,7 +3386,8 @@ body.admin-organizar .leaflet-marker-icon {
 }
 .marcador-botin-enemigo {
   animation: botinPulso 1.6s ease-in-out infinite;
-  filter: drop-shadow(0 0 8px #ffd60a) drop-shadow(0 0 16px rgba(255, 180, 0, .7));
+  filter: drop-shadow(0 0 8px #c9a227) drop-shadow(0 0 14px rgba(201, 162, 39, .75));
+  font-size: 30px;
 }
 @keyframes botinPulso {
   0%, 100% { transform: scale(1); }
