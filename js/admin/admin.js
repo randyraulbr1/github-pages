@@ -52,6 +52,19 @@ const Admin = {
     if (!this.datos.tiendasAdmin) this.datos.tiendasAdmin = [];
     if (this.datos.mantenimiento === undefined) this.datos.mantenimiento = null;
 
+    try {
+      const nDatos = this._contarElementosMapa(this.datos);
+      if (nDatos < 2) {
+        const bak = localStorage.getItem('mariel_admin_backup_v1');
+        if (bak) {
+          const b = JSON.parse(bak);
+          if (this._contarElementosMapa(b) > nDatos) {
+            this.datos = Object.assign(this.datos, b);
+          }
+        }
+      }
+    } catch (e) { /* */ }
+
     // El mundo oficial: GitHub Pages + servidor en vivo (el más reciente gana)
     this.publicado = { misiones: [], tesoros: [], objetos: [], posiciones: {}, eliminados: [], precios: {}, itemsNuevos: [], jugadores: [] };
     this._crudoPublicado = null;
@@ -186,6 +199,21 @@ const Admin = {
       if (Array.isArray(m[campo])) n += m[campo].length;
     }
     return n;
+  },
+
+  /** Mapa publicado + borradores locales del admin (lo que realmente hay en pantalla). */
+  _contarMapaAdminCompleto() {
+    const pub = this._contarElementosMapa(this.publicado || {});
+    if (!this.esAdminJugador()) return pub;
+    const loc = this._contarElementosMapa({
+      misiones: this.datos?.misiones,
+      tesoros: this.datos?.tesoros,
+      objetos: this.datos?.objetos,
+      enemigos: this.datos?.enemigos,
+      tiendasAdmin: this.datos?.tiendasAdmin,
+      posiciones: this.datos?.posiciones
+    });
+    return Math.max(pub, loc);
   },
 
   _mapaLocalCargado() {
@@ -357,16 +385,25 @@ const Admin = {
       const tsRemoto = data.actualizadoEn || m.actualizadoEn || 0;
       const tsLocal = this.publicado?.actualizadoEn || 0;
       const nRemoto = this._contarElementosMapa(m);
-      const nLocal = this._contarElementosMapa(this.publicado || {});
+      const nLocal = this._contarMapaAdminCompleto();
       const hayPartidas = Object.keys(m.partidas || {}).length > 0;
-      if (nRemoto < nLocal && tsRemoto <= tsLocal && !hayPartidas) return false;
+
+      // No sustituir un mapa con más contenido por uno del servidor más vacío
+      if (nRemoto < nLocal) {
+        if (this.esAdminJugador()) {
+          setTimeout(() => this._publicarParaTodos(true), 2500);
+        }
+        return false;
+      }
+      if (nRemoto === nLocal && tsRemoto <= tsLocal && !hayPartidas) return false;
+
       const json = JSON.stringify(m);
       this._crudoPublicado = json;
       this._ultimoFirmaPublicada = this._firmaMundo(json);
       if (typeof Multijugador !== 'undefined') {
         Multijugador.mundoServidorTs = Math.max(Multijugador.mundoServidorTs || 0, tsRemoto);
       }
-      this._aplicarMundoRemoto(json, { forzar: nRemoto >= nLocal || hayPartidas });
+      this._aplicarMundoRemoto(json, { forzar: false, soloMapa: nRemoto > nLocal });
       this.pintarMapaCompleto();
       if (typeof Multijugador !== 'undefined' && Multijugador._sincronizarPinesPartida) {
         Multijugador._sincronizarPinesPartida();
@@ -1517,8 +1554,9 @@ const Admin = {
     const opts = opciones || {};
     let remoto = null;
     try { remoto = JSON.parse(texto); } catch (e) { return; }
-    const localMapa = this._contarElementosMapa(this.publicado || {});
+    const localMapa = this._contarMapaAdminCompleto();
     const remotoMapa = this._contarElementosMapa(remoto);
+    if (!opts.permitirReduccion && remotoMapa < localMapa) return;
     if (!opts.forzar && localMapa > 0 && remotoMapa === 0) return;
 
     const jugadoresGuardados = (this.publicado?.jugadores || []).slice();

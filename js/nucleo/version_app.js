@@ -17,6 +17,10 @@ const MarielVersion = {
   _prepararLoginTrasActualizacion() {
     try {
       sessionStorage.setItem('mariel_forzar_login', '1');
+      const adminRaw = localStorage.getItem('mariel_admin_v1');
+      if (adminRaw) {
+        localStorage.setItem('mariel_admin_backup_v1', adminRaw);
+      }
       const raw = localStorage.getItem('mariel_perfiles_v2');
       if (raw) {
         const datos = JSON.parse(raw);
