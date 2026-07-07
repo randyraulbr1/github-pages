@@ -344,9 +344,11 @@ const Admin = {
       const tsLocal = this.publicado?.actualizadoEn || 0;
       const remotoMapa = typeof MundoPublico !== 'undefined' && MundoPublico.mundoTieneMapa
         ? MundoPublico.mundoTieneMapa(data.mundo) : false;
+      const remotoJugadores = (data.mundo.jugadores?.length || 0) > 0 ||
+        Object.keys(data.mundo.partidas || {}).length > 0;
       const localMapa = this._contarElementosMapa(this.publicado || {}) > 0;
-      if (!remotoMapa) return false;
-      if (tsRemoto < tsLocal && localMapa) return false;
+      if (!remotoMapa && !remotoJugadores) return false;
+      if (tsRemoto < tsLocal && localMapa && !remotoJugadores) return false;
       const json = JSON.stringify(data.mundo);
       this._crudoPublicado = json;
       this._ultimoFirmaPublicada = this._firmaMundo(json);
@@ -356,6 +358,9 @@ const Admin = {
       this._aplicarMundoRemoto(json);
       if (typeof Multijugador !== 'undefined' && Multijugador.aplicarMundoPendiente) {
         Multijugador.aplicarMundoPendiente();
+      }
+      if (typeof Multijugador !== 'undefined' && Multijugador._sincronizarPinesPartida) {
+        Multijugador._sincronizarPinesPartida();
       }
       return true;
     } catch (e) {
@@ -2635,12 +2640,16 @@ const Admin = {
   },
 
   refrescarVisibles() {
-    if (!GPS.posicion) return;
-    for (const t of this.tesorosTodos()) {
-      this._revisarTesoro(t, Utilidades.distanciaMetros(GPS.posicion, t.pos));
+    if (GPS.posicion) {
+      for (const t of this.tesorosTodos()) {
+        this._revisarTesoro(t, Utilidades.distanciaMetros(GPS.posicion, t.pos));
+      }
     }
     this._refrescarObjetosMapa();
-    this._refrescarBolsasMapa();
+    if (GPS.posicion) this._refrescarBolsasMapa();
+    if (typeof Multijugador !== 'undefined' && Multijugador._sincronizarPinesPartida) {
+      Multijugador._sincronizarPinesPartida();
+    }
   },
 
   _refrescarBolsasMapa() {

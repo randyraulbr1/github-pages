@@ -20,6 +20,7 @@ const Multijugador = {
   _mundoPendiente: null,
   _reconectando: false,
   _mundoSocketListo: false,
+  _marcadoresPartida: {},
 
   urlServidor() {
     return (CONFIG.servidorOnline || '').replace(/\/$/, '');
@@ -523,7 +524,9 @@ const Multijugador = {
       (m.tiendasAdmin?.length || 0) + Object.keys(m.posiciones || {}).length;
     const tieneContenido = typeof MundoPublico !== 'undefined' && MundoPublico.mundoTieneContenido
       ? MundoPublico.mundoTieneContenido(m) : tieneMapa > 0;
-    if (!tieneContenido && !(m.jugadores?.length)) return false;
+    const tieneJugadores = (m.jugadores?.length || 0) > 0 ||
+      Object.keys(m.partidas || {}).length > 0;
+    if (!tieneContenido && !tieneJugadores) return false;
 
     if (typeof Admin === 'undefined' || typeof Admin._aplicarMundoRemoto !== 'function') {
       this._mundoPendiente = data;
@@ -541,6 +544,7 @@ const Multijugador = {
     Admin._aplicarMundoRemoto(json, { soloMapa: true });
     if (m.cuerposMuertos) this._aplicarCuerpos(m.cuerposMuertos);
     if (tieneContenido) this._mundoSocketListo = true;
+    this._sincronizarPinesPartida();
     if (avisar && typeof Usuarios !== 'undefined' && !Usuarios.esAdministrador() &&
         typeof Notificaciones !== 'undefined') {
       Notificaciones.mostrar('🌍 El admin actualizó el mapa', 'info', 4000);
@@ -579,14 +583,18 @@ const Multijugador = {
       if (!data.ok || !data.mundo) return false;
       if (typeof MundoPublico !== 'undefined' && MundoPublico.mundoTieneContenido &&
           !MundoPublico.mundoTieneContenido(data.mundo)) {
-        const gh = await MundoPublico._descargarDesdeGitHub?.();
-        if (gh?.texto) {
-          return this._aplicarMundoServidor({
-            mundo: JSON.parse(gh.texto),
-            actualizadoEn: gh.actualizadoEn || 0
-          }, false);
+        const tieneJugadores = (data.mundo.jugadores?.length || 0) > 0 ||
+          Object.keys(data.mundo.partidas || {}).length > 0;
+        if (!tieneJugadores) {
+          const gh = await MundoPublico._descargarDesdeGitHub?.();
+          if (gh?.texto) {
+            return this._aplicarMundoServidor({
+              mundo: JSON.parse(gh.texto),
+              actualizadoEn: gh.actualizadoEn || 0
+            }, false);
+          }
+          return false;
         }
-        return false;
       }
       return this._aplicarMundoServidor({
         mundo: data.mundo,
@@ -1081,9 +1089,91 @@ const Multijugador = {
   },
 
   refrescarMarcadoresDistancia() {
-    if (!this.activo) return;
-    for (const p of this.online) this._actualizarMarcador(p);
-    this._actualizarLineasAmigo();
+    if (this.activo) {
+      for (const p of this.online) this._actualizarMarcador(p);
+      this._actualizarLineasAmigo();
+    }
+    this._sincronizarPinesPartida();
+  },
+
+  _nombreEnLinea(nombre) {
+    const n = String(nombre || '').trim().toLowerCase();
+    return this.online.some(p => String(p.name || '').trim().toLowerCase() === n);
+  },
+
+  _quitarMarcadorPartida(perfilId) {
+    const m = this._marcadoresPartida[perfilId];
+    if (m && Mapa.mapa) {
+      try { Mapa.mapa.removeLayer(m); } catch (e) { /* */ }
+    }
+    delete this._marcadoresPartida[perfilId];
+  },
+
+  _jugadorPartidaVisible(j, lat, lng) {
+    const fake = { playerId: -1, name: j.nombre, x: lat, y: lng };
+    if (!this._debeMostrarJugador(fake)) return false;
+    return true;
+  },
+
+  _actualizarMarcadorPartida(j, lat, lng, partida) {
+    if (!Mapa.mapa || !j?.id) return;
+    const nivel = partida?.datos?.nivel || 1;
+    const fake = {
+      playerId: -1,
+      name: j.nombre,
+      x: lat,
+      y: lng,
+      level: nivel,
+      hp: partida?.datos?.vida ?? 100,
+      hpMax: 100
+    };
+    let m = this._marcadoresPartida[j.id];
+    const icon = this._iconoJugador(fake);
+    if (!m) {
+      m = L.marker([lat, lng], {
+        icon,
+        interactive: true,
+        zIndexOffset: 850
+      }).addTo(Mapa.mapa);
+      m.bindPopup(
+        () => '<b>' + this._nombreMarcador(fake) + '</b><br><small>Última posición guardada</small>',
+        { maxWidth: 260, className: 'popup-jugador-wrap', closeButton: true }
+      );
+      this._marcadoresPartida[j.id] = m;
+    } else {
+      m.setLatLng([lat, lng]);
+      m.setIcon(icon);
+    }
+  },
+
+  /** Pines de jugadores desde partidas guardadas (cuando no están conectados al socket). */
+  _sincronizarPinesPartida() {
+    if (!Mapa.mapa || typeof Admin === 'undefined' || !Admin.publicado) return;
+    const miId = typeof Usuarios !== 'undefined' ? Usuarios.perfilActivo?.id : null;
+    const jugadores = Admin.jugadoresGlobales ? Admin.jugadoresGlobales() : (Admin.publicado.jugadores || []);
+    const partidas = Admin.publicado.partidas || {};
+    const activos = new Set();
+
+    for (const j of jugadores) {
+      if (!j?.id || j.id === miId) continue;
+      if (this._nombreEnLinea(j.nombre)) continue;
+      const part = partidas[j.id];
+      const pos = part?.datos?.posicionJugador;
+      if (!pos || pos.length < 2) continue;
+      const lat = Number(pos[0]);
+      const lng = Number(pos[1]);
+      if (!Number.isFinite(lat) || !Number.isFinite(lng)) continue;
+      if (!this._jugadorPartidaVisible(j, lat, lng)) {
+        this._quitarMarcadorPartida(j.id);
+        continue;
+      }
+      activos.add(j.id);
+      this._actualizarMarcadorPartida(j, lat, lng, part);
+    }
+
+    for (const id of Object.keys(this._marcadoresPartida)) {
+      if (!activos.has(id)) this._quitarMarcadorPartida(id);
+    }
   },
 
   _destinoAmigoMarcado(pid) {
@@ -1398,6 +1488,7 @@ const Multijugador = {
     }
     this._redibujarCuerpos();
     this._actualizarLineasAmigo();
+    this._sincronizarPinesPartida();
     if (typeof Amigos !== 'undefined') Amigos._pintarSiAbierto();
     if (mostrarAviso !== false && this.online.length && typeof Notificaciones !== 'undefined') {
       Notificaciones.mostrar('👥 ' + this.online.length + ' jugador(es) en vivo', 'info', 3000);
