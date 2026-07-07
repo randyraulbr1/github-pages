@@ -102,7 +102,15 @@ async function arrancar() {
   }
 
   try {
-    const { countUsers, reconciliarCuentasEnSnapshot } = require('./syncCuentas');
+    const { countUsers, reconciliarCuentasEnSnapshot, purgarCuentasFueraDeSnapshot } = require('./syncCuentas');
+    const { getWorldSnapshot } = require('./db');
+    const snap = getWorldSnapshot();
+    if (snap?.jugadores?.length) {
+      const purga = purgarCuentasFueraDeSnapshot(snap);
+      if (purga.removed > 0) {
+        console.log('   Cuentas SQLite purgadas (no están en snapshot):', purga.removed);
+      }
+    }
     const n = countUsers();
     const rec = reconciliarCuentasEnSnapshot();
     console.log('   Usuarios en BD:', n, '| Jugadores en snapshot:', rec.total);
