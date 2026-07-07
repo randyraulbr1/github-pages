@@ -8,6 +8,7 @@ const Amigos = {
   blocked: [],
   friendIds: new Set(),
   blockedIds: new Set(),
+  _socialCacheKey: 'mariel_amigos_social_v1',
   _marcadosKey: 'mariel_amigos_pin',
   _favKey: 'mariel_amigos_fav',
   _marcados: new Set(),
@@ -186,6 +187,11 @@ const Amigos = {
     this.blocked = data.blocked || [];
     this.friendIds = new Set((data.friendIds || this.friends.map(f => f.playerId)).map(Number));
     this.blockedIds = new Set((data.blockedIds || this.blocked.map(b => b.playerId)).map(Number));
+    try {
+      if ((data.friends || []).length || (data.pendingIn || []).length) {
+        localStorage.setItem(this._socialCacheKey, JSON.stringify(data));
+      }
+    } catch (e) { /* */ }
     this._pintar();
     if (typeof Chat !== 'undefined') {
       if (Chat.activePlayer) Chat.updateFriendButton();
@@ -235,6 +241,7 @@ const Amigos = {
       this._uiLista = true;
       this._cargarMarcados();
     }
+    this._cargarSocialCache();
     if (!enlazar()) {
       document.addEventListener('DOMContentLoaded', () => enlazar(), { once: true });
     }
@@ -312,14 +319,31 @@ const Amigos = {
     if (typeof fn === 'function') await fn();
   },
 
+  _cargarSocialCache() {
+    if (this.friends.length) return;
+    try {
+      const raw = localStorage.getItem(this._socialCacheKey);
+      if (!raw) return;
+      const data = JSON.parse(raw);
+      if (data?.friends?.length) this.aplicarSocial(data);
+    } catch (e) { /* */ }
+  },
+
   async refrescar() {
     const base = this._base();
-    if (!base || !this._token()) return;
+    if (!base || !this._token()) {
+      this._cargarSocialCache();
+      return;
+    }
     try {
       const r = await fetch(base + '/api/friends', { headers: this._headers() });
       const data = await r.json();
-      if (data.ok) this.aplicarSocial(data);
+      if (data.ok) {
+        this.aplicarSocial(data);
+        return;
+      }
     } catch (e) { /* sin red */ }
+    this._cargarSocialCache();
   },
 
   async solicitarPorNombre() {
