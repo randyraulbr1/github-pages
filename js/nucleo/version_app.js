@@ -14,6 +14,34 @@ const MarielVersion = {
   _swReg: null,
   _actualizando: false,
 
+  _prepararLoginTrasActualizacion() {
+    try {
+      sessionStorage.setItem('mariel_forzar_login', '1');
+      const raw = localStorage.getItem('mariel_perfiles_v2');
+      if (raw) {
+        const datos = JSON.parse(raw);
+        if (datos && typeof datos === 'object') {
+          datos.activo = null;
+          datos.sesionId = null;
+          localStorage.setItem('mariel_perfiles_v2', JSON.stringify(datos));
+        }
+      }
+      localStorage.removeItem('mariel_online_token');
+    } catch (e) { /* */ }
+  },
+
+  _estadoActualizar(texto, visible) {
+    const el = document.getElementById('actualizar-estado');
+    if (!el) return;
+    if (!visible) {
+      el.classList.add('oculto');
+      el.textContent = '';
+      return;
+    }
+    el.textContent = texto || '';
+    el.classList.remove('oculto');
+  },
+
   _aplicarVersionTrasActualizacion() {
     try {
       const fuerza = sessionStorage.getItem('mariel_force_version');
@@ -166,6 +194,7 @@ const MarielVersion = {
       btn.disabled = false;
       btn.textContent = 'Actualizar';
     }
+    this._estadoActualizar('', false);
   },
 
   revisar() {
@@ -190,10 +219,18 @@ const MarielVersion = {
   },
 
   mostrarBloqueo(local, remoto) {
-    if (this._bloqueado) return;
+    if (this._bloqueado) {
+      const det = document.getElementById('actualizar-detalle');
+      if (det) det.textContent = 'Tu versión: ' + local + ' · Nueva: ' + remoto;
+      return;
+    }
     this._bloqueado = true;
     this._remota = String(remoto || this._remota || '');
     document.body.classList.add('mariel-bloqueado-actualizar');
+
+    const det = document.getElementById('actualizar-detalle');
+    if (det) det.textContent = 'Tu versión: ' + local + ' · Nueva: ' + remoto;
+    this._estadoActualizar('', false);
 
     const pant = document.getElementById('pantalla-actualizar');
     if (pant) pant.classList.remove('oculto');
@@ -249,20 +286,20 @@ const MarielVersion = {
     this._actualizando = true;
 
     const btn = document.getElementById('btn-actualizar-app');
-    const msg = (t) => { if (btn) btn.textContent = t; };
-    if (btn) btn.disabled = true;
+    if (btn) {
+      btn.disabled = true;
+      btn.textContent = 'Actualizar';
+    }
 
-    msg('Comprobando…');
+    this._estadoActualizar('Comprobando versión…', true);
     let objetivo = null;
     try {
       objetivo = await this.obtenerRemota();
     } catch (e) { /* */ }
     objetivo = String(objetivo || this._remota || this._embebida || '');
     if (!objetivo || objetivo === '?') {
-      if (btn) {
-        btn.disabled = false;
-        btn.textContent = 'Actualizar';
-      }
+      if (btn) btn.disabled = false;
+      this._estadoActualizar('No se pudo comprobar la versión. Reintenta.', true);
       this._actualizando = false;
       return;
     }
@@ -274,14 +311,15 @@ const MarielVersion = {
       sessionStorage.setItem('mariel_actualizado_en', String(Date.now()));
     } catch (e) { /* */ }
 
-    msg('Actualizando…');
+    this._prepararLoginTrasActualizacion();
+    this._estadoActualizar('Limpiando caché…', true);
     await this._limpiarTodaCache();
 
-    msg('Descargando…');
+    this._estadoActualizar('Descargando v' + objetivo + '…', true);
     await this._precargarVersion(objetivo);
 
-    msg('Entrando…');
-    await new Promise((r) => setTimeout(r, 250));
+    this._estadoActualizar('Listo — iniciar sesión…', true);
+    await new Promise((r) => setTimeout(r, 350));
 
     const url = location.origin + '/?_mariel=' + Date.now();
     location.replace(url);
