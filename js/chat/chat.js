@@ -443,6 +443,10 @@ const Chat = {
   },
 
   async openConversation(playerId) {
+    if (typeof Amigos !== 'undefined' && Amigos.bloqueadoCon(playerId)) {
+      Notificaciones.mostrar('No puedes chatear con este jugador', 'alerta', 3000);
+      return;
+    }
     this.activePlayer = Number(playerId);
     this.marcarContacto(this.activePlayer, this._nombreJugador(this.activePlayer));
     this.unread[this.activePlayer] = 0;
