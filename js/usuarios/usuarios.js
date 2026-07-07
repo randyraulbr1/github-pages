@@ -39,18 +39,33 @@ const Usuarios = {
       if (!this.datos) this.datos = { lista: [], activo: null, sesionId: null };
       this._aplicarResetCuentasV56();
 
-      const sesion = this.datos.sesionId && this.datos.lista.find(p => p.id === this.datos.sesionId);
-      if (sesion) {
-        this.perfilActivo = sesion;
-        this.datos.activo = sesion.id;
-        document.body.classList.remove('en-auth');
-        if (window.MarielBoot) MarielBoot.enfrente('Cargando tu partida…');
-        if (this._resolver) { this._resolver(); this._resolver = null; }
-        return;
+      let forzarLogin = false;
+      try {
+        if (sessionStorage.getItem('mariel_forzar_login')) {
+          sessionStorage.removeItem('mariel_forzar_login');
+          this.datos.activo = null;
+          this.datos.sesionId = null;
+          this._guardarLista();
+          forzarLogin = true;
+        }
+      } catch (e) { /* */ }
+
+      if (!forzarLogin) {
+        const sesion = this.datos.sesionId && this.datos.lista.find(p => p.id === this.datos.sesionId);
+        if (sesion) {
+          this.perfilActivo = sesion;
+          this.datos.activo = sesion.id;
+          document.body.classList.remove('en-auth');
+          if (window.MarielBoot) MarielBoot.enfrente('Cargando tu partida…');
+          if (this._resolver) { this._resolver(); this._resolver = null; }
+          return;
+        }
       }
+
+      this.perfilActivo = null;
       document.body.classList.add('en-auth');
       this.mostrarLogin();
-      MundoPublico.descargar().then(t => { if (t) this._mundoCache = t; }).catch(() => {});
+      if (this._resolver) { this._resolver(); this._resolver = null; }
     });
   },
 
