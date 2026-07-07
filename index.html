@@ -4,15 +4,15 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
   <title>Mariel Explorer</title>
-  <meta name="mariel-version" content="221">
+  <meta name="mariel-version" content="222">
   <link rel="manifest" href="manifest.json">
   <link rel="icon" type="image/png" href="iconos/icono-192.png">
   <link rel="apple-touch-icon" href="iconos/icono-192.png">
   <link rel="stylesheet" href="lib/leaflet/leaflet.css">
-  <link rel="stylesheet" href="css/estilos.css?v=221">
-  <link rel="stylesheet" href="css/chat.css?v=221">
-  <link rel="stylesheet" href="css/amigos.css?v=221">
-  <link rel="stylesheet" href="css/opciones.css?v=221">
+  <link rel="stylesheet" href="css/estilos.css?v=222">
+  <link rel="stylesheet" href="css/chat.css?v=222">
+  <link rel="stylesheet" href="css/amigos.css?v=222">
+  <link rel="stylesheet" href="css/opciones.css?v=222">
   <link rel="stylesheet" href="css/notificaciones.css?v=117">
   <script>
     (function () {
@@ -25,12 +25,48 @@
         if (fv && t0 && Date.now() - t0 < 120000) E = fv;
       } catch (e) { /* */ }
       window.__MARIEL_EMBEDDED__ = E;
+      function mostrarPantallaTemprana(p) {
+        if (!p || !p.remote) return;
+        function aplicar() {
+          var det = document.getElementById('actualizar-detalle');
+          if (det) det.textContent = 'Tu versión: ' + p.local + ' · Nueva: ' + p.remote;
+          var pant = document.getElementById('pantalla-actualizar');
+          if (pant) pant.classList.remove('oculto');
+          document.body.classList.add('mariel-bloqueado-actualizar');
+          var btn = document.getElementById('btn-actualizar-app');
+          if (btn && !btn._marielEmergenciaOk) {
+            btn._marielEmergenciaOk = true;
+            btn.addEventListener('click', function () {
+              if (window.MarielVersion && typeof MarielVersion.actualizar === 'function') {
+                MarielVersion.actualizar();
+                return;
+              }
+              try { sessionStorage.setItem('mariel_forzar_login', '1'); } catch (e) { /* */ }
+              var ir = function () { location.replace(location.origin + '/?_mariel=' + Date.now()); };
+              if ('serviceWorker' in navigator) {
+                navigator.serviceWorker.getRegistrations().then(function (rs) {
+                  return Promise.all(rs.map(function (r) { return r.unregister(); }));
+                }).then(function () {
+                  if ('caches' in window) {
+                    return caches.keys().then(function (ks) {
+                      return Promise.all(ks.map(function (k) { return caches.delete(k); }));
+                    });
+                  }
+                }).finally(ir);
+              } else { ir(); }
+            });
+          }
+        }
+        if (document.body) aplicar();
+        else document.addEventListener('DOMContentLoaded', aplicar);
+      }
       function revisar(j) {
         if (!j || !j.version) return;
         var rem = parseInt(j.version, 10);
         var loc = parseInt(E, 10);
         if (rem > loc) {
           window.__MARIEL_UPDATE_PENDING = { local: E, remote: j.version };
+          mostrarPantallaTemprana(window.__MARIEL_UPDATE_PENDING);
           try {
             window.dispatchEvent(new CustomEvent('mariel-update-pending', {
               detail: window.__MARIEL_UPDATE_PENDING
@@ -76,7 +112,7 @@
     </div>
   </div>
 
-  <script src="js/nucleo/version_app.js?v=221"></script>
+  <script src="js/nucleo/version_app.js?v=222"></script>
   <script>MarielVersion.iniciar(window.__MARIEL_EMBEDDED__);</script>
 
   <!-- PANTALLA DE CARGA (visible desde el primer instante) -->
@@ -1099,18 +1135,18 @@
   <script src="lib/leaflet/leaflet.js?v=104"></script>
 
   <!-- MÓDULOS DEL JUEGO (orden importante) -->
-  <script src="js/config/config.js?v=221"></script>
-  <script src="js/nucleo/utilidades.js?v=221"></script>
+  <script src="js/config/config.js?v=222"></script>
+  <script src="js/nucleo/utilidades.js?v=222"></script>
   <script src="js/mundo/mundo_publico.js?v=104"></script>
   <script src="js/notificaciones/notificaciones.js?v=137"></script>
-  <script src="js/usuarios/usuarios.js?v=221"></script>
+  <script src="js/usuarios/usuarios.js?v=222"></script>
   <script src="js/guardado/guardado.js?v=149"></script>
   <script src="js/historial/historial.js?v=104"></script>
   <script src="js/dinero/dinero.js?v=104"></script>
-  <script src="js/vida/vida.js?v=221"></script>
+  <script src="js/vida/vida.js?v=222"></script>
   <script src="js/items/items.js?v=140"></script>
-  <script src="js/mochila/mochila.js?v=221"></script>
-  <script src="js/bolsas/bolsas.js?v=221"></script>
+  <script src="js/mochila/mochila.js?v=222"></script>
+  <script src="js/bolsas/bolsas.js?v=222"></script>
   <script src="js/mapa/mapa.js?v=104"></script>
   <script src="js/gps/gps.js?v=150"></script>
   <script src="js/tiendas/datos_tiendas.js?v=104"></script>
@@ -1122,19 +1158,19 @@
   <script src="js/misiones/misiones.js?v=104"></script>
   <script src="js/cofres/cofres.js?v=104"></script>
   <script src="js/correo/correo.js?v=104"></script>
-  <script src="js/enemigos/enemigos.js?v=221"></script>
-  <script src="js/online/sync_servidor.js?v=221"></script>
-  <script src="js/admin/admin.js?v=221"></script>
-  <script src="js/opciones/opciones.js?v=221"></script>
-  <script src="js/online/mundo_online.js?v=221"></script>
-  <script src="js/online/amigos.js?v=221"></script>
-  <script src="js/chat/chat.js?v=221"></script>
-  <script src="js/online/multijugador.js?v=221"></script>
-  <script src="js/principal.js?v=221"></script>
+  <script src="js/enemigos/enemigos.js?v=222"></script>
+  <script src="js/online/sync_servidor.js?v=222"></script>
+  <script src="js/admin/admin.js?v=222"></script>
+  <script src="js/opciones/opciones.js?v=222"></script>
+  <script src="js/online/mundo_online.js?v=222"></script>
+  <script src="js/online/amigos.js?v=222"></script>
+  <script src="js/chat/chat.js?v=222"></script>
+  <script src="js/online/multijugador.js?v=222"></script>
+  <script src="js/principal.js?v=222"></script>
   <script>
     // Registrar la app instalable (PWA)
     if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.register('sw.js?v=221', { updateViaCache: 'none' })
+      navigator.serviceWorker.register('sw.js?v=222', { updateViaCache: 'none' })
         .then(function (reg) {
           if (typeof MarielVersion !== 'undefined') MarielVersion.registrarServiceWorker(reg);
         })

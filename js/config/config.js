@@ -3,7 +3,7 @@
 // ============================================================
 const CONFIG = {
   // Cambiar al publicar: obliga al móvil a descartar caché vieja
-  version: '221',
+  version: '222',
   maxPila: 10,
 
   // Nombre reservado del administrador (solo este jugador ve el panel admin)
@@ -67,7 +67,7 @@ const CONFIG = {
 
   // Dónde publica el admin el mundo (botón PUBLICAR MUNDO)
   repoPublicacion: 'randyraulbr1/github-pages',
-  ramaPublicacion: 'claude/web-rpg-gps-game-n3ybow',
+  ramaPublicacion: 'main',
 
   // Solo desarrollo local (nunca subas un token real al repositorio)
   tokenRegistroJugadores: '',
