@@ -214,6 +214,7 @@ const Multijugador = {
       this.enviarStats(true);
       this._iniciarPollingMundo();
       this.loadWorld();
+      if (typeof Amigos !== 'undefined') Amigos.refrescar();
       if (typeof Chat !== 'undefined') Chat.refrescarConversaciones();
       if (typeof Usuarios !== 'undefined' && Usuarios.perfilActivo &&
           typeof SyncServidor !== 'undefined' && SyncServidor.registrarCuenta) {
@@ -640,6 +641,15 @@ const Multijugador = {
     }
 
     const ts = data.actualizadoEn || m.actualizadoEn || Date.now();
+    const remotoN = Admin._contarElementosMapa(m);
+    const localN = Admin._contarMapaAdminCompleto();
+    if (remotoN < localN) {
+      if (typeof Usuarios !== 'undefined' && Usuarios.esAdministrador()) {
+        setTimeout(() => Admin._publicarParaTodos(true), 2500);
+      }
+      return false;
+    }
+
     const json = JSON.stringify(m);
     const firma = Admin._firmaMundo(json);
     if (ts <= this.mundoServidorTs && firma === Admin._ultimoFirmaPublicada) return false;
