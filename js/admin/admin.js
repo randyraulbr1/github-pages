@@ -356,10 +356,21 @@ const Admin = {
     }
     adminLocal.posiciones = Object.assign({}, snap.posiciones || {}, adminLocal.posiciones || {});
     adminLocal.enemigosEstado = Object.assign({}, snap.enemigosEstado || {}, adminLocal.enemigosEstado || {});
-    adminLocal.tesorosEstado = Object.assign({}, snap.tesorosEstado || {}, adminLocal.tesorosEstado || {});
-    adminLocal.objetosEstado = Object.assign({}, snap.objetosEstado || {}, adminLocal.objetosEstado || {});
+    adminLocal.tesorosEstado = this._fusionarEstadosMapa(snap.tesorosEstado, adminLocal.tesorosEstado);
+    adminLocal.objetosEstado = this._fusionarEstadosMapa(snap.objetosEstado, adminLocal.objetosEstado);
     adminLocal.tiendasStock = Object.assign({}, snap.tiendasStock || {}, adminLocal.tiendasStock || {});
     return adminLocal;
+  },
+
+  /** Conserva recogidas locales si el snapshot del servidor llega desactualizado. */
+  _fusionarEstadosMapa(remoto, local) {
+    const out = Object.assign({}, remoto || {});
+    for (const [id, st] of Object.entries(local || {})) {
+      if (!st?.recogidoAt) continue;
+      const prev = out[id];
+      if (!prev?.recogidoAt || st.recogidoAt >= prev.recogidoAt) out[id] = st;
+    }
+    return out;
   },
 
   /** Carga el mundo solo desde el servidor Render (SQLite). */
@@ -636,20 +647,6 @@ const Admin = {
           this._moverCuerpoAdmin(p.playerId, +ll.lat.toFixed(6), +ll.lng.toFixed(6));
         });
       }
-      for (const p of (Multijugador.online || [])) {
-        if (Multijugador._estaMuerto(p)) continue;
-        const m = Multijugador.marcadores[p.playerId];
-        if (!m) continue;
-        this._arrastreOrganizarMarcador(m, {
-          id: 'jugador_' + p.playerId,
-          marcador: m,
-          _jugadorPlayerId: p.playerId,
-          nombre: p.name || 'Jugador'
-        }, (marc) => {
-          const ll = marc.getLatLng();
-          this._moverJugadorAdmin(p.playerId, +ll.lat.toFixed(6), +ll.lng.toFixed(6));
-        });
-      }
     }
   },
 
@@ -847,11 +844,6 @@ const Admin = {
           const espera = Math.min(30000, 2000 + this._intentosPub * 2500);
           clearTimeout(this._tempPublicar);
           this._tempPublicar = setTimeout(() => this._procesarColaPublicacion(), espera);
-        } else if (this.esAdminJugador()) {
-          Notificaciones.mostrar(
-            '❌ No se pudo subir al servidor. Revisa tu conexión o pulsa Guardar mapa.',
-            'error', 8000
-          );
         }
       } else {
         this._intentosPub = 0;
@@ -1744,6 +1736,8 @@ const Admin = {
 
     const jugadoresGuardados = (this.publicado?.jugadores || []).slice();
     const partidasGuardadas = Object.assign({}, this.publicado?.partidas || {});
+    const tesorosEstadoPrev = Object.assign({}, this.publicado?.tesorosEstado || {});
+    const objetosEstadoPrev = Object.assign({}, this.publicado?.objetosEstado || {});
     const idsObjetosAntes = new Set(this.objetosTodos().map(o => o.id));
     const idsTesorosAntes = new Set(this.tesorosTodos().map(t => t.id));
     const idsMisionesAntes = new Set(this.misionesTodas().map(m => m.id));
@@ -1786,6 +1780,13 @@ const Admin = {
     if (!this.publicado.mensajes) this.publicado.mensajes = [];
     if (!this.publicado.mantenimiento) this.publicado.mantenimiento = { activo: false, mensaje: '' };
     if (!this.publicado.tesorosEstado) this.publicado.tesorosEstado = {};
+    this.publicado.tesorosEstado = this._fusionarEstadosMapa(
+      this.publicado.tesorosEstado, tesorosEstadoPrev
+    );
+    if (!this.publicado.objetosEstado) this.publicado.objetosEstado = {};
+    this.publicado.objetosEstado = this._fusionarEstadosMapa(
+      this.publicado.objetosEstado, objetosEstadoPrev
+    );
     if (!this.publicado.tiendasStock) this.publicado.tiendasStock = {};
     if (!this.publicado.enemigos) this.publicado.enemigos = [];
     if (!this.publicado.enemigosEstado) this.publicado.enemigosEstado = {};
@@ -1813,6 +1814,9 @@ const Admin = {
     this._refrescarObjetosMapa();
     for (const [id, st] of Object.entries(this.publicado.objetosEstado || {})) {
       if (st?.recogidoAt) this.aplicarRecogidaCompartida(id, st.recogidoAt, st.playerId);
+    }
+    for (const [id, st] of Object.entries(this.publicado.tesorosEstado || {})) {
+      if (st?.recogidoAt) this.aplicarRecogidaTesoro(id, st.recogidoAt);
     }
 
     if (typeof Cofres !== 'undefined') Cofres._pintarTodos();
@@ -2794,20 +2798,36 @@ const Admin = {
 
   // ---------- COLOCAR EL PIN EN EL MAPA ----------
   _empezarColocacion() {
+    if (typeof Cofres !== 'undefined') Cofres.cancelarPin(true);
+    document.body.classList.remove('admin-organizar');
     document.getElementById('ventana-admin').classList.add('oculto');
     this.modo = 'colocar';
     const centro = Mapa.mapa.getCenter();
+    const icono = (this._colocacion?.tipo === 'tienda_admin')
+      ? (this._colocacion.valores?.icono || '🏪')
+      : (this._colocacion?.tipo === 'enemigo')
+        ? (this._colocacion.valores?.icono || '👹')
+        : (this._colocacion?.tipo === 'mision')
+          ? '📜'
+          : (this._colocacion?.tipo === 'tesoro')
+            ? (this._colocacion.valores?.iconoMapa || this.tesoroIconoMapa() || '🎁')
+            : '📌';
     const marcador = L.marker([centro.lat, centro.lng], {
       draggable: true,
       zIndexOffset: 2000,
-      icon: L.divIcon({ className: '', html: '<div class="icono-admin-pin">📌</div>', iconSize: [34, 34], iconAnchor: [17, 30] })
+      icon: L.divIcon({
+        className: '',
+        html: '<div class="icono-admin-pin">' + icono + '</div>',
+        iconSize: [34, 34],
+        iconAnchor: [17, 30]
+      })
     }).addTo(Mapa.mapa);
     this._colocacion.marcador = marcador;
-    this._mostrarControles('Arrastra el pin 📌 a su lugar y confirma', true);
+    this._mostrarControles('Arrastra el pin a su lugar y pulsa Confirmar', true);
   },
 
   async confirmarColocacion() {
-    if (typeof Cofres !== 'undefined' && Cofres._colocarPin) {
+    if (this.modo === 'colocar_cofre' && typeof Cofres !== 'undefined' && Cofres._colocarPin) {
       await Cofres.confirmarPin();
       return;
     }
@@ -2904,9 +2924,9 @@ const Admin = {
     for (const t of this.tesorosTodos()) {
       if (t.id !== tesoroId) continue;
       if (t._marcador) { t._marcador.remove(); t._marcador = null; }
-      this._revisarTesoro(t, Infinity);
       break;
     }
+    if (GPS.posicion) this.refrescarVisibles();
   },
 
   _itemsDeTesoro(t) {
@@ -3095,9 +3115,16 @@ const Admin = {
       }
     }
     const est = this._tesorosEstadoGlobal();
-    est[t.id] = { recogidoAt: Date.now() };
+    const recogidoAt = Date.now();
+    est[t.id] = { recogidoAt };
     if (typeof Multijugador !== 'undefined' && Multijugador.activo && CONFIG.servidorOnline) {
-      await Multijugador.recogerTesoroCompartido(t.id);
+      const ok = await Multijugador.recogerTesoroCompartido(t.id);
+      if (!ok) {
+        delete est[t.id];
+        return;
+      }
+    } else {
+      this.aplicarRecogidaTesoro(t.id, recogidoAt);
     }
     if (!this._progreso().tesoros.includes(t.id)) this._progreso().tesoros.push(t.id);
     Guardado.guardar();
@@ -3282,10 +3309,11 @@ const Admin = {
   _limpiarPinOrganizar(marcador, punto) {
     if (!marcador || !punto) return;
     if (punto._orgArm) marcador.off('click', punto._orgArm);
+    if (punto._orgToggle) marcador.off('click', punto._orgToggle);
     if (punto._orgDragStart) marcador.off('dragstart', punto._orgDragStart);
     if (punto._movOrg) marcador.off('drag', punto._movOrg);
     if (punto._finOrg) marcador.off('dragend', punto._finOrg);
-    punto._orgArm = punto._orgDragStart = punto._movOrg = punto._finOrg = null;
+    punto._orgArm = punto._orgToggle = punto._orgDragStart = punto._movOrg = punto._finOrg = null;
     marcador.options.draggable = false;
     if (marcador.dragging) marcador.dragging.disable();
     const el = marcador.getElement?.();
@@ -3397,7 +3425,10 @@ const Admin = {
           if (ev.cancelable) ev.preventDefault();
           if (this.modo !== 'organizar') return;
           const pinEl = marcador.getElement?.();
-          if (pinEl) pinEl.classList.add('admin-pin-armado');
+          if (pinEl) {
+            pinEl.classList.add('admin-pin-armado');
+            pinEl.classList.remove('admin-pin-controles-ocultos');
+          }
           btn?.classList.add('oculto');
           grip.classList.add('oculto');
           marcador.options.draggable = true;
@@ -3423,6 +3454,18 @@ const Admin = {
         grip.addEventListener('mousedown', armar);
         grip.addEventListener('touchstart', armar, { passive: false });
         el.appendChild(grip);
+      }
+      if (!punto._orgToggle) {
+        punto._orgToggle = (ev) => {
+          if (this.modo !== 'organizar') return;
+          if (ev.target?.closest?.('.admin-pin-x, .admin-pin-grip')) return;
+          const pinEl = marcador.getElement?.();
+          if (!pinEl || pinEl.classList.contains('admin-pin-armado') ||
+              pinEl.classList.contains('admin-pin-moviendo')) return;
+          L.DomEvent.stopPropagation(ev);
+          pinEl.classList.toggle('admin-pin-controles-ocultos');
+        };
+        marcador.on('click', punto._orgToggle);
       }
       return { btn, grip };
     };
@@ -3505,7 +3548,7 @@ const Admin = {
       cesto.classList.remove('activo', 'cesto-hover');
     }
     this._mostrarControles(
-      '⊞ Arrastra con el cuadrito · ✕ borra el pin (también ataúdes ⚰️)',
+      '⊞ Arrastra con el cuadrito · ✕ borra · Toca el icono para ocultar controles',
       false
     );
     if (typeof Enemigos !== 'undefined' && Enemigos._actualizarZonasOrganizar) {

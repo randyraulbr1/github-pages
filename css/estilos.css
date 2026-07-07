@@ -2807,8 +2807,8 @@ body.admin-organizar .admin-pin-organizar {
 }
 .admin-pin-grip {
   position: absolute;
-  bottom: -10px;
-  left: -8px;
+  bottom: -22px;
+  left: -20px;
   z-index: 50;
   width: 28px;
   height: 28px;
@@ -2839,8 +2839,8 @@ body.admin-organizar .admin-pin-organizar {
 }
 .admin-pin-x {
   position: absolute;
-  top: -10px;
-  right: -6px;
+  top: -28px;
+  right: -18px;
   z-index: 50;
   width: 26px;
   height: 26px;
@@ -2860,17 +2860,19 @@ body.admin-organizar .admin-pin-organizar {
 }
 .admin-pin-x.oculto { display: none !important; }
 .admin-pin-moviendo .admin-pin-x { display: none !important; }
+.admin-pin-controles-ocultos .admin-pin-x,
+.admin-pin-controles-ocultos .admin-pin-grip { display: none !important; }
 .leaflet-marker-icon.admin-pin-organizar:has(.enemigo-pin) .admin-pin-grip {
-  bottom: 4px;
-  left: 6px;
+  bottom: -18px;
+  left: -16px;
   width: 32px;
   height: 32px;
   font-size: 17px;
   z-index: 60;
 }
 .leaflet-marker-icon.admin-pin-organizar:has(.enemigo-pin) .admin-pin-x {
-  top: 2px;
-  right: 4px;
+  top: -24px;
+  right: -14px;
   z-index: 60;
 }
 body.admin-organizar .leaflet-marker-icon {
