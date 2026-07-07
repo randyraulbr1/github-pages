@@ -97,7 +97,7 @@ const SyncServidor = {
       titulo.style.cssText = 'margin:0 0 8px;font-size:1.05rem';
 
       const texto = document.createElement('p');
-      texto.textContent = 'Escribe la contraseña de ' + (usuario || 'tu cuenta') + ' para sincronizar el mapa:';
+      texto.textContent = 'Escribe la contraseña de ' + (usuario || 'tu cuenta') + ' para guardar el mapa en el servidor:';
       texto.style.cssText = 'margin:0 0 14px;font-size:.9rem;line-height:1.4;color:#b8c4d0';
 
       const input = document.createElement('input');
