@@ -15,6 +15,7 @@ const Admin = {
   datos: null,      // borradores locales del admin (solo en este teléfono)
   publicado: null,  // mundo oficial descargado de datos/mundo.json (lo ven todos)
   modo: null,       // null | 'colocar' | 'organizar'
+  _organizandoArrastreActivo: false,
   _adminNavPila: [],
   _adminVistaActual: null,
   _jugadoresTab: 'vivos',
@@ -579,6 +580,7 @@ const Admin = {
 
   _reaplicarArrastreOrganizar() {
     if (this.modo !== 'organizar' || !this.esAdminJugador()) return;
+    if (this._organizandoArrastreActivo) return;
     if (typeof GPS !== 'undefined' && GPS.marcador && this.puedeMoverPinJugador()) {
       this._habilitarArrastreMarcador(GPS.marcador, () => {
         const p = GPS.marcador.getLatLng();
@@ -590,9 +592,11 @@ const Admin = {
       if (typeof Enemigos !== 'undefined' && Enemigos._marcadores[p.id]) continue;
       this._arrastreOrganizarMarcador(p.marcador, p, (m) => {
         const nueva = m.getLatLng();
-        p.posicion[0] = +nueva.lat.toFixed(6);
-        p.posicion[1] = +nueva.lng.toFixed(6);
-        this.datos.posiciones[p.id] = [p.posicion[0], p.posicion[1]];
+        const pos = this._guardarPosicionOrganizar(p.id, nueva.lat, nueva.lng);
+        if (pos) {
+          p.posicion[0] = pos[0];
+          p.posicion[1] = pos[1];
+        }
         this.guardar();
         this._publicarParaTodos(true);
       });
@@ -603,9 +607,11 @@ const Admin = {
       if (!o._marcador) continue;
       this._arrastreOrganizarMarcador(o._marcador, { id: o.id, marcador: o._marcador }, (m) => {
         const p = m.getLatLng();
-        o.pos[0] = +p.lat.toFixed(6);
-        o.pos[1] = +p.lng.toFixed(6);
-        this.datos.posiciones[o.id] = [o.pos[0], o.pos[1]];
+        const pos = this._guardarPosicionOrganizar(o.id, p.lat, p.lng);
+        if (pos) {
+          o.pos[0] = pos[0];
+          o.pos[1] = pos[1];
+        }
         this.guardar();
         this._publicarParaTodos(true);
       });
@@ -619,10 +625,11 @@ const Admin = {
       for (const [id, m] of Object.entries(Misiones._marcadores)) {
         this._arrastreOrganizarMarcador(m, { id, marcador: m }, (marc) => {
           const p = marc.getLatLng();
-          const pos = [+p.lat.toFixed(6), +p.lng.toFixed(6)];
-          this.datos.posiciones[id] = pos;
-          const exist = Misiones.lista.find(x => x.id === id);
-          if (exist) exist.pos = pos;
+          const pos = this._guardarPosicionOrganizar(id, p.lat, p.lng);
+          if (pos) {
+            const exist = Misiones.lista.find(x => x.id === id);
+            if (exist) exist.pos = pos.slice();
+          }
           this.guardar();
           this._publicarParaTodos(true);
         });
@@ -632,7 +639,7 @@ const Admin = {
       for (const [id, m] of Object.entries(Cofres._marcadores)) {
         this._arrastreOrganizarMarcador(m, { id, marcador: m }, (marc) => {
           const p = marc.getLatLng();
-          this.datos.posiciones[id] = [+p.lat.toFixed(6), +p.lng.toFixed(6)];
+          this._guardarPosicionOrganizar(id, p.lat, p.lng);
           this.guardar();
           this._publicarParaTodos(true);
         });
@@ -643,9 +650,8 @@ const Admin = {
         const t = Tiendas._listaAdmin.find(x => x.id === id);
         this._arrastreOrganizarMarcador(m, { id, marcador: m }, (marc) => {
           const p = marc.getLatLng();
-          const pos = [+p.lat.toFixed(6), +p.lng.toFixed(6)];
-          if (t) { t.pos = pos; t.posicion = pos; }
-          this.datos.posiciones[id] = pos;
+          const pos = this._guardarPosicionOrganizar(id, p.lat, p.lng);
+          if (pos && t) { t.pos = pos.slice(); t.posicion = pos.slice(); }
           this.guardar();
           this._publicarParaTodos(true);
         });
@@ -1466,6 +1472,16 @@ const Admin = {
     return base;
   },
 
+  _guardarPosicionOrganizar(id, lat, lng) {
+    if (!id) return null;
+    const p = [+Number(lat).toFixed(6), +Number(lng).toFixed(6)];
+    if (!this.datos.posiciones) this.datos.posiciones = {};
+    if (!this.publicado.posiciones) this.publicado.posiciones = {};
+    this.datos.posiciones[id] = p.slice();
+    this.publicado.posiciones[id] = p.slice();
+    return p;
+  },
+
   _posItem(item) {
     if (!item || !item.id) return null;
     if (item.pos && Array.isArray(item.pos) && item.pos.length >= 2) {
@@ -1736,6 +1752,7 @@ const Admin = {
 
   async _revisarActualizacion() {
     try {
+      if (this.modo === 'organizar' || this._organizandoArrastreActivo) return;
       if (!CONFIG.servidorOnline) return;
       const socketActivo = typeof Multijugador !== 'undefined' && Multijugador.activo;
       if (socketActivo && Multijugador._pullMundoVersion) {
@@ -1771,6 +1788,7 @@ const Admin = {
   // Aplica el mundo publicado sin recargar toda la página
   _aplicarMundoRemoto(texto, opciones) {
     const opts = opciones || {};
+    if (this.modo === 'organizar' || this._organizandoArrastreActivo) return;
     let remoto = null;
     try { remoto = JSON.parse(texto); } catch (e) { return; }
     const localMapa = this._contarMapaAdminCompleto();
@@ -2072,6 +2090,7 @@ const Admin = {
   },
 
   _sincronizarMapaRemoto(idsObjetosAntes, idsTesorosAntes, idsMisionesAntes, eliminadosAntes) {
+    if (this.modo === 'organizar' || this._organizandoArrastreActivo) return;
     const idsObjetosAhora = new Set(this.objetosTodos().map(o => o.id));
     const idsTesorosAhora = new Set(this.tesorosTodos().map(t => t.id));
     const idsMisionesAhora = new Set(this.misionesTodas().map(m => m.id));
@@ -3142,6 +3161,7 @@ const Admin = {
   },
 
   _refrescarObjetosMapa() {
+    if (this.modo === 'organizar' || this._organizandoArrastreActivo) return;
     for (const o of this.objetosTodos()) {
       if (!o || !o.pos || this.eliminado(o.id)) continue;
       this.pos(o.id, o.pos);
@@ -3291,9 +3311,11 @@ const Admin = {
       if (this.modo === 'organizar') {
         this._arrastreOrganizarMarcador(o._marcador, { id: o.id, marcador: o._marcador }, (m) => {
           const p = m.getLatLng();
-          o.pos[0] = +p.lat.toFixed(6);
-          o.pos[1] = +p.lng.toFixed(6);
-          this.datos.posiciones[o.id] = [o.pos[0], o.pos[1]];
+          const pos = this._guardarPosicionOrganizar(o.id, p.lat, p.lng);
+          if (pos) {
+            o.pos[0] = pos[0];
+            o.pos[1] = pos[1];
+          }
           this.guardar();
           this._publicarParaTodos(true);
         });
@@ -3375,22 +3397,17 @@ const Admin = {
 
   _limpiarPinOrganizar(marcador, punto) {
     if (!marcador || !punto) return;
-    if (punto._orgArm) marcador.off('click', punto._orgArm);
-    if (punto._orgArmDown) marcador.off('mousedown', punto._orgArmDown);
-    if (punto._orgArmTouch) marcador.off('touchstart', punto._orgArmTouch);
     if (punto._orgDragStart) marcador.off('dragstart', punto._orgDragStart);
     if (punto._movOrg) marcador.off('drag', punto._movOrg);
     if (punto._finOrg) marcador.off('dragend', punto._finOrg);
     this._quitarLineaOrganizar(punto);
-    punto._orgArm = punto._orgArmDown = punto._orgArmTouch = null;
     punto._orgDragStart = punto._movOrg = punto._finOrg = null;
     marcador.options.draggable = false;
     if (marcador.dragging) marcador.dragging.disable();
     const el = marcador.getElement?.();
     if (el) {
       el.classList.remove('admin-pin-armado', 'admin-pin-moviendo', 'admin-pin-organizar');
-      const btn = el.querySelector('.admin-pin-x');
-      if (btn) btn.remove();
+      el.querySelector('.admin-pin-x')?.remove();
       el.querySelector('.admin-pin-grip')?.remove();
     }
     if (marcador._muertoPlayerId != null && typeof Multijugador !== 'undefined') {
@@ -3455,33 +3472,9 @@ const Admin = {
     if (!marcador) return;
     this._limpiarPinOrganizar(marcador, punto);
 
-    const ORG_IGNORAR_CLICK_MS = 500;
-
-    marcador.options.draggable = false;
-    if (marcador.dragging) marcador.dragging.disable();
     marcador.setZIndexOffset(13000);
-
-    const ignorarClicsBreves = () => {
-      punto._orgIgnorarClickHasta = Date.now() + ORG_IGNORAR_CLICK_MS;
-    };
-
-    const iniciarArrastreDesdePuntero = (ev) => {
-      const pinEl = marcador.getElement?.();
-      if (!pinEl) return;
-      const t = ev.touches?.[0] || ev;
-      if (!t || typeof t.clientX !== 'number') return;
-      requestAnimationFrame(() => {
-        pinEl.dispatchEvent(new MouseEvent('mousedown', {
-          bubbles: true,
-          cancelable: true,
-          view: window,
-          clientX: t.clientX,
-          clientY: t.clientY,
-          button: 0,
-          buttons: 1
-        }));
-      });
-    };
+    marcador.options.draggable = true;
+    if (marcador.dragging) marcador.dragging.enable();
 
     const actualizarLinea = () => {
       if (!Mapa.mapa || !punto._orgLineaOrigen) return;
@@ -3501,85 +3494,37 @@ const Admin = {
       }
     };
 
-    const armar = (ev) => {
-      L.DomEvent.stopPropagation(ev);
-      if (ev.cancelable) ev.preventDefault();
-      if (this.modo !== 'organizar') return;
-      const pinEl = marcador.getElement?.();
-      if (!pinEl || pinEl.classList.contains('admin-pin-moviendo')) return;
-      ignorarClicsBreves();
-      const ll = marcador.getLatLng();
-      punto._orgLineaOrigen = [ll.lat, ll.lng];
-      pinEl.classList.add('admin-pin-armado');
-      marcador.options.draggable = true;
-      if (marcador.dragging) marcador.dragging.enable();
-      actualizarLinea();
-      if (ev.type === 'touchstart') iniciarArrastreDesdePuntero(ev);
-    };
-
     const asegurarControlesPin = () => {
       const el = marcador.getElement?.();
       if (!el) return;
       el.classList.add('admin-pin-organizar');
-      let btn = el.querySelector('.admin-pin-x');
-      if (!btn) {
-        btn = document.createElement('button');
-        btn.type = 'button';
-        btn.className = 'admin-pin-x';
-        btn.title = 'Eliminar pin';
-        btn.textContent = '✕';
-        btn.addEventListener('click', (ev) => {
-          L.DomEvent.stopPropagation(ev);
-          ev.preventDefault();
-          ignorarClicsBreves();
-          if (punto._cuerpoPlayerId) {
-            this._eliminarCuerpoAdmin(punto._cuerpoPlayerId);
-            return;
-          }
-          if (punto._jugadorPlayerId) return;
-          this._eliminarPin(punto, true);
-        });
-        el.appendChild(btn);
-      }
-      if (!punto._orgArm) {
-        const intentarArmar = (ev) => {
-          if (this.modo !== 'organizar') return;
-          if (Date.now() < (punto._orgIgnorarClickHasta || 0)) return;
-          if (ev.target?.closest?.('.admin-pin-x')) return;
-          const pinEl = marcador.getElement?.();
-          if (!pinEl || pinEl.classList.contains('admin-pin-armado') ||
-              pinEl.classList.contains('admin-pin-moviendo')) return;
-          armar(ev);
-        };
-        punto._orgArm = intentarArmar;
-        punto._orgArmDown = intentarArmar;
-        punto._orgArmTouch = intentarArmar;
-        marcador.on('click', punto._orgArm);
-        marcador.on('mousedown', punto._orgArmDown);
-        marcador.on('touchstart', punto._orgArmTouch);
-      }
-    };
-
-    const desarmar = () => {
-      this._quitarLineaOrganizar(punto);
-      const el = marcador.getElement?.();
-      if (el) el.classList.remove('admin-pin-armado', 'admin-pin-moviendo');
-      marcador.options.draggable = false;
-      if (marcador.dragging) marcador.dragging.disable();
-      asegurarControlesPin();
+      if (el.querySelector('.admin-pin-x')) return;
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'admin-pin-x';
+      btn.title = 'Eliminar pin';
+      btn.textContent = '✕';
+      btn.addEventListener('mousedown', (ev) => L.DomEvent.stopPropagation(ev));
+      btn.addEventListener('touchstart', (ev) => L.DomEvent.stopPropagation(ev), { passive: true });
+      btn.addEventListener('click', (ev) => {
+        L.DomEvent.stopPropagation(ev);
+        ev.preventDefault();
+        if (punto._cuerpoPlayerId) {
+          this._eliminarCuerpoAdmin(punto._cuerpoPlayerId);
+          return;
+        }
+        if (punto._jugadorPlayerId) return;
+        this._eliminarPin(punto, true);
+      });
+      el.appendChild(btn);
     };
 
     punto._orgDragStart = () => {
-      ignorarClicsBreves();
+      this._organizandoArrastreActivo = true;
+      const ll = marcador.getLatLng();
+      punto._orgLineaOrigen = [ll.lat, ll.lng];
       const el = marcador.getElement?.();
-      if (el) {
-        el.classList.add('admin-pin-moviendo');
-        el.classList.remove('admin-pin-armado');
-      }
-      if (!punto._orgLineaOrigen) {
-        const ll = marcador.getLatLng();
-        punto._orgLineaOrigen = [ll.lat, ll.lng];
-      }
+      if (el) el.classList.add('admin-pin-moviendo');
       actualizarLinea();
     };
 
@@ -3589,9 +3534,11 @@ const Admin = {
     };
 
     punto._finOrg = () => {
+      this._organizandoArrastreActivo = false;
+      const el = marcador.getElement?.();
+      if (el) el.classList.remove('admin-pin-moviendo');
       if (alMoverPos) alMoverPos(marcador);
-      ignorarClicsBreves();
-      desarmar();
+      this._quitarLineaOrganizar(punto);
     };
 
     marcador.on('dragstart', punto._orgDragStart);
@@ -3645,7 +3592,7 @@ const Admin = {
       cesto.classList.remove('activo', 'cesto-hover');
     }
     this._mostrarControles(
-      'Toca un icono para moverlo (línea guía) · ✕ borra el pin',
+      'Arrastra el icono a su lugar · ✕ borra el pin',
       false
     );
     this._refrescarObjetosMapa();
@@ -3768,6 +3715,7 @@ const Admin = {
   },
 
   salirModo() {
+    this._organizandoArrastreActivo = false;
     // Cancelar colocación pendiente
     if (this._colocacion && this._colocacion.marcador) this._colocacion.marcador.remove();
     this._colocacion = null;
