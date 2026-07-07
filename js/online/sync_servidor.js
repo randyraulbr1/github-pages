@@ -16,9 +16,23 @@ const SyncServidor = {
       try {
         const dev = localStorage.getItem('mariel_dev_clave_randy');
         if (dev) claves.push(dev);
+        const adm = localStorage.getItem('mariel_dev_clave_admin');
+        if (adm) claves.push(adm);
       } catch (e2) { /* */ }
     }
     return [...new Set(claves.filter(Boolean))];
+  },
+
+  _usuariosAdminLogin() {
+    const nombres = [];
+    if (typeof CONFIG !== 'undefined') {
+      if (CONFIG.adminNombre) nombres.push(CONFIG.adminNombre);
+      for (const a of (CONFIG.adminAlias || [])) nombres.push(a);
+    }
+    if (typeof Usuarios !== 'undefined' && Usuarios.perfilActivo?.nombre) {
+      nombres.unshift(Usuarios.perfilActivo.nombre);
+    }
+    return [...new Set(nombres.map(n => String(n || '').trim()).filter(Boolean))];
   },
 
   /** Obtiene token JWT del servidor si falta (sesión local sin login-game). */
@@ -29,29 +43,35 @@ const SyncServidor = {
       return false;
     }
     const perfil = Usuarios.perfilActivo;
-    const usuario = perfil.nombre || perfil.id;
+    const usuarios = this._usuariosAdminLogin();
     for (const clave of this._clavesGuardadas()) {
-      const srv = await Usuarios._loginServidor(usuario, clave, 0);
-      if (srv && !srv.error) return true;
+      for (const usuario of usuarios) {
+        const srv = await Usuarios._loginServidor(usuario, clave, 0);
+        if (srv && !srv.error) return true;
+      }
     }
     if (opts.pedirClave && Usuarios.esAdministrador && Usuarios.esAdministrador()) {
+      const usuario = perfil.nombre || perfil.id;
       const clave = prompt(
         'Contraseña de ' + usuario + ' para sincronizar con el servidor:',
         ''
       );
       if (!clave) return false;
-      const srv = await Usuarios._loginServidor(usuario, clave, 0);
-      if (srv && !srv.error) {
-        try {
-          sessionStorage.setItem('mariel_clave_servidor', clave);
-          if (String(usuario).toLowerCase() === 'randy') {
-            localStorage.setItem('mariel_dev_clave_randy', clave);
-          }
-        } catch (e) { /* */ }
-        return true;
+      for (const u of usuarios) {
+        const srv = await Usuarios._loginServidor(u, clave, 0);
+        if (srv && !srv.error) {
+          try {
+            sessionStorage.setItem('mariel_clave_servidor', clave);
+            localStorage.setItem('mariel_dev_clave_admin', clave);
+            if (String(u).toLowerCase() === 'randy') {
+              localStorage.setItem('mariel_dev_clave_randy', clave);
+            }
+          } catch (e) { /* */ }
+          return true;
+        }
       }
       if (typeof Notificaciones !== 'undefined') {
-        Notificaciones.mostrar('❌ ' + (srv?.error || 'No se pudo conectar al servidor'), 'error', 6000);
+        Notificaciones.mostrar('❌ No se pudo conectar al servidor', 'error', 6000);
       }
     }
     return this.puedePublicar();
@@ -78,7 +98,7 @@ const SyncServidor = {
           method: 'POST',
           headers: this._headers(),
           body: body
-        }, 12000);
+        }, 25000);
         const data = await r.json().catch(() => ({}));
         if (r.ok && data.ok) return { ok: true, data };
         if (intento < 2) {
