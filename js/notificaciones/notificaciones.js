@@ -9,6 +9,27 @@ const Notificaciones = {
   _toastEl: null,
   _toastPila: 0,
 
+  // ---- ESCUDO ANTI-REPETICIÓN ----
+  // La misma notificación no se muestra otra vez en pantalla si salió hace
+  // menos de _MS_ANTIREPETICION. Las de recoger objetos/recompensas siempre
+  // salen (están en _CLAVES_SIEMPRE).
+  _ultimoToast: {},
+  _MS_ANTIREPETICION: 12000,
+  _CLAVES_SIEMPRE: new Set([
+    'inventario:recoger', 'inventario:saqueo', 'tesoro',
+    'mision:completada', 'vida:nivel', 'vida:revivir'
+  ]),
+
+  _estaThrottled(texto, tipo, categoria) {
+    const clave = this._claveAviso(texto, tipo, categoria);
+    if (this._CLAVES_SIEMPRE.has(clave)) return false;   // siempre se muestra
+    const ahora = Date.now();
+    const ultimo = this._ultimoToast[clave] || 0;
+    if (ahora - ultimo < this._MS_ANTIREPETICION) return true;  // salió hace poco → frenar
+    this._ultimoToast[clave] = ahora;
+    return false;
+  },
+
   _contadorGlobo(cantidad) {
     if (typeof Utilidades !== 'undefined' && typeof Utilidades.contadorBadge === 'function') {
       return Utilidades.contadorBadge(cantidad);
@@ -144,6 +165,7 @@ const Notificaciones = {
     this._guardarHistorial(texto, tipo);
     if (!this._puedeMostrarToast()) return;
     if (!this._esImportante(texto, tipo)) return;
+    if (this._estaThrottled(texto, tipo, null)) return;  // escudo anti-repetición
     this._mostrarToast(texto, tipo, duracionMs);
   },
 

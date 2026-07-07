@@ -83,3 +83,29 @@ reenvío. Así el guardia funcionaría y no se re-aplicaría en cada ciclo.
    Si algo sale "ROTO", hay un error de sintaxis que romperá el juego.
 2. Subir la `version` (en `sw.js`, `js/config/config.js` y `version.json`)
    en cada cambio, para que los jugadores reciban la versión nueva.
+
+---
+
+## v237 — Escudo anti-repetición de notificaciones
+
+**Archivo:** `js/notificaciones/notificaciones.js`
+
+**Qué se añadió:** un freno de tiempo (`_estaThrottled`): la MISMA
+notificación no se vuelve a mostrar en pantalla si salió hace menos de 12
+segundos. Así no se repiten en bucle las mismas.
+
+**Excepción:** las de recoger objetos/recompensas SIEMPRE se muestran
+(`_CLAVES_SIEMPRE`: inventario:recoger, inventario:saqueo, tesoro,
+mision:completada, vida:nivel, vida:revivir).
+
+Para cambiar el tiempo, editar `_MS_ANTIREPETICION` (en milisegundos).
+
+## Nota sobre el inventario (v237)
+
+Probado en navegador (ratón y táctil): MOVER y USAR objetos FUNCIONAN.
+- Mover: arrastrar el objeto de una casilla a otra.
+- Usar consumible: arrastrarlo y soltarlo sobre el botón ✔️ que aparece
+  mientras arrastras (tocar la casilla sola NO abre menú en esta versión).
+Si un jugador dice que "no funciona", casi seguro tiene la versión ROTA
+en caché (la recursión de v235 impedía que se enchufaran los controles).
+Solución: actualizar del todo (cerrar app, abrir 2 veces, o borrar caché).
