@@ -4,7 +4,7 @@
   "telefono": "7709908375",
   "pinHash": "4bdc96ffc0926b62d55708e3c1755ca3f04b8c28bec6fd85777117da67497f11",
   "creado": 1783263656375,
-  "actualizadoEn": 1783389868783,
+  "actualizadoEn": 1783389876380,
   "partida": {
     "datos": {
       "mochila": [
@@ -67,11 +67,25 @@
           "hash": "b5ae987bc6462a1d9e45fbc222081086d3f81cb408bec914cc6f90a149965f43"
         }
       ],
-      "historialObjetos": [],
+      "historialObjetos": [
+        {
+          "t": 1783389866406,
+          "detalle": "Obtenido: Cuchillo de combate",
+          "monto": 1,
+          "saldo": null,
+          "lugar": "campo abierto",
+          "pos": [
+            22.9936,
+            -82.7539
+          ],
+          "hashAnterior": "GENESIS",
+          "hash": "d7ea08aeb11864efb88ceaa82e1e0f28b3c4b3ce713a0c4ed5e20257060daa10"
+        }
+      ],
       "mensajesVistos": [],
       "muerto": false,
-      "armaEquipada": null
+      "armaEquipada": "arma_nv1"
     },
-    "t": 1783389862037
+    "t": 1783389874039
   }
 }
