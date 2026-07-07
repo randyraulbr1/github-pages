@@ -16,6 +16,7 @@ const { mergeJugadoresPartidas } = require('./syncMundo');
 const { hashPassword } = require('./auth');
 const {
   esNombreAdmin,
+  esCuentaAdmin,
   leerAdminDesdeArchivo,
   asegurarAdminEnMundo
 } = require('./adminCuenta');
@@ -304,6 +305,84 @@ function resolverPlayerIdPorNombre(nombre) {
   return migrado?.id || null;
 }
 
+/**
+ * Deja solo la cuenta admin (randy) en snapshot + SQLite.
+ * Borra partidas y respaldos de jugadores normales.
+ */
+async function dejarSoloAdminEnSnapshot(opts) {
+  const snap = getWorldSnapshot() || {
+    actualizadoEn: Date.now(),
+    jugadores: [],
+    partidas: {},
+    misiones: [],
+    tesoros: [],
+    objetos: [],
+    enemigos: [],
+    posiciones: {}
+  };
+
+  const eliminados = [];
+  const idsBorrar = [];
+  for (const j of (snap.jugadores || [])) {
+    if (!j?.id || esCuentaAdmin(j)) continue;
+    eliminados.push(j.nombre || j.id);
+    idsBorrar.push(j.id);
+  }
+
+  snap.jugadores = (snap.jugadores || []).filter(j => j?.id && esCuentaAdmin(j));
+  asegurarAdminEnMundo(snap);
+
+  const idsActivos = new Set((snap.jugadores || []).map(j => j.id));
+  if (snap.partidas) {
+    for (const id of Object.keys(snap.partidas)) {
+      if (!idsActivos.has(id)) delete snap.partidas[id];
+    }
+  }
+  if (Array.isArray(snap.eliminados_recuperables)) {
+    snap.eliminados_recuperables = snap.eliminados_recuperables.filter(
+      e => e?.tipo !== 'jugador' || esCuentaAdmin(e.datos || e)
+    );
+  }
+
+  const purga = purgarCuentasFueraDeSnapshot(snap);
+  snap.actualizadoEn = Date.now();
+  delete snap.soloAdmin;
+  saveWorldSnapshot(snap);
+
+  const { deleteArchivoGitHub } = require('./utils/githubPush');
+  const { indiceDesdeJugadores } = require('./utils/reglasIndice');
+  for (const id of idsBorrar) {
+    await deleteArchivoGitHub(`datos/jugadores/${id}.json`, `purge cuenta ${id}`).catch(() => {});
+  }
+  await deleteArchivoGitHub('datos/jugadores/indice.json', 'purge indice vacio')
+    .catch(() => {});
+  const { putArchivoGitHubSiCambio } = require('./utils/githubPush');
+  await putArchivoGitHubSiCambio(
+    'datos/jugadores/indice.json',
+    indiceDesdeJugadores(snap.jugadores),
+    'purge indice 0 jugadores'
+  ).catch(() => {});
+
+  if (opts?.io && purga.removedAccounts?.length) {
+    try {
+      const { expulsarCuentasEliminadas } = require('./sockets');
+      expulsarCuentasEliminadas(opts.io, purga.removedAccounts);
+    } catch (e) { /* */ }
+  }
+
+  try {
+    const { registrar } = require('./eventLog');
+    registrar('purge_cuentas', `Solo admin — eliminadas: ${eliminados.join(', ') || 'ninguna'}`);
+  } catch (e) { /* */ }
+
+  return {
+    ok: true,
+    eliminados,
+    sqliteRemoved: purga.removed,
+    jugadores: (snap.jugadores || []).length
+  };
+}
+
 module.exports = {
   countUsers,
   listUsersWithPlayers,
@@ -314,5 +393,6 @@ module.exports = {
   respaldarCuentasEnGitHub,
   buscarJugadorPublico,
   asegurarPlayerEnSqlite,
-  resolverPlayerIdPorNombre
+  resolverPlayerIdPorNombre,
+  dejarSoloAdminEnSnapshot
 };

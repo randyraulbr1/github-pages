@@ -96,9 +96,36 @@ async function putConReintentos(filePath, contenido, mensaje, intentos = 3) {
   return ultimo;
 }
 
+/** Elimina un archivo del repo en GitHub (para cuentas borradas). */
+async function deleteArchivoGitHub(filePath, mensaje) {
+  const hdrs = headersGitHub();
+  if (!hdrs) return { ok: false, skipped: true, reason: 'sin token' };
+  const { repo, branch } = repoConfig();
+  const apiUrl = `https://api.github.com/repos/${repo}/contents/${filePath}`;
+  const remoto = await leerArchivoGitHub(filePath, branch);
+  if (!remoto?.sha) return { ok: true, skipped: true, reason: 'no existe' };
+  try {
+    const putRes = await fetch(apiUrl, {
+      method: 'DELETE',
+      headers: hdrs,
+      body: JSON.stringify({
+        message: mensaje || `delete ${filePath}`,
+        sha: remoto.sha,
+        branch
+      })
+    });
+    if (putRes.ok) return { ok: true };
+    const err = await putRes.text();
+    return { ok: false, error: `DELETE ${putRes.status}: ${err.slice(0, 120)}` };
+  } catch (e) {
+    return { ok: false, error: e.message };
+  }
+}
+
 module.exports = {
   hashContenido,
   leerArchivoGitHub,
   putArchivoGitHubSiCambio,
-  putConReintentos
+  putConReintentos,
+  deleteArchivoGitHub
 };
