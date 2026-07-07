@@ -3,19 +3,13 @@
   "nombre": "33",
   "telefono": "",
   "pinHash": "0a22b58a09f93652ac592f9424e5dedbeb450965c0e7ddc5b46f8ab21aa96bb1",
-  "creado": 1783435253527,
-  "actualizadoEn": 1783435814809,
+  "creado": 1783446327143,
+  "actualizadoEn": 1783446390484,
   "partida": {
     "datos": {
       "mochila": [
-        {
-          "id": "agua",
-          "cantidad": 2
-        },
-        {
-          "id": "pan",
-          "cantidad": 1
-        },
+        null,
+        null,
         null,
         null,
         null,
@@ -44,10 +38,10 @@
         "saldo": 100,
         "control": "68e382a3687042dcd0420432d9bf210eada6d12606b6ecd367d18c724c2f4b38"
       },
-      "vida": 0,
-      "hambre": 49,
-      "xp": 0,
-      "nivel": 1,
+      "vida": 40,
+      "hambre": 33,
+      "xp": 150,
+      "nivel": 2,
       "posicionJugador": null,
       "tesorosRecogidos": [],
       "misiones": {},
@@ -69,13 +63,10 @@
       ],
       "historialObjetos": [],
       "mensajesVistos": [],
-      "muerto": true,
-      "muertePos": [
-        22.9936,
-        -82.7539
-      ],
+      "muerto": false,
+      "muertePos": null,
       "armaEquipada": null
     },
-    "t": 1783435572131
+    "t": 1783446381102
   }
 }
