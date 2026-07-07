@@ -317,7 +317,7 @@ const Enemigos = {
       }
       if (st && st.ocultoHasta && Date.now() >= st.ocultoHasta) {
         st.ocultoHasta = 0;
-        st.vida = e.vidaMax || e.vida;
+        st.vida = this._vidaMaxEnemigo(e);
         st.ultimoGolpe = 0;
         if (e.posOrigen) e.pos = e.posOrigen.slice();
       }
@@ -339,10 +339,19 @@ const Enemigos = {
     return Admin.publicado.enemigosEstado;
   },
 
+  _vidaMaxEnemigo(e) {
+    if (e?.vidaMax) return e.vidaMax;
+    if (e?.vida) return e.vida;
+    if (typeof Admin !== 'undefined' && Admin.vidaEnemigoPorNivel) {
+      return Admin.vidaEnemigoPorNivel(this._nivelEnemigo(e));
+    }
+    return 50;
+  },
+
   _vidaActual(e) {
     const st = this._estadoGlobal()[e.id];
     if (st && typeof st.vida === 'number') return st.vida;
-    return e.vidaMax || e.vida || 50;
+    return this._vidaMaxEnemigo(e);
   },
 
   _enemigoEstaVivo(e) {
@@ -406,7 +415,7 @@ const Enemigos = {
 
     if (respawn > 0) {
       est[e.id] = {
-        vida: e.vidaMax || e.vida,
+        vida: this._vidaMaxEnemigo(e),
         ultimoGolpe: 0,
         ocultoHasta: Date.now() + respawn * 60000
       };
@@ -430,8 +439,8 @@ const Enemigos = {
     const st = this._estadoGlobal()[e.id];
     if (!st) return;
     const sinGolpes = Date.now() - (st.ultimoGolpe || 0) > cfg.curacionMs;
-    if (sinGolpes && st.vida < (e.vidaMax || e.vida)) {
-      st.vida = e.vidaMax || e.vida;
+    if (sinGolpes && st.vida < this._vidaMaxEnemigo(e)) {
+      st.vida = this._vidaMaxEnemigo(e);
       st.ultimoGolpe = 0;
     }
   },
@@ -448,7 +457,7 @@ const Enemigos = {
   _htmlMarcador(e) {
     const nv = this._nivelEnemigo(e);
     const letal = this._esLetal(e);
-    const max = e.vidaMax || e.vida || 50;
+    const max = this._vidaMaxEnemigo(e);
     const actual = this._vidaActual(e);
     const pct = Math.max(0, Math.min(100, (actual / max) * 100));
     const grande = !!e._vidaGrande;
@@ -658,7 +667,7 @@ const Enemigos = {
       Admin.publicado.enemigosEstado = Admin.publicado.enemigosEstado || {};
       Admin.publicado.enemigosEstado[origenId] = Object.assign(
         Admin.publicado.enemigosEstado[origenId] || {},
-        { ocultoHasta: data.ocultoHasta, vida: data.hp != null ? data.hp : (e.vidaMax || e.vida) }
+        { ocultoHasta: data.ocultoHasta, vida: data.hp != null ? data.hp : this._vidaMaxEnemigo(e) }
       );
       this._quitarMarcador(origenId);
       return;
@@ -756,7 +765,7 @@ const Enemigos = {
     const m = this._marcadores[e.id];
     if (!m) return;
     const el = m.getElement?.();
-    const max = e.vidaMax || e.vida || 50;
+    const max = this._vidaMaxEnemigo(e);
     const actual = this._vidaActual(e);
     const pct = Math.max(0, Math.min(100, (actual / max) * 100));
     if (el) {
@@ -1160,7 +1169,7 @@ const Enemigos = {
       return;
     }
     this._enCombate = e;
-    const max = e.vidaMax || e.vida || 50;
+    const max = this._vidaMaxEnemigo(e);
     const actual = this._vidaActual(e);
     const rEn = this._rangoDanoEnemigo(e);
     const letal = this._esLetal(e);
@@ -1225,10 +1234,10 @@ const Enemigos = {
         return;
       }
       const est = this._estadoGlobal();
-      if (!est[e.id]) est[e.id] = { vida: e.vidaMax || e.vida, ultimoGolpe: 0 };
+      if (!est[e.id]) est[e.id] = { vida: this._vidaMaxEnemigo(e), ultimoGolpe: 0 };
       est[e.id].vida = res.hp;
       est[e.id].ultimoGolpe = Date.now();
-      const max = res.hpMax || e.vidaMax || e.vida || 50;
+      const max = res.hpMax || this._vidaMaxEnemigo(e);
       const actual = res.hp;
       this._actualizarUiCombate(e, actual, max);
       Notificaciones.mostrar('⚔️ -' + (res.damage || 0) + ' a ' + e.nombre, 'info', 2000);
@@ -1256,12 +1265,12 @@ const Enemigos = {
 
     const golpe = this.danoJugador();
     const est = this._estadoGlobal();
-    if (!est[e.id]) est[e.id] = { vida: e.vidaMax || e.vida, ultimoGolpe: 0 };
+    if (!est[e.id]) est[e.id] = { vida: this._vidaMaxEnemigo(e), ultimoGolpe: 0 };
     est[e.id].vida = Math.max(0, (est[e.id].vida ?? e.vidaMax) - golpe);
     est[e.id].ultimoGolpe = Date.now();
     est[e.id].ultimoAtacante = Usuarios.perfilActivo ? Usuarios.perfilActivo.id : '';
 
-    const max = e.vidaMax || e.vida || 50;
+    const max = this._vidaMaxEnemigo(e);
     const actual = est[e.id].vida;
     this._actualizarUiCombate(e, actual, max);
     Notificaciones.mostrar('⚔️ -' + golpe + ' a ' + e.nombre, 'info', 2000);

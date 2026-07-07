@@ -679,8 +679,41 @@ const Admin = {
   combateEnemigosConfig() {
     return Object.assign({
       danoMin: 5, danoMax: 8, nivelReferencia: 1,
-      factorPorNivel: 0.06
+      factorPorNivel: 0.06,
+      vidaBase: 60,
+      vidaFactorPorNivel: 0.06
     }, this.publicado.combateEnemigos || {}, this.datos.combateEnemigos || {});
+  },
+
+  /** Vida máxima de un enemigo según nivel (tabla Daño enemigos). Nv1 = vidaBase. */
+  vidaEnemigoPorNivel(nivel) {
+    const cfg = this.combateEnemigosConfig();
+    const n = Math.max(1, Math.min(CONFIG.nivelMaximo || 100, nivel || 1));
+    const base = Math.max(10, cfg.vidaBase ?? 60);
+    const factor = cfg.vidaFactorPorNivel ?? cfg.factorPorNivel ?? 0.06;
+    const f = 1 + (n - 1) * factor;
+    return Math.max(10, Math.round(base * f));
+  },
+
+  /** Daño min/max de enemigo según nivel (tabla Daño enemigos). */
+  danoEnemigoPorNivel(nivel) {
+    const cfg = this.combateEnemigosConfig();
+    const nv = Math.max(1, Math.min(CONFIG.nivelMaximo || 100, nivel || 1));
+    const f = 1 + (nv - 1) * (cfg.factorPorNivel || 0.06);
+    const lo = Math.max(1, Math.round((cfg.danoMin || 5) * f));
+    const hi = Math.max(lo, Math.round((cfg.danoMax || 8) * f));
+    return { lo, hi };
+  },
+
+  _aplicarStatsEnemigoDesdeNivel(nivel) {
+    const nv = Math.max(1, Math.min(100, nivel || 1));
+    const vidaInp = document.getElementById('af-vida');
+    const dMinInp = document.getElementById('af-dano-min');
+    const dMaxInp = document.getElementById('af-dano-max');
+    if (vidaInp) vidaInp.value = this.vidaEnemigoPorNivel(nv);
+    const r = this.danoEnemigoPorNivel(nv);
+    if (dMinInp) dMinInp.value = r.lo;
+    if (dMaxInp) dMaxInp.value = r.hi;
   },
   objetosTodos() {
     let lista;
@@ -2082,6 +2115,13 @@ const Admin = {
         }
         this._pintarRejillaGenerica('admin-enemigo-recompensas', this._enemigoRecompensas, 'enemigo-rec-slot');
         this._enlazarAdmRejilla('admin-enemigo-infinito', this._enemigoRecompensas, 'admin-enemigo-recompensas', 'enemigo-rec-slot');
+        const nivelInp = document.getElementById('af-nivel-enemigo');
+        if (nivelInp) {
+          nivelInp.addEventListener('input', () => {
+            this._aplicarStatsEnemigoDesdeNivel(this._numero('af-nivel-enemigo') || 1);
+          });
+          this._aplicarStatsEnemigoDesdeNivel(1);
+        }
       }, 0);
     } else if (tipo === 'tienda_admin') {
       titulo = '🏪 Crear tienda';
@@ -2508,12 +2548,15 @@ const Admin = {
     } else if (tipo === 'enemigo') {
       const nombre = this._valor('af-nombre').trim() || Enemigos.NOMBRES[0];
       const icono = (document.getElementById('af-icono-enemigo')?.value || '👹').trim();
-      const vida = Math.max(10, this._numero('af-vida') || 60);
-      const dMin = Math.max(1, this._numero('af-dano-min') || 8);
-      const dMax = Math.max(dMin, this._numero('af-dano-max') || 14);
+      const nivel = Math.max(1, Math.min(100, this._numero('af-nivel-enemigo') || 1));
+      const vidaCfg = this.vidaEnemigoPorNivel(nivel);
+      const vida = Math.max(10, this._numero('af-vida') || vidaCfg);
+      const dR = this.danoEnemigoPorNivel(nivel);
+      const dMin = Math.max(1, this._numero('af-dano-min') || dR.lo);
+      const dMax = Math.max(dMin, this._numero('af-dano-max') || dR.hi);
       valores = {
         nombre, icono, vida, vidaMax: vida,
-        nivel: Math.max(1, Math.min(100, this._numero('af-nivel-enemigo') || 1)),
+        nivel,
         danoMin: dMin,
         danoMax: dMax,
         dano: dMax,
@@ -5418,8 +5461,11 @@ const Admin = {
     set('admin-enemigo-dano-max', cfg.danoMax);
     set('admin-enemigo-nivel-ref', cfg.nivelReferencia || 1);
     set('admin-enemigo-factor', Math.round((cfg.factorPorNivel || 0.06) * 100));
+    set('admin-enemigo-vida-base', cfg.vidaBase ?? 60);
+    set('admin-enemigo-vida-factor', Math.round((cfg.vidaFactorPorNivel ?? cfg.factorPorNivel ?? 0.06) * 100));
     this._pintarGraficaCombateEnemigos();
-    ['admin-enemigo-dano-min', 'admin-enemigo-dano-max', 'admin-enemigo-nivel-ref'].forEach(id => {
+    ['admin-enemigo-dano-min', 'admin-enemigo-dano-max', 'admin-enemigo-nivel-ref',
+      'admin-enemigo-factor', 'admin-enemigo-vida-base', 'admin-enemigo-vida-factor'].forEach(id => {
       const el = document.getElementById(id);
       if (el && !el._graficaEnemigoOk) {
         el._graficaEnemigoOk = true;
@@ -5435,13 +5481,26 @@ const Admin = {
     const min = Math.max(1, this._numero('admin-enemigo-dano-min') || 5);
     const max = Math.max(min, this._numero('admin-enemigo-dano-max') || 8);
     const ref = Math.max(1, this._numero('admin-enemigo-nivel-ref') || 1);
-    const factor = Math.max(1, this._numero('admin-enemigo-factor') || 6) / 100;
-    let html = '<div class="admin-combate-grafica-titulo">Daño enemigo por nivel (referencia nv ' + ref + ')</div>';
-    for (let n = 1; n <= Math.min(20, CONFIG.nivelMaximo || 100); n += (n < 10 ? 1 : 5)) {
+    const factor = Math.max(0.01, (this._numero('admin-enemigo-factor') || 6) / 100);
+    const vidaBase = Math.max(10, this._numero('admin-enemigo-vida-base') || 60);
+    const vidaFactor = Math.max(0.01, (this._numero('admin-enemigo-vida-factor') || 6) / 100);
+    const vidaNv = (n) => {
+      const f = 1 + (n - 1) * vidaFactor;
+      return Math.max(10, Math.round(vidaBase * f));
+    };
+    const danoNv = (n) => {
       const f = 1 + (n - 1) * factor;
-      const lo = Math.round(min * f);
-      const hi = Math.round(max * f);
-      html += '<div class="admin-combate-fila">Nv ' + n + ': ' + lo + '–' + hi + '</div>';
+      return {
+        lo: Math.round(min * f),
+        hi: Math.round(max * f)
+      };
+    };
+    let html = '<div class="admin-combate-grafica-titulo">Referencia nv enemigo: ' + ref + '</div>';
+    html += '<div class="admin-combate-grafica-titulo">Vida y daño por nivel del enemigo</div>';
+    for (let n = 1; n <= Math.min(20, CONFIG.nivelMaximo || 100); n += (n < 10 ? 1 : 5)) {
+      const d = danoNv(n);
+      html += '<div class="admin-combate-fila">Nv ' + n + ': ❤️ ' + vidaNv(n) +
+        ' · ⚔️ ' + d.lo + '–' + Math.max(d.lo, d.hi) + '</div>';
     }
     cont.innerHTML = html;
   },
@@ -5451,7 +5510,9 @@ const Admin = {
       danoMin: Math.max(1, this._numero('admin-enemigo-dano-min') || 5),
       danoMax: Math.max(1, this._numero('admin-enemigo-dano-max') || 8),
       nivelReferencia: Math.max(1, this._numero('admin-enemigo-nivel-ref') || 1),
-      factorPorNivel: Math.max(0.01, (this._numero('admin-enemigo-factor') || 6) / 100)
+      factorPorNivel: Math.max(0.01, (this._numero('admin-enemigo-factor') || 6) / 100),
+      vidaBase: Math.max(10, this._numero('admin-enemigo-vida-base') || 60),
+      vidaFactorPorNivel: Math.max(0.01, (this._numero('admin-enemigo-vida-factor') || 6) / 100)
     };
     if (this.datos.combateEnemigos.danoMax < this.datos.combateEnemigos.danoMin) {
       this.datos.combateEnemigos.danoMax = this.datos.combateEnemigos.danoMin;
