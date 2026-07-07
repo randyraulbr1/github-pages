@@ -371,6 +371,55 @@ function setupSockets(io) {
       ack?.({ ok: true, hp: cura });
     });
 
+    socket.on('admin:updatePlayerPartida', (payload, ack) => {
+      const adminPl = findPlayerById(socket.playerId);
+      if (!adminPl || !isGameAdminName(adminPl.name)) {
+        return ack?.({ ok: false, error: 'Solo el administrador del juego' });
+      }
+
+      const targetId = parseInt(payload?.targetPlayerId, 10);
+      const targetOnline = onlinePlayers.get(targetId);
+      const targetDb = findPlayerById(targetId);
+      if (!targetDb) return ack?.({ ok: false, error: 'Jugador no encontrado' });
+
+      const level = Math.max(1, Math.min(100, Math.round(payload?.level ?? targetDb.level ?? 1)));
+      const hpMax = Math.max(1, Math.round(payload?.hpMax || targetOnline?.hpMax || 100));
+      const hp = Math.max(0, Math.min(hpMax, Math.round(payload?.hp ?? hpMax)));
+      const dead = payload?.dead === true || hp <= 0;
+      const xp = payload?.xp != null ? Math.max(0, Math.round(payload.xp)) : targetDb.xp;
+
+      updatePlayer(targetId, { hp, level, xp });
+      if (targetOnline) {
+        targetOnline.hp = hp;
+        targetOnline.hpMax = hpMax;
+        targetOnline.level = level;
+        targetOnline.dead = dead;
+        if (!dead) {
+          targetOnline.deathX = null;
+          targetOnline.deathY = null;
+          targetOnline.deadInventory = [];
+          targetOnline.deadLevel = null;
+        }
+      }
+
+      const perfilId = payload?.perfilId || buscarPerfilIdPorNombre(targetDb.name, targetId);
+      if (perfilId && payload?.partidaSnap) {
+        actualizarPartidaEnSnapshot(perfilId, payload.partidaSnap, io);
+      }
+
+      io.emit('player:updateStats', {
+        playerId: targetId,
+        hp,
+        hpMax,
+        level,
+        xp,
+        dead,
+        deathX: dead ? (targetOnline?.deathX ?? null) : null,
+        deathY: dead ? (targetOnline?.deathY ?? null) : null
+      });
+      ack?.({ ok: true });
+    });
+
     socket.on('admin:movePlayerPin', (payload, ack) => {
       const adminPl = findPlayerById(socket.playerId);
       if (!adminPl || !isGameAdminName(adminPl.name)) {

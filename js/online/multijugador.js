@@ -556,6 +556,43 @@ const Multijugador = {
     for (const pid of ids) this._refrescarPopupsMuertos(pid);
   },
 
+  _aplicarPartidaAdminEnMi(perfilId, snap) {
+    if (!perfilId || !snap?.datos) return;
+    if (typeof Usuarios === 'undefined' || Usuarios.perfilActivo?.id !== perfilId) return;
+    if (typeof Guardado === 'undefined' || !Guardado.datos) return;
+    const t = snap.t || 0;
+    if (t <= (Guardado.datos.nubeT || 0)) return;
+
+    const d = snap.datos;
+    Guardado._aplicarSnapshot(d);
+    Guardado.datos.nubeT = t;
+
+    if (typeof Vida !== 'undefined') {
+      if (d.nivel != null) Vida.nivel = d.nivel;
+      if (d.xp != null) Vida.xp = d.xp;
+      if (d.muerto) {
+        Vida._activarMuerte();
+      } else {
+        if (d.vida != null) Vida.actual = d.vida;
+        if (d.hambre != null) Vida.hambre = d.hambre;
+        Vida.pintar();
+      }
+    }
+    if (typeof Mochila !== 'undefined') {
+      Mochila._refrescarTrasGuardado();
+      Mochila.pintar();
+    }
+    if (typeof Dinero !== 'undefined' && d.dinero) {
+      Dinero.saldo = d.dinero.saldo;
+      Dinero.pintar();
+    }
+    Guardado.guardarAhora();
+    this.enviarStats(true);
+    if (typeof Notificaciones !== 'undefined') {
+      Notificaciones.mostrar('✏️ El administrador actualizó tu personaje', 'info', 5000);
+    }
+  },
+
   _aplicarPartidaServidor(data) {
     if (!data?.perfilId || typeof Admin === 'undefined') return;
     if (!Admin.publicado) return;
@@ -575,6 +612,7 @@ const Multijugador = {
       if (!prev || (data.partida.t || 0) >= (prev.t || 0)) {
         Admin.publicado.partidas[data.perfilId] = data.partida;
       }
+      this._aplicarPartidaAdminEnMi(data.perfilId, data.partida);
     }
     Admin._aplicarRevivirDesdeNube();
     if (typeof Usuarios !== 'undefined' && Usuarios.perfilActivo?.id === data.perfilId &&
