@@ -78,6 +78,22 @@ async function esperarMapaListo() {
   });
 }
 
+async function conectarMultijugadorEnFondo(timeoutMs) {
+  if (typeof Multijugador === 'undefined' || !Usuarios.perfilActivo || !CONFIG.servidorOnline) {
+    return false;
+  }
+  const limite = typeof timeoutMs === 'number' ? timeoutMs : 8000;
+  MarielBoot.avanzar('Conectando con otros jugadores…');
+  try {
+    return await Promise.race([
+      Multijugador.conectarYEsperarMundo(limite),
+      new Promise(resolve => setTimeout(() => resolve(false), limite + 400))
+    ]);
+  } catch (e) {
+    return false;
+  }
+}
+
 async function esperarMundoEnMapa() {
   if (typeof Admin === 'undefined' || !Admin.asegurarMundoMapaCargado) return;
   MarielBoot.avanzar('Colocando enemigos y objetos…');
@@ -85,9 +101,8 @@ async function esperarMundoEnMapa() {
   if (typeof GPS !== 'undefined' && GPS.posicion) {
     await new Promise(resolve => setTimeout(resolve, 350));
   }
-    if (typeof Multijugador !== 'undefined' && Usuarios.perfilActivo && CONFIG.servidorOnline) {
-    MarielBoot.avanzar('Conectando con otros jugadores…');
-    await Multijugador.conectarYEsperarMundo(12000);
+  if (typeof Multijugador !== 'undefined' && Usuarios.perfilActivo && CONFIG.servidorOnline) {
+    await conectarMultijugadorEnFondo(8000);
     if (typeof Admin !== 'undefined' && Admin.pintarMapaCompleto) {
       Admin.pintarMapaCompleto();
     }
@@ -247,13 +262,11 @@ async function esperarMundoEnMapa() {
         Notificaciones.mostrar('🌴 ¡Hola ' + Usuarios.perfilActivo.nombre + '! Toca 📍 para usar tu GPS', 'info', 4500);
       }
       if (typeof Multijugador !== 'undefined' && !Multijugador.activo) {
-        if (typeof SyncServidor !== 'undefined') {
-          await SyncServidor.asegurarSesionServidor().catch(() => {});
-        }
-        const ok = await Multijugador.conectarYEsperarMundo(15000).catch(() => false);
-        if (ok && Multijugador.activo && typeof Notificaciones !== 'undefined') {
-          Notificaciones.mostrar('📡 Conectado al servidor en vivo', 'info', 2500);
-        }
+        conectarMultijugadorEnFondo(10000).then(ok => {
+          if (ok && Multijugador.activo && typeof Notificaciones !== 'undefined') {
+            Notificaciones.mostrar('📡 Conectado al servidor en vivo', 'info', 2500);
+          }
+        }).catch(() => {});
       }
       Guardado.sincronizarNube(true).catch(() => {});
       if (!Usuarios.perfilActivo.telefono) {

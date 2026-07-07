@@ -65,7 +65,7 @@ const Usuarios = {
       this.perfilActivo = null;
       document.body.classList.add('en-auth');
       this.mostrarLogin();
-      if (this._resolver) { this._resolver(); this._resolver = null; }
+      // No resolver aquí: esperar a que iniciarSesion/crear llamen _activar()
     });
   },
 
@@ -392,7 +392,14 @@ const Usuarios = {
     this._guardarLista();
     this._ocultarAuth();
     if (window.MarielBoot) MarielBoot.enfrente('Cargando tu partida…');
-    if (this._resolver) { this._resolver(); this._resolver = null; }
+    if (this._resolver) {
+      this._resolver();
+      this._resolver = null;
+    } else {
+      // Arranque ya terminó sin sesión (p. ej. tras actualizar): recargar con perfil guardado
+      location.reload();
+      return;
+    }
     this._publicarSesionEnFondo(perfil, token);
     if (typeof SyncServidor !== 'undefined' && SyncServidor.registrarCuenta) {
       SyncServidor.registrarCuenta(perfil, null).catch(() => {});
