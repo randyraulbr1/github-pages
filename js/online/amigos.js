@@ -18,26 +18,41 @@ const Amigos = {
   _cacheCuenta: '',
 
   _cuentaCacheId() {
+    if (typeof Usuarios !== 'undefined' && Usuarios.perfilActivo?.id) {
+      return String(Usuarios.perfilActivo.id);
+    }
     if (typeof Multijugador !== 'undefined' && Multijugador._miPlayerId) {
       const pid = Multijugador._miPlayerId();
       if (pid > 0) return 'p' + pid;
-    }
-    if (typeof Usuarios !== 'undefined' && Usuarios.perfilActivo?.id) {
-      return 'u' + Usuarios.perfilActivo.id;
     }
     return 'anon';
   },
 
   _socialCacheKey() {
-    return 'mariel_amigos_social_v2_' + this._cuentaCacheId();
+    return 'mariel_amigos_social_v3_' + this._cuentaCacheId();
   },
 
   _marcadosKey() {
-    return 'mariel_amigos_pin_v2_' + this._cuentaCacheId();
+    return 'mariel_amigos_pin_v3_' + this._cuentaCacheId();
   },
 
   _favKey() {
-    return 'mariel_amigos_fav_v2_' + this._cuentaCacheId();
+    return 'mariel_amigos_fav_v3_' + this._cuentaCacheId();
+  },
+
+  _clavesCachePosibles() {
+    const id = this._cuentaCacheId();
+    const claves = [this._socialCacheKey()];
+    if (id && id !== 'anon') {
+      claves.push('mariel_amigos_social_v2_' + id);
+      claves.push('mariel_amigos_social_v2_u' + id);
+      if (typeof Multijugador !== 'undefined' && Multijugador._miPlayerId) {
+        const pid = Multijugador._miPlayerId();
+        if (pid > 0) claves.push('mariel_amigos_social_v2_p' + pid);
+      }
+    }
+    claves.push('mariel_amigos_social_v1');
+    return [...new Set(claves)];
   },
 
   _datosCache() {
@@ -399,6 +414,7 @@ const Amigos = {
     panel?.addEventListener('click', (e) => e.stopPropagation());
 
     this._pintar();
+    if (this._token()) this.refrescar().catch(() => {});
   },
 
   _contadorGlobo(cantidad) {
@@ -450,11 +466,19 @@ const Amigos = {
 
   _cargarSocialCache() {
     try {
-      const raw = localStorage.getItem(this._socialCacheKey());
-      if (!raw) return;
-      const data = JSON.parse(raw);
-      if (!data || typeof data !== 'object') return;
-      if (!this.friends.length) this.aplicarSocial(data, { sinCache: true });
+      for (const key of this._clavesCachePosibles()) {
+        const raw = localStorage.getItem(key);
+        if (!raw) continue;
+        const data = JSON.parse(raw);
+        if (!data || typeof data !== 'object') continue;
+        if (this.friends.length) return;
+        if (!(data.friends?.length || data.pendingIn?.length || data.blocked?.length)) continue;
+        this.aplicarSocial(data, { sinCache: true });
+        try {
+          localStorage.setItem(this._socialCacheKey(), JSON.stringify(this._datosCache()));
+        } catch (e) { /* */ }
+        return;
+      }
     } catch (e) { /* */ }
   },
 
