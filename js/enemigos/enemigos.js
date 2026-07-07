@@ -358,7 +358,6 @@ const Enemigos = {
 
   _vidaMaxEnemigo(e) {
     if (e?.vidaMax) return e.vidaMax;
-    if (e?.vida) return e.vida;
     if (typeof Admin !== 'undefined' && Admin.vidaEnemigoPorNivel) {
       return Admin.vidaEnemigoPorNivel(this._nivelEnemigo(e));
     }
@@ -409,7 +408,10 @@ const Enemigos = {
     if (!e) return;
     if (estado?.vida != null && estado.vida <= 0) {
       this._quitarMarcador(enemyId);
+      return;
     }
+    this._actualizarBarra(e);
+    this._actualizarConoDOM(e);
   },
 
   _procesarMuerteEnemigo(e, opts) {
@@ -734,9 +736,9 @@ const Enemigos = {
         Admin.publicado.enemigosEstado = Admin.publicado.enemigosEstado || {};
         Admin.publicado.enemigosEstado[origenId] = Object.assign(
           Admin.publicado.enemigosEstado[origenId] || {},
-          { vida: data.hp }
+          { vida: data.hp, ultimoGolpe: Date.now() }
         );
-        e.vida = data.hp;
+        if (data.hpMax != null) e.vidaMax = data.hpMax;
         if (data.hp <= 0) {
           this._quitarMarcador(origenId);
           return;
@@ -1279,6 +1281,7 @@ const Enemigos = {
       est[e.id].ultimoGolpe = Date.now();
       const max = res.hpMax || this._vidaMaxEnemigo(e);
       const actual = res.hp;
+      if (res.hpMax) e.vidaMax = res.hpMax;
       this._actualizarUiCombate(e, actual, max);
       Notificaciones.mostrar('⚔️ -' + (res.damage || 0) + ' a ' + e.nombre, 'info', 2000);
       if (res.muerto) {
@@ -1336,7 +1339,8 @@ const Enemigos = {
   _finAtaque(e) {
     if (typeof Admin !== 'undefined') {
       Admin.guardar();
-      if (Admin._publicarParaTodos) Admin._publicarParaTodos(true);
+      // En multijugador el servidor ya guardó el estado del ataque
+      if (!this._online() && Admin._publicarParaTodos) Admin._publicarParaTodos(true);
     }
     const modal = document.getElementById('ventana-combate');
     if (modal && modal.classList.contains('oculto')) this._enCombate = null;
