@@ -39,6 +39,23 @@ function buscarJugadorSnapshot(usuario) {
   ) || null;
 }
 
+/** ¿Sigue en la lista publicada del admin? (cuentas eliminadas → false) */
+function estaEnListaPublicada(usuario) {
+  const snap = getWorldSnapshot();
+  if (!Array.isArray(snap?.jugadores) || !snap.jugadores.length) return null;
+  const u = usuario.trim().toLowerCase();
+  const limpio = usuario.trim().replace(/[\s-]/g, '');
+  return snap.jugadores.some(j =>
+    (j?.nombre && j.nombre.toLowerCase() === u) ||
+    (j?.telefono && String(j.telefono).replace(/[\s-]/g, '') === limpio)
+  );
+}
+
+function resolverNombreLogin(usuario, legacy) {
+  if (legacy?.nombre) return String(legacy.nombre).trim();
+  return usuario.trim();
+}
+
 /** Mundo público (solo lectura) — fuente principal para el cliente */
 router.get('/public/mundo', (req, res) => {
   const snap = getWorldSnapshot();
@@ -109,23 +126,27 @@ router.post('/login-game', (req, res) => {
     return res.status(400).json({ ok: false, error: 'Contraseña mínimo 4 caracteres' });
   }
 
-  const enSnapshot = buscarJugadorSnapshot(usuario);
-  if (!enSnapshot) {
+  const enLista = estaEnListaPublicada(usuario);
+  if (enLista === false) {
     return res.status(401).json({ ok: false, error: 'No estás registrado' });
   }
 
-  let user = findUserByUsername(usuario);
+  const legacy = buscarJugadorSnapshot(usuario);
+  const nombreLogin = resolverNombreLogin(usuario, legacy);
+
+  let user = findUserByUsername(nombreLogin);
+  if (!user && nombreLogin !== usuario) user = findUserByUsername(usuario);
   if (user && comparePassword(clave, user.password_hash)) {
     const player = findPlayerByUserId(user.id);
     if (!player) return res.status(500).json({ ok: false, error: 'Jugador no encontrado' });
     updateLastLogin(user.id);
-    const legacy = buscarJugadorSnapshot(usuario);
+    const perfil = legacy || buscarJugadorSnapshot(nombreLogin);
     return res.json({
       ok: true,
       token: signPlayerToken(user, player),
       user: { id: user.id, username: user.username },
       player: formatPlayer(player),
-      perfil: legacy || {
+      perfil: perfil || {
         id: 'srv_' + player.id,
         nombre: player.name,
         telefono: '',
@@ -135,8 +156,10 @@ router.post('/login-game', (req, res) => {
     });
   }
 
-  const legacy = enSnapshot;
   if (!legacy) {
+    if (enLista === true) {
+      return res.status(401).json({ ok: false, error: 'Contraseña incorrecta' });
+    }
     return res.status(401).json({ ok: false, error: 'No estás registrado' });
   }
   if (!legacy.pinHash) {
@@ -263,13 +286,21 @@ router.post('/login', (req, res) => {
   const username = (req.body.username || req.body.usuario || '').trim();
   const password = req.body.password || req.body.clave || '';
 
-  if (!buscarJugadorSnapshot(username)) {
+  const enLista = estaEnListaPublicada(username);
+  if (enLista === false) {
     return res.status(401).json({ ok: false, error: 'No estás registrado' });
   }
 
-  const user = findUserByUsername(username);
+  const legacy = buscarJugadorSnapshot(username);
+  const nombreLogin = resolverNombreLogin(username, legacy);
+
+  let user = findUserByUsername(nombreLogin);
+  if (!user && nombreLogin !== username) user = findUserByUsername(username);
   if (!user || !comparePassword(password, user.password_hash)) {
-    return res.status(401).json({ ok: false, error: 'Usuario o contraseña incorrectos' });
+    if (enLista === true || legacy) {
+      return res.status(401).json({ ok: false, error: 'Usuario o contraseña incorrectos' });
+    }
+    return res.status(401).json({ ok: false, error: 'No estás registrado' });
   }
 
   const player = findPlayerByUserId(user.id);
@@ -279,7 +310,6 @@ router.post('/login', (req, res) => {
 
   updateLastLogin(user.id);
   const token = signPlayerToken(user, player);
-  const legacy = buscarJugadorSnapshot(username);
   if (legacy) {
     const snap = getWorldSnapshot() || { jugadores: [], partidas: {} };
     mergeJugadoresPartidas(snap, [{ jugadores: [legacy] }]);

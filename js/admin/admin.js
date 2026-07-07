@@ -3607,7 +3607,7 @@ const Admin = {
     this.datos.partidasExtra[perfil.id] = snap;
     this.guardar();
 
-    const ok = await MundoPublico.guardarCuenta(perfil, snap);
+    const ok = await MundoPublico.guardarCuenta(perfil, snap, clave);
     await this._publicarParaTodos(true);
 
     this._editorJugador = null;
