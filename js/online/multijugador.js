@@ -589,17 +589,22 @@ const Multijugador = {
     if (!el) return;
     if (!CONFIG.servidorOnline || !Usuarios?.perfilActivo) {
       el.classList.add('oculto');
+      el.classList.remove('visible', 'estado-reconectando', 'estado-offline');
+      el.setAttribute('aria-hidden', 'true');
       return;
     }
-    el.classList.remove('oculto', 'estado-reconectando', 'estado-offline');
+    el.classList.remove('oculto', 'visible', 'estado-reconectando', 'estado-offline');
     if (estado === 'reconectando') {
-      el.classList.add('estado-reconectando');
+      el.classList.add('visible', 'estado-reconectando');
       el.title = 'Reconectando al servidor…';
+      el.setAttribute('aria-hidden', 'false');
     } else if (estado === 'offline') {
-      el.classList.add('estado-offline');
+      el.classList.add('visible', 'estado-offline');
       el.title = 'Sin conexión al servidor';
+      el.setAttribute('aria-hidden', 'false');
     } else {
-      el.title = 'Conectado al servidor (verde = en vivo)';
+      el.title = 'Conectado al servidor';
+      el.setAttribute('aria-hidden', 'true');
     }
   },
 
