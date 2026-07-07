@@ -4,14 +4,11 @@
   "telefono": "",
   "pinHash": "4bdc96ffc0926b62d55708e3c1755ca3f04b8c28bec6fd85777117da67497f11",
   "creado": 1783379366000,
-  "actualizadoEn": 1783385992754,
+  "actualizadoEn": 1783386001030,
   "partida": {
     "datos": {
       "mochila": [
-        {
-          "id": "agua",
-          "cantidad": 2
-        },
+        null,
         {
           "id": "pan",
           "cantidad": 1
@@ -19,7 +16,10 @@
         null,
         null,
         null,
-        null,
+        {
+          "id": "agua",
+          "cantidad": 2
+        },
         null,
         null,
         null,
@@ -75,6 +75,6 @@
       "muerto": false,
       "armaEquipada": null
     },
-    "t": 1783385987327
+    "t": 1783385998921
   }
 }
