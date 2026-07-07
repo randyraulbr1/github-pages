@@ -494,9 +494,9 @@ const Enemigos = {
       '<span class="mjo-nivel">Nv ' + nv + '</span>' +
       '</div>' +
       '<div class="enemigo-barra-wrap">' +
-      '<div class="mjo-barra mjo-barra-enemigo' + (grande ? ' mjo-barra-cerca' : '') + '">' +
+      '<div class="mjo-barra mjo-barra-enemigo' + (grande ? ' mjo-barra-cerca' : '') + '" role="progressbar" aria-valuenow="' + actual + '" aria-valuemax="' + max + '">' +
       '<div class="mjo-barra-fill" style="width:' + pct + '%"></div>' +
-      '<span class="mjo-vida-num">' + actual + '/' + max + '</span></div></div>' +
+      '<span class="mjo-vida-num" aria-hidden="' + (grande ? 'false' : 'true') + '">' + actual + '/' + max + '</span></div></div>' +
       '<span class="enemigo-emoji">' + (e.icono || '👹') + '</span>' +
       '</div>';
   },
@@ -820,8 +820,15 @@ const Enemigos = {
       const num = el.querySelector('.mjo-vida-num');
       const barra = el.querySelector('.mjo-barra-enemigo');
       if (fill) fill.style.width = pct + '%';
-      if (num) num.textContent = actual + '/' + max;
-      if (barra) barra.classList.toggle('mjo-barra-cerca', quiereGrande);
+      if (num) {
+        num.textContent = actual + '/' + max;
+        num.setAttribute('aria-hidden', quiereGrande ? 'false' : 'true');
+      }
+      if (barra) {
+        barra.classList.toggle('mjo-barra-cerca', quiereGrande);
+        barra.setAttribute('aria-valuenow', String(actual));
+        barra.setAttribute('aria-valuemax', String(max));
+      }
       return;
     }
     this._refrescarIconoMarcador(e);

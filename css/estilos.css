@@ -1835,23 +1835,37 @@ body.mariel-bloqueado-actualizar #pantalla-actualizar {
 }
 .mjo-barra-enemigo .mjo-barra-fill {
   background: linear-gradient(90deg, #c11031, #ff453a);
+  border-radius: inherit;
+  transition: width .3s ease;
 }
 .marcador-enemigo-map .mjo-barra-enemigo {
   width: 52px;
-  height: 5px;
+  height: 6px;
   margin-bottom: 0;
+  position: relative;
+  overflow: hidden;
+  background: rgba(0, 0, 0, .35);
+  border-radius: 3px;
+  transition: width .22s ease, height .22s ease, border-radius .22s ease;
 }
 .marcador-enemigo-map .mjo-vida-num {
   display: none;
+  pointer-events: none;
 }
 .mjo-barra-enemigo.mjo-barra-cerca {
-  width: 78px;
-  height: 16px;
-  position: relative;
-  border: 1px solid rgba(0, 0, 0, .35);
+  width: 80px;
+  height: 18px;
+  border-radius: 5px;
+  border: 1px solid rgba(0, 0, 0, .4);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, .25);
 }
 .mjo-barra-enemigo.mjo-barra-cerca .mjo-barra-fill {
-  opacity: 1;
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  min-width: 0;
+  z-index: 0;
 }
 .mjo-barra-enemigo.mjo-barra-cerca .mjo-vida-num {
   position: absolute;
