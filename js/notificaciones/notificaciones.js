@@ -170,7 +170,6 @@ const Notificaciones = {
         return;
       }
       this._toastPila++;
-      const txt = this._toastEl.querySelector('.notif-texto');
       const pila = this._toastEl.querySelector('.notif-pila');
       if (txt) txt.textContent = texto;
       if (pila) {
