@@ -12,9 +12,26 @@ const MarielVersion = {
   _swTimer: null,
   _comprobando: false,
   _swReg: null,
+  _actualizando: false,
+
+  _aplicarVersionTrasActualizacion() {
+    try {
+      const fuerza = sessionStorage.getItem('mariel_force_version');
+      const cuando = parseInt(sessionStorage.getItem('mariel_actualizado_en') || '0', 10);
+      if (!fuerza || !cuando || Date.now() - cuando > 120000) return;
+      this._embebida = fuerza;
+      this._remota = fuerza;
+      localStorage.setItem('mariel_app_version', fuerza);
+      window.__MARIEL_UPDATE_PENDING = null;
+      sessionStorage.removeItem('mariel_force_version');
+      sessionStorage.removeItem('mariel_actualizado_en');
+      this._desbloquearActualizacion(fuerza);
+    } catch (e) { /* */ }
+  },
 
   iniciar(versionEmbebida) {
     this._embebida = String(versionEmbebida || window.__MARIEL_EMBEDDED__ || '');
+    this._aplicarVersionTrasActualizacion();
     const btn = document.getElementById('btn-actualizar-app');
     if (btn && !btn._marielVersionOk) {
       btn._marielVersionOk = true;
@@ -155,7 +172,7 @@ const MarielVersion = {
     const btn = document.getElementById('btn-actualizar-app');
     if (btn) {
       btn.disabled = false;
-      btn.textContent = 'Actualizar ahora';
+      btn.textContent = 'Actualizar e entrar';
     }
   },
 
@@ -216,15 +233,7 @@ const MarielVersion = {
     }
   },
 
-  async actualizar() {
-    const btn = document.getElementById('btn-actualizar-app');
-    const objetivo = this._remota || this._embebida;
-    if (btn) {
-      btn.disabled = true;
-      btn.textContent = 'Actualizando…';
-    }
-    if (objetivo) localStorage.setItem('mariel_app_version', objetivo);
-
+  async _limpiarTodaCache() {
     try {
       if (this._swReg?.waiting) {
         this._swReg.waiting.postMessage({ tipo: 'skip-waiting' });
@@ -233,15 +242,72 @@ const MarielVersion = {
         const rs = await navigator.serviceWorker.getRegistrations();
         await Promise.all(rs.map(r => r.unregister()));
       }
+    } catch (e) { /* */ }
+    try {
       if ('caches' in window) {
         const ks = await caches.keys();
         await Promise.all(ks.map(k => caches.delete(k)));
       }
-    } catch (e) { /* seguir con recarga */ }
+    } catch (e) { /* */ }
+  },
 
-    const bust = 'cb=' + Date.now();
-    const base = location.origin + location.pathname.replace(/\/$/, '') + '/';
-    location.replace(base + '?' + bust + location.hash);
+  async _precargarVersion(v) {
+    const ts = Date.now();
+    const urls = [
+      'version.json?_=' + ts,
+      'js/config/config.js?v=' + v + '&_=' + ts,
+      'js/nucleo/version_app.js?v=' + v + '&_=' + ts,
+      'sw.js?v=' + v + '&_=' + ts,
+      'index.html?_=' + ts
+    ];
+    const opts = {
+      cache: 'no-store',
+      headers: { 'Cache-Control': 'no-cache', 'Pragma': 'no-cache' }
+    };
+    await Promise.all(urls.map(u => fetch(u, opts).catch(() => null)));
+  },
+
+  async actualizar() {
+    if (this._actualizando) return;
+    this._actualizando = true;
+
+    const btn = document.getElementById('btn-actualizar-app');
+    const msg = (t) => { if (btn) btn.textContent = t; };
+    if (btn) btn.disabled = true;
+
+    msg('Comprobando versión…');
+    let objetivo = null;
+    try {
+      objetivo = await this.obtenerRemota();
+    } catch (e) { /* */ }
+    objetivo = String(objetivo || this._remota || this._embebida || '');
+    if (!objetivo || objetivo === '?') {
+      if (btn) {
+        btn.disabled = false;
+        btn.textContent = 'Actualizar e entrar';
+      }
+      this._actualizando = false;
+      return;
+    }
+
+    this._remota = objetivo;
+    localStorage.setItem('mariel_app_version', objetivo);
+    try {
+      sessionStorage.setItem('mariel_force_version', objetivo);
+      sessionStorage.setItem('mariel_actualizado_en', String(Date.now()));
+    } catch (e) { /* */ }
+
+    msg('Limpiando caché…');
+    await this._limpiarTodaCache();
+
+    msg('Descargando v' + objetivo + '…');
+    await this._precargarVersion(objetivo);
+
+    msg('Entrando al juego…');
+    await new Promise((r) => setTimeout(r, 250));
+
+    const url = location.origin + '/?_mariel=' + Date.now();
+    location.replace(url);
   },
 
   async comprobarRemota() {
