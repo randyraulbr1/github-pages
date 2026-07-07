@@ -17,7 +17,7 @@ const {
 } = require('../db');
 const { hashPassword, comparePassword, signPlayerToken } = require('../auth');
 const { mergeJugadoresPartidas } = require('../syncMundo');
-const { forzarImportJugadores } = require('../importSnapshot');
+const { forzarImportJugadores, leerMundoJson } = require('../importSnapshot');
 const { getJugadoresPublicos, respaldarCuentasEnGitHub, buscarJugadorPublico } = require('../syncCuentas');
 
 const router = express.Router();
@@ -26,29 +26,54 @@ function sha256Pin(clave) {
   return crypto.createHash('sha256').update('pin-perfil|' + clave).digest('hex');
 }
 
+const ADMIN_LOGIN_NAMES = new Set(
+  ['randy', 'soycaos', String(process.env.ADMIN_NOMBRE || 'SoyCaos').toLowerCase()]
+    .concat(String(process.env.ADMIN_ALIASES || 'randy').split(','))
+    .map(s => s.trim().toLowerCase())
+    .filter(Boolean)
+);
+
+function buscarEnListaJugadores(jugadores, usuario) {
+  if (!Array.isArray(jugadores) || !jugadores.length) return null;
+  const u = usuario.trim().toLowerCase();
+  const limpio = usuario.trim().replace(/[\s-]/g, '');
+  return jugadores.find(j =>
+    (j?.nombre && j.nombre.toLowerCase() === u) ||
+    (j?.telefono && String(j.telefono).replace(/[\s-]/g, '') === limpio)
+  ) || null;
+}
+
 function buscarJugadorSnapshot(usuario) {
   const hit = buscarJugadorPublico(usuario);
   if (hit) return hit;
   const snap = getWorldSnapshot();
-  if (!snap?.jugadores?.length) return null;
-  const u = usuario.trim().toLowerCase();
-  const limpio = usuario.trim().replace(/[\s-]/g, '');
-  return snap.jugadores.find(j =>
-    (j.nombre && j.nombre.toLowerCase() === u) ||
-    (j.telefono && j.telefono === limpio)
-  ) || null;
+  let found = buscarEnListaJugadores(snap?.jugadores, usuario);
+  if (found) return found;
+  try {
+    const archivo = leerMundoJson();
+    found = buscarEnListaJugadores(archivo?.jugadores, usuario);
+    if (found) return found;
+  } catch (e) { /* */ }
+  return null;
 }
 
 /** ¿Sigue en la lista publicada del admin? (cuentas eliminadas → false) */
 function estaEnListaPublicada(usuario) {
   const snap = getWorldSnapshot();
-  if (!Array.isArray(snap?.jugadores) || !snap.jugadores.length) return null;
   const u = usuario.trim().toLowerCase();
   const limpio = usuario.trim().replace(/[\s-]/g, '');
-  return snap.jugadores.some(j =>
+  if (!Array.isArray(snap?.jugadores) || !snap.jugadores.length) {
+    if (ADMIN_LOGIN_NAMES.has(u)) return null;
+    return null;
+  }
+  const enLista = snap.jugadores.some(j =>
     (j?.nombre && j.nombre.toLowerCase() === u) ||
     (j?.telefono && String(j.telefono).replace(/[\s-]/g, '') === limpio)
   );
+  if (enLista) return true;
+  if (ADMIN_LOGIN_NAMES.has(u)) return null;
+  if (buscarJugadorSnapshot(usuario)) return null;
+  return false;
 }
 
 function resolverNombreLogin(usuario, legacy) {
