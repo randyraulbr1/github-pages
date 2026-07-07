@@ -46,12 +46,88 @@ const Notificaciones = {
     return true;
   },
 
+  _claveAviso(texto, tipo, categoria) {
+    if (categoria) return 'cat:' + categoria;
+    const t = String(texto || '').trim();
+    const lower = t.toLowerCase();
+
+    const patrones = [
+      [/quiere ser tu amigo/, 'amigo:solicitud'],
+      [/tienes un nuevo amigo/, 'amigo:nuevo'],
+      [/reconectando al servidor/, 'sync:reconectando'],
+      [/conéctate al servidor/, 'sync:sin-conexion'],
+      [/sin conexión al servidor|sin conexión/, 'sync:sin-conexion'],
+      [/servidor actualizando/, 'servidor:actualizando'],
+      [/demasiado lejos/, 'gps:lejos'],
+      [/acércate más/, 'gps:acercate'],
+      [/fallaste el ataque/, 'combate:fallo'],
+      [/derrotaste a/, 'combate:derrota'],
+      [/zona de .*cuidado|zona roja/, 'combate:zona'],
+      [/saliste de la zona/, 'combate:salir-zona'],
+      [/^⚔️/, 'combate:golpe'],
+      [/tienes hambre/, 'vida:hambre'],
+      [/\+\d+\s*xp|xp ·/i, 'vida:xp'],
+      [/subiste al nivel/, 'vida:nivel'],
+      [/administrador actualizó/, 'admin:personaje'],
+      [/administrador movió tu pin/, 'admin:pin'],
+      [/administrador:/, 'admin:mensaje'],
+      [/jugador\(es\) en vivo/, 'online:jugadores'],
+      [/sigue la línea azul|dejaste de seguir.*pin|ya dejaste de seguir/, 'mapa:pin'],
+      [/llegaste al pin/, 'mapa:llegada'],
+      [/mochila llena/, 'inventario:lleno'],
+      [/recogiste:/, 'inventario:recoger'],
+      [/saqueaste/, 'inventario:saqueo'],
+      [/revivid|reviviste/, 'vida:revivir'],
+      [/botiquín/, 'vida:botiquin'],
+      [/misión completada/, 'mision:completada'],
+      [/¡tesoro!/i, 'tesoro'],
+      [/mantenimiento/, 'mantenimiento'],
+      [/conectado al servidor/, 'sync:conectado'],
+      [/mapa aún no tiene objetos/, 'mapa:vacio']
+    ];
+
+    for (const [re, clave] of patrones) {
+      if (re.test(lower) || re.test(t)) return clave;
+    }
+
+    const sinNums = lower
+      .replace(/\d+/g, '#')
+      .replace(/[$]/g, '')
+      .replace(/\s+/g, ' ')
+      .trim();
+    const emoji = (t.match(/^(\p{Extended_Pictographic})/u) || [])[1] || '';
+    const palabras = sinNums
+      .replace(/^[^\p{L}\p{N}]+/u, '')
+      .split(/\s+/)
+      .slice(0, 5)
+      .join(' ');
+    return (tipo || 'info') + ':' + emoji + ':' + palabras;
+  },
+
+  _deduplicarLista(lista) {
+    const out = [];
+    const visto = new Set();
+    for (const n of (lista || [])) {
+      if (!n || !n.texto) continue;
+      const clave = this._claveAviso(n.texto, n.tipo, n.categoria);
+      if (visto.has(clave)) continue;
+      visto.add(clave);
+      out.push(n);
+    }
+    return out.slice(0, 20);
+  },
+
   _guardarHistorial(texto, tipo, categoria) {
     if (typeof Guardado === 'undefined' || !Guardado.datos) return;
     if (!Guardado.datos.notificaciones) Guardado.datos.notificaciones = [];
     const lista = Guardado.datos.notificaciones;
-    const idx = lista.findIndex(n => n && n.texto === texto);
-    if (idx >= 0) lista.splice(idx, 1);
+    const clave = this._claveAviso(texto, tipo, categoria);
+    for (let i = lista.length - 1; i >= 0; i--) {
+      const n = lista[i];
+      if (n && this._claveAviso(n.texto, n.tipo, n.categoria) === clave) {
+        lista.splice(i, 1);
+      }
+    }
     lista.unshift({
       texto,
       tipo,
@@ -59,7 +135,7 @@ const Notificaciones = {
       t: Date.now(),
       leido: false
     });
-    Guardado.datos.notificaciones = lista.slice(0, 20);
+    Guardado.datos.notificaciones = this._deduplicarLista(lista);
     Guardado.guardar();
     this._actualizarBadge();
   },
@@ -86,7 +162,8 @@ const Notificaciones = {
 
     if (this._toastEl && zona.contains(this._toastEl)) {
       const txt = this._toastEl.querySelector('.notif-texto');
-      if (txt && txt.textContent === texto) {
+      const mismaClave = txt && this._claveAviso(txt.textContent, tipo) === this._claveAviso(texto, tipo);
+      if (mismaClave) {
         this._toastEl.className = 'notificacion visible ' + tipo;
         clearTimeout(this._toastOcultarTimer);
         this._toastOcultarTimer = setTimeout(() => this._ocultarToast(), duracionMs);
@@ -214,6 +291,10 @@ const Notificaciones = {
   _pintarVisor() {
     const cont = document.getElementById('lista-notificaciones');
     if (!cont) return;
+    if (Guardado.datos?.notificaciones) {
+      Guardado.datos.notificaciones = this._deduplicarLista(Guardado.datos.notificaciones);
+      Guardado.guardar();
+    }
     const lista = (Guardado.datos && Guardado.datos.notificaciones) || [];
     cont.innerHTML = '';
 
