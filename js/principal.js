@@ -248,6 +248,18 @@ async function esperarMundoEnMapa() {
     // —— FASE 5: MAPA LISTO ANTES DE ENTRAR ——
     await esperarMapaListo();
     await esperarMundoEnMapa();
+    if (Usuarios.perfilActivo && typeof Admin !== 'undefined') {
+      await pasoSeguro('mundo-jugador', async () => {
+        if (Admin.refrescarMundoTrasLogin) await Admin.refrescarMundoTrasLogin();
+        else if (typeof Multijugador !== 'undefined' && Multijugador.obtenerMundoServidor) {
+          await Multijugador.obtenerMundoServidor();
+        }
+        if (Admin.pintarMapaCompleto) Admin.pintarMapaCompleto();
+        if (typeof Multijugador !== 'undefined' && Multijugador._sincronizarPinesPartida) {
+          Multijugador._sincronizarPinesPartida();
+        }
+      });
+    }
 
     if (Guardado.integridadRota) {
       Notificaciones.mostrar('⚠️ Los datos guardados fueron modificados a mano (revisa el Historial)', 'error', 7000);
