@@ -23,13 +23,24 @@ button { font-family: inherit; }
   z-index: 1000;
   display: flex;
   flex-direction: column;
+  align-items: flex-start;
   gap: 6px;
-  max-width: min(72vw, 240px);
+  max-width: none;
   pointer-events: none;
 }
 #panel-hud-izq > * { pointer-events: auto; }
 
+#hud-nucleo-fijo {
+  position: relative;
+  width: min(72vw, 240px);
+  flex-shrink: 0;
+}
+
 .indicador-wifi {
+  position: absolute;
+  top: 1px;
+  right: -22px;
+  z-index: 2;
   flex-shrink: 0;
   display: flex;
   align-items: center;
@@ -62,7 +73,7 @@ button { font-family: inherit; }
   0%, 100% { opacity: 0.35; }
   50% { opacity: 1; }
 }
-.fila-barra-vida #contenedor-vida { flex: 1; min-width: 0; }
+.fila-barra-vida #contenedor-vida { flex: 1; min-width: 0; width: 100%; }
 
 #barra-inferior-wrap {
   position: fixed;
@@ -84,6 +95,8 @@ button { font-family: inherit; }
   display: flex;
   flex-direction: column;
   gap: 4px;
+  width: 100%;
+  flex-shrink: 0;
   padding: 0;
   background: transparent;
   border: none;
@@ -504,12 +517,13 @@ button { font-family: inherit; }
 @media (min-width: 768px) {
   #barra-inferior-wrap { max-width: 440px; }
   #botones-inferiores { gap: 10px; padding: 6px 10px; }
-  #panel-hud-izq { max-width: min(280px, 28vw); }
+  #hud-nucleo-fijo { width: min(280px, 28vw); }
   #hud-dinero-cantidad { font-size: 12px; }
 }
 @media (min-width: 1024px) {
   #barra-inferior-wrap { bottom: calc(16px + env(safe-area-inset-bottom)); }
-  #panel-hud-izq { left: 16px; max-width: 300px; }
+  #panel-hud-izq { left: 16px; }
+  #hud-nucleo-fijo { width: 300px; }
 }
 .btn-burbuja {
   display: flex; flex-direction: column; align-items: center; gap: 3px;
@@ -616,7 +630,10 @@ button { font-family: inherit; }
 /* ============ LETRERO DE MISIONES (debajo del HUD) ============ */
 #letrero-misiones {
   display: flex; flex-direction: column; gap: 5px;
-  max-width: 100%; pointer-events: auto;
+  max-width: min(85vw, 280px);
+  width: max-content;
+  pointer-events: auto;
+  flex-shrink: 0;
 }
 .mision-letrero {
   background: rgba(16,20,31,.85); border: 2px solid #1a1a1a; border-radius: 12px;
@@ -628,7 +645,13 @@ button { font-family: inherit; }
 .mision-letrero .titulo-letrero { font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .mision-letrero .estado-letrero { color: #ffd60a; font-size: 10px; }
 
-#letrero-pin-chat { display: flex; flex-direction: column; gap: 5px; max-width: 100%; pointer-events: auto; }
+#letrero-pin-chat {
+  display: flex; flex-direction: column; gap: 5px;
+  max-width: min(85vw, 280px);
+  width: max-content;
+  pointer-events: auto;
+  flex-shrink: 0;
+}
 .pin-chat-letrero { position: relative; padding-right: 34px; }
 .pin-chat-letrero .btn-letrero-pin {
   position: absolute; right: 6px; top: 50%; transform: translateY(-50%);
@@ -1970,7 +1993,7 @@ body.mariel-bloqueado-actualizar #pantalla-actualizar {
   .ventana-caja { max-width: 440px; border-radius: 22px; max-height: 82vh; }
   #rejilla-mochila { gap: 10px; padding: 18px; }
   .slot { font-size: 34px; border-radius: 16px; }
-  #grupo-barras { max-width: 280px; }
+  #hud-nucleo-fijo { width: 280px; }
   #contenedor-vida { height: 20px; }
   .btn-hud-mini { width: 34px; height: 34px; font-size: 16px; border-radius: 11px; }
   .perfil-hud { max-width: 340px; padding: 8px 12px; }
@@ -2276,7 +2299,7 @@ body.cuenta-eliminada .ventana { display: none !important; }
 #admin-vista-crear-jugador { overflow: hidden; }
 
 @media (min-width: 900px) {
-  #grupo-barras { max-width: 260px; }
+  #hud-nucleo-fijo { width: 260px; }
   .perfil-hud { max-width: 320px; }
   .admin-editor-horizontal { min-height: 320px; }
   .admin-rejilla-fija { max-width: 300px; }
