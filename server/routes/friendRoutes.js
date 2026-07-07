@@ -99,7 +99,10 @@ router.post('/block', authMiddleware, (req, res) => {
   removeFriendship(req.auth.playerId, blockedId);
 
   const io = req.app.get('io');
-  if (io) io.emit('friends:update', { playerId: req.auth.playerId });
+  if (io) {
+    io.emit('friends:update', { playerId: req.auth.playerId });
+    io.to('player:' + blockedId).emit('friends:update', { playerId: blockedId });
+  }
   res.json({ ok: true });
 });
 

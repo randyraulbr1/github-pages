@@ -6,16 +6,71 @@ const Amigos = {
   pendingIn: [],
   pendingOut: [],
   blocked: [],
+  blockedBy: [],
   friendIds: new Set(),
   blockedIds: new Set(),
-  _socialCacheKey: 'mariel_amigos_social_v1',
-  _marcadosKey: 'mariel_amigos_pin',
-  _favKey: 'mariel_amigos_fav',
+  blockedByIds: new Set(),
   _marcados: new Set(),
   _favoritos: new Set(),
   _filtro: '',
   _toastTimer: null,
   _confirmPending: null,
+  _cacheCuenta: '',
+
+  _cuentaCacheId() {
+    if (typeof Multijugador !== 'undefined' && Multijugador._miPlayerId) {
+      const pid = Multijugador._miPlayerId();
+      if (pid > 0) return 'p' + pid;
+    }
+    if (typeof Usuarios !== 'undefined' && Usuarios.perfilActivo?.id) {
+      return 'u' + Usuarios.perfilActivo.id;
+    }
+    return 'anon';
+  },
+
+  _socialCacheKey() {
+    return 'mariel_amigos_social_v2_' + this._cuentaCacheId();
+  },
+
+  _marcadosKey() {
+    return 'mariel_amigos_pin_v2_' + this._cuentaCacheId();
+  },
+
+  _favKey() {
+    return 'mariel_amigos_fav_v2_' + this._cuentaCacheId();
+  },
+
+  _datosCache() {
+    return {
+      friends: this.friends,
+      pendingIn: this.pendingIn,
+      pendingOut: this.pendingOut,
+      blocked: this.blocked,
+      blockedBy: this.blockedBy,
+      friendIds: [...this.friendIds],
+      blockedIds: [...this.blockedIds],
+      blockedByIds: [...this.blockedByIds],
+      cacheAt: Date.now()
+    };
+  },
+
+  _asegurarCuenta() {
+    const cuenta = this._cuentaCacheId();
+    if (cuenta === this._cacheCuenta) return;
+    this._cacheCuenta = cuenta;
+    this.friends = [];
+    this.pendingIn = [];
+    this.pendingOut = [];
+    this.blocked = [];
+    this.blockedBy = [];
+    this.friendIds = new Set();
+    this.blockedIds = new Set();
+    this.blockedByIds = new Set();
+    this._marcados = new Set();
+    this._favoritos = new Set();
+    this._cargarMarcados();
+    this._cargarSocialCache();
+  },
 
   _cargarMarcados() {
     try {
@@ -128,6 +183,10 @@ const Amigos = {
 
   toggleMarcar(playerId) {
     const id = Number(playerId);
+    if (this.bloqueadoCon(id)) {
+      this._toast('No puedes marcar a este jugador');
+      return;
+    }
     if (this._marcados.has(id)) {
       this._marcados.delete(id);
     } else {
@@ -152,6 +211,10 @@ const Amigos = {
 
   abrirChat(playerId) {
     const id = Number(playerId);
+    if (this.bloqueadoCon(id)) {
+      this._toast('No puedes chatear con este jugador');
+      return;
+    }
     this.cerrar();
     if (typeof Chat === 'undefined') return;
     if (!Chat._online()) {
@@ -179,19 +242,34 @@ const Amigos = {
     return Multijugador.urlServidor();
   },
 
-  aplicarSocial(data) {
+  _enriquecerAmigosOnline(friends) {
+    return (friends || []).map(f => {
+      const id = Number(f.playerId);
+      let online = !!f.online;
+      if (!online && typeof Multijugador !== 'undefined' && Multijugador.online?.length) {
+        online = Multijugador.online.some(p => Number(p.playerId) === id);
+      }
+      return Object.assign({}, f, { online });
+    });
+  },
+
+  aplicarSocial(data, opts) {
     if (!data) return;
-    this.friends = data.friends || [];
+    this._asegurarCuenta();
+    this.friends = this._enriquecerAmigosOnline(data.friends);
     this.pendingIn = data.pendingIn || [];
     this.pendingOut = data.pendingOut || [];
     this.blocked = data.blocked || [];
+    this.blockedBy = data.blockedBy || [];
     this.friendIds = new Set((data.friendIds || this.friends.map(f => f.playerId)).map(Number));
     this.blockedIds = new Set((data.blockedIds || this.blocked.map(b => b.playerId)).map(Number));
-    try {
-      if ((data.friends || []).length || (data.pendingIn || []).length) {
-        localStorage.setItem(this._socialCacheKey, JSON.stringify(data));
-      }
-    } catch (e) { /* */ }
+    this.blockedByIds = new Set((data.blockedByIds || this.blockedBy.map(b => b.playerId)).map(Number));
+    this._limpiarMarcadosBloqueados();
+    if (!opts?.sinCache) {
+      try {
+        localStorage.setItem(this._socialCacheKey(), JSON.stringify(this._datosCache()));
+      } catch (e) { /* */ }
+    }
     this._pintar();
     if (typeof Chat !== 'undefined') {
       if (Chat.activePlayer) Chat.updateFriendButton();
@@ -203,12 +281,64 @@ const Amigos = {
     }
   },
 
+  _limpiarMarcadosBloqueados() {
+    let cambio = false;
+    for (const id of [...this._marcados]) {
+      if (this.bloqueadoCon(id)) {
+        this._marcados.delete(id);
+        cambio = true;
+      }
+    }
+    if (cambio) this._guardarMarcados();
+  },
+
+  _marcarOffline(playerId) {
+    const id = Number(playerId);
+    let cambio = false;
+    this.friends = this.friends.map(f => {
+      if (Number(f.playerId) !== id) return f;
+      cambio = true;
+      return Object.assign({}, f, { online: false });
+    });
+    if (cambio) {
+      try {
+        localStorage.setItem(this._socialCacheKey(), JSON.stringify(this._datosCache()));
+      } catch (e) { /* */ }
+      this._pintarSiAbierto();
+    }
+  },
+
+  _marcarOnline(playerId) {
+    const id = Number(playerId);
+    if (!this.friendIds.has(id)) return;
+    let cambio = false;
+    this.friends = this.friends.map(f => {
+      if (Number(f.playerId) !== id) return f;
+      cambio = true;
+      return Object.assign({}, f, { online: true });
+    });
+    if (cambio) this._pintarSiAbierto();
+  },
+
+  invalidarCuenta() {
+    this._cacheCuenta = '';
+  },
+
   esAmigo(playerId) {
     return this.friendIds.has(Number(playerId));
   },
 
   estaBloqueado(playerId) {
     return this.blockedIds.has(Number(playerId));
+  },
+
+  meBloquearon(playerId) {
+    return this.blockedByIds.has(Number(playerId));
+  },
+
+  bloqueadoCon(playerId) {
+    const id = Number(playerId);
+    return this.estaBloqueado(id) || this.meBloquearon(id);
   },
 
   abrir() {
@@ -239,9 +369,8 @@ const Amigos = {
 
     if (!this._uiLista) {
       this._uiLista = true;
-      this._cargarMarcados();
+      this._asegurarCuenta();
     }
-    this._cargarSocialCache();
     if (!enlazar()) {
       document.addEventListener('DOMContentLoaded', () => enlazar(), { once: true });
     }
@@ -320,12 +449,12 @@ const Amigos = {
   },
 
   _cargarSocialCache() {
-    if (this.friends.length) return;
     try {
-      const raw = localStorage.getItem(this._socialCacheKey);
+      const raw = localStorage.getItem(this._socialCacheKey());
       if (!raw) return;
       const data = JSON.parse(raw);
-      if (data?.friends?.length) this.aplicarSocial(data);
+      if (!data || typeof data !== 'object') return;
+      if (!this.friends.length) this.aplicarSocial(data, { sinCache: true });
     } catch (e) { /* */ }
   },
 
@@ -367,6 +496,10 @@ const Amigos = {
   async solicitar(playerId, username) {
     const base = this._base();
     if (!base || !this._token()) return;
+    if (playerId && this.bloqueadoCon(playerId)) {
+      this._toast('No puedes agregar a este jugador');
+      return;
+    }
     try {
       const body = playerId ? { playerId } : { username };
       const r = await fetch(base + '/api/friends/request', {
@@ -430,9 +563,18 @@ const Amigos = {
     const nombre = this.friends.find(f => Number(f.playerId) === id)?.name || 'Jugador';
     this._pedirConfirm(
       '¿Bloquear jugador?',
-      'No podrás recibir mensajes ni invitaciones de ' + nombre + '.',
+      'Si lo bloqueas, no podrá enviarte mensajes, verte en el mapa ni marcarte pin.',
       async () => {
-        await this._post('/api/friends/block', { playerId }, '🚫 Jugador bloqueado');
+        if (this._marcados.has(id)) {
+          this._marcados.delete(id);
+          this._guardarMarcados();
+          if (typeof Multijugador !== 'undefined') Multijugador._actualizarLineasAmigo();
+        }
+        if (this._favoritos.has(id)) {
+          this._favoritos.delete(id);
+          this._guardarFavoritos();
+        }
+        await this._post('/api/friends/block', { playerId: id }, null);
         this._toast(nombre + ' bloqueado');
       }
     );
@@ -481,16 +623,19 @@ const Amigos = {
     let principal = '';
     let secundario = '';
 
-    const btnChat = this.estaBloqueado(id) ? '' :
+    const btnChat = this.bloqueadoCon(id) ? '' :
       '<button type="button" class="popup-jugador-amigo-btn" data-accion="chatear" data-id="' + id +
       '">💬 Chatear</button>';
 
     if (this.esAmigo(id)) {
       const marcado = this.esMarcado(id);
+      const puedeMarcar = !this.bloqueadoCon(id);
       principal = btnChat +
-        '<button type="button" class="popup-jugador-amigo-btn' + (marcado ? ' activo' : '') +
-        '" data-accion="marcar" data-id="' + id + '">' +
-        (marcado ? '📍 Pin en mapa' : '📍 Marcar en mapa') + '</button>';
+        (puedeMarcar
+          ? '<button type="button" class="popup-jugador-amigo-btn' + (marcado ? ' activo' : '') +
+            '" data-accion="marcar" data-id="' + id + '">' +
+            (marcado ? '📍 Pin en mapa' : '📍 Marcar en mapa') + '</button>'
+          : '');
     } else if (this.pendingOut.some(r => Number(r.toPlayerId) === id)) {
       principal = btnChat + '<div class="popup-jugador-pendiente">⏳ Solicitud enviada</div>';
     } else if (this.estaBloqueado(id)) {
@@ -499,9 +644,11 @@ const Amigos = {
         'Desbloquear jugador</button>';
     } else {
       principal = btnChat;
-      secundario =
-        '<button type="button" class="popup-jugador-amigo-btn secundario" data-accion="agregar" data-id="' + id + '">' +
-        '👥 Agregar amigo</button>';
+      if (!this.bloqueadoCon(id) && !this.meBloquearon(id)) {
+        secundario =
+          '<button type="button" class="popup-jugador-amigo-btn secundario" data-accion="agregar" data-id="' + id + '">' +
+          '👥 Agregar amigo</button>';
+      }
     }
 
     const vidaTxt = hp != null
@@ -541,8 +688,8 @@ const Amigos = {
     const estado = this._estadoAmigo(f);
     const marcado = this.esMarcado(id);
     const fav = this.esFavorito(id);
-    const puedePin = this._puedePin(f);
-    const puedeChat = this._puedeChat(f);
+    const puedePin = !this.bloqueadoCon(id) && this._puedePin(f);
+    const puedeChat = !this.bloqueadoCon(id) && this._puedeChat(f);
     const clases = ['friend-card'];
     if (estado.online) clases.push('online');
     if (marcado) clases.push('pin-activo');

@@ -296,6 +296,7 @@ const Multijugador = {
       this._reconectando = false;
       this._ocultarAvisoReconexion();
       this._actualizarIndicadorConexion('online');
+      if (typeof Amigos !== 'undefined') Amigos.refrescar();
     });
 
     this.socket.io.on('reconnect_attempt', () => {
@@ -340,6 +341,7 @@ const Multijugador = {
       if (i >= 0) this.online[i] = p; else this.online.push(p);
       this._actualizarMarcador(p);
       this._redibujar(false);
+      if (typeof Amigos !== 'undefined') Amigos._marcarOnline(p.playerId);
     });
 
     this.socket.on('player:offline', (p) => {
@@ -352,7 +354,7 @@ const Multijugador = {
         this._quitarMarcadorCuerpo(sid);
       }
       this._redibujarCuerpos();
-      if (typeof Amigos !== 'undefined') Amigos.refrescar();
+      if (typeof Amigos !== 'undefined') Amigos._marcarOffline(pid);
     });
 
     this.socket.on('player:move', (p) => {
@@ -578,7 +580,7 @@ const Multijugador = {
   _visible(playerId) {
     const id = Number(playerId);
     if (id === this._miPlayerId()) return false;
-    if (typeof Amigos !== 'undefined' && Amigos.estaBloqueado(id)) return false;
+    if (typeof Amigos !== 'undefined' && Amigos.bloqueadoCon(id)) return false;
     return true;
   },
 
@@ -1129,7 +1131,7 @@ const Multijugador = {
       '">🩹 Revivir (botiquín)</button>';
     const pid = Number(p.playerId);
     const soyYo = pid === this._miPlayerId();
-    if (!soyYo && typeof Amigos !== 'undefined' && !Amigos.estaBloqueado(pid)) {
+    if (!soyYo && typeof Amigos !== 'undefined' && !Amigos.bloqueadoCon(pid)) {
       html += '<button type="button" class="popup-muerto-chat" data-chat-pid="' + pid +
         '" data-chat-nombre="' + nombre.replace(/"/g, '&quot;') + '">💬 Chatear</button>';
     }
@@ -1755,6 +1757,7 @@ const Multijugador = {
 
     if (miPos && marcados.size) {
       for (const pid of marcados) {
+        if (Amigos.bloqueadoCon(pid)) continue;
         const dest = this._destinoAmigoMarcado(pid);
         if (!dest) continue;
         activos.add(String(pid));

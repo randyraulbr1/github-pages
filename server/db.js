@@ -387,10 +387,22 @@ function getBlockedIds(playerId) {
   `).all(playerId).map(r => r.id);
 }
 
+function getBlockedByIds(playerId) {
+  return db.prepare(`
+    SELECT blocker_id AS id FROM player_blocks WHERE blocked_id = ?
+  `).all(playerId).map(r => r.id);
+}
+
 function blockPlayer(blockerId, blockedId) {
   db.prepare(`
     INSERT OR IGNORE INTO player_blocks (blocker_id, blocked_id) VALUES (?, ?)
   `).run(blockerId, blockedId);
+  db.prepare(`
+    DELETE FROM friend_requests
+    WHERE status = 'pending' AND (
+      (from_player_id = ? AND to_player_id = ?) OR (from_player_id = ? AND to_player_id = ?)
+    )
+  `).run(blockerId, blockedId, blockedId, blockerId);
 }
 
 function unblockPlayer(blockerId, blockedId) {
@@ -458,6 +470,9 @@ function acceptFriendRequest(requestId, playerId) {
   if (row.to_player_id !== playerId) {
     return { ok: false, error: 'No puedes aceptar esta solicitud' };
   }
+  if (isBlocked(row.from_player_id, row.to_player_id)) {
+    return { ok: false, error: 'No puedes aceptar esta solicitud' };
+  }
   db.prepare(`UPDATE friend_requests SET status = 'accepted' WHERE id = ?`).run(requestId);
   const updated = db.prepare('SELECT * FROM friend_requests WHERE id = ?').get(requestId);
   return {
@@ -499,6 +514,7 @@ function getFriendIds(playerId) {
 function getSocialData(playerId, onlineIds) {
   const online = new Set(onlineIds || []);
   const blocked = getBlockedIds(playerId);
+  const blockedBy = getBlockedByIds(playerId);
 
   const friends = db.prepare(`
     SELECT fr.*,
@@ -529,13 +545,20 @@ function getSocialData(playerId, onlineIds) {
     return { playerId: id, name: p?.name || '?' };
   });
 
+  const blockedByList = blockedBy.map(id => {
+    const p = findPlayerById(id);
+    return { playerId: id, name: p?.name || '?' };
+  });
+
   return {
     friends,
-    pendingIn,
-    pendingOut,
+    pendingIn: pendingIn.filter(r => !isBlocked(playerId, r.fromPlayerId)),
+    pendingOut: pendingOut.filter(r => !isBlocked(playerId, r.toPlayerId)),
     blocked: blockedList,
+    blockedBy: blockedByList,
     friendIds: friends.map(f => f.playerId),
-    blockedIds: blocked
+    blockedIds: blocked,
+    blockedByIds: blockedBy
   };
 }
 
@@ -778,6 +801,7 @@ module.exports = {
   blockPlayer,
   unblockPlayer,
   getBlockedIds,
+  getBlockedByIds,
   getFriendIds,
   getSocialData,
   isBlocked,

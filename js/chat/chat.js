@@ -114,6 +114,10 @@ const Chat = {
       Notificaciones.mostrar('📡 Conéctate al servidor para chatear', 'alerta', 3000);
       return;
     }
+    if (typeof Amigos !== 'undefined' && Amigos.bloqueadoCon(playerId)) {
+      Notificaciones.mostrar('No puedes chatear con este jugador', 'alerta', 3000);
+      return;
+    }
     this.marcarContacto(playerId, nombre);
     this.openConversation(playerId);
   },
@@ -249,7 +253,7 @@ const Chat = {
 
     if (typeof Amigos !== 'undefined') {
       for (const f of Amigos.friends || []) {
-        if (Amigos.estaBloqueado(f.playerId)) continue;
+        if (Amigos.bloqueadoCon(f.playerId)) continue;
         map.set(Number(f.playerId), {
           id: Number(f.playerId),
           name: f.name,
@@ -262,7 +266,7 @@ const Chat = {
     for (const [idStr, info] of Object.entries(this._contactos)) {
       const id = Number(idStr);
       if (!id || id === yo) continue;
-      if (typeof Amigos !== 'undefined' && Amigos.estaBloqueado(id)) continue;
+      if (typeof Amigos !== 'undefined' && Amigos.bloqueadoCon(id)) continue;
       if (map.has(id)) continue;
       map.set(id, {
         id,
@@ -810,7 +814,7 @@ const Chat = {
     if (!this.activePlayer || typeof Amigos === 'undefined') return;
     const id = this.activePlayer;
 
-    if (Amigos.esAmigo(id) || Amigos.estaBloqueado(id)) return;
+    if (Amigos.esAmigo(id) || Amigos.bloqueadoCon(id)) return;
 
     const entrante = this._solicitudEntrante();
     if (entrante) {

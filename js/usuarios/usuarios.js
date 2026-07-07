@@ -402,6 +402,7 @@ const Usuarios = {
     this.datos.sesionId = perfil.id;
     this.perfilActivo = perfil;
     this._sesionCerrada = false;
+    if (typeof Amigos !== 'undefined') Amigos._asegurarCuenta();
     document.body.classList.remove('sesion-cerrada');
     const token = this._generarTokenSesion();
     perfil.sesionToken = token;
@@ -583,6 +584,7 @@ const Usuarios = {
     }
     this.datos.sesionId = null;
     this.datos.activo = null;
+    if (typeof Amigos !== 'undefined') Amigos.invalidarCuenta();
     this.perfilActivo = null;
     this._guardarLista();
     if (typeof Guardado !== 'undefined') {
