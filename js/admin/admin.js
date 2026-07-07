@@ -1180,7 +1180,7 @@ const Admin = {
     const el = document.getElementById('admin-mover-pin-texto');
     if (!el) return;
     const on = !!this.datos.moverPinJugador;
-    el.textContent = 'Mover pin: ' + (on ? 'ON' : 'OFF');
+    el.textContent = 'Arrastrar pin (admin): ' + (on ? 'ON' : 'OFF');
     const btn = document.getElementById('admin-mover-pin');
     if (btn) btn.classList.toggle('admin-toggle-on', on);
   },
