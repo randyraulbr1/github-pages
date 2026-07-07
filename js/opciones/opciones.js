@@ -41,6 +41,10 @@ const Opciones = {
       btn.addEventListener('click', () => this._togglePref(btn));
     });
 
+    document.querySelectorAll('.opciones-seg[data-pref-seg]').forEach(btn => {
+      btn.addEventListener('click', () => this._elegirSegmento(btn));
+    });
+
     document.getElementById('opcion-salir')?.addEventListener('click', () => {
       this._confirmar(
         'logout',
@@ -94,7 +98,37 @@ const Opciones = {
     const activo = btn.classList.contains('off');
     this._setToggle(btn, activo);
     this._guardarPreferencia(clave, activo);
-    this._toast(activo ? 'Notificación activada' : 'Notificación apagada');
+    const msg = clave === 'vibracionCombate'
+      ? (activo ? 'Vibración activada' : 'Vibración desactivada')
+      : (activo ? 'Notificación activada' : 'Notificación apagada');
+    this._toast(msg);
+  },
+
+  _elegirSegmento(btn) {
+    const clave = btn.dataset.prefSeg;
+    const val = btn.dataset.val;
+    if (!clave || !val) return;
+    if (!Guardado.datos.preferencias) {
+      Guardado.datos.preferencias = { notifChat: true, notifAmigos: true, vibracionCombate: true, posBtnAtacar: 'izq' };
+    }
+    Guardado.datos.preferencias[clave] = val;
+    Guardado.guardar();
+    this._pintarSegmentos();
+    if (clave === 'posBtnAtacar' && typeof Enemigos !== 'undefined') {
+      Enemigos.aplicarLayoutCombate();
+      Enemigos._actualizarHudCombate();
+    }
+    this._toast(val === 'der' ? 'ATK a la derecha' : 'ATK a la izquierda');
+  },
+
+  _pintarSegmentos() {
+    const prefs = Guardado.datos?.preferencias || {};
+    document.querySelectorAll('.opciones-seg[data-pref-seg]').forEach(btn => {
+      const clave = btn.dataset.prefSeg;
+      const val = btn.dataset.val;
+      const activo = (prefs[clave] || 'izq') === val;
+      btn.classList.toggle('activo', activo);
+    });
   },
 
   _setToggle(btn, on) {
@@ -174,10 +208,16 @@ const Opciones = {
     const maxVida = (typeof Vida !== 'undefined') ? Vida.vidaMaxima() : CONFIG.vidaMaxima;
     const hambre = (typeof Vida !== 'undefined') ? Vida.hambre : CONFIG.hambreInicial;
     const oro = (typeof Dinero !== 'undefined') ? Dinero.saldo : 0;
+    let ataqueTxt = '—';
+    if (typeof Enemigos !== 'undefined') {
+      const d = Enemigos.rangoAtaqueJugador();
+      ataqueTxt = d.totalLo + '–' + d.totalHi;
+    }
     if (grid) {
       grid.innerHTML =
         '<div class="opciones-stat"><div class="opciones-label">Nivel</div><div class="opciones-value">Nv ' + nivel + '</div></div>' +
         '<div class="opciones-stat"><div class="opciones-label">Vida</div><div class="opciones-value">❤️ ' + vida + '/' + maxVida + '</div></div>' +
+        '<div class="opciones-stat"><div class="opciones-label">Ataque</div><div class="opciones-value">⚔️ ' + ataqueTxt + '</div></div>' +
         '<div class="opciones-stat"><div class="opciones-label">Hambre</div><div class="opciones-value">🍽️ ' + hambre + '/' + CONFIG.hambreMaxima + '</div></div>' +
         '<div class="opciones-stat"><div class="opciones-label">Oro</div><div class="opciones-value">💰 $' + oro + '</div></div>';
     }
@@ -201,6 +241,8 @@ const Opciones = {
     const prefs = Guardado.datos?.preferencias || {};
     this._setToggle(document.getElementById('opcion-toggle-chat'), prefs.notifChat !== false);
     this._setToggle(document.getElementById('opcion-toggle-amigos'), prefs.notifAmigos !== false);
+    this._setToggle(document.getElementById('opcion-toggle-vibracion'), prefs.vibracionCombate !== false);
+    this._pintarSegmentos();
   },
 
   _pintarVersion() {
@@ -223,7 +265,7 @@ const Opciones = {
   _guardarPreferencia(clave, valor) {
     if (!Guardado.datos) return;
     if (!Guardado.datos.preferencias) {
-      Guardado.datos.preferencias = { notifChat: true, notifAmigos: true };
+      Guardado.datos.preferencias = { notifChat: true, notifAmigos: true, vibracionCombate: true, posBtnAtacar: 'izq' };
     }
     Guardado.datos.preferencias[clave] = !!valor;
     Guardado.guardar();

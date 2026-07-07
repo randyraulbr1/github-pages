@@ -38,6 +38,16 @@ const Utilidades = {
            f.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
   },
 
+  /** Vibración corta (combate). Respeta preferencia vibracionCombate del jugador. */
+  vibrar(ms) {
+    if (typeof navigator === 'undefined' || typeof navigator.vibrate !== 'function') return;
+    const prefs = typeof Guardado !== 'undefined' ? Guardado.datos?.preferencias : null;
+    if (prefs && prefs.vibracionCombate === false) return;
+    try {
+      navigator.vibrate(ms || 140);
+    } catch (e) { /* */ }
+  },
+
   async fetchConTimeout(url, opciones = {}, ms = 8000) {
     const ctrl = new AbortController();
     const id = setTimeout(() => ctrl.abort(), ms);
