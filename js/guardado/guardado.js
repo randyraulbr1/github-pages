@@ -136,8 +136,7 @@ const Guardado = {
     this.datos.nubeT = nube.t;
     this.datos.nubeFusionada = true;
     if (typeof Mochila !== 'undefined') {
-      Mochila.slots = Guardado.datos.mochila || Mochila.slots;
-      Mochila._sanearArmaEquipada();
+      Mochila._refrescarTrasGuardado();
       Mochila.pintar();
     }
   },
