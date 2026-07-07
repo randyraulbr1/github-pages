@@ -36,11 +36,12 @@ const Mochila = {
     document.getElementById('inv-confirm-ok')?.addEventListener('click', () => this._resolverConfirm(true));
     document.querySelectorAll('[data-cierra="ventana-mochila"]').forEach((btn) => {
       btn.addEventListener('click', () => {
-        setTimeout(() => this._actualizarVistaArma(), 0);
+        setTimeout(() => this._notificarCambioArma(), 0);
       });
     });
 
     this.pintar();
+    this._notificarCambioArma();
   },
 
   abrir() {
@@ -50,17 +51,16 @@ const Mochila = {
     this._cleanupDrag();
     if (typeof Dinero !== 'undefined') Dinero.pintar();
     this.pintar();
-    this._actualizarVistaArma();
   },
 
   guardar() {
-    this._sanearArmaEquipada();
+    const cambioArma = this._sanearArmaEquipada();
     Guardado.datos.mochila = this.slots;
     Guardado.guardar();
     if (typeof Tesoros !== 'undefined' && Tesoros.activos) Tesoros.refrescarBanner();
     if (typeof Admin !== 'undefined' && Admin.datos) Admin.refrescarVisibles();
     if (typeof Misiones !== 'undefined' && Misiones.lista.length) Misiones.refrescar();
-    this._actualizarVistaArma();
+    if (cambioArma) this._notificarCambioArma();
   },
 
   _statsConsumo() {
@@ -126,7 +126,7 @@ const Mochila = {
 
   _refrescarTrasGuardado() {
     this.slots = Guardado.datos.mochila || this.slots;
-    this._actualizarVistaArma();
+    this._notificarCambioArma();
   },
 
   _sincronizarArmaEquipada() {
@@ -197,9 +197,9 @@ const Mochila = {
 
     this.slots[idx] = null;
     Guardado.datos.armaEquipada = id;
-    this.pintarArmaHud();
     this.guardar();
     this.pintar();
+    this._notificarCambioArma();
     return true;
   },
 
@@ -215,7 +215,6 @@ const Mochila = {
 
     const anterior = this.slots[dest];
     Guardado.datos.armaEquipada = null;
-    this.pintarArmaHud();
 
     this.slots[dest] = { id, cantidad: 1 };
 
@@ -224,7 +223,6 @@ const Mochila = {
       if (libre < 0 || libre === dest) {
         this.slots[dest] = anterior;
         Guardado.datos.armaEquipada = id;
-        this.pintarArmaHud();
         this._toast('🎒 No hay espacio en la mochila');
         return false;
       }
@@ -233,6 +231,7 @@ const Mochila = {
 
     this.guardar();
     this.pintar();
+    this._notificarCambioArma();
     return true;
   },
 
@@ -335,6 +334,7 @@ const Mochila = {
   quitar(id, cantidad = 1, motivo = 'Usado') {
     if (this.contar(id) < cantidad) return false;
     let restante = cantidad;
+    let quitoEquipada = false;
     for (let i = 0; i < this.slots.length && restante > 0; i++) {
       const sl = this.slots[i];
       if (sl && sl.id === id) {
@@ -346,11 +346,13 @@ const Mochila = {
     }
     if (restante > 0 && this.armaEquipadaId() === id) {
       Guardado.datos.armaEquipada = null;
+      quitoEquipada = true;
       restante -= 1;
     }
     if (restante > 0) return false;
     this.guardar();
     this.pintar();
+    if (quitoEquipada) this._notificarCambioArma();
     const item = Items.seguro(id);
     Historial.registrar('objetos', { detalle: motivo + ': ' + item.nombre, monto: -cantidad });
     return true;
@@ -386,10 +388,17 @@ const Mochila = {
     return h;
   },
 
-  _actualizarVistaArma() {
-    this._sanearArmaEquipada();
-    this._pintarSlotEquip();
-    this.pintarArmaHud();
+  _notificarCambioArma() {
+    const aplicar = () => {
+      this._sanearArmaEquipada();
+      this.pintarArmaHud();
+      const ventana = document.getElementById('ventana-mochila');
+      if (ventana && !ventana.classList.contains('oculto')) {
+        this._pintarSlotEquip();
+      }
+    };
+    aplicar();
+    requestAnimationFrame(aplicar);
   },
 
   pintarArmaHud() {
@@ -413,6 +422,7 @@ const Mochila = {
     hud.title = equipada ? ('Arma: ' + titulo) : titulo;
     hud.setAttribute('aria-label', equipada ? ('Arma equipada: ' + titulo) : titulo);
     hud.classList.toggle('equipada', equipada);
+    void hud.offsetHeight;
 
     const status = document.getElementById('inv-weapon-status');
     if (status) status.textContent = equipada ? ('⚔️ ' + Items.seguro(id).nombre) : '⚔️ Sin arma';
@@ -464,7 +474,7 @@ const Mochila = {
       });
     }
 
-    this._actualizarVistaArma();
+    this._pintarSlotEquip();
     this._actualizarNombreArrastre();
   },
 
@@ -567,7 +577,6 @@ const Mochila = {
       if (toPlace === 'bag') {
         const dest = typeof toKey === 'number' ? toKey : this._primerSlotLibre();
         this.desequiparArma(dest);
-        this._actualizarVistaArma();
       }
       return;
     }
@@ -660,7 +669,6 @@ const Mochila = {
     }
 
     this.pintar();
-    this._actualizarVistaArma();
   },
 
   _cleanupDrag() {
@@ -722,6 +730,7 @@ const Mochila = {
       }
     }
 
+    const eraArma = Items.esArma(item);
     if (place === 'equip') {
       Guardado.datos.armaEquipada = null;
     } else {
@@ -735,6 +744,7 @@ const Mochila = {
     this.guardar();
     Historial.registrar('objetos', { detalle: 'Eliminado: ' + item.nombre, monto: -sl.cantidad });
     this._toast('Objeto dejado en el suelo');
+    if (eraArma) this._notificarCambioArma();
     return true;
   },
 
@@ -826,6 +836,7 @@ const Mochila = {
         this.slotSeleccionado = -1;
       }
       this.guardar();
+      this._notificarCambioArma();
       return;
     }
     const sl = this.slots[key];
