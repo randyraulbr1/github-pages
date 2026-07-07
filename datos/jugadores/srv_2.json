@@ -4,7 +4,7 @@
   "telefono": "",
   "pinHash": "",
   "creado": 1783386052000,
-  "actualizadoEn": 1783387185169,
+  "actualizadoEn": 1783387213232,
   "partida": {
     "datos": {
       "mochila": [
@@ -45,7 +45,7 @@
         "control": "68e382a3687042dcd0420432d9bf210eada6d12606b6ecd367d18c724c2f4b38"
       },
       "vida": 100,
-      "hambre": 44,
+      "hambre": 43,
       "xp": 0,
       "nivel": 1,
       "posicionJugador": [
@@ -75,6 +75,6 @@
       "muerto": false,
       "armaEquipada": null
     },
-    "t": 1783387183503
+    "t": 1783387207258
   }
 }
