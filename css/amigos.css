@@ -11,8 +11,8 @@
 }
 
 #ventana-amigos .friends-panel {
-  width: min(100%, clamp(300px, 92vw, 380px));
-  max-height: min(82dvh, 540px);
+  width: min(100%, clamp(300px, 94vw, 400px));
+  max-height: min(88dvh, 620px);
   overflow: hidden;
   border-radius: 16px;
   border: 1px solid rgba(255, 255, 255, 0.14);
@@ -90,6 +90,45 @@
 #ventana-amigos .amigos-lista-scroll::-webkit-scrollbar-thumb {
   background: #6a7280;
   border-radius: 999px;
+}
+
+#ventana-amigos .amigos-agregar-seccion {
+  flex-shrink: 0;
+}
+
+#ventana-amigos .amigos-seccion-agregar-titulo {
+  margin-bottom: 6px;
+  font-size: 11px;
+}
+
+#ventana-amigos .amigos-agregar-box {
+  background: rgba(0, 0, 0, 0.18);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 12px;
+  padding: 12px 12px 14px;
+  margin-bottom: 4px;
+}
+
+#ventana-amigos .amigos-agregar-hint {
+  margin: 0 0 10px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #d2dae8;
+  line-height: 1.35;
+}
+
+#ventana-amigos .amigos-agregar-fila input {
+  min-height: 42px;
+  font-size: 15px;
+  padding: 0 12px;
+  border-radius: 10px;
+}
+
+#ventana-amigos .amigos-add-btn-lg {
+  width: 46px;
+  min-height: 42px;
+  font-size: 22px;
+  border-radius: 10px;
 }
 
 #ventana-amigos .amigos-carpeta {
@@ -533,8 +572,8 @@
   }
 
   #ventana-amigos .friends-panel {
-    width: min(92vw, 400px);
-    max-height: min(84dvh, 580px);
+    width: min(94vw, 400px);
+    max-height: min(90dvh, 640px);
     border-radius: 18px;
   }
 
@@ -587,8 +626,13 @@
 /* —— PC —— */
 @media (min-width: 900px) {
   #ventana-amigos .friends-panel {
-    width: min(420px, 36vw);
-    max-height: min(78dvh, 600px);
+    width: min(440px, 38vw);
+    max-height: min(82dvh, 660px);
+  }
+
+  #ventana-amigos .amigos-agregar-fila input,
+  #ventana-amigos .amigos-add-btn-lg {
+    min-height: 44px;
   }
 
   #ventana-amigos .panel-content {

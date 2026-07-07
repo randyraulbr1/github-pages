@@ -4,15 +4,15 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
   <title>Mariel Explorer</title>
-  <meta name="mariel-version" content="216">
+  <meta name="mariel-version" content="217">
   <link rel="manifest" href="manifest.json">
   <link rel="icon" type="image/png" href="iconos/icono-192.png">
   <link rel="apple-touch-icon" href="iconos/icono-192.png">
   <link rel="stylesheet" href="lib/leaflet/leaflet.css">
-  <link rel="stylesheet" href="css/estilos.css?v=216">
-  <link rel="stylesheet" href="css/chat.css?v=137">
-  <link rel="stylesheet" href="css/amigos.css?v=158">
-  <link rel="stylesheet" href="css/opciones.css?v=216">
+  <link rel="stylesheet" href="css/estilos.css?v=217">
+  <link rel="stylesheet" href="css/chat.css?v=217">
+  <link rel="stylesheet" href="css/amigos.css?v=217">
+  <link rel="stylesheet" href="css/opciones.css?v=217">
   <link rel="stylesheet" href="css/notificaciones.css?v=117">
   <script>
     (function () {
@@ -65,7 +65,7 @@
     </div>
   </div>
 
-  <script src="js/nucleo/version_app.js?v=216"></script>
+  <script src="js/nucleo/version_app.js?v=217"></script>
   <script>MarielVersion.iniciar(window.__MARIEL_EMBEDDED__);</script>
 
   <!-- PANTALLA DE CARGA (visible desde el primer instante) -->
@@ -282,15 +282,16 @@
       </div>
 
       <div class="panel-content">
-        <details class="amigos-carpeta amigos-carpeta-compact">
-          <summary class="amigos-carpeta-sum">➕ Agregar amigo</summary>
-          <div class="amigos-carpeta-inner">
-            <div class="add-row">
+        <div class="amigos-agregar-seccion">
+          <div class="section-title amigos-seccion-agregar-titulo">➕ Agregar amigo</div>
+          <div class="amigos-agregar-box">
+            <p class="amigos-agregar-hint">Escribe el nombre del jugador y pulsa +</p>
+            <div class="add-row amigos-agregar-fila">
               <input id="amigos-buscar" type="text" maxlength="20" placeholder="Nombre del jugador..." autocomplete="off">
-              <button type="button" class="add-btn" id="btn-amigos-agregar" title="Agregar amigo" aria-label="Agregar amigo">+</button>
+              <button type="button" class="add-btn amigos-add-btn-lg" id="btn-amigos-agregar" title="Agregar amigo" aria-label="Agregar amigo">+</button>
             </div>
           </div>
-        </details>
+        </div>
 
         <div class="amigos-seccion-lista">
           <div class="section-title amigos-titulo-lista">
@@ -1076,18 +1077,18 @@
   <script src="lib/leaflet/leaflet.js?v=104"></script>
 
   <!-- MÓDULOS DEL JUEGO (orden importante) -->
-  <script src="js/config/config.js?v=216"></script>
-  <script src="js/nucleo/utilidades.js?v=216"></script>
+  <script src="js/config/config.js?v=217"></script>
+  <script src="js/nucleo/utilidades.js?v=217"></script>
   <script src="js/mundo/mundo_publico.js?v=104"></script>
   <script src="js/notificaciones/notificaciones.js?v=137"></script>
-  <script src="js/usuarios/usuarios.js?v=216"></script>
+  <script src="js/usuarios/usuarios.js?v=217"></script>
   <script src="js/guardado/guardado.js?v=149"></script>
   <script src="js/historial/historial.js?v=104"></script>
   <script src="js/dinero/dinero.js?v=104"></script>
-  <script src="js/vida/vida.js?v=216"></script>
+  <script src="js/vida/vida.js?v=217"></script>
   <script src="js/items/items.js?v=140"></script>
-  <script src="js/mochila/mochila.js?v=216"></script>
-  <script src="js/bolsas/bolsas.js?v=216"></script>
+  <script src="js/mochila/mochila.js?v=217"></script>
+  <script src="js/bolsas/bolsas.js?v=217"></script>
   <script src="js/mapa/mapa.js?v=104"></script>
   <script src="js/gps/gps.js?v=150"></script>
   <script src="js/tiendas/datos_tiendas.js?v=104"></script>
@@ -1099,19 +1100,19 @@
   <script src="js/misiones/misiones.js?v=104"></script>
   <script src="js/cofres/cofres.js?v=104"></script>
   <script src="js/correo/correo.js?v=104"></script>
-  <script src="js/enemigos/enemigos.js?v=216"></script>
-  <script src="js/online/sync_servidor.js?v=216"></script>
-  <script src="js/admin/admin.js?v=216"></script>
-  <script src="js/opciones/opciones.js?v=216"></script>
-  <script src="js/online/mundo_online.js?v=216"></script>
-  <script src="js/online/amigos.js?v=216"></script>
-  <script src="js/chat/chat.js?v=216"></script>
-  <script src="js/online/multijugador.js?v=216"></script>
-  <script src="js/principal.js?v=216"></script>
+  <script src="js/enemigos/enemigos.js?v=217"></script>
+  <script src="js/online/sync_servidor.js?v=217"></script>
+  <script src="js/admin/admin.js?v=217"></script>
+  <script src="js/opciones/opciones.js?v=217"></script>
+  <script src="js/online/mundo_online.js?v=217"></script>
+  <script src="js/online/amigos.js?v=217"></script>
+  <script src="js/chat/chat.js?v=217"></script>
+  <script src="js/online/multijugador.js?v=217"></script>
+  <script src="js/principal.js?v=217"></script>
   <script>
     // Registrar la app instalable (PWA)
     if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.register('sw.js?v=216', { updateViaCache: 'none' })
+      navigator.serviceWorker.register('sw.js?v=217', { updateViaCache: 'none' })
         .then(function (reg) {
           if (typeof MarielVersion !== 'undefined') MarielVersion.registrarServiceWorker(reg);
         })
