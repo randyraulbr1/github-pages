@@ -3,11 +3,12 @@
 // guarda todos los archivos en el teléfono (funciona con mala
 // conexión) y va guardando los pedazos de mapa ya visitados.
 // ============================================================
-const CACHE = 'mariel-explorer-v166';
+const CACHE = 'mariel-explorer-v167';
 
 const ARCHIVOS = [
   './',
   './index.html',
+  './version.json',
   './manifest.json',
   './css/estilos.css',
   './css/chat.css',
@@ -90,11 +91,21 @@ self.addEventListener('install', evento => {
   );
 });
 
+self.addEventListener('message', evento => {
+  if (evento.data?.tipo === 'skip-waiting') self.skipWaiting();
+});
+
 self.addEventListener('activate', evento => {
   evento.waitUntil(
     caches.keys().then(claves =>
       Promise.all(claves.filter(c => c !== CACHE && !c.includes('-mapa')).map(c => caches.delete(c)))
     ).then(() => self.clients.claim())
+      .then(() => self.clients.matchAll({ type: 'window', includeUncontrolled: true }))
+      .then(clientes => {
+        for (const c of clientes) {
+          c.postMessage({ tipo: 'nueva-version', cache: CACHE });
+        }
+      })
   );
 });
 
@@ -146,8 +157,8 @@ self.addEventListener('fetch', evento => {
     let ruta;
     try { ruta = new URL(url).pathname; } catch (e) { ruta = ''; }
     const redPrimero = ruta.endsWith('/index.html') || ruta.endsWith('/') ||
-      ruta.endsWith('/sw.js') || ruta.endsWith('/js/config/config.js') ||
-      ruta.endsWith('/js/nucleo/version_app.js');
+      ruta.endsWith('/version.json') || ruta.endsWith('/sw.js') ||
+      ruta.endsWith('/js/config/config.js') || ruta.endsWith('/js/nucleo/version_app.js');
 
     if (redPrimero) {
       evento.respondWith(

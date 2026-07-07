@@ -4578,6 +4578,12 @@ const Admin = {
 
   async publicarMundo(silencioso, opts) {
     if (!this._mundoCargado) return false;
+    if (typeof MarielVersion !== 'undefined' && !MarielVersion.exigirActualizado()) {
+      if (!silencioso) {
+        Notificaciones.mostrar('⬆️ Actualiza el juego antes de publicar', 'alerta', 7000);
+      }
+      return false;
+    }
     if (!this.esAdminJugador()) return false;
     if (!opts?.confiarLocal) {
       try {
