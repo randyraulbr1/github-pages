@@ -53,6 +53,8 @@ const Mochila = {
     if (typeof Tesoros !== 'undefined' && Tesoros.activos) Tesoros.refrescarBanner();
     if (typeof Admin !== 'undefined' && Admin.datos) Admin.refrescarVisibles();
     if (typeof Misiones !== 'undefined' && Misiones.lista.length) Misiones.refrescar();
+    this.pintarArmaHud();
+    this._pintarSlotEquip();
   },
 
   _statsConsumo() {
@@ -362,7 +364,6 @@ const Mochila = {
       hud.setAttribute('aria-hidden', 'false');
     }
     if (status) status.textContent = tiene ? ('⚔️ ' + nombre) : '⚔️ Sin arma';
-    if (typeof GPS !== 'undefined' && GPS.refrescarIconoJugador) GPS.refrescarIconoJugador();
   },
 
   _pintarSlotEquip() {
