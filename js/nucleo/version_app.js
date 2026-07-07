@@ -249,7 +249,9 @@ const MarielVersion = {
     const r = this._num(remoto);
 
     if (r && cargada >= r) {
-      this._desbloquearActualizacion(String(cargada));
+      if (bloquear || this._bloqueado) {
+        this._desbloquearActualizacion(String(cargada));
+      }
       return false;
     }
 
