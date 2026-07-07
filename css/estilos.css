@@ -399,6 +399,16 @@ button { font-family: inherit; }
   filter: drop-shadow(0 0 4px rgba(255,69,58,.85));
   animation: misionIconoBrillo 1.2s ease-in-out infinite;
 }
+.enemigo-barra-wrap {
+  width: 78px;
+  height: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 3px;
+  position: relative;
+  z-index: 2;
+}
 .enemigo-cono-wrap {
   position: absolute;
   width: 118px; height: 118px;
@@ -581,23 +591,12 @@ button { font-family: inherit; }
   flex-direction: row;
   align-items: stretch;
   gap: 8px;
-  width: 100%;
-  max-width: min(calc(100vw - 16px), 320px);
+  width: 280px;
+  max-width: min(calc(100vw - 16px), 280px);
   pointer-events: none;
 }
 .hud-combate-flotante.pos-atk-izq { justify-content: flex-start; }
 .hud-combate-flotante.pos-atk-der { justify-content: flex-end; }
-.hud-combate-flotante.solo-atk .btn-hud-atacar,
-.hud-combate-flotante.solo-huir .btn-hud-huir {
-  flex: 0 0 auto;
-  min-width: 76px;
-  max-width: 104px;
-}
-.hud-combate-flotante.ambos-botones .btn-hud-combate {
-  flex: 1 1 0;
-  min-width: 0;
-  max-width: 148px;
-}
 .hud-combate-flotante > * { pointer-events: auto; }
 .hud-combate-flotante .hud-ataque-cooldown {
   position: absolute;
@@ -636,8 +635,10 @@ button { font-family: inherit; }
   transition: width .15s linear;
 }
 .btn-hud-combate {
-  flex: 1;
-  min-width: 0;
+  flex: 0 0 136px;
+  width: 136px;
+  max-width: 136px;
+  box-sizing: border-box;
   padding: 12px 10px;
   border: none;
   border-radius: 14px;
@@ -1808,6 +1809,11 @@ body.mariel-bloqueado-actualizar #pantalla-actualizar {
 }
 .mjo-barra-enemigo .mjo-barra-fill {
   background: linear-gradient(90deg, #c11031, #ff453a);
+}
+.marcador-enemigo-map .mjo-barra-enemigo {
+  width: 52px;
+  height: 5px;
+  margin-bottom: 0;
 }
 .mjo-barra-enemigo.mjo-barra-cerca {
   width: 78px;

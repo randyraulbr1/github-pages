@@ -25,6 +25,9 @@ const Enemigos = {
   COOLDOWN_ATAQUE_MS: 10000,
   HUIR_INVISIBLE_MS: 120000,
   PROB_FALLO_BASE: 12,
+  PASO_PERSECUCION_M: 1.5,
+  PASO_ATAQUE_M: 2.0,
+  PASO_ORIGEN_M: 1.1,
   _ultimoAtaqueJugador: 0,
   _objetivoHud: null,
 
@@ -464,8 +467,9 @@ const Enemigos = {
       '<span class="mjo-nombre mjo-nombre-enemigo">' + (e.nombre || 'Enemigo') + '</span>' +
       '<span class="mjo-nivel">Nv ' + nv + '</span>' +
       '</div>' +
+      '<div class="enemigo-barra-wrap">' +
       '<div class="mjo-barra mjo-barra-enemigo' + (grande ? ' mjo-barra-cerca' : '') + '">' +
-      '<div class="mjo-barra-fill" style="width:' + pct + '%"></div>' + numVida + '</div>' +
+      '<div class="mjo-barra-fill" style="width:' + pct + '%"></div>' + numVida + '</div></div>' +
       '<span class="enemigo-emoji">' + (e.icono || '👹') + '</span>' +
       '</div>';
   },
@@ -474,8 +478,8 @@ const Enemigos = {
     return L.divIcon({
       className: '',
       html: this._htmlMarcador(e),
-      iconSize: [88, 68],
-      iconAnchor: [44, 62]
+      iconSize: [92, 76],
+      iconAnchor: [46, 68]
     });
   },
 
@@ -664,8 +668,12 @@ const Enemigos = {
     const desde = this._posDesdeMarcador(e) || e.pos?.slice() || [lat, lng];
     const hasta = [lat, lng];
     const saltoM = Utilidades.distanciaMetros(desde, hasta);
-    const duracion = saltoM > 25 ? Math.min(900, 400 + saltoM * 8) : 520;
-    this._interp[origenId] = { desde: desde.slice(), hasta: hasta.slice(), inicio: Date.now(), duracion };
+    const prev = this._interp[origenId];
+    const base = (prev && Date.now() < prev.inicio + prev.duracion)
+      ? (this._posDesdeMarcador(e) || prev.desde?.slice() || desde)
+      : desde;
+    const duracion = Math.max(850, Math.min(1500, 700 + saltoM * 28));
+    this._interp[origenId] = { desde: base.slice(), hasta: hasta.slice(), inicio: Date.now(), duracion };
 
     if (typeof Admin !== 'undefined') {
       if (data?.origenX != null && data?.origenY != null) {
@@ -704,15 +712,15 @@ const Enemigos = {
   _aplicarInterp(e) {
     const it = this._interp[e.id];
     if (!it) return false;
-    const t = Math.min(1, (Date.now() - it.inicio) / (it.duracion || 520));
-    const ease = t * (2 - t);
+    const t = Math.min(1, (Date.now() - it.inicio) / (it.duracion || 900));
+    const ease = t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;
     const lat = it.desde[0] + (it.hasta[0] - it.desde[0]) * ease;
     const lng = it.desde[1] + (it.hasta[1] - it.desde[1]) * ease;
     e.pos = [lat, lng];
-    this._moverEnemigo(e, lat, lng);
+    this._moverEnemigo(e, lat, lng, true);
     if (t >= 1) {
       e.pos = it.hasta.slice();
-      this._moverEnemigo(e, it.hasta[0], it.hasta[1]);
+      this._moverEnemigo(e, it.hasta[0], it.hasta[1], true);
       delete this._interp[e.id];
     }
     return true;
@@ -745,6 +753,23 @@ const Enemigos = {
   },
 
   _actualizarBarra(e) {
+    const m = this._marcadores[e.id];
+    if (!m) return;
+    const el = m.getElement?.();
+    const max = e.vidaMax || e.vida || 50;
+    const actual = this._vidaActual(e);
+    const pct = Math.max(0, Math.min(100, (actual / max) * 100));
+    if (el) {
+      const fill = el.querySelector('.mjo-barra-fill');
+      const num = el.querySelector('.mjo-vida-num');
+      const barra = el.querySelector('.mjo-barra-enemigo');
+      if (fill) fill.style.width = pct + '%';
+      if (num) num.textContent = actual + '/' + max;
+      const quiereGrande = !!e._vidaGrande;
+      const tieneGrande = barra?.classList.contains('mjo-barra-cerca');
+      if (quiereGrande !== tieneGrande) this._refrescarIconoMarcador(e);
+      return;
+    }
     this._refrescarIconoMarcador(e);
   },
 
@@ -780,7 +805,7 @@ const Enemigos = {
     }
   },
 
-  _moverEnemigo(e, nlat, nlng) {
+  _moverEnemigo(e, nlat, nlng, silencioso) {
     const m = this._marcadores[e.id];
     if (!m) return;
     m.setLatLng([nlat, nlng]);
@@ -793,6 +818,25 @@ const Enemigos = {
       pi.posicion[0] = nlat;
       pi.posicion[1] = nlng;
     }
+    if (!silencioso) this._actualizarBarra(e);
+  },
+
+  _avanzarHaciaMetros(e, destLat, destLng, metrosMax) {
+    const m = this._marcadores[e.id];
+    if (!m) return;
+    const ll = m.getLatLng();
+    const distM = Utilidades.distanciaMetros([ll.lat, ll.lng], [destLat, destLng]);
+    if (distM < 0.4) return;
+    const paso = Math.min(metrosMax, Math.max(0.5, distM * 0.22));
+    const t = Math.min(1, paso / distM);
+    const nlat = ll.lat + (destLat - ll.lat) * t;
+    const nlng = ll.lng + (destLng - ll.lng) * t;
+    this._moverEnemigo(e, nlat, nlng, true);
+  },
+
+  _angulosCercanos(a, b) {
+    const d = Math.abs((a - b + 180) % 360 - 180);
+    return d;
   },
 
   _estaInvisible() {
@@ -968,15 +1012,9 @@ const Enemigos = {
     if (hudFlotante) {
       const visible = mostrarAtaque || puedeHuir;
       hudFlotante.classList.toggle('oculto', !visible);
-      const soloAtk = mostrarAtaque && !puedeHuir;
-      const soloHuir = puedeHuir && !mostrarAtaque;
-      const ambos = mostrarAtaque && puedeHuir;
-      hudFlotante.classList.toggle('solo-atk', soloAtk);
-      hudFlotante.classList.toggle('solo-huir', soloHuir);
-      hudFlotante.classList.toggle('ambos-botones', ambos);
       const prefDer = Guardado.datos?.preferencias?.posBtnAtacar === 'der';
       let alinearDer = prefDer;
-      if (soloHuir) alinearDer = !prefDer;
+      if (puedeHuir && !mostrarAtaque) alinearDer = !prefDer;
       hudFlotante.classList.toggle('pos-atk-izq', !alinearDer);
       hudFlotante.classList.toggle('pos-atk-der', alinearDer);
     }
@@ -1070,30 +1108,24 @@ const Enemigos = {
       }
 
       if (!invisible && enZona && GPS.posicion) {
-        e.facingDeg = this._bearingDeg(e.pos[0], e.pos[1], GPS.posicion[0], GPS.posicion[1]);
-        this._refrescarIconoMarcador(e);
-      } else if (!enZona) {
+        const nuevoFacing = this._bearingDeg(e.pos[0], e.pos[1], GPS.posicion[0], GPS.posicion[1]);
+        if (e.facingDeg == null || this._angulosCercanos(e.facingDeg, nuevoFacing) > 12) {
+          e.facingDeg = nuevoFacing;
+          this._refrescarIconoMarcador(e);
+        }
+      } else if (!enZona && e.facingDeg != null) {
         e.facingDeg = null;
         this._refrescarIconoMarcador(e);
       }
 
       if (enZona && d > 3) {
-        const m = this._marcadores[e.id];
-        const ll = m.getLatLng();
-        const t = enAtaque ? 0.18 : 0.12;
-        const nlat = ll.lat + (GPS.posicion[0] - ll.lat) * t;
-        const nlng = ll.lng + (GPS.posicion[1] - ll.lng) * t;
-        this._moverEnemigo(e, nlat, nlng);
+        const paso = enAtaque ? this.PASO_ATAQUE_M : this.PASO_PERSECUCION_M;
+        this._avanzarHaciaMetros(e, GPS.posicion[0], GPS.posicion[1], paso);
       } else if (!enZona && e.posOrigen) {
         const o = e.posOrigen;
         const distOrigen = Utilidades.distanciaMetros([e.pos[0], e.pos[1]], o);
         if (distOrigen > 2) {
-          const m = this._marcadores[e.id];
-          const ll = m.getLatLng();
-          const t = 0.08;
-          const nlat = ll.lat + (o[0] - ll.lat) * t;
-          const nlng = ll.lng + (o[1] - ll.lng) * t;
-          this._moverEnemigo(e, nlat, nlng);
+          this._avanzarHaciaMetros(e, o[0], o[1], this.PASO_ORIGEN_M);
         }
       }
 
