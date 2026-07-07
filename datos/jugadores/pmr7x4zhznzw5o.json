@@ -4,11 +4,14 @@
   "telefono": "7709908375",
   "pinHash": "4bdc96ffc0926b62d55708e3c1755ca3f04b8c28bec6fd85777117da67497f11",
   "creado": 1783263656375,
-  "actualizadoEn": 1783385161056,
+  "actualizadoEn": 1783385235621,
   "partida": {
     "datos": {
       "mochila": [
-        null,
+        {
+          "id": "arma_nv1",
+          "cantidad": 1
+        },
         {
           "id": "agua",
           "cantidad": 2
@@ -46,8 +49,8 @@
       "xp": 0,
       "nivel": 1,
       "posicionJugador": [
-        22.993487568954624,
-        -82.75378301739694
+        22.993439421388363,
+        -82.75374546647072
       ],
       "tesorosRecogidos": [],
       "misiones": {},
@@ -152,8 +155,8 @@
         "msg_mr9ukn1m"
       ],
       "muerto": false,
-      "armaEquipada": "arma_nv1"
+      "armaEquipada": null
     },
-    "t": 1783385152859
+    "t": 1783385232828
   }
 }
