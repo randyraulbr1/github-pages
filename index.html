@@ -34,8 +34,8 @@
     </div>
   </div>
 
-  <script src="js/nucleo/version_app.js?v=165"></script>
-  <script>MarielVersion.iniciar('165');</script>
+  <script src="js/nucleo/version_app.js?v=166"></script>
+  <script>MarielVersion.iniciar('166');</script>
 
   <!-- PANTALLA DE CARGA (visible desde el primer instante) -->
   <div id="pantalla-carga">
@@ -295,6 +295,9 @@
           <button type="button" class="chat-icon-btn" id="emojiBtnChat" title="Emojis">😀</button>
           <button type="button" class="chat-icon-btn" id="locationBtnChat" title="Enviar ubicación">📍</button>
           <button type="button" class="chat-icon-btn chat-friend-btn" id="friendBtnChat" title="Agregar amigo">👥</button>
+          <button type="button" class="chat-icon-btn chat-friend-btn chat-friend-accept oculto" id="friendAcceptBtnChat" title="Aceptar amistad">✅</button>
+          <button type="button" class="chat-icon-btn chat-friend-btn chat-friend-reject oculto" id="friendRejectBtnChat" title="Rechazar solicitud">❌</button>
+          <span class="chat-pending-label oculto" id="friendPendingChat">⏳ Enviada</span>
         </div>
 
         <div class="emoji-box emoji-panel" id="emojiPanelChat">
@@ -310,6 +313,17 @@
       </div>
     </div>
   </section>
+
+  <div id="chat-overlay" class="chat-overlay oculto" aria-hidden="true">
+    <div class="chat-confirm" role="dialog" aria-modal="true">
+      <h3 id="chat-confirm-title">¿Borrar chat?</h3>
+      <p id="chat-confirm-text">¿Seguro?</p>
+      <div class="confirm-row">
+        <button type="button" class="modal-btn cancel" id="chat-confirm-cancel">Cancelar</button>
+        <button type="button" class="modal-btn ok danger" id="chat-confirm-ok">Borrar</button>
+      </div>
+    </div>
+  </div>
 
   <!-- ============ VENTANA: MOCHILA / INVENTARIO ============ -->
   <div id="ventana-mochila" class="ventana oculto">
@@ -915,7 +929,7 @@
   <script src="lib/leaflet/leaflet.js?v=104"></script>
 
   <!-- MÓDULOS DEL JUEGO (orden importante) -->
-  <script src="js/config/config.js?v=165"></script>
+  <script src="js/config/config.js?v=166"></script>
   <script src="js/nucleo/utilidades.js?v=137"></script>
   <script src="js/mundo/mundo_publico.js?v=104"></script>
   <script src="js/notificaciones/notificaciones.js?v=137"></script>
@@ -951,7 +965,7 @@
     // Registrar la app instalable (PWA)
     if ('serviceWorker' in navigator) {
       const yaTeniaVersion = !!navigator.serviceWorker.controller;
-      navigator.serviceWorker.register('sw.js?v=165', { updateViaCache: 'none' })
+      navigator.serviceWorker.register('sw.js?v=166', { updateViaCache: 'none' })
         .then(function (reg) { reg.update(); })
         .catch(function () {});
       // Cuando llega una versión nueva del juego: avisar y recargar solo

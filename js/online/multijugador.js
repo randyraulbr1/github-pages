@@ -795,6 +795,10 @@ const Multijugador = {
       '">🩹 Revivir (botiquín)</button>';
     const pid = Number(p.playerId);
     const soyYo = pid === this._miPlayerId();
+    if (!soyYo && typeof Amigos !== 'undefined' && !Amigos.estaBloqueado(pid)) {
+      html += '<button type="button" class="popup-muerto-chat" data-chat-pid="' + pid +
+        '" data-chat-nombre="' + nombre.replace(/"/g, '&quot;') + '">💬 Chatear</button>';
+    }
     const esAmigo = typeof Amigos !== 'undefined' && Amigos.esAmigo(pid);
     if (!soyYo && !esAmigo && typeof Amigos !== 'undefined') {
       html += '<button type="button" class="popup-muerto-amigo" data-amigo-pid="' + pid +
@@ -978,6 +982,12 @@ const Multijugador = {
           btn.textContent = '👥 Agregar amigo';
         });
       }
+      return;
+    }
+    if (btn.classList.contains('popup-muerto-chat')) {
+      const nombre = btn.getAttribute('data-chat-nombre') || '';
+      if (typeof Chat !== 'undefined') Chat.abrirDesdeMapa(pid, nombre);
+      if (m.closePopup) m.closePopup();
       return;
     }
     if (btn.hasAttribute('data-loot-id')) {
