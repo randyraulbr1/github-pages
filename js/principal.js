@@ -287,6 +287,17 @@ async function esperarMundoEnMapa() {
 
     if (typeof Admin !== 'undefined' && Admin.mostrarMensajes) Admin.mostrarMensajes();
     if (typeof Notificaciones !== 'undefined') Notificaciones._actualizarBadge();
+
+    await pasoSeguro('mapa-jugador-final', async () => {
+      if (typeof Guardado !== 'undefined') Guardado._asegurarPosicionJugador?.();
+      if (typeof GPS !== 'undefined') GPS.aplicarPosicionGuardada?.();
+      if (typeof Mapa !== 'undefined' && Mapa.mapa) {
+        Mapa.mapa.invalidateSize();
+        await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+        Mapa.centrarEnJugador?.(false);
+      }
+      if (typeof Opciones !== 'undefined') Opciones._refrescarAdmin?.();
+    });
   } catch (e) {
     console.error('Error arrancando Mariel Explorer:', e);
     MarielBoot.avanzar('Error al cargar. Recarga la página.');

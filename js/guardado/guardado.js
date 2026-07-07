@@ -123,22 +123,49 @@ const Guardado = {
     }
   },
 
+  _partidaServidorActiva() {
+    if (typeof Usuarios === 'undefined' || !Usuarios.perfilActivo) return null;
+    const id = Usuarios.perfilActivo.id;
+    if (typeof Admin !== 'undefined' && Admin.publicado?.partidas?.[id]) {
+      return Admin.publicado.partidas[id];
+    }
+    return null;
+  },
+
+  _asegurarPosicionJugador() {
+    const pos = this.datos?.posicionJugador;
+    if (Array.isArray(pos) && pos.length >= 2) return true;
+    const partida = this._partidaServidorActiva();
+    const remota = partida?.datos?.posicionJugador;
+    if (!Array.isArray(remota) || remota.length < 2) return false;
+    this.datos.posicionJugador = remota.slice();
+    return true;
+  },
+
   async _fusionarDesdeNube(partidaNuevaLocal) {
     if (typeof Usuarios === 'undefined' || !Usuarios.perfilActivo) return;
-    const nube = await MundoPublico.leerPartida(Usuarios.perfilActivo.id);
-    if (!nube || !nube.datos) return;
+    let nube = await MundoPublico.leerPartida(Usuarios.perfilActivo.id);
+    if ((!nube || !nube.datos) && typeof Admin !== 'undefined') {
+      const local = this._partidaServidorActiva();
+      if (local?.datos) nube = local;
+    }
+    if (!nube || !nube.datos) {
+      this._asegurarPosicionJugador();
+      return;
+    }
 
     const localT = this.datos.nubeT || 0;
     const debeFusionar = nube.t > localT || (partidaNuevaLocal && nube.t > 0);
-    if (!debeFusionar) return;
-
-    this._aplicarSnapshot(nube.datos);
-    this.datos.nubeT = nube.t;
-    this.datos.nubeFusionada = true;
-    if (typeof Mochila !== 'undefined') {
-      Mochila._refrescarTrasGuardado();
-      Mochila.pintar();
+    if (debeFusionar) {
+      this._aplicarSnapshot(nube.datos);
+      this.datos.nubeT = nube.t || Date.now();
+      this.datos.nubeFusionada = true;
+      if (typeof Mochila !== 'undefined') {
+        Mochila._refrescarTrasGuardado();
+        Mochila.pintar();
+      }
     }
+    this._asegurarPosicionJugador();
   },
 
   guardar() {
