@@ -4209,6 +4209,10 @@ const Admin = {
     if (!partida.dinero) partida.dinero = { saldo: 0 };
     partida.dinero.control = await Utilidades.sha256(Guardado.SAL + '|saldo|' + partida.dinero.saldo);
     if (partida.vida == null) partida.vida = CONFIG.vidaMaxima;
+    if (partida.nivel != null) {
+      const maxV = this.vidaJugadorPorNivel(partida.nivel);
+      if (partida.vida > maxV) partida.vida = maxV;
+    }
     partida.muerto = partida.vida <= 0;
     if (!partida.muerto) partida.muertePos = null;
 
@@ -4312,7 +4316,7 @@ const Admin = {
     this._actualizarHintVidaEditor();
     if (nvEl && !nvEl._nivelEditorOk) {
       nvEl._nivelEditorOk = true;
-      nvEl.addEventListener('input', () => this._actualizarHintVidaEditor());
+      nvEl.addEventListener('input', () => this._aplicarVidaJugadorDesdeNivel(parseInt(nvEl.value, 10) || 1));
     }
     const nom = document.getElementById('admin-editor-nombre');
     const tel = document.getElementById('admin-editor-telefono');
@@ -4545,12 +4549,26 @@ const Admin = {
     else this._pintarEditorJugador();
   },
 
+  _aplicarVidaJugadorDesdeNivel(nivel) {
+    const nv = Math.max(1, Math.min(100, nivel || 1));
+    const max = this.vidaJugadorPorNivel(nv);
+    const hint = document.getElementById('admin-editor-vida-max');
+    const vidaInp = document.getElementById('admin-editor-vida');
+    if (hint) hint.textContent = '(máx ' + max + ')';
+    if (vidaInp) {
+      vidaInp.max = max;
+      vidaInp.value = max;
+    }
+  },
+
   _actualizarHintVidaEditor() {
     const nvEl = document.getElementById('admin-editor-nivel');
-    const hint = document.getElementById('admin-editor-vida-max');
     const nv = Math.max(1, Math.min(100, parseInt(nvEl?.value, 10) || 1));
     const max = this.vidaJugadorPorNivel(nv);
+    const hint = document.getElementById('admin-editor-vida-max');
+    const vidaInp = document.getElementById('admin-editor-vida');
     if (hint) hint.textContent = '(máx ' + max + ')';
+    if (vidaInp) vidaInp.max = max;
   },
 
   async _guardarEditorJugador() {
@@ -4565,9 +4583,9 @@ const Admin = {
     const claveNueva = (document.getElementById('admin-editor-clave')?.value || '').trim();
     const claveAnterior = this._pinAdminGet(ed.perfil.id);
     if (isNaN(oro) || oro < 0) { this._adminAviso('Oro inválido'); return; }
-    if (isNaN(vida) || vida < 0) { this._adminAviso('Vida inválida'); return; }
     const maxVida = this.vidaJugadorPorNivel(nivel);
-    if (vida > maxVida) { this._adminAviso('Vida máxima para nivel ' + nivel + ': ' + maxVida); return; }
+    const vidaFinal = Math.min(isNaN(vida) ? maxVida : vida, maxVida);
+    if (isNaN(vida) || vida < 0) { this._adminAviso('Vida inválida'); return; }
     if (nombre.length < 2) { this._adminAviso('Nombre mínimo 2 letras'); return; }
     if (telefono && !Usuarios.telefonoValido(telefono)) { this._adminAviso('Teléfono inválido'); return; }
     const errNom = this.validarRegistro(nombre, telefono, ed.perfil.id);
@@ -4581,10 +4599,10 @@ const Admin = {
     }
     ed.partida.dinero = ed.partida.dinero || { saldo: 0 };
     ed.partida.dinero.saldo = oro;
-    ed.partida.vida = vida;
+    ed.partida.vida = vidaFinal;
     ed.partida.nivel = nivel;
     ed.partida.xp = xp;
-    ed.partida.muerto = vida <= 0;
+    ed.partida.muerto = vidaFinal <= 0;
     ed.perfil.nombre = nombre;
     ed.perfil.telefono = telefono;
     if (claveNueva) {
