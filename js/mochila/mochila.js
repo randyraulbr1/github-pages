@@ -359,10 +359,10 @@ const Mochila = {
       hud.textContent = tiene ? (icon || '🗡️') : '✋';
       hud.title = tiene ? ('Arma: ' + titulo) : 'Sin arma equipada';
       hud.classList.toggle('equipada', !!tiene);
-      hud.setAttribute('aria-hidden', tiene ? 'false' : 'true');
+      hud.setAttribute('aria-hidden', 'false');
     }
     if (status) status.textContent = tiene ? ('⚔️ ' + nombre) : '⚔️ Sin arma';
-    this._pintarSlotEquip();
+    if (typeof GPS !== 'undefined' && GPS.refrescarIconoJugador) GPS.refrescarIconoJugador();
   },
 
   _pintarSlotEquip() {
@@ -412,6 +412,7 @@ const Mochila = {
 
     this._pintarSlotEquip();
     this._actualizarNombreArrastre();
+    this.pintarArmaHud();
   },
 
   _puedeUsarItem(item, id) {

@@ -38,6 +38,7 @@ const GPS = {
     setTimeout(() => {
       Mapa.jugadorSeMovio(this.posicion);
       if (typeof Mapa !== 'undefined' && Mapa.centrarEnJugador) Mapa.centrarEnJugador(false);
+      this.refrescarIconoJugador();
     }, 300);
   },
 
@@ -59,6 +60,24 @@ const GPS = {
     if (typeof Enemigos !== 'undefined' && Enemigos._actualizarPrioridadAdmin) {
       Enemigos._actualizarPrioridadAdmin(prioridad);
     }
+  },
+
+  refrescarIconoJugador() {
+    if (!this.marcador) return;
+    const id = typeof Mochila !== 'undefined' ? Mochila.armaEquipadaId() : null;
+    const item = id ? Items.seguro(id) : null;
+    const arma = item ? (item.icono || '🗡️') : '';
+    const html = arma
+      ? '<div class="punto-jugador-wrap">' +
+        '<div class="punto-jugador"></div>' +
+        '<span class="punto-jugador-arma" title="' + (item.nombre || 'Arma') + '">' + arma + '</span></div>'
+      : '<div class="punto-jugador"></div>';
+    this.marcador.setIcon(L.divIcon({
+      className: '',
+      html,
+      iconSize: arma ? [34, 22] : [22, 22],
+      iconAnchor: arma ? [11, 11] : [11, 11]
+    }));
   },
 
   _actualizar(nuevaPosicion, moverMarcador = true) {
