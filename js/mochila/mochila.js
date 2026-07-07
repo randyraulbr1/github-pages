@@ -40,6 +40,11 @@ const Mochila = {
       });
     });
 
+    window.addEventListener('pointercancel', () => this._cleanupDrag());
+    window.addEventListener('blur', () => {
+      if (this.isDragging) this._cleanupDrag();
+    });
+
     this.pintar();
     this._notificarCambioArma();
   },

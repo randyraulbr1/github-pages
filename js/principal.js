@@ -338,6 +338,7 @@ async function asegurarMapaVisible() {
     if (typeof Opciones !== 'undefined') Opciones._refrescarAdmin?.();
     if (typeof MarielVersion !== 'undefined') {
       await MarielVersion.aplicarBloqueoTrasArranque();
+      MarielVersion._evitarBloqueoFantasma?.();
     }
   }
 })();

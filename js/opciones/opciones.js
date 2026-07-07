@@ -227,10 +227,18 @@ const Opciones = {
   },
 
   abrir() {
+    if (typeof MarielVersion !== 'undefined') {
+      MarielVersion._evitarBloqueoFantasma?.();
+    }
     this._refrescarAdmin();
     this.pintarPerfilOpciones();
     this._pintarPreferencias();
     this._pintarVersion();
+    if (typeof MarielVersion !== 'undefined') {
+      MarielVersion.comprobarRemota({ bloquear: false })
+        .then(() => this._pintarVersion())
+        .catch(() => {});
+    }
     this._cerrarConfirm();
     const v = document.getElementById('ventana-opciones');
     v?.classList.remove('oculto');
@@ -260,12 +268,11 @@ const Opciones = {
       ? ('Versión ' + local + ' · nueva disponible: v' + remota)
       : ('Versión ' + local + ' · al día');
     el.classList.toggle('opciones-version-nueva', !!hayNueva);
-    if (typeof MarielVersion !== 'undefined') {
-      MarielVersion.comprobarRemota({ bloquear: false }).then(() => {
-        if (!document.getElementById('ventana-opciones')?.classList.contains('show')) return;
-        this._pintarVersion();
-      }).catch(() => {});
-    }
+  },
+
+  _refrescarVersionSiAbierto() {
+    if (!document.getElementById('ventana-opciones')?.classList.contains('show')) return;
+    this._pintarVersion();
   },
 
   _guardarPreferencia(clave, valor) {

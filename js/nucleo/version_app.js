@@ -267,8 +267,8 @@ const MarielVersion = {
       btn.textContent = 'Actualizar';
     }
     this._estadoActualizar('', false);
-    if (typeof Opciones !== 'undefined' && Opciones._pintarVersion) {
-      Opciones._pintarVersion();
+    if (typeof Opciones !== 'undefined' && Opciones._refrescarVersionSiAbierto) {
+      Opciones._refrescarVersionSiAbierto();
     }
   },
 
@@ -323,8 +323,8 @@ const MarielVersion = {
       el.classList.remove('show');
     });
 
-    if (typeof Opciones !== 'undefined' && Opciones._pintarVersion) {
-      Opciones._pintarVersion();
+    if (typeof Opciones !== 'undefined' && Opciones._refrescarVersionSiAbierto) {
+      Opciones._refrescarVersionSiAbierto();
     }
   },
 
