@@ -20,24 +20,23 @@ function leerJugadoresDesdeCarpeta() {
       if (Array.isArray(ind)) jugadores.push(...ind);
     } catch (e) { /* */ }
   }
+  const idsIndice = new Set(jugadores.map(j => j?.id).filter(Boolean));
   try {
     for (const f of fs.readdirSync(dir)) {
       if (!f.endsWith('.json') || f === 'indice.json') continue;
       try {
         const data = JSON.parse(fs.readFileSync(path.join(dir, f), 'utf8'));
-        if (data?.id && data?.nombre) {
-          const idx = jugadores.findIndex(j => j.id === data.id);
-          const perfil = {
-            id: data.id,
-            nombre: data.nombre,
-            telefono: data.telefono || '',
-            pinHash: data.pinHash || '',
-            creado: data.creado || Date.now()
-          };
-          if (idx >= 0) jugadores[idx] = Object.assign({}, jugadores[idx], perfil);
-          else jugadores.push(perfil);
-          if (data.partida) partidas[data.id] = data.partida;
-        }
+        if (!data?.id || !idsIndice.has(data.id)) continue;
+        const idx = jugadores.findIndex(j => j.id === data.id);
+        const perfil = {
+          id: data.id,
+          nombre: data.nombre,
+          telefono: data.telefono || '',
+          pinHash: data.pinHash || '',
+          creado: data.creado || Date.now()
+        };
+        if (idx >= 0) jugadores[idx] = Object.assign({}, jugadores[idx], perfil);
+        if (data.partida) partidas[data.id] = data.partida;
       } catch (e) { /* */ }
     }
   } catch (e) { /* */ }
@@ -126,8 +125,13 @@ async function restaurarMundoAlArranque() {
     mundo = Object.assign(_mundoVacio(), base, { jugadores: [], partidas: {} });
   }
 
-  mergeJugadoresPartidas(mundo, fuentes.concat(prev, [{ jugadores: carpeta.jugadores }]));
-  _fusionarPartidas(mundo, fuentes.concat(prev, [{ partidas: carpeta.partidas }]));
+  mergeJugadoresPartidas(mundo, fuentes.concat([prev]));
+  const idsAut = new Set((mundo.jugadores || []).map(j => j?.id).filter(Boolean));
+  const partidasCarpeta = {};
+  for (const [id, p] of Object.entries(carpeta.partidas || {})) {
+    if (idsAut.has(id)) partidasCarpeta[id] = p;
+  }
+  _fusionarPartidas(mundo, fuentes.concat([prev, { partidas: partidasCarpeta }]));
 
   if ((sinSnapshot || !(mundo.objetos || []).length) && base) {
     if ((base.objetos || []).length) mundo.objetos = base.objetos;
@@ -146,6 +150,10 @@ async function restaurarMundoAlArranque() {
   );
   mundo.actualizadoEn = ts || Date.now();
 
+  if (Array.isArray(mundo.jugadores) && mundo.jugadores.length) {
+    const { purgarCuentasFueraDeSnapshot } = require('./syncCuentas');
+    purgarCuentasFueraDeSnapshot(mundo);
+  }
   reconciliarCuentasEnSnapshot(mundo);
   saveWorldSnapshot(mundo);
 
@@ -211,34 +219,24 @@ function forzarImportJugadores() {
   return { ok: true, jugadores: (mundo.jugadores || []).length };
 }
 
-/** Recupera jugadores desde GitHub / datos/jugadores si el snapshot perdió cuentas. */
+/** Recupera partidas de jugadores activos (no re-añade cuentas borradas). */
 async function recuperarJugadoresPerdidos() {
   const prev = getWorldSnapshot() || _mundoVacio();
   const carpeta = leerJugadoresDesdeCarpeta();
-  let remoto = null;
-  try {
-    const { fetchMundoFromGitHub } = require('./githubMundo');
-    remoto = await fetchMundoFromGitHub();
-  } catch (e) { /* */ }
-
   const antes = (prev.jugadores || []).length;
   const mundo = Object.assign({}, prev);
-  mergeJugadoresPartidas(mundo, [remoto, { jugadores: carpeta.jugadores }, prev]);
-  _fusionarPartidas(mundo, [remoto, { partidas: carpeta.partidas }, prev]);
-  reconciliarCuentasEnSnapshot(mundo);
-
+  const ids = new Set((mundo.jugadores || []).map(j => j?.id).filter(Boolean));
+  const partidasCarpeta = {};
+  for (const [id, p] of Object.entries(carpeta.partidas || {})) {
+    if (ids.has(id)) partidasCarpeta[id] = p;
+  }
+  _fusionarPartidas(mundo, [{ partidas: partidasCarpeta }]);
   const despues = (mundo.jugadores || []).length;
-  if (despues > antes) {
+  if (Object.keys(partidasCarpeta).length) {
     mundo.actualizadoEn = Date.now();
     saveWorldSnapshot(mundo);
-    try {
-      const { respaldarJugadoresEnGitHubAsync } = require('./jugadoresBackup');
-      respaldarJugadoresEnGitHubAsync(mundo);
-    } catch (e) { /* */ }
-    console.log('[mundo] Cuentas recuperadas:', despues - antes, '— total:', despues);
-    return { ok: true, antes, despues, recuperados: despues - antes };
   }
-  return { ok: true, antes, despues, recuperados: 0 };
+  return { ok: true, antes, despues, recuperados: Math.max(0, despues - antes) };
 }
 
 module.exports = {
