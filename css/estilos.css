@@ -31,12 +31,13 @@ button { font-family: inherit; }
 
 .indicador-conexion {
   display: block;
-  width: 100%;
+  width: clamp(32px, 9vw, 40px);
   height: 2px;
   border-radius: 2px;
   background: #4ade80;
   opacity: 0.92;
   flex-shrink: 0;
+  align-self: center;
   pointer-events: none;
 }
 .indicador-conexion.estado-reconectando {
@@ -60,7 +61,7 @@ button { font-family: inherit; }
   z-index: 1000;
   display: flex;
   flex-direction: column;
-  align-items: stretch;
+  align-items: center;
   gap: 3px;
   width: fit-content;
   max-width: min(calc(100vw - 16px), 420px);

@@ -69,7 +69,7 @@ const SyncServidor = {
     const base = (CONFIG.servidorOnline || '').replace(/\/$/, '');
     const token = localStorage.getItem(Multijugador.TOKEN_KEY);
     if (!base || !token) {
-      return { ok: false, error: 'Sin sesión en el servidor. Inicia sesión de nuevo.' };
+      return { ok: false, error: 'Sin conexión al servidor' };
     }
     const body = typeof jsonStr === 'string' ? jsonStr : JSON.stringify(jsonStr);
     for (let intento = 0; intento < 3; intento++) {
@@ -139,7 +139,7 @@ const SyncServidor = {
     const base = (CONFIG.servidorOnline || '').replace(/\/$/, '');
     const token = localStorage.getItem(Multijugador.TOKEN_KEY);
     if (!base || !token) {
-      return { ok: false, error: 'Inicia sesión como admin en el servidor.' };
+      return { ok: false, error: 'Sin conexión al servidor' };
     }
     try {
       const r = await Utilidades.fetchConTimeout(base + '/api/player/limpiar-cuentas', {
@@ -158,7 +158,7 @@ const SyncServidor = {
     const base = (CONFIG.servidorOnline || '').replace(/\/$/, '');
     const token = localStorage.getItem(Multijugador.TOKEN_KEY);
     if (!base || !token) {
-      return { ok: false, error: 'Inicia sesión como admin en el servidor.' };
+      return { ok: false, error: 'Sin conexión al servidor' };
     }
     for (let intento = 0; intento < 3; intento++) {
       try {

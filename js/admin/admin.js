@@ -672,13 +672,6 @@ const Admin = {
     if (typeof SyncServidor !== 'undefined' && !SyncServidor.puedePublicar()) {
       SyncServidor.asegurarSesionServidor().then((ok) => {
         if (ok) this._encolarPublicacion(true);
-        else if (!this._avisoSinToken) {
-          this._avisoSinToken = true;
-          Notificaciones.mostrar(
-            '⚠️ Entra con tu contraseña (randy) para sincronizar con el servidor.',
-            'alerta', 10000
-          );
-        }
       });
       return;
     }
@@ -4805,7 +4798,14 @@ const Admin = {
     let ok = false;
     let errorMsg = '';
     try {
-      ok = await this.publicarMundo(false);
+      if (typeof SyncServidor !== 'undefined' && !SyncServidor.puedePublicar()) {
+        const okSesion = await SyncServidor.asegurarSesionServidor({ pedirClave: true });
+        if (!okSesion) {
+          errorMsg = 'No se pudo conectar';
+          return;
+        }
+      }
+      ok = await this.publicarMundo(false, { soloSync: true });
       if (!ok && this._pubCancelada) errorMsg = '';
       else if (!ok) errorMsg = 'No se pudo sincronizar';
     } catch (e) {
@@ -4829,15 +4829,9 @@ const Admin = {
     if (!this.esAdminJugador()) return false;
     if (typeof SyncServidor !== 'undefined' && !SyncServidor.puedePublicar()) {
       const okSesion = await SyncServidor.asegurarSesionServidor(
-        silencioso ? {} : { pedirClave: true }
+        silencioso || opts?.soloSync ? {} : { pedirClave: true }
       );
-      if (!okSesion && !silencioso) {
-        Notificaciones.mostrar(
-          '⚠️ Entra con la contraseña de admin para sincronizar.',
-          'alerta', 8000
-        );
-        return false;
-      }
+      if (!okSesion) return false;
     }
     if (!opts?.confiarLocal) {
       try {
@@ -4886,12 +4880,6 @@ const Admin = {
       clave.startsWith('_') ? undefined : valor, 2);
 
     if (!CONFIG.servidorOnline || typeof SyncServidor === 'undefined' || !SyncServidor.puedePublicar()) {
-      if (!silencioso) {
-        Notificaciones.mostrar(
-          '⚠️ Inicia sesión para publicar al servidor.',
-          'alerta', 8000
-        );
-      }
       return false;
     }
 

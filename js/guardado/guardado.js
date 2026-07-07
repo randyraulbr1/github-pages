@@ -172,7 +172,7 @@ const Guardado = {
     this._avisoSinNube = true;
     if (typeof Notificaciones !== 'undefined') {
       Notificaciones.mostrar(
-        '⚠️ Pulsa Sincronizar e introduce la contraseña de admin para conectar al servidor.',
+        '⚠️ Pulsa Sincronizar en Admin para conectar al servidor.',
         'alerta', 10000
       );
     }
