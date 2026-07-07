@@ -368,7 +368,7 @@ const Multijugador = {
       if (i >= 0) Object.assign(this.online[i], p);
       else this.online.push(p);
       this._actualizarMarcador(this.online[i >= 0 ? i : this.online.length - 1]);
-      if (typeof Admin !== 'undefined' && Admin.modo === 'organizar') {
+      if (typeof Admin !== 'undefined' && Admin.modo === 'organizar' && !Admin._organizandoArrastreActivo) {
         requestAnimationFrame(() => Admin._reaplicarArrastreOrganizar());
       }
     });
@@ -2084,7 +2084,7 @@ const Multijugador = {
     if (mostrarAviso !== false && this.online.length && typeof Notificaciones !== 'undefined') {
       Notificaciones.mostrar('👥 ' + this.online.length + ' jugador(es) en vivo', 'info', 3000);
     }
-    if (typeof Admin !== 'undefined' && Admin.modo === 'organizar') {
+    if (typeof Admin !== 'undefined' && Admin.modo === 'organizar' && !Admin._organizandoArrastreActivo) {
       requestAnimationFrame(() => Admin._reaplicarArrastreOrganizar());
     }
   }
