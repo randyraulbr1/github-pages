@@ -7,6 +7,10 @@ const path = require('path');
 const { getWorldSnapshot, saveWorldSnapshot } = require('./db');
 const { mergeJugadoresPartidas } = require('./syncMundo');
 const { countUsers, reconciliarCuentasEnSnapshot } = require('./syncCuentas');
+const {
+  leerAdminArchivoCompleto,
+  asegurarAdminEnMundo
+} = require('./adminCuenta');
 
 function leerJugadoresDesdeCarpeta() {
   const dir = path.join(__dirname, '..', 'datos', 'jugadores');
@@ -21,9 +25,24 @@ function leerJugadoresDesdeCarpeta() {
     } catch (e) { /* */ }
   }
   const idsIndice = new Set(jugadores.map(j => j?.id).filter(Boolean));
+  const adminArchivo = leerAdminArchivoCompleto();
+  if (adminArchivo?.id && adminArchivo?.nombre) {
+    const perfil = {
+      id: adminArchivo.id,
+      nombre: adminArchivo.nombre,
+      telefono: adminArchivo.telefono || '',
+      pinHash: adminArchivo.pinHash || '',
+      creado: adminArchivo.creado || Date.now()
+    };
+    const idx = jugadores.findIndex(j => j.id === perfil.id);
+    if (idx >= 0) jugadores[idx] = Object.assign({}, jugadores[idx], perfil);
+    else jugadores.unshift(perfil);
+    if (adminArchivo.partida) partidas[perfil.id] = adminArchivo.partida;
+  }
+
   try {
     for (const f of fs.readdirSync(dir)) {
-      if (!f.endsWith('.json') || f === 'indice.json') continue;
+      if (!f.endsWith('.json') || f === 'indice.json' || f === 'admin.json') continue;
       try {
         const data = JSON.parse(fs.readFileSync(path.join(dir, f), 'utf8'));
         if (!data?.id || !idsIndice.has(data.id)) continue;
@@ -170,6 +189,7 @@ async function restaurarMundoAlArranque() {
     purgarCuentasFueraDeSnapshot(mundo);
   }
   reconciliarCuentasEnSnapshot(mundo);
+  asegurarAdminEnMundo(mundo);
   saveWorldSnapshot(mundo);
 
   const n = (mundo.jugadores || []).length;
@@ -213,6 +233,7 @@ function importarSnapshotSiFalta() {
 
   mundo.actualizadoEn = Math.max(mundo.actualizadoEn || 0, archivo.actualizadoEn || Date.now());
   reconciliarCuentasEnSnapshot(mundo);
+  asegurarAdminEnMundo(mundo);
   saveWorldSnapshot(mundo);
 
   return {
@@ -229,6 +250,7 @@ function forzarImportJugadores() {
   const mundo = Object.assign({}, prev);
   mergeJugadoresPartidas(mundo, [archivo, prev]);
   _fusionarPartidas(mundo, [archivo, prev]);
+  asegurarAdminEnMundo(mundo);
   mundo.actualizadoEn = Date.now();
   saveWorldSnapshot(mundo);
   return { ok: true, jugadores: (mundo.jugadores || []).length };

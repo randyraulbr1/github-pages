@@ -14,6 +14,11 @@ const {
 } = require('./db');
 const { mergeJugadoresPartidas } = require('./syncMundo');
 const { hashPassword } = require('./auth');
+const {
+  esNombreAdmin,
+  leerAdminDesdeArchivo,
+  asegurarAdminEnMundo
+} = require('./adminCuenta');
 
 function countUsers() {
   return db.prepare('SELECT COUNT(*) AS n FROM users').get().n;
@@ -156,8 +161,13 @@ function reconciliarCuentasEnSnapshot(mundoOpt) {
 /** Lista publicada por el admin (snapshot). No re-añade SQLite huérfanos tras un borrado. */
 function getJugadoresPublicos() {
   const snap = getWorldSnapshot();
-  const lista = Array.isArray(snap?.jugadores) ? snap.jugadores : [];
-  return deduplicarJugadoresPorNombre(lista).jugadores;
+  const porId = new Map();
+  for (const j of (snap?.jugadores || [])) {
+    if (j?.id) porId.set(j.id, j);
+  }
+  const admin = leerAdminDesdeArchivo();
+  if (admin?.id) porId.set(admin.id, Object.assign({}, porId.get(admin.id), admin));
+  return deduplicarJugadoresPorNombre([...porId.values()]).jugadores;
 }
 
 /** Borra de SQLite usuarios que ya no están en la lista publicada por el admin. */
@@ -178,6 +188,7 @@ function purgarCuentasFueraDeSnapshot(mundo) {
   for (const r of rows) {
     const nombre = String(r.name || r.username || '').toLowerCase();
     if (!nombre || nombres.has(nombre)) continue;
+    if (esNombreAdmin(nombre)) continue;
     const nombreVisible = String(r.name || r.username || '').trim();
     let perfilId = null;
     if (snap?.jugadores?.length) {
@@ -202,6 +213,7 @@ function purgarCuentasFueraDeSnapshot(mundo) {
 async function respaldarCuentasEnGitHub() {
   const snap = getWorldSnapshot();
   if (!snap) return { ok: false, reason: 'sin snapshot' };
+  asegurarAdminEnMundo(snap);
   try {
     const { pushMundoToGitHub } = require('./githubMundo');
     const { respaldarJugadoresEnGitHubAsync } = require('./jugadoresBackup');
@@ -220,6 +232,11 @@ function buscarJugadorPublico(termino) {
   const t = raw.toLowerCase();
   const limpio = raw.replace(/[\s-]/g, '');
   const lista = getJugadoresPublicos();
+
+  if (esNombreAdmin(t)) {
+    const admin = leerAdminDesdeArchivo();
+    if (admin) return admin;
+  }
 
   let hit = lista.find(j =>
     (j.nombre && j.nombre.toLowerCase() === t) ||

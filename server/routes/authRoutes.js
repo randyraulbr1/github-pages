@@ -19,6 +19,7 @@ const { hashPassword, comparePassword, signPlayerToken } = require('../auth');
 const { mergeJugadoresPartidas } = require('../syncMundo');
 const { forzarImportJugadores, leerMundoJson } = require('../importSnapshot');
 const { getJugadoresPublicos, respaldarCuentasEnGitHub, buscarJugadorPublico } = require('../syncCuentas');
+const { leerAdminDesdeArchivo } = require('../adminCuenta');
 
 const router = express.Router();
 
@@ -53,6 +54,8 @@ function buscarJugadorSnapshot(usuario) {
     const archivo = leerMundoJson();
     found = buscarEnListaJugadores(archivo?.jugadores, usuario);
     if (found) return found;
+    const admin = leerAdminDesdeArchivo();
+    if (admin && buscarEnListaJugadores([admin], usuario)) return admin;
   } catch (e) { /* */ }
   return null;
 }
