@@ -4,7 +4,7 @@
   "telefono": "",
   "pinHash": "0a22b58a09f93652ac592f9424e5dedbeb450965c0e7ddc5b46f8ab21aa96bb1",
   "creado": 1783446327143,
-  "actualizadoEn": 1783446393222,
+  "actualizadoEn": 1783446395333,
   "partida": {
     "datos": {
       "mochila": [
@@ -38,7 +38,7 @@
         "saldo": 100,
         "control": "68e382a3687042dcd0420432d9bf210eada6d12606b6ecd367d18c724c2f4b38"
       },
-      "vida": 40,
+      "vida": 35,
       "hambre": 33,
       "xp": 150,
       "nivel": 2,
@@ -67,6 +67,6 @@
       "muertePos": null,
       "armaEquipada": null
     },
-    "t": 1783446381102
+    "t": 1783446393078
   }
 }
