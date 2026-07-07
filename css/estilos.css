@@ -117,22 +117,22 @@ button { font-family: inherit; }
   width: 100%;
 }
 .barra-nivel {
-  font-size: 11px;
+  font-size: 10px;
   font-weight: 900;
   color: #fff;
   flex-shrink: 0;
-  min-width: 34px;
+  min-width: 46px;
   text-align: center;
   letter-spacing: -.02em;
   line-height: 1.15;
   background: rgba(0, 0, 0, 0.35);
   border: 1px solid rgba(0, 0, 0, 0.4);
   border-radius: 2px;
-  padding: 2px 4px;
+  padding: 2px 5px;
   box-sizing: border-box;
   text-shadow: 0 1px 2px rgba(0, 0, 0, 0.9);
 }
-.fila-barra-xp .barra-nivel { margin-right: 3px; }
+.fila-barra-xp .barra-nivel { margin-right: 4px; flex-shrink: 0; }
 
 .barra-texto-int,
 #vida-texto, #dinero-cantidad {
@@ -215,7 +215,7 @@ button { font-family: inherit; }
 }
 
 #hud-acciones-mini {
-  display: flex; gap: 8px; justify-content: flex-end;
+  display: flex; gap: 8px; justify-content: flex-start;
   margin-top: 4px;
   overflow: visible;
   padding: 0;
