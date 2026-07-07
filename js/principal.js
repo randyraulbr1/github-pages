@@ -299,7 +299,12 @@ async function esperarMundoEnMapa() {
   } finally {
     ocultarCarga();
     if (typeof MarielVersion !== 'undefined') {
-      MarielVersion.comprobarRemota({ bloquear: true }).catch(() => {});
+      await MarielVersion.aplicarBloqueoTrasArranque();
+    }
+    if (typeof Mapa !== 'undefined' && Mapa.mapa) {
+      requestAnimationFrame(() => {
+        try { Mapa.mapa.invalidateSize(); } catch (e) { /* */ }
+      });
     }
   }
 })();

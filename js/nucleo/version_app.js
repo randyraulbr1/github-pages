@@ -83,7 +83,7 @@ const MarielVersion = {
     for (const t of this._arranqueTimers) clearTimeout(t);
     this._arranqueTimers = [];
     [0, 800, 2000, 5000, 12000].forEach((ms) => {
-      this._arranqueTimers.push(setTimeout(() => this._comprobarRemota({ bloquear: ms >= 5000 }), ms));
+      this._arranqueTimers.push(setTimeout(() => this._comprobarRemota({ bloquear: false }), ms));
     });
 
     try {
@@ -117,25 +117,49 @@ const MarielVersion = {
     this._programarComprobacionesArranque();
 
     document.addEventListener('visibilitychange', () => {
-      if (document.visibilityState === 'visible') this._comprobarRemota({ bloquear: true });
+      if (document.visibilityState === 'visible') this._comprobarRemota({ bloquear: false });
     });
-    window.addEventListener('focus', () => this._comprobarRemota({ bloquear: true }));
-    window.addEventListener('online', () => this._comprobarRemota({ bloquear: true }));
+    window.addEventListener('focus', () => this._comprobarRemota({ bloquear: false }));
+    window.addEventListener('online', () => this._comprobarRemota({ bloquear: false }));
 
     if (this._pollTimer) clearInterval(this._pollTimer);
-    this._pollTimer = setInterval(() => this._comprobarRemota({ bloquear: true }), this._pollMs);
+    this._pollTimer = setInterval(() => this._comprobarRemota({ bloquear: false }), this._pollMs);
 
     if ('serviceWorker' in navigator) {
       navigator.serviceWorker.addEventListener('controllerchange', () => {
-        this._comprobarRemota({ bloquear: true });
+        this._comprobarRemota({ bloquear: false });
       });
       navigator.serviceWorker.addEventListener('message', (ev) => {
         if (ev.data?.tipo === 'nueva-version') {
           if (ev.data.version) this._remota = String(ev.data.version);
-          this._comprobarRemota({ bloquear: true });
+          this._comprobarRemota({ bloquear: false });
         }
       });
     }
+  },
+
+  /** Quita bloqueo si la pantalla de actualizar no está visible (evita UI muerta). */
+  _evitarBloqueoFantasma() {
+    const pant = document.getElementById('pantalla-actualizar');
+    const bodyBloq = document.body.classList.contains('mariel-bloqueado-actualizar');
+    const pantVisible = pant && !pant.classList.contains('oculto');
+    if (bodyBloq && !pantVisible) {
+      this._bloqueado = false;
+      document.body.classList.remove('mariel-bloqueado-actualizar');
+    }
+  },
+
+  /** Tras cargar mundo y sesión: bloquear solo si hace falta y con overlay visible. */
+  async aplicarBloqueoTrasArranque() {
+    await this._comprobarRemota({ bloquear: false });
+    const cargada = this.versionCargada();
+    const rem = this._num(this._remota);
+    if (rem && rem > cargada) {
+      this.mostrarBloqueo(String(cargada || '?'), String(rem));
+    } else {
+      this._desbloquearActualizacion(String(cargada || rem || ''));
+    }
+    this._evitarBloqueoFantasma();
   },
 
   registrarServiceWorker(reg) {
@@ -281,6 +305,7 @@ const MarielVersion = {
     const rem = String(remoto || this._remota || '');
     this._bloqueado = true;
     this._remota = rem;
+    document.body.classList.remove('en-auth');
     document.body.classList.add('mariel-bloqueado-actualizar');
 
     const det = document.getElementById('actualizar-detalle');
@@ -409,6 +434,7 @@ const MarielVersion = {
       const remoto = await this.obtenerRemota();
       if (remoto) this._remota = remoto;
       this.revisar({ bloquear });
+      this._evitarBloqueoFantasma();
     } finally {
       this._comprobando = false;
     }
