@@ -10,13 +10,16 @@
       "mochila": [
         {
           "id": "agua",
-          "cantidad": 6
+          "cantidad": 8
         },
         {
           "id": "pan",
+          "cantidad": 3
+        },
+        {
+          "id": "botiquin",
           "cantidad": 2
         },
-        null,
         null,
         null,
         null,
@@ -44,13 +47,13 @@
         "saldo": 114,
         "control": "1d3f75b7d4a3ff50280c0cf83f9b01e1815e42f26ed989c3c512ebe482a7a2a5"
       },
-      "vida": 100,
+      "vida": 104,
       "hambre": 50,
-      "xp": 25,
-      "nivel": 1,
+      "xp": 85,
+      "nivel": 2,
       "posicionJugador": [
-        22.99346781610901,
-        -82.7539184689522
+        22.993223374405297,
+        -82.75322914123535
       ],
       "tesorosRecogidos": [],
       "misiones": {},
@@ -232,12 +235,77 @@
           ],
           "hashAnterior": "3dab3e73d6c1826bdc17cc94f00a9bda89d071bede02c0e13a9e8979a1e2563e",
           "hash": "9b7a1a2245be144b6cf0c4082fcf94be522276d6fbe320154659857d8ac11202"
+        },
+        {
+          "t": 1783440508899,
+          "detalle": "Obtenido: Botiquín",
+          "monto": 4,
+          "saldo": null,
+          "lugar": "campo abierto",
+          "pos": [
+            22.993468,
+            -82.753918
+          ],
+          "hashAnterior": "9b7a1a2245be144b6cf0c4082fcf94be522276d6fbe320154659857d8ac11202",
+          "hash": "f949b4b4692d0a358bcd9ba8a0a9d7708d4ab44613d8ecde817a0796c279ba86"
+        },
+        {
+          "t": 1783440511063,
+          "detalle": "Revivió a 33: Botiquín",
+          "monto": -1,
+          "saldo": null,
+          "lugar": "campo abierto",
+          "pos": [
+            22.993468,
+            -82.753918
+          ],
+          "hashAnterior": "f949b4b4692d0a358bcd9ba8a0a9d7708d4ab44613d8ecde817a0796c279ba86",
+          "hash": "cb26ebd47ed8da4d6fccc5f573741fad50edc71e4f02c299e30b97a308d9d882"
+        },
+        {
+          "t": 1783440740568,
+          "detalle": "Obtenido: Pan",
+          "monto": 1,
+          "saldo": null,
+          "lugar": "campo abierto",
+          "pos": [
+            22.993562,
+            -82.753775
+          ],
+          "hashAnterior": "cb26ebd47ed8da4d6fccc5f573741fad50edc71e4f02c299e30b97a308d9d882",
+          "hash": "b151e99e7a56c07b2ffdbfeb94b711a8b4c7c286843b0bd5419c6cd2a670eb11"
+        },
+        {
+          "t": 1783440741728,
+          "detalle": "Obtenido: Botella de agua",
+          "monto": 2,
+          "saldo": null,
+          "lugar": "campo abierto",
+          "pos": [
+            22.993562,
+            -82.753775
+          ],
+          "hashAnterior": "b151e99e7a56c07b2ffdbfeb94b711a8b4c7c286843b0bd5419c6cd2a670eb11",
+          "hash": "9e2471afedfcaf0189f0aa953bee50717ee2519f0a82b306d4a68dc026d823eb"
+        },
+        {
+          "t": 1783440743485,
+          "detalle": "Revivió a 33: Botiquín",
+          "monto": -1,
+          "saldo": null,
+          "lugar": "campo abierto",
+          "pos": [
+            22.993562,
+            -82.753775
+          ],
+          "hashAnterior": "9e2471afedfcaf0189f0aa953bee50717ee2519f0a82b306d4a68dc026d823eb",
+          "hash": "f31c55ae6e0e4fde2a802305287f6c1d6331fb6b6c1a07f29f57eae62768d2d1"
         }
       ],
       "mensajesVistos": [],
       "muerto": false,
       "armaEquipada": "arma_nv1"
     },
-    "t": 1783440493493
+    "t": 1783442785871
   }
 }
