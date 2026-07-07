@@ -45,15 +45,25 @@ const Multijugador = {
       ? Usuarios.perfilActivo.nombre
       : (usuario || '').trim();
     if (!base || !nombre || !clave) return false;
-    const body = JSON.stringify({ username: nombre, password: clave });
+    const body = JSON.stringify({ usuario: nombre, clave });
     const headers = { 'Content-Type': 'application/json' };
     try {
-      let r = await fetch(base + '/api/login', { method: 'POST', headers, body });
+      let r = await Utilidades.fetchConTimeout(base + '/api/login-game', {
+        method: 'POST',
+        headers,
+        body
+      }, 12000);
       let data = await r.json().catch(() => ({}));
-      if (!r.ok) {
-        r = await fetch(base + '/api/register', { method: 'POST', headers, body });
-        data = await r.json().catch(() => ({}));
+      if (r.ok && data.ok && data.token) {
+        localStorage.setItem(this.TOKEN_KEY, data.token);
+        return true;
       }
+      r = await fetch(base + '/api/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username: nombre, password: clave })
+      });
+      data = await r.json().catch(() => ({}));
       if (data.token) {
         localStorage.setItem(this.TOKEN_KEY, data.token);
         return true;
@@ -70,11 +80,26 @@ const Multijugador = {
 
     let token = localStorage.getItem(this.TOKEN_KEY);
     if (!token) {
-      const clave = sessionStorage.getItem('mariel_clave_servidor');
-      if (clave) {
+      const claves = [];
+      try {
+        const s = sessionStorage.getItem('mariel_clave_servidor');
+        if (s) claves.push(s);
+      } catch (e) { /* */ }
+      if (typeof Usuarios !== 'undefined' && Usuarios.esAdministrador && Usuarios.esAdministrador()) {
+        try {
+          const dev = localStorage.getItem('mariel_dev_clave_randy');
+          if (dev) claves.push(dev);
+        } catch (e2) { /* */ }
+      }
+      for (const clave of claves) {
         await this.sincronizarCuenta(Usuarios.perfilActivo.nombre, clave);
         token = localStorage.getItem(this.TOKEN_KEY);
+        if (token) break;
       }
+    }
+    if (!token && typeof SyncServidor !== 'undefined') {
+      await SyncServidor.asegurarSesionServidor();
+      token = localStorage.getItem(this.TOKEN_KEY);
     }
     if (!token) return false;
 

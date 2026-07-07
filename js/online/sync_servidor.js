@@ -6,6 +6,57 @@ const SyncServidor = {
     return !!(CONFIG.servidorOnline && localStorage.getItem(Multijugador.TOKEN_KEY));
   },
 
+  _clavesGuardadas() {
+    const claves = [];
+    try {
+      const s = sessionStorage.getItem('mariel_clave_servidor');
+      if (s) claves.push(s);
+    } catch (e) { /* */ }
+    if (typeof Usuarios !== 'undefined' && Usuarios.esAdministrador && Usuarios.esAdministrador()) {
+      try {
+        const dev = localStorage.getItem('mariel_dev_clave_randy');
+        if (dev) claves.push(dev);
+      } catch (e2) { /* */ }
+    }
+    return [...new Set(claves.filter(Boolean))];
+  },
+
+  /** Obtiene token JWT del servidor si falta (sesión local sin login-game). */
+  async asegurarSesionServidor(opciones) {
+    const opts = opciones || {};
+    if (this.puedePublicar()) return true;
+    if (!CONFIG.servidorOnline || typeof Usuarios === 'undefined' || !Usuarios.perfilActivo) {
+      return false;
+    }
+    const perfil = Usuarios.perfilActivo;
+    const usuario = perfil.nombre || perfil.id;
+    for (const clave of this._clavesGuardadas()) {
+      const srv = await Usuarios._loginServidor(usuario, clave, 0);
+      if (srv && !srv.error) return true;
+    }
+    if (opts.pedirClave && Usuarios.esAdministrador && Usuarios.esAdministrador()) {
+      const clave = prompt(
+        'Contraseña de ' + usuario + ' para sincronizar con el servidor:',
+        ''
+      );
+      if (!clave) return false;
+      const srv = await Usuarios._loginServidor(usuario, clave, 0);
+      if (srv && !srv.error) {
+        try {
+          sessionStorage.setItem('mariel_clave_servidor', clave);
+          if (String(usuario).toLowerCase() === 'randy') {
+            localStorage.setItem('mariel_dev_clave_randy', clave);
+          }
+        } catch (e) { /* */ }
+        return true;
+      }
+      if (typeof Notificaciones !== 'undefined') {
+        Notificaciones.mostrar('❌ ' + (srv?.error || 'No se pudo conectar al servidor'), 'error', 6000);
+      }
+    }
+    return this.puedePublicar();
+  },
+
   _headers() {
     const token = localStorage.getItem(Multijugador.TOKEN_KEY);
     return {

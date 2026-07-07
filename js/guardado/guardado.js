@@ -56,7 +56,7 @@ const Guardado = {
     if (MundoPublico.puedeEscribir()) {
       this.sincronizarNube(true).catch(() => {});
     } else if (typeof Usuarios !== 'undefined' && Usuarios.esAdministrador()) {
-      this._avisarSinSyncNube();
+      this._avisarSinSyncNube().catch(() => {});
     }
     this.iniciarSyncPeriodico();
   },
@@ -159,16 +159,20 @@ const Guardado = {
     this._syncNubeTimer = setTimeout(() => this.sincronizarNube(true), 2500);
   },
 
-  _avisarSinSyncNube() {
+  async _avisarSinSyncNube() {
     if (this._avisoSinNube) return;
-    if (typeof SyncServidor !== 'undefined' && SyncServidor.puedePublicar()) return;
+    if (typeof SyncServidor !== 'undefined') {
+      if (SyncServidor.puedePublicar()) return;
+      const ok = await SyncServidor.asegurarSesionServidor();
+      if (ok) return;
+    }
     if (MundoPublico.usaFirebase()) return;
     if (typeof Usuarios === 'undefined' || !Usuarios.esAdministrador()) return;
     if (MundoPublico.puedeEscribir()) return;
     this._avisoSinNube = true;
     if (typeof Notificaciones !== 'undefined') {
       Notificaciones.mostrar(
-        '⚠️ Inicia sesión en el juego para sincronizar con el servidor.',
+        '⚠️ Pulsa Sincronizar e introduce la contraseña de admin para conectar al servidor.',
         'alerta', 10000
       );
     }
@@ -202,7 +206,7 @@ const Guardado = {
     }
 
     if (!MundoPublico.puedeEscribir()) {
-      if (Usuarios.esAdministrador()) this._avisarSinSyncNube();
+      if (Usuarios.esAdministrador()) this._avisarSinSyncNube().catch(() => {});
       return false;
     }
 
