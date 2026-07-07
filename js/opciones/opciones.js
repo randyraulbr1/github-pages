@@ -5,6 +5,7 @@ const Opciones = {
   _pending: null,
   _toastTimer: null,
   _actualizando: false,
+  _versionConsultada: false,
 
   iniciar() {
     document.getElementById('btn-opciones')?.addEventListener('click', (e) => {
@@ -234,6 +235,10 @@ const Opciones = {
     this.pintarPerfilOpciones();
     this._pintarPreferencias();
     this._pintarVersion();
+    if (!this._versionConsultada) {
+      this._versionConsultada = true;
+      this._refrescarVersionRemota().catch(() => {});
+    }
     this._cerrarConfirm();
     const v = document.getElementById('ventana-opciones');
     v?.classList.remove('oculto');
@@ -267,12 +272,13 @@ const Opciones = {
       btn.disabled = false;
       btn.textContent = hayNueva ? '⬆️ Actualizar a v' + remota : '⬆️ Buscar actualización';
     }
-    if (typeof MarielVersion !== 'undefined') {
-      MarielVersion.comprobarRemota({ bloquear: false }).then(() => {
-        if (!document.getElementById('ventana-opciones')?.classList.contains('show')) return;
-        this._pintarVersion();
-      }).catch(() => {});
-    }
+  },
+
+  async _refrescarVersionRemota() {
+    if (typeof MarielVersion === 'undefined') return null;
+    await MarielVersion.comprobarRemota({ bloquear: false });
+    this._pintarVersion();
+    return MarielVersion._remota;
   },
 
   _setProgresoActualizar(pct, texto) {
@@ -302,29 +308,32 @@ const Opciones = {
       this._toast('Actualización no disponible');
       return;
     }
-    this._actualizando = true;
     const btn = document.getElementById('opcion-actualizar-app');
+    const soloBuscar = !btn || btn.textContent.indexOf('Buscar') >= 0;
+
+    this._actualizando = true;
     if (btn) {
       btn.disabled = true;
-      btn.textContent = 'Comprobando…';
+      btn.textContent = soloBuscar ? 'Buscando…' : 'Actualizando…';
     }
-    this._setProgresoActualizar(8, 'Comprobando versión…');
+    this._setProgresoActualizar(10, soloBuscar ? 'Buscando versión…' : 'Preparando actualización…');
     let res = null;
     try {
-      const local = MarielVersion.versionCargada();
-      const remotaPrev = MarielVersion._remota;
-      const habiaNueva = remotaPrev && MarielVersion.necesitaActualizar(local, remotaPrev);
+      const remota = await this._refrescarVersionRemota();
+      const loc = MarielVersion.versionCargada();
+      const hayNueva = remota && MarielVersion.necesitaActualizar(loc, remota);
 
-      if (!habiaNueva) {
-        await MarielVersion.comprobarRemota({ bloquear: false });
-        this._pintarVersion();
-        const rem = MarielVersion._remota;
-        const loc = MarielVersion.versionCargada();
-        if (rem && MarielVersion.necesitaActualizar(loc, rem)) {
-          this._toast('Nueva versión v' + rem + ' — pulsa Actualizar');
-        } else {
-          this._toast('Ya tienes la versión más reciente');
-        }
+      if (soloBuscar) {
+        this._setProgresoActualizar(100, hayNueva ? ('Nueva: v' + remota) : 'Versión al día');
+        this._toast(hayNueva
+          ? ('Nueva versión v' + remota + ' — pulsa Actualizar a v' + remota)
+          : 'Ya tienes la versión más reciente');
+        return;
+      }
+
+      if (!hayNueva) {
+        this._setProgresoActualizar(100, 'Versión al día');
+        this._toast('Ya tienes la versión más reciente');
         return;
       }
 
@@ -334,15 +343,15 @@ const Opciones = {
       });
       if (res?.yaAlDia) {
         this._toast('Ya tienes la versión más reciente');
-        this._pintarVersion();
       } else if (res?.ok === false) {
         this._toast('No se pudo actualizar — reintenta');
       }
     } catch (e) {
-      this._toast('Error al actualizar');
+      console.error('[opciones] actualizar:', e);
+      this._toast('Error al comprobar — reintenta');
     } finally {
       this._actualizando = false;
-      if (!res?.ok || res?.yaAlDia) {
+      if (!res?.ok) {
         this._ocultarProgresoActualizar();
         if (btn) btn.disabled = false;
         this._pintarVersion();
