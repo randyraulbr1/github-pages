@@ -392,9 +392,6 @@ const Multijugador = {
       if (data.mundo.cuerposMuertos) this._aplicarCuerpos(data.mundo.cuerposMuertos);
       if (typeof Usuarios !== 'undefined') {
         Usuarios.verificarCuentaEnMundo().catch(() => {});
-        if (!Usuarios.esAdministrador() && typeof Notificaciones !== 'undefined') {
-          Notificaciones.mostrar('🌍 El admin actualizó el mapa', 'info', 4000);
-        }
       }
     });
 
@@ -754,10 +751,6 @@ const Multijugador = {
     if (m.cuerposMuertos) this._aplicarCuerpos(m.cuerposMuertos);
     if (tieneContenido) this._mundoSocketListo = true;
     this._sincronizarPinesPartida();
-    if (avisar && typeof Usuarios !== 'undefined' && !Usuarios.esAdministrador() &&
-        typeof Notificaciones !== 'undefined') {
-      Notificaciones.mostrar('🌍 El admin actualizó el mapa', 'info', 4000);
-    }
     return true;
   },
 
