@@ -214,6 +214,10 @@ const Chat = {
     socket.on('chat:read', (data) => this._aplicarLectura(data));
   },
 
+  _syncChatAbiertoBody(abierto) {
+    document.body.classList.toggle('chat-abierto', !!abierto);
+  },
+
   togglePanel() {
     const panel = document.getElementById('chatPanel');
     if (!panel) return;
@@ -222,8 +226,10 @@ const Chat = {
       return;
     }
     panel.classList.toggle('show');
-    document.getElementById('btn-chat')?.classList.toggle('activo', panel.classList.contains('show'));
-    if (panel.classList.contains('show')) {
+    const abierto = panel.classList.contains('show');
+    this._syncChatAbiertoBody(abierto);
+    document.getElementById('btn-chat')?.classList.toggle('activo', abierto);
+    if (abierto) {
       this.showList();
       this.refrescarConversaciones();
     }
@@ -231,6 +237,7 @@ const Chat = {
 
   cerrarPanel() {
     document.getElementById('chatPanel')?.classList.remove('show');
+    this._syncChatAbiertoBody(false);
     document.getElementById('btn-chat')?.classList.remove('activo');
     document.getElementById('emojiPanelChat')?.classList.remove('show');
   },
@@ -454,6 +461,7 @@ const Chat = {
     const panel = document.getElementById('chatPanel');
     if (panel && !panel.classList.contains('show')) {
       panel.classList.add('show');
+      this._syncChatAbiertoBody(true);
       document.getElementById('btn-chat')?.classList.add('activo');
     }
   },

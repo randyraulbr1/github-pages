@@ -3,7 +3,7 @@
 // guarda todos los archivos en el teléfono (funciona con mala
 // conexión) y va guardando los pedazos de mapa ya visitados.
 // ============================================================
-const CACHE = 'mariel-explorer-v216';
+const CACHE = 'mariel-explorer-v221';
 
 const ARCHIVOS = [
   './',
@@ -99,11 +99,12 @@ self.addEventListener('activate', evento => {
   evento.waitUntil(
     caches.keys().then(claves =>
       Promise.all(claves.filter(c => c !== CACHE && !c.includes('-mapa')).map(c => caches.delete(c)))
-    ).then(() => self.clients.claim())
+    )      .then(() => self.clients.claim())
       .then(() => self.clients.matchAll({ type: 'window', includeUncontrolled: true }))
       .then(clientes => {
+        const v = String(CACHE).replace('mariel-explorer-v', '');
         for (const c of clientes) {
-          c.postMessage({ tipo: 'nueva-version', cache: CACHE });
+          c.postMessage({ tipo: 'nueva-version', version: v, cache: CACHE });
         }
       })
   );

@@ -4186,26 +4186,26 @@ const Admin = {
     if (perfil.id === Usuarios.perfilActivo?.id) {
       return JSON.parse(JSON.stringify(base(Guardado.datos)));
     }
-    if (typeof MundoPublico !== 'undefined' && MundoPublico.cargarCuenta) {
-      const cuenta = await MundoPublico.cargarCuenta(perfil.id);
-      if (cuenta?.partida?.datos) {
-        return JSON.parse(JSON.stringify(base(cuenta.partida.datos)));
-      }
-    }
+
+    const candidatos = [];
+    const extra = (this.datos.partidasExtra || {})[perfil.id];
+    if (extra?.datos || extra?.mochila) candidatos.push({ datos: extra.datos || extra, t: extra.t || 0 });
+    const nube = (this.publicado.partidas || {})[perfil.id];
+    if (nube?.datos || nube?.mochila) candidatos.push({ datos: nube.datos || nube, t: nube.t || 0 });
     const clave = CONFIG.claveGuardado + '::' + perfil.id;
     try {
       const p = JSON.parse(localStorage.getItem(clave));
-      if (p?.datos) return JSON.parse(JSON.stringify(base(p.datos)));
-    } catch (e) {}
-    const nube = (this.publicado.partidas || {})[perfil.id];
-    if (nube) {
-      const d = nube.datos || nube;
-      if (d.mochila) return JSON.parse(JSON.stringify(base(d)));
+      if (p?.datos) candidatos.push({ datos: p.datos, t: p.datos.nubeT || 0 });
+    } catch (e) { /* */ }
+    if (typeof MundoPublico !== 'undefined' && MundoPublico.cargarCuenta) {
+      const cuenta = await MundoPublico.cargarCuenta(perfil.id);
+      if (cuenta?.partida?.datos) {
+        candidatos.push({ datos: cuenta.partida.datos, t: cuenta.partida.t || 0 });
+      }
     }
-    const extra = (this.datos.partidasExtra || {})[perfil.id];
-    if (extra) {
-      const d = extra.datos || extra;
-      if (d.mochila) return JSON.parse(JSON.stringify(base(d)));
+    if (candidatos.length) {
+      candidatos.sort((a, b) => (b.t || 0) - (a.t || 0));
+      return JSON.parse(JSON.stringify(base(candidatos[0].datos)));
     }
     return Object.assign(this._partidaDefault(), { vida: CONFIG.vidaMaxima, muerto: false });
   },
@@ -4290,11 +4290,34 @@ const Admin = {
       t: Date.now()
     };
     this.datos.partidasExtra[perfil.id] = snap;
+    if (!this.publicado.partidas) this.publicado.partidas = {};
+    this.publicado.partidas[perfil.id] = snap;
     this.guardar();
     if (MundoPublico.puedeEscribir()) {
       await MundoPublico.guardarCuenta(perfil, snap);
     }
+    if (typeof SyncServidor !== 'undefined' && SyncServidor.subirPartida) {
+      await SyncServidor.subirPartida(perfil.id, snap);
+    }
+    await this._sincronizarJugadorEditadoOnline(perfil, partida, snap);
     await this._publicarParaTodos(true);
+  },
+
+  async _sincronizarJugadorEditadoOnline(perfil, partida, snap) {
+    const online = this._estadoOnlinePorNombre(perfil.nombre);
+    if (!online || typeof Multijugador === 'undefined' || !Multijugador.socket) return;
+    const maxV = this.vidaJugadorPorNivel(partida.nivel ?? 1);
+    const hp = partida.muerto ? 0 : (partida.vida ?? maxV);
+    Multijugador.socket.emit('admin:updatePlayerPartida', {
+      targetPlayerId: online.playerId,
+      perfilId: perfil.id,
+      hp,
+      hpMax: maxV,
+      level: partida.nivel ?? 1,
+      xp: partida.xp ?? 0,
+      dead: !!partida.muerto,
+      partidaSnap: snap
+    }, () => {});
   },
 
   async _abrirEditorJugador(perfil, soloGlobal) {
@@ -4303,10 +4326,12 @@ const Admin = {
       const g = this.jugadoresGlobales().find(j => j.id === perfil.id);
       if (g) p = Object.assign({}, g);
     }
+    const partidaInicial = await this._obtenerPartidaJugador(p);
     this._editorJugador = {
       perfil: p,
-      partida: await this._obtenerPartidaJugador(p),
-      _arrastre: null
+      partida: partidaInicial,
+      _arrastre: null,
+      _nivelInicial: partidaInicial.nivel ?? 1
     };
     if (!this._editorJugador.partida.mochila) {
       this._editorJugador.partida.mochila = new Array(25).fill(null);
@@ -4590,7 +4615,10 @@ const Admin = {
     const claveAnterior = this._pinAdminGet(ed.perfil.id);
     if (isNaN(oro) || oro < 0) { this._adminAviso('Oro inválido'); return; }
     const maxVida = this.vidaJugadorPorNivel(nivel);
-    const vidaFinal = Math.min(isNaN(vida) ? maxVida : vida, maxVida);
+    const nivelInicial = ed._nivelInicial ?? (ed.partida.nivel ?? 1);
+    const vidaFinal = nivel !== nivelInicial
+      ? maxVida
+      : Math.min(isNaN(vida) ? maxVida : vida, maxVida);
     if (isNaN(vida) || vida < 0) { this._adminAviso('Vida inválida'); return; }
     if (nombre.length < 2) { this._adminAviso('Nombre mínimo 2 letras'); return; }
     if (telefono && !Usuarios.telefonoValido(telefono)) { this._adminAviso('Teléfono inválido'); return; }

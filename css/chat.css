@@ -20,6 +20,33 @@
   box-sizing: border-box;
 }
 
+/* Móvil: el chat no tapa los botones inferiores (mochila, GPS, etc.) */
+@media (max-width: 599px) {
+  .chat-panel {
+    inset: auto;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: calc(94px + env(safe-area-inset-bottom));
+    padding: max(8px, env(safe-area-inset-top)) max(8px, env(safe-area-inset-right)) 8px max(8px, env(safe-area-inset-left));
+    pointer-events: none;
+  }
+
+  .chat-inner-panel {
+    pointer-events: auto;
+    width: 100%;
+    height: 100%;
+    max-height: none;
+    min-height: 0;
+    flex: 1 1 auto;
+    border-radius: 16px;
+  }
+
+  body.chat-abierto #barra-inferior-wrap {
+    z-index: 2200;
+  }
+}
+
 .chat-panel.show { display: flex; }
 
 /* Panel único — mismo mockup que amigos */

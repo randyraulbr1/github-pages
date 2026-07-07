@@ -49,14 +49,17 @@ const Notificaciones = {
   _guardarHistorial(texto, tipo, categoria) {
     if (typeof Guardado === 'undefined' || !Guardado.datos) return;
     if (!Guardado.datos.notificaciones) Guardado.datos.notificaciones = [];
-    Guardado.datos.notificaciones.unshift({
+    const lista = Guardado.datos.notificaciones;
+    const idx = lista.findIndex(n => n && n.texto === texto);
+    if (idx >= 0) lista.splice(idx, 1);
+    lista.unshift({
       texto,
       tipo,
       categoria: categoria || null,
       t: Date.now(),
       leido: false
     });
-    Guardado.datos.notificaciones = Guardado.datos.notificaciones.slice(0, 20);
+    Guardado.datos.notificaciones = lista.slice(0, 20);
     Guardado.guardar();
     this._actualizarBadge();
   },
@@ -82,6 +85,13 @@ const Notificaciones = {
     if (!zona) return;
 
     if (this._toastEl && zona.contains(this._toastEl)) {
+      const txt = this._toastEl.querySelector('.notif-texto');
+      if (txt && txt.textContent === texto) {
+        this._toastEl.className = 'notificacion visible ' + tipo;
+        clearTimeout(this._toastOcultarTimer);
+        this._toastOcultarTimer = setTimeout(() => this._ocultarToast(), duracionMs);
+        return;
+      }
       this._toastPila++;
       const txt = this._toastEl.querySelector('.notif-texto');
       const pila = this._toastEl.querySelector('.notif-pila');
