@@ -1313,7 +1313,7 @@ const Admin = {
         }
       });
     }
-    enlazar('admin-publicar', () => this.publicarMundo(false));
+    enlazar('admin-publicar', () => this._sincronizarManual());
     enlazar('btn-admin-msg-enviar', () => this._enviarMensajeUi());
     enlazar('btn-admin-mant-activar', () => this._activarMantenimientoUi());
     enlazar('btn-admin-mant-quitar', () => this._quitarMantenimientoUi());
@@ -4754,7 +4754,71 @@ const Admin = {
     Notificaciones.mostrar(texto, 'exito', 4000);
   },
 
+  _indicadorSyncEl() {
+    return document.getElementById('indicador-sincronizar');
+  },
+
+  _mostrarIndicadorSync(estado, mensaje) {
+    const el = this._indicadorSyncEl();
+    if (!el) return;
+    const txt = el.querySelector('.indicador-sincronizar-texto');
+    if (this._syncIndicadorTimer) {
+      clearTimeout(this._syncIndicadorTimer);
+      this._syncIndicadorTimer = null;
+    }
+    el.classList.remove('oculto', 'estado-sync', 'estado-ok', 'estado-error');
+    if (estado === 'oculto') {
+      el.classList.add('oculto');
+      return;
+    }
+    if (estado === 'sync') el.classList.add('estado-sync');
+    else if (estado === 'ok') el.classList.add('estado-ok');
+    else if (estado === 'error') el.classList.add('estado-error');
+    if (txt && mensaje) txt.textContent = mensaje;
+    if (estado === 'ok' || estado === 'error') {
+      this._syncIndicadorTimer = setTimeout(() => this._mostrarIndicadorSync('oculto'), 2800);
+    }
+  },
+
+  _iniciarIndicadorSync() {
+    const btn = document.getElementById('admin-publicar');
+    if (btn) btn.disabled = true;
+    this._mostrarIndicadorSync('sync', 'Sincronizando…');
+  },
+
+  _finalizarIndicadorSync(ok, mensajeError) {
+    const btn = document.getElementById('admin-publicar');
+    if (btn) btn.disabled = false;
+    if (ok) {
+      this._mostrarIndicadorSync('ok', 'Sincronizado ✓');
+    } else if (mensajeError) {
+      this._mostrarIndicadorSync('error', mensajeError);
+    } else {
+      this._mostrarIndicadorSync('oculto');
+    }
+  },
+
+  async _sincronizarManual() {
+    if (this._syncManualEnCurso) return;
+    this._syncManualEnCurso = true;
+    this._iniciarIndicadorSync();
+    let ok = false;
+    let errorMsg = '';
+    try {
+      ok = await this.publicarMundo(false);
+      if (!ok && this._pubCancelada) errorMsg = '';
+      else if (!ok) errorMsg = 'No se pudo sincronizar';
+    } catch (e) {
+      ok = false;
+      errorMsg = 'Error al sincronizar';
+    } finally {
+      this._syncManualEnCurso = false;
+      this._finalizarIndicadorSync(ok, ok ? '' : errorMsg);
+    }
+  },
+
   async publicarMundo(silencioso, opts) {
+    this._pubCancelada = false;
     if (!this._mundoCargado) return false;
     if (typeof MarielVersion !== 'undefined' && !MarielVersion.exigirActualizado()) {
       if (!silencioso) {
@@ -4797,6 +4861,7 @@ const Admin = {
 
     const referencia = this.publicado || {};
     if (!opts?.forzar && !this._confirmarReduccionPublicacion(adminLocal, referencia)) {
+      this._pubCancelada = true;
       return false;
     }
     if (!opts?.forzar && this._esPublicacionDestructiva(adminLocal, referencia)) {
