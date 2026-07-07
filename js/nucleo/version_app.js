@@ -1,4 +1,4 @@
-// Detecta actualizaciones al instante y bloquea el juego hasta pulsar Actualizar.
+// Detecta actualizaciones y repara caché PWA desincronizada (sin bloquear el juego).
 const MarielVersion = {
   // Fuente canónica: rama main (donde se fusionan los PRs)
   _versionCanonica: 'https://raw.githubusercontent.com/randyraulbr1/github-pages/main/version.json',
@@ -66,7 +66,7 @@ const MarielVersion = {
 
   /** Aplica aviso temprano del script inline en index.html (evita condición de carrera). */
   _aplicarPendienteInline(opts) {
-    const bloquear = opts?.bloquear !== false;
+    const bloquear = opts?.bloquear === true;
     const p = window.__MARIEL_UPDATE_PENDING;
     if (!p?.remote) return false;
     const rem = this._num(p.remote);
@@ -85,20 +85,10 @@ const MarielVersion = {
     [0, 800, 2000, 5000, 12000].forEach((ms) => {
       this._arranqueTimers.push(setTimeout(() => this._comprobarRemota({ bloquear: false }), ms));
     });
-
-    try {
-      const v = this.versionCargada();
-      if (v) {
-        const prev = this._versionPersistida();
-        if (v > prev) localStorage.setItem('mariel_app_version', String(v));
-      }
-    } catch (e) { /* */ }
   },
 
   iniciar(versionEmbebida) {
-    const emb = String(window.__MARIEL_EMBEDDED__ || versionEmbebida || '');
-    const persistida = this._versionPersistida();
-    this._embebida = String(Math.max(this._num(emb), persistida) || emb);
+    this._embebida = String(window.__MARIEL_EMBEDDED__ || versionEmbebida || '');
     this._aplicarVersionTrasActualizacion();
     const btn = document.getElementById('btn-actualizar-app');
     if (btn && !btn._marielVersionOk) {
@@ -149,17 +139,21 @@ const MarielVersion = {
     }
   },
 
-  /** Tras cargar mundo y sesión: bloquear solo si hace falta y con overlay visible. */
-  async aplicarBloqueoTrasArranque() {
+  /** Tras cargar mundo y sesión: nunca bloquear — solo desbloquear y avisar. */
+  async finalizarArranque() {
+    this._desbloquearActualizacion(String(this.versionCargada() || ''));
+    this._evitarBloqueoFantasma();
     await this._comprobarRemota({ bloquear: false });
     const cargada = this.versionCargada();
     const rem = this._num(this._remota);
     if (rem && rem > cargada) {
-      this.mostrarBloqueo(String(cargada || '?'), String(rem));
-    } else {
-      this._desbloquearActualizacion(String(cargada || rem || ''));
+      if (typeof Notificaciones !== 'undefined') {
+        Notificaciones.mostrar(
+          '⬆️ Hay actualización v' + rem + '. Ve a ⚙️ Opciones → Actualizar.',
+          'info', 10000
+        );
+      }
     }
-    this._evitarBloqueoFantasma();
   },
 
   registrarServiceWorker(reg) {
@@ -204,18 +198,17 @@ const MarielVersion = {
     return String(this.versionCargada() || this._embebida || '?');
   },
 
-  /** Versión realmente cargada en esta sesión (meta, config, caché limpia y localStorage). */
+  /** Versión realmente cargada (meta HTML + config + force temporal). */
   versionCargada() {
     const emb = this._num(this._embebida);
     const cfg = typeof CONFIG !== 'undefined' ? this._num(CONFIG.version) : 0;
-    const persistida = this._versionPersistida();
     let forz = 0;
     try {
       const fv = sessionStorage.getItem('mariel_force_version');
       const t0 = parseInt(sessionStorage.getItem('mariel_actualizado_en') || '0', 10);
       if (fv && t0 && Date.now() - t0 < 120000) forz = this._num(fv);
     } catch (e) { /* */ }
-    return Math.max(emb, cfg, persistida, forz) || emb || cfg || persistida || forz || 0;
+    return Math.max(emb, cfg, forz) || emb || cfg || forz || 0;
   },
 
   _parseVersionTexto(txt) {
@@ -234,7 +227,7 @@ const MarielVersion = {
     const origen = (typeof location !== 'undefined' && location.origin) ? location.origin : '';
     const urls = [this._versionCanonica + '?_=' + ts];
     if (origen) urls.push(origen + '/version.json?_=' + ts);
-    urls.push('version.json?_=' + ts, 'js/config/config.js?_=' + ts);
+    urls.push('version.json?_=' + ts);
 
     const nums = await Promise.all(urls.map(async (url) => {
       try {
@@ -275,7 +268,7 @@ const MarielVersion = {
   },
 
   revisar(opts) {
-    const bloquear = opts?.bloquear !== false;
+    const bloquear = opts?.bloquear === true;
     if (this._aplicarPendienteInline({ bloquear })) return bloquear;
 
     const cargada = this.versionCargada();
@@ -404,6 +397,7 @@ const MarielVersion = {
     try {
       sessionStorage.setItem('mariel_force_version', objetivo);
       sessionStorage.setItem('mariel_actualizado_en', String(Date.now()));
+      sessionStorage.setItem('mariel_cache_ok_v', objetivo);
     } catch (e) { /* */ }
 
     this._prepararLoginTrasActualizacion();
@@ -428,7 +422,7 @@ const MarielVersion = {
   async _comprobarRemota(opts) {
     if (this._comprobando) return;
     this._comprobando = true;
-    const bloquear = opts?.bloquear !== false;
+    const bloquear = opts?.bloquear === true;
     try {
       if (this._aplicarPendienteInline({ bloquear })) return;
       const remoto = await this.obtenerRemota();
