@@ -15,64 +15,27 @@
   <link rel="stylesheet" href="css/opciones.css?v=158">
   <link rel="stylesheet" href="css/notificaciones.css?v=117">
   <script>
-    // Aviso temprano en móvil (antes de cargar 20+ archivos JS)
     (function () {
-      var V = '164';
-      var texto = document.getElementById('carga-texto');
-      if (texto) texto.textContent = 'Conectando…';
-
-      function limpiarCacheYRecargar(nuevaV) {
-        localStorage.setItem('mariel_app_version', nuevaV);
-        if (!('serviceWorker' in navigator)) {
-          location.reload();
-          return;
-        }
-        navigator.serviceWorker.getRegistrations().then(function (rs) {
-          return Promise.all(rs.map(function (r) { return r.unregister(); }));
-        }).then(function () {
-          if (!('caches' in window)) return;
-          return caches.keys().then(function (ks) {
-            return Promise.all(ks.map(function (k) { return caches.delete(k); }));
-          });
-        }).then(function () { location.reload(); });
-      }
-
-      var prev = localStorage.getItem('mariel_app_version');
-      if (prev && prev !== V) {
-        limpiarCacheYRecargar(V);
-        return;
-      }
-      localStorage.setItem('mariel_app_version', V);
-
-      // Comprueba versión en el servidor aunque index.html esté en caché (PWA v162/v163)
-      fetch('js/config/config.js?nocache=' + Date.now(), { cache: 'no-store' }).then(function (r) {
-        return r.text();
-      }).then(function (txt) {
-        var m = txt.match(/version:\s*['"](\d+)['"]/);
-        var remoto = m && m[1];
-        if (!remoto || remoto === V) return;
-        if (remoto !== localStorage.getItem('mariel_app_version')) {
-          limpiarCacheYRecargar(remoto);
-        }
-      }).catch(function () { /* sin red */ });
-
-      // Si tras 25 s sigue la pantalla de carga, algo falló (caché vieja o red muy lenta)
-      setTimeout(function () {
-        var carga = document.getElementById('pantalla-carga');
-        if (!carga || carga.classList.contains('oculto')) return;
-        var usuarios = document.getElementById('pantalla-login');
-        if (usuarios && !usuarios.classList.contains('oculto')) return;
-        var reg = document.getElementById('pantalla-registro');
-        if (reg && !reg.classList.contains('oculto')) return;
-        var t = document.getElementById('carga-texto');
-        if (t) {
-          t.textContent = 'Tarda mucho… borra datos del sitio en el navegador y vuelve a entrar.';
-        }
-      }, 25000);
+      var t = document.getElementById('carga-texto');
+      if (t) t.textContent = 'Conectando…';
     })();
   </script>
 </head>
 <body>
+
+  <!-- ACTUALIZACIÓN OBLIGATORIA (caché PWA desactualizada) -->
+  <div id="pantalla-actualizar" class="pantalla-actualizar oculto" role="dialog" aria-modal="true" aria-labelledby="actualizar-titulo">
+    <div class="actualizar-caja">
+      <div class="actualizar-icono">⬆️</div>
+      <div id="actualizar-titulo" class="actualizar-titulo">Hay una actualización</div>
+      <p id="actualizar-detalle" class="actualizar-detalle">Tu versión no está al día.</p>
+      <p class="actualizar-ayuda">Pulsa el botón para descargar la versión nueva. No podrás jugar hasta actualizar.</p>
+      <button type="button" id="btn-actualizar-app" class="btn-actualizar-app">Actualizar ahora</button>
+    </div>
+  </div>
+
+  <script src="js/nucleo/version_app.js?v=165"></script>
+  <script>MarielVersion.iniciar('165');</script>
 
   <!-- PANTALLA DE CARGA (visible desde el primer instante) -->
   <div id="pantalla-carga">
@@ -952,7 +915,7 @@
   <script src="lib/leaflet/leaflet.js?v=104"></script>
 
   <!-- MÓDULOS DEL JUEGO (orden importante) -->
-  <script src="js/config/config.js?v=164"></script>
+  <script src="js/config/config.js?v=165"></script>
   <script src="js/nucleo/utilidades.js?v=137"></script>
   <script src="js/mundo/mundo_publico.js?v=104"></script>
   <script src="js/notificaciones/notificaciones.js?v=137"></script>
@@ -988,7 +951,7 @@
     // Registrar la app instalable (PWA)
     if ('serviceWorker' in navigator) {
       const yaTeniaVersion = !!navigator.serviceWorker.controller;
-      navigator.serviceWorker.register('sw.js?v=164', { updateViaCache: 'none' })
+      navigator.serviceWorker.register('sw.js?v=165', { updateViaCache: 'none' })
         .then(function (reg) { reg.update(); })
         .catch(function () {});
       // Cuando llega una versión nueva del juego: avisar y recargar solo

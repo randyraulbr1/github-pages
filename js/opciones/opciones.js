@@ -211,23 +211,10 @@ const Opciones = {
     const alDia = !guardada || guardada === v;
     el.textContent = alDia
       ? ('Versión ' + v + ' · actualizada')
-      : ('Versión ' + v + ' · recarga para actualizar');
-    if (alDia) return;
-    fetch('js/config/config.js?nocache=' + Date.now(), { cache: 'no-store' }).then(r => r.text()).then(txt => {
-      const m = txt.match(/version:\s*['"](\d+)['"]/);
-      const remoto = m && m[1];
-      if (!remoto || remoto === v) return;
-      el.textContent = 'Versión ' + v + ' → hay ' + remoto + ' · actualizando…';
-      localStorage.setItem('mariel_app_version', remoto);
-      if ('serviceWorker' in navigator) {
-        navigator.serviceWorker.getRegistrations().then(rs =>
-          Promise.all(rs.map(r => r.unregister()))
-        ).then(() => {
-          if (!('caches' in window)) { location.reload(); return; }
-          return caches.keys().then(ks => Promise.all(ks.map(k => caches.delete(k))));
-        }).then(() => location.reload());
-      }
-    }).catch(() => {});
+      : ('Versión ' + v + ' · pulsa Actualizar en pantalla');
+    if (typeof MarielVersion !== 'undefined') {
+      MarielVersion.comprobarRemota();
+    }
   },
 
   _guardarPreferencia(clave, valor) {
