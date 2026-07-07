@@ -4,11 +4,14 @@
   "telefono": "7709908375",
   "pinHash": "4bdc96ffc0926b62d55708e3c1755ca3f04b8c28bec6fd85777117da67497f11",
   "creado": 1783263656375,
-  "actualizadoEn": 1783386119894,
+  "actualizadoEn": 1783386164991,
   "partida": {
     "datos": {
       "mochila": [
-        null,
+        {
+          "id": "arma_nv1",
+          "cantidad": 1
+        },
         {
           "id": "agua",
           "cantidad": 2
@@ -152,8 +155,8 @@
         "msg_mr9ukn1m"
       ],
       "muerto": false,
-      "armaEquipada": "arma_nv1"
+      "armaEquipada": null
     },
-    "t": 1783386117243
+    "t": 1783386161849
   }
 }
