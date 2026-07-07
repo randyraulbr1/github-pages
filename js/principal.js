@@ -117,24 +117,9 @@ async function esperarMundoEnMapa() {
 }
 
 (async function arrancar() {
-  if (typeof MarielVersion !== 'undefined' && typeof CONFIG !== 'undefined') {
-    const emb = parseInt(window.__MARIEL_EMBEDDED__ || '0', 10);
-    const cfg = parseInt(CONFIG.version || '0', 10);
-    if (emb && cfg && emb !== cfg) {
-      try {
-        const objetivo = String(Math.max(emb, cfg));
-        const ya = sessionStorage.getItem('mariel_auto_cache_v');
-        if (ya !== objetivo) {
-          sessionStorage.setItem('mariel_auto_cache_v', objetivo);
-          await MarielVersion.actualizar();
-          return;
-        }
-      } catch (e) { /* */ }
-    }
-  }
-
   if (typeof MarielVersion !== 'undefined') {
-    await MarielVersion.comprobarRemota({ bloquear: false });
+    await MarielVersion.comprobarRemota();
+    if (MarielVersion.estaBloqueado()) return;
   }
 
   const ocultarCarga = () => MarielBoot.ocultar();
@@ -314,13 +299,5 @@ async function esperarMundoEnMapa() {
     }
   } finally {
     ocultarCarga();
-    if (typeof MarielVersion !== 'undefined') {
-      await MarielVersion.finalizarArranque();
-    }
-    if (typeof Mapa !== 'undefined' && Mapa.mapa) {
-      requestAnimationFrame(() => {
-        try { Mapa.mapa.invalidateSize(); } catch (e) { /* */ }
-      });
-    }
   }
 })();

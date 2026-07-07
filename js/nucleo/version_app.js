@@ -1,4 +1,4 @@
-// Detecta actualizaciones y repara caché PWA desincronizada (sin bloquear el juego).
+// Detecta actualizaciones al instante y bloquea el juego hasta pulsar Actualizar.
 const MarielVersion = {
   // Fuente canónica: rama main (donde se fusionan los PRs)
   _versionCanonica: 'https://raw.githubusercontent.com/randyraulbr1/github-pages/main/version.json',
@@ -6,30 +6,30 @@ const MarielVersion = {
   _bloqueado: false,
   _embebida: null,
   _remota: null,
-  _pollMs: 8000,
-  _swPollMs: 20000,
+  _pollMs: 12000,
+  _swPollMs: 25000,
   _pollTimer: null,
   _swTimer: null,
   _comprobando: false,
   _swReg: null,
   _actualizando: false,
-  _arranqueTimers: [],
-
-  _versionPersistida() {
-    try {
-      return this._num(localStorage.getItem('mariel_app_version'));
-    } catch (e) {
-      return 0;
-    }
-  },
 
   _prepararLoginTrasActualizacion() {
     try {
+      sessionStorage.setItem('mariel_forzar_login', '1');
       const adminRaw = localStorage.getItem('mariel_admin_v1');
       if (adminRaw) {
         localStorage.setItem('mariel_admin_backup_v1', adminRaw);
       }
-      // Solo invalida el token online; la cuenta local sigue activa.
+      const raw = localStorage.getItem('mariel_perfiles_v2');
+      if (raw) {
+        const datos = JSON.parse(raw);
+        if (datos && typeof datos === 'object') {
+          datos.activo = null;
+          datos.sesionId = null;
+          localStorage.setItem('mariel_perfiles_v2', JSON.stringify(datos));
+        }
+      }
       localStorage.removeItem('mariel_online_token');
     } catch (e) { /* */ }
   },
@@ -64,29 +64,6 @@ const MarielVersion = {
     } catch (e) { /* */ }
   },
 
-  /** Aplica aviso temprano del script inline en index.html (evita condición de carrera). */
-  _aplicarPendienteInline(opts) {
-    const bloquear = opts?.bloquear === true;
-    const p = window.__MARIEL_UPDATE_PENDING;
-    if (!p?.remote) return false;
-    const rem = this._num(p.remote);
-    const loc = this.versionCargada();
-    if (rem <= loc) return false;
-    this._remota = String(p.remote);
-    if (bloquear) {
-      this.mostrarBloqueo(String(loc || p.local || '?'), String(p.remote));
-    }
-    return true;
-  },
-
-  _programarComprobacionesArranque() {
-    for (const t of this._arranqueTimers) clearTimeout(t);
-    this._arranqueTimers = [];
-    [0, 800, 2000, 5000, 12000].forEach((ms) => {
-      this._arranqueTimers.push(setTimeout(() => this._comprobarRemota({ bloquear: false }), ms));
-    });
-  },
-
   iniciar(versionEmbebida) {
     this._embebida = String(window.__MARIEL_EMBEDDED__ || versionEmbebida || '');
     this._aplicarVersionTrasActualizacion();
@@ -96,63 +73,34 @@ const MarielVersion = {
       btn.addEventListener('click', () => this.actualizar());
     }
 
-    window.addEventListener('mariel-update-pending', () => {
-      this._aplicarPendienteInline({ bloquear: false });
-      this._comprobarRemota({ bloquear: false });
-    });
+    const pendiente = window.__MARIEL_UPDATE_PENDING;
+    if (pendiente?.remote) {
+      this._remota = String(pendiente.remote);
+      this.mostrarBloqueo(pendiente.local || this._embebida, pendiente.remote);
+    }
 
-    this._aplicarPendienteInline({ bloquear: false });
-    this.revisar({ bloquear: false });
-    this._comprobarRemota({ bloquear: false });
-    this._programarComprobacionesArranque();
+    this.revisar();
+    this._comprobarRemota();
 
     document.addEventListener('visibilitychange', () => {
-      if (document.visibilityState === 'visible') this._comprobarRemota({ bloquear: false });
+      if (document.visibilityState === 'visible') this._comprobarRemota();
     });
-    window.addEventListener('focus', () => this._comprobarRemota({ bloquear: false }));
-    window.addEventListener('online', () => this._comprobarRemota({ bloquear: false }));
+    window.addEventListener('focus', () => this._comprobarRemota());
+    window.addEventListener('online', () => this._comprobarRemota());
 
     if (this._pollTimer) clearInterval(this._pollTimer);
-    this._pollTimer = setInterval(() => this._comprobarRemota({ bloquear: false }), this._pollMs);
+    this._pollTimer = setInterval(() => this._comprobarRemota(), this._pollMs);
 
     if ('serviceWorker' in navigator) {
       navigator.serviceWorker.addEventListener('controllerchange', () => {
-        this._comprobarRemota({ bloquear: false });
+        this._comprobarRemota();
       });
       navigator.serviceWorker.addEventListener('message', (ev) => {
         if (ev.data?.tipo === 'nueva-version') {
           if (ev.data.version) this._remota = String(ev.data.version);
-          this._comprobarRemota({ bloquear: false });
+          this._comprobarRemota();
         }
       });
-    }
-  },
-
-  /** Quita bloqueo si la pantalla de actualizar no está visible (evita UI muerta). */
-  _evitarBloqueoFantasma() {
-    const pant = document.getElementById('pantalla-actualizar');
-    const bodyBloq = document.body.classList.contains('mariel-bloqueado-actualizar');
-    const pantVisible = pant && !pant.classList.contains('oculto');
-    if (bodyBloq && !pantVisible) {
-      this._bloqueado = false;
-      document.body.classList.remove('mariel-bloqueado-actualizar');
-    }
-  },
-
-  /** Tras cargar mundo y sesión: nunca bloquear — solo desbloquear y avisar. */
-  async finalizarArranque() {
-    this._desbloquearActualizacion(String(this.versionCargada() || ''));
-    this._evitarBloqueoFantasma();
-    await this._comprobarRemota({ bloquear: false });
-    const cargada = this.versionCargada();
-    const rem = this._num(this._remota);
-    if (rem && rem > cargada) {
-      if (typeof Notificaciones !== 'undefined') {
-        Notificaciones.mostrar(
-          '⬆️ Hay actualización v' + rem + '. Ve a ⚙️ Opciones → Actualizar.',
-          'info', 10000
-        );
-      }
     }
   },
 
@@ -198,7 +146,7 @@ const MarielVersion = {
     return String(this.versionCargada() || this._embebida || '?');
   },
 
-  /** Versión realmente cargada (meta HTML + config + force temporal). */
+  /** Versión realmente cargada en esta sesión (no localStorage). */
   versionCargada() {
     const emb = this._num(this._embebida);
     const cfg = typeof CONFIG !== 'undefined' ? this._num(CONFIG.version) : 0;
@@ -225,23 +173,23 @@ const MarielVersion = {
     const ts = Date.now();
     const opts = { cache: 'no-store', headers: { 'Cache-Control': 'no-cache', Pragma: 'no-cache' } };
     const origen = (typeof location !== 'undefined' && location.origin) ? location.origin : '';
-    const urls = [this._versionCanonica + '?_=' + ts];
+    const urls = [];
     if (origen) urls.push(origen + '/version.json?_=' + ts);
-    urls.push('version.json?_=' + ts);
-
-    const nums = await Promise.all(urls.map(async (url) => {
+    urls.push(
+      this._versionCanonica + '?_=' + ts,
+      'version.json?_=' + ts,
+      'js/config/config.js?_=' + ts
+    );
+    for (const url of urls) {
       try {
         const r = await fetch(url, opts);
-        if (!r.ok) return 0;
-        const v = this._parseVersionTexto(await r.text());
-        return this._num(v);
-      } catch (e) {
-        return 0;
-      }
-    }));
-
-    const max = Math.max(0, ...nums);
-    return max > 0 ? String(max) : null;
+        if (!r.ok) continue;
+        const txt = await r.text();
+        const v = this._parseVersionTexto(txt);
+        if (v) return v;
+      } catch (e) { /* siguiente fuente */ }
+    }
+    return null;
   },
 
   necesitaActualizar(local, remoto) {
@@ -255,10 +203,8 @@ const MarielVersion = {
     if (v && v !== '?') localStorage.setItem('mariel_app_version', v);
     this._bloqueado = false;
     this._actualizando = false;
-    window.__MARIEL_UPDATE_PENDING = null;
     document.body.classList.remove('mariel-bloqueado-actualizar');
-    const pant = document.getElementById('pantalla-actualizar');
-    if (pant) pant.classList.add('oculto');
+    document.getElementById('pantalla-actualizar')?.classList.add('oculto');
     const btn = document.getElementById('btn-actualizar-app');
     if (btn) {
       btn.disabled = false;
@@ -267,42 +213,39 @@ const MarielVersion = {
     this._estadoActualizar('', false);
   },
 
-  revisar(opts) {
-    const bloquear = opts?.bloquear === true;
-    if (this._aplicarPendienteInline({ bloquear })) return bloquear;
-
+  revisar() {
     const cargada = this.versionCargada();
     const remoto = this._remota;
     const r = this._num(remoto);
 
     if (r && cargada >= r) {
-      if (bloquear || this._bloqueado) {
-        this._desbloquearActualizacion(String(cargada));
-      }
+      this._desbloquearActualizacion(String(cargada));
       return false;
     }
 
     if (r && r > cargada) {
-      if (bloquear) {
-        this.mostrarBloqueo(String(cargada || '?'), String(r));
-        return true;
-      }
-      return false;
+      this.mostrarBloqueo(String(cargada || '?'), String(r));
+      return true;
     }
 
-    return this._bloqueado;
+    if (this._bloqueado && r && r <= cargada) {
+      this._desbloquearActualizacion(String(cargada));
+    }
+    return false;
   },
 
   mostrarBloqueo(local, remoto) {
-    const loc = String(local || this.versionCargada() || '?');
-    const rem = String(remoto || this._remota || '');
+    if (this._bloqueado) {
+      const det = document.getElementById('actualizar-detalle');
+      if (det) det.textContent = 'Tu versión: ' + local + ' · Nueva: ' + remoto;
+      return;
+    }
     this._bloqueado = true;
-    this._remota = rem;
-    document.body.classList.remove('en-auth');
+    this._remota = String(remoto || this._remota || '');
     document.body.classList.add('mariel-bloqueado-actualizar');
 
     const det = document.getElementById('actualizar-detalle');
-    if (det) det.textContent = 'Tu versión: ' + loc + ' · Nueva: ' + rem;
+    if (det) det.textContent = 'Tu versión: ' + local + ' · Nueva: ' + remoto;
     this._estadoActualizar('', false);
 
     const pant = document.getElementById('pantalla-actualizar');
@@ -311,7 +254,7 @@ const MarielVersion = {
     [
       'pantalla-carga', 'pantalla-login', 'pantalla-registro', 'pantalla-muerte',
       'pantalla-bloqueo', 'pantalla-sesion-remota', 'pantalla-cuenta-eliminada',
-      'chatPanel', 'ventana-amigos', 'ventana-opciones', 'ventana-mochila', 'ventana-admin'
+      'chatPanel', 'ventana-amigos', 'ventana-opciones', 'ventana-mochila'
     ].forEach(id => document.getElementById(id)?.classList.add('oculto'));
 
     document.querySelectorAll('.chat-panel.show, .ventana:not(.oculto)').forEach(el => {
@@ -349,47 +292,32 @@ const MarielVersion = {
     ];
     const opts = {
       cache: 'no-store',
-      headers: { 'Cache-Control': 'no-cache', Pragma: 'no-cache' }
+      headers: { 'Cache-Control': 'no-cache', 'Pragma': 'no-cache' }
     };
     await Promise.all(urls.map(u => fetch(u, opts).catch(() => null)));
   },
 
-  async actualizar(opts) {
-    if (this._actualizando) return { ok: false, error: 'en_curso' };
+  async actualizar() {
+    if (this._actualizando) return;
     this._actualizando = true;
-    const manual = !!opts?.manual;
-
-    const onProg = (pct, txt) => {
-      if (!manual && txt) this._estadoActualizar(txt, true);
-      if (typeof opts?.onProgreso === 'function') opts.onProgreso(pct, txt);
-    };
 
     const btn = document.getElementById('btn-actualizar-app');
-    if (btn && !manual) {
+    if (btn) {
       btn.disabled = true;
       btn.textContent = 'Actualizar';
     }
 
-    onProg(8, 'Comprobando versión…');
+    this._estadoActualizar('Comprobando versión…', true);
     let objetivo = null;
     try {
       objetivo = await this.obtenerRemota();
     } catch (e) { /* */ }
     objetivo = String(objetivo || this._remota || this._embebida || '');
     if (!objetivo || objetivo === '?') {
-      if (btn && !manual) btn.disabled = false;
-      onProg(0, 'No se pudo comprobar la versión. Reintenta.');
+      if (btn) btn.disabled = false;
+      this._estadoActualizar('No se pudo comprobar la versión. Reintenta.', true);
       this._actualizando = false;
-      return { ok: false, error: 'sin_version' };
-    }
-
-    const cargada = this.versionCargada();
-    if (!this.necesitaActualizar(cargada, objetivo)) {
-      if (btn && !manual) btn.disabled = false;
-      if (!manual) this._estadoActualizar('', false);
-      onProg(100, 'Ya tienes la versión ' + objetivo);
-      this._actualizando = false;
-      return { ok: true, yaAlDia: true, version: objetivo };
+      return;
     }
 
     this._remota = objetivo;
@@ -397,38 +325,33 @@ const MarielVersion = {
     try {
       sessionStorage.setItem('mariel_force_version', objetivo);
       sessionStorage.setItem('mariel_actualizado_en', String(Date.now()));
-      sessionStorage.setItem('mariel_cache_ok_v', objetivo);
     } catch (e) { /* */ }
 
     this._prepararLoginTrasActualizacion();
-    onProg(28, 'Limpiando caché…');
+    this._estadoActualizar('Limpiando caché…', true);
     await this._limpiarTodaCache();
 
-    onProg(58, 'Descargando v' + objetivo + '…');
+    this._estadoActualizar('Descargando v' + objetivo + '…', true);
     await this._precargarVersion(objetivo);
 
-    onProg(92, 'Listo — iniciar sesión…');
+    this._estadoActualizar('Listo — iniciar sesión…', true);
     await new Promise((r) => setTimeout(r, 350));
 
     const url = location.origin + '/?_mariel=' + Date.now();
     location.replace(url);
-    return { ok: true, version: objetivo };
   },
 
-  async comprobarRemota(opts) {
-    await this._comprobarRemota(opts);
+  async comprobarRemota() {
+    await this._comprobarRemota();
   },
 
-  async _comprobarRemota(opts) {
+  async _comprobarRemota() {
     if (this._comprobando) return;
     this._comprobando = true;
-    const bloquear = opts?.bloquear === true;
     try {
-      if (this._aplicarPendienteInline({ bloquear })) return;
       const remoto = await this.obtenerRemota();
       if (remoto) this._remota = remoto;
-      this.revisar({ bloquear });
-      this._evitarBloqueoFantasma();
+      this.revisar();
     } finally {
       this._comprobando = false;
     }
