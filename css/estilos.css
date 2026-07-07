@@ -2797,45 +2797,12 @@ body.admin-organizar .admin-pin-organizar {
   cursor: grab;
   touch-action: none;
 }
-.admin-pin-organizar .enemigo-pin,
-.admin-pin-organizar .enemigo-pin * {
-  pointer-events: none;
-}
-.admin-pin-organizar .admin-pin-x,
-.admin-pin-organizar .admin-pin-grip {
+.admin-pin-organizar .admin-pin-x {
   pointer-events: auto;
 }
-.admin-pin-grip {
-  position: absolute;
-  bottom: -22px;
-  left: -20px;
-  z-index: 50;
-  width: 28px;
-  height: 28px;
-  border-radius: 8px;
-  border: 2px solid #38c6ff;
-  background: rgba(8, 24, 40, .92);
-  color: #7dd3fc;
-  font-size: 16px;
-  font-weight: 900;
-  line-height: 1;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  box-shadow: 0 2px 8px rgba(0,0,0,.45);
-  cursor: grab;
-  padding: 0;
-  touch-action: none;
-}
-.admin-pin-grip:active { cursor: grabbing; }
-.admin-pin-grip.oculto { display: none !important; }
-.admin-pin-moviendo .admin-pin-grip { display: none !important; }
 .admin-pin-armado {
   filter: drop-shadow(0 0 8px rgba(56,198,255,.85));
   cursor: grabbing;
-}
-.admin-pin-armado > *:not(.admin-pin-x):not(.admin-pin-grip) {
-  pointer-events: none;
 }
 .admin-pin-x {
   position: absolute;
@@ -2860,23 +2827,12 @@ body.admin-organizar .admin-pin-organizar {
 }
 .admin-pin-x.oculto { display: none !important; }
 .admin-pin-moviendo .admin-pin-x { display: none !important; }
-.admin-pin-controles-ocultos .admin-pin-x,
-.admin-pin-controles-ocultos .admin-pin-grip { display: none !important; }
-.admin-pin-armado .admin-pin-x,
-.admin-pin-armado .admin-pin-grip { opacity: 1; }
-.leaflet-marker-icon.admin-pin-organizar:has(.enemigo-pin) .admin-pin-grip {
-  bottom: -18px;
-  left: -16px;
-  width: 32px;
-  height: 32px;
-  font-size: 17px;
-  z-index: 60;
-}
 .leaflet-marker-icon.admin-pin-organizar:has(.enemigo-pin) .admin-pin-x {
   top: -24px;
   right: -14px;
   z-index: 60;
 }
+.admin-org-linea { stroke-linecap: round; }
 body.admin-organizar .leaflet-marker-icon {
   pointer-events: auto !important;
 }

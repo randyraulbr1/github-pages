@@ -679,6 +679,20 @@ const Admin = {
           this._moverCuerpoAdmin(p.playerId, +ll.lat.toFixed(6), +ll.lng.toFixed(6));
         });
       }
+      for (const p of (Multijugador.online || [])) {
+        if (Multijugador._estaMuerto(p)) continue;
+        const m = Multijugador.marcadores[p.playerId];
+        if (!m) continue;
+        this._arrastreOrganizarMarcador(m, {
+          id: 'jugador_' + p.playerId,
+          marcador: m,
+          _jugadorPlayerId: p.playerId,
+          nombre: p.name || 'Jugador'
+        }, (marc) => {
+          const ll = marc.getLatLng();
+          this._moverJugadorAdmin(p.playerId, +ll.lat.toFixed(6), +ll.lng.toFixed(6));
+        });
+      }
     }
   },
 
@@ -3349,24 +3363,27 @@ const Admin = {
     cesto.classList.toggle('cesto-hover', this._sobreCesto(ev, marcador));
   },
 
+  _quitarLineaOrganizar(punto) {
+    if (punto?._orgLinea && typeof Mapa !== 'undefined' && Mapa.mapa) {
+      try { Mapa.mapa.removeLayer(punto._orgLinea); } catch (e) { /* */ }
+    }
+    if (punto) {
+      punto._orgLinea = null;
+      punto._orgLineaOrigen = null;
+    }
+  },
+
   _limpiarPinOrganizar(marcador, punto) {
     if (!marcador || !punto) return;
     if (punto._orgArm) marcador.off('click', punto._orgArm);
-    if (punto._orgToggle) marcador.off('click', punto._orgToggle);
+    if (punto._orgArmDown) marcador.off('mousedown', punto._orgArmDown);
+    if (punto._orgArmTouch) marcador.off('touchstart', punto._orgArmTouch);
     if (punto._orgDragStart) marcador.off('dragstart', punto._orgDragStart);
     if (punto._movOrg) marcador.off('drag', punto._movOrg);
     if (punto._finOrg) marcador.off('dragend', punto._finOrg);
-    if (punto._orgIconDown) marcador.off('mousedown', punto._orgIconDown);
-    if (punto._orgIconUp) marcador.off('mouseup', punto._orgIconUp);
-    if (punto._orgIconTouchStart) marcador.off('touchstart', punto._orgIconTouchStart);
-    if (punto._orgIconTouchEnd) marcador.off('touchend', punto._orgIconTouchEnd);
-    if (punto._orgIconTouchCancel) marcador.off('touchcancel', punto._orgIconTouchCancel);
-    clearTimeout(punto._orgDesarmarTimer);
-    clearTimeout(punto._orgHoldTimer);
-    punto._orgArm = punto._orgToggle = punto._orgDragStart = punto._movOrg = punto._finOrg = null;
-    punto._orgIconDown = punto._orgIconUp = punto._orgIconTouchStart = null;
-    punto._orgIconTouchEnd = punto._orgIconTouchCancel = null;
-    punto._orgDesarmarTimer = punto._orgHoldTimer = null;
+    this._quitarLineaOrganizar(punto);
+    punto._orgArm = punto._orgArmDown = punto._orgArmTouch = null;
+    punto._orgDragStart = punto._movOrg = punto._finOrg = null;
     marcador.options.draggable = false;
     if (marcador.dragging) marcador.dragging.disable();
     const el = marcador.getElement?.();
@@ -3374,8 +3391,7 @@ const Admin = {
       el.classList.remove('admin-pin-armado', 'admin-pin-moviendo', 'admin-pin-organizar');
       const btn = el.querySelector('.admin-pin-x');
       if (btn) btn.remove();
-      const grip = el.querySelector('.admin-pin-grip');
-      if (grip) grip.remove();
+      el.querySelector('.admin-pin-grip')?.remove();
     }
     if (marcador._muertoPlayerId != null && typeof Multijugador !== 'undefined') {
       Multijugador._restaurarToqueAtaud(marcador);
@@ -3439,9 +3455,7 @@ const Admin = {
     if (!marcador) return;
     this._limpiarPinOrganizar(marcador, punto);
 
-    const ORG_VENTANA_MS = 10000;
-    const ORG_HOLD_MS = 420;
-    const ORG_IGNORAR_CLICK_MS = ORG_VENTANA_MS;
+    const ORG_IGNORAR_CLICK_MS = 500;
 
     marcador.options.draggable = false;
     if (marcador.dragging) marcador.dragging.disable();
@@ -3469,30 +3483,43 @@ const Admin = {
       });
     };
 
-    const armar = (ev, opts) => {
-      const desdeIcono = !!opts?.desdeIcono;
+    const actualizarLinea = () => {
+      if (!Mapa.mapa || !punto._orgLineaOrigen) return;
+      const dest = marcador.getLatLng();
+      const coords = [punto._orgLineaOrigen, [dest.lat, dest.lng]];
+      if (!punto._orgLinea) {
+        punto._orgLinea = L.polyline(coords, {
+          color: '#38c6ff',
+          weight: 4,
+          opacity: 0.88,
+          dashArray: '10, 12',
+          interactive: false,
+          className: 'admin-org-linea'
+        }).addTo(Mapa.mapa);
+      } else {
+        punto._orgLinea.setLatLngs(coords);
+      }
+    };
+
+    const armar = (ev) => {
       L.DomEvent.stopPropagation(ev);
       if (ev.cancelable) ev.preventDefault();
       if (this.modo !== 'organizar') return;
       const pinEl = marcador.getElement?.();
       if (!pinEl || pinEl.classList.contains('admin-pin-moviendo')) return;
       ignorarClicsBreves();
-      punto._orgVentanaHasta = Date.now() + ORG_VENTANA_MS;
-      pinEl.classList.add('admin-pin-armado', 'admin-pin-controles-ocultos');
-      pinEl.querySelector('.admin-pin-x')?.classList.add('oculto');
-      pinEl.querySelector('.admin-pin-grip')?.classList.add('oculto');
+      const ll = marcador.getLatLng();
+      punto._orgLineaOrigen = [ll.lat, ll.lng];
+      pinEl.classList.add('admin-pin-armado');
       marcador.options.draggable = true;
       if (marcador.dragging) marcador.dragging.enable();
-      clearTimeout(punto._orgDesarmarTimer);
-      punto._orgDesarmarTimer = setTimeout(() => desarmar(), ORG_VENTANA_MS);
-      if (desdeIcono || ev.type === 'touchstart') {
-        iniciarArrastreDesdePuntero(ev);
-      }
+      actualizarLinea();
+      if (ev.type === 'touchstart') iniciarArrastreDesdePuntero(ev);
     };
 
     const asegurarControlesPin = () => {
       const el = marcador.getElement?.();
-      if (!el) return null;
+      if (!el) return;
       el.classList.add('admin-pin-organizar');
       let btn = el.querySelector('.admin-pin-x');
       if (!btn) {
@@ -3514,107 +3541,57 @@ const Admin = {
         });
         el.appendChild(btn);
       }
-      let grip = el.querySelector('.admin-pin-grip');
-      if (!grip) {
-        grip = document.createElement('button');
-        grip.type = 'button';
-        grip.className = 'admin-pin-grip';
-        grip.title = 'Mantén y arrastra';
-        grip.textContent = '⊞';
-        const armarGrip = (ev) => {
-          armar(ev, { desdeIcono: false });
-        };
-        grip.addEventListener('mousedown', armarGrip);
-        grip.addEventListener('touchstart', armarGrip, { passive: false });
-        el.appendChild(grip);
-      }
-      if (!punto._orgToggle) {
-        punto._orgToggle = (ev) => {
+      if (!punto._orgArm) {
+        const intentarArmar = (ev) => {
           if (this.modo !== 'organizar') return;
           if (Date.now() < (punto._orgIgnorarClickHasta || 0)) return;
-          if (ev.target?.closest?.('.admin-pin-x, .admin-pin-grip')) return;
+          if (ev.target?.closest?.('.admin-pin-x')) return;
           const pinEl = marcador.getElement?.();
           if (!pinEl || pinEl.classList.contains('admin-pin-armado') ||
               pinEl.classList.contains('admin-pin-moviendo')) return;
-          L.DomEvent.stopPropagation(ev);
-          pinEl.classList.toggle('admin-pin-controles-ocultos');
+          armar(ev);
         };
-        marcador.on('click', punto._orgToggle);
+        punto._orgArm = intentarArmar;
+        punto._orgArmDown = intentarArmar;
+        punto._orgArmTouch = intentarArmar;
+        marcador.on('click', punto._orgArm);
+        marcador.on('mousedown', punto._orgArmDown);
+        marcador.on('touchstart', punto._orgArmTouch);
       }
-
-      const cancelarHold = () => {
-        clearTimeout(punto._orgHoldTimer);
-        punto._orgHoldTimer = null;
-      };
-      const iniciarHoldIcono = (ev) => {
-        if (this.modo !== 'organizar') return;
-        if (ev.target?.closest?.('.admin-pin-x, .admin-pin-grip')) return;
-        const pinEl = marcador.getElement?.();
-        if (!pinEl || pinEl.classList.contains('admin-pin-moviendo')) return;
-        cancelarHold();
-        punto._orgHoldTimer = setTimeout(() => {
-          punto._orgHoldTimer = null;
-          armar(ev, { desdeIcono: true });
-        }, ORG_HOLD_MS);
-      };
-      if (!punto._orgIconDown) {
-        punto._orgIconDown = iniciarHoldIcono;
-        punto._orgIconUp = cancelarHold;
-        punto._orgIconTouchStart = iniciarHoldIcono;
-        punto._orgIconTouchEnd = cancelarHold;
-        punto._orgIconTouchCancel = cancelarHold;
-        marcador.on('mousedown', punto._orgIconDown);
-        marcador.on('mouseup', punto._orgIconUp);
-        marcador.on('touchstart', punto._orgIconTouchStart);
-        marcador.on('touchend', punto._orgIconTouchEnd);
-        marcador.on('touchcancel', punto._orgIconTouchCancel);
-      }
-
-      return { btn, grip };
     };
 
     const desarmar = () => {
-      if (Date.now() < (punto._orgVentanaHasta || 0)) {
-        clearTimeout(punto._orgDesarmarTimer);
-        punto._orgDesarmarTimer = setTimeout(() => desarmar(), (punto._orgVentanaHasta || 0) - Date.now());
-        return;
-      }
-      clearTimeout(punto._orgDesarmarTimer);
-      punto._orgDesarmarTimer = null;
-      punto._orgVentanaHasta = 0;
+      this._quitarLineaOrganizar(punto);
       const el = marcador.getElement?.();
-      if (el) {
-        el.classList.remove('admin-pin-armado', 'admin-pin-moviendo');
-        el.classList.remove('admin-pin-controles-ocultos');
-      }
+      if (el) el.classList.remove('admin-pin-armado', 'admin-pin-moviendo');
       marcador.options.draggable = false;
       if (marcador.dragging) marcador.dragging.disable();
       asegurarControlesPin();
     };
 
     punto._orgDragStart = () => {
-      clearTimeout(punto._orgHoldTimer);
-      punto._orgHoldTimer = null;
       ignorarClicsBreves();
       const el = marcador.getElement?.();
       if (el) {
-        el.classList.add('admin-pin-moviendo', 'admin-pin-controles-ocultos');
+        el.classList.add('admin-pin-moviendo');
         el.classList.remove('admin-pin-armado');
       }
-      el?.querySelector('.admin-pin-x')?.classList.add('oculto');
-      el?.querySelector('.admin-pin-grip')?.classList.add('oculto');
+      if (!punto._orgLineaOrigen) {
+        const ll = marcador.getLatLng();
+        punto._orgLineaOrigen = [ll.lat, ll.lng];
+      }
+      actualizarLinea();
     };
 
     punto._movOrg = () => {
+      actualizarLinea();
       if (alArrastrar) alArrastrar(marcador);
     };
 
     punto._finOrg = () => {
       if (alMoverPos) alMoverPos(marcador);
       ignorarClicsBreves();
-      clearTimeout(punto._orgDesarmarTimer);
-      const espera = Math.max(0, (punto._orgVentanaHasta || 0) - Date.now());
-      punto._orgDesarmarTimer = setTimeout(() => desarmar(), espera || ORG_VENTANA_MS);
+      desarmar();
     };
 
     marcador.on('dragstart', punto._orgDragStart);
@@ -3668,9 +3645,10 @@ const Admin = {
       cesto.classList.remove('activo', 'cesto-hover');
     }
     this._mostrarControles(
-      '⊞ Arrastra con el cuadrito · ✕ borra · Toca el icono para ocultar controles',
+      'Toca un icono para moverlo (línea guía) · ✕ borra el pin',
       false
     );
+    this._refrescarObjetosMapa();
     if (typeof Enemigos !== 'undefined' && Enemigos._actualizarZonasOrganizar) {
       Enemigos._actualizarZonasOrganizar();
       Enemigos._actualizarPrioridadAdmin(true);
@@ -3840,6 +3818,16 @@ const Admin = {
         if (!Multijugador._estaMuerto(p)) continue;
         const m = Multijugador.marcadores[p.playerId];
         if (m) this._limpiarPinOrganizar(m, { id: 'cuerpo_on_' + p.playerId, marcador: m });
+      }
+      for (const p of (Multijugador.online || [])) {
+        if (Multijugador._estaMuerto(p)) continue;
+        const m = Multijugador.marcadores[p.playerId];
+        if (!m) continue;
+        this._limpiarPinOrganizar(m, {
+          id: 'jugador_' + p.playerId,
+          marcador: m,
+          _jugadorPlayerId: p.playerId
+        });
       }
     }
     for (const o of this.objetosTodos()) {
