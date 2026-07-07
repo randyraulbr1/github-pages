@@ -116,6 +116,53 @@ const Enemigos = {
     enlazar('btn-combate-huir', () => this._huir());
     enlazar('btn-hud-atacar', () => this._atacarHud());
     enlazar('btn-hud-huir', () => this._huirMapa());
+    this.aplicarLayoutCombate();
+  },
+
+  /** Daño total del jugador vs enemigos (base por nivel + arma equipada). */
+  rangoAtaqueJugador() {
+    const r = this._rangoDanoNivel();
+    const arma = typeof Mochila !== 'undefined' ? Mochila.danoArmaEquipada() : 0;
+    const armaId = typeof Mochila !== 'undefined' ? Mochila.armaEquipadaId() : null;
+    const itemArma = armaId && typeof Items !== 'undefined' ? Items.seguro(armaId) : null;
+    return {
+      baseLo: r.lo,
+      baseHi: r.hi,
+      arma,
+      totalLo: r.lo + arma,
+      totalHi: r.hi + arma,
+      armaNombre: itemArma?.nombre || null,
+      armaIcono: itemArma?.icono || null
+    };
+  },
+
+  textoAtaqueJugador() {
+    const d = this.rangoAtaqueJugador();
+    const nv = typeof Vida !== 'undefined' ? Vida.nivel : 1;
+    if (d.arma > 0) {
+      return '⚔️ ' + d.totalLo + '–' + d.totalHi + ' (Nv ' + nv + ' · ' +
+        (d.armaIcono || '⚔️') + ' +' + d.arma + ' + base ' + d.baseLo + '–' + d.baseHi + ')';
+    }
+    return '⚔️ ' + d.totalLo + '–' + d.totalHi + ' (Nv ' + nv + ' · sin arma)';
+  },
+
+  aplicarLayoutCombate() {
+    const hud = document.getElementById('hud-combate-flotante');
+    const btnAtk = document.getElementById('btn-hud-atacar');
+    const btnHuir = document.getElementById('btn-hud-huir');
+    const cd = document.getElementById('hud-ataque-cooldown');
+    if (!hud || !btnAtk || !btnHuir) return;
+    const pos = (Guardado.datos?.preferencias?.posBtnAtacar === 'der') ? 'der' : 'izq';
+    hud.classList.toggle('pos-atk-izq', pos === 'izq');
+    hud.classList.toggle('pos-atk-der', pos === 'der');
+    if (cd) hud.insertBefore(cd, hud.firstChild);
+    if (pos === 'der') {
+      hud.appendChild(btnHuir);
+      hud.appendChild(btnAtk);
+    } else {
+      hud.appendChild(btnAtk);
+      hud.appendChild(btnHuir);
+    }
   },
 
   _config() {
@@ -401,12 +448,15 @@ const Enemigos = {
     const max = e.vidaMax || e.vida || 50;
     const actual = this._vidaActual(e);
     const pct = Math.max(0, Math.min(100, (actual / max) * 100));
+    const grande = !!e._vidaGrande;
     const mostrarCono = e.facingDeg != null && e._enZona;
     const cono = mostrarCono
       ? '<div class="enemigo-cono-wrap" style="transform:rotate(' + e.facingDeg + 'deg)">' +
         '<div class="enemigo-cono"></div></div>' : '';
     const calavera = letal
       ? '<span class="mjo-calavera" title="Nv ' + nv + ' · 10× tu nivel">💀</span>' : '';
+    const numVida = grande
+      ? '<span class="mjo-vida-num">' + actual + '/' + max + '</span>' : '';
     return '<div class="marcador-enemigo-map enemigo-pin' + (letal ? ' enemigo-letal' : '') + '">' +
       cono +
       '<div class="mjo-etiqueta">' +
@@ -414,7 +464,8 @@ const Enemigos = {
       '<span class="mjo-nombre mjo-nombre-enemigo">' + (e.nombre || 'Enemigo') + '</span>' +
       '<span class="mjo-nivel">Nv ' + nv + '</span>' +
       '</div>' +
-      '<div class="mjo-barra mjo-barra-enemigo"><div class="mjo-barra-fill" style="width:' + pct + '%"></div></div>' +
+      '<div class="mjo-barra mjo-barra-enemigo' + (grande ? ' mjo-barra-cerca' : '') + '">' +
+      '<div class="mjo-barra-fill" style="width:' + pct + '%"></div>' + numVida + '</div>' +
       '<span class="enemigo-emoji">' + (e.icono || '👹') + '</span>' +
       '</div>';
   },
@@ -915,8 +966,19 @@ const Enemigos = {
       }
     }
     if (hudFlotante) {
-      const visible = mostrarAtaque || puedeHuir || this._estaInvisible();
+      const visible = mostrarAtaque || puedeHuir;
       hudFlotante.classList.toggle('oculto', !visible);
+      const soloAtk = mostrarAtaque && !puedeHuir;
+      const soloHuir = puedeHuir && !mostrarAtaque;
+      const ambos = mostrarAtaque && puedeHuir;
+      hudFlotante.classList.toggle('solo-atk', soloAtk);
+      hudFlotante.classList.toggle('solo-huir', soloHuir);
+      hudFlotante.classList.toggle('ambos-botones', ambos);
+      const prefDer = Guardado.datos?.preferencias?.posBtnAtacar === 'der';
+      let alinearDer = prefDer;
+      if (soloHuir) alinearDer = !prefDer;
+      hudFlotante.classList.toggle('pos-atk-izq', !alinearDer);
+      hudFlotante.classList.toggle('pos-atk-der', alinearDer);
     }
   },
 
@@ -994,6 +1056,11 @@ const Enemigos = {
       const enZona = !invisible && d <= radioZona;
       const enAtaque = !invisible && d <= radioAtaque;
       e._enZona = enZona;
+      const vidaGrande = enZona && (enAtaque || this._enCombate === e || this._objetivoHud === e);
+      if (e._vidaGrande !== vidaGrande) {
+        e._vidaGrande = vidaGrande;
+        this._refrescarIconoMarcador(e);
+      }
       this._actualizarVisibilidadZonas(e, d);
 
       if (online) {

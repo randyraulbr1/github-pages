@@ -395,6 +395,7 @@ const Mochila = {
       const ventana = document.getElementById('ventana-mochila');
       if (ventana && !ventana.classList.contains('oculto')) {
         this._pintarSlotEquip();
+        this._pintarDanoAtaque();
       }
     };
     aplicar();
@@ -475,7 +476,14 @@ const Mochila = {
     }
 
     this._pintarSlotEquip();
+    this._pintarDanoAtaque();
     this._actualizarNombreArrastre();
+  },
+
+  _pintarDanoAtaque() {
+    const el = document.getElementById('inv-ataque-resumen');
+    if (!el || typeof Enemigos === 'undefined') return;
+    el.textContent = Enemigos.textoAtaqueJugador();
   },
 
   _puedeUsarItem(item, id) {

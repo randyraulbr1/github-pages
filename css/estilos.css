@@ -585,6 +585,19 @@ button { font-family: inherit; }
   max-width: min(calc(100vw - 16px), 320px);
   pointer-events: none;
 }
+.hud-combate-flotante.pos-atk-izq { justify-content: flex-start; }
+.hud-combate-flotante.pos-atk-der { justify-content: flex-end; }
+.hud-combate-flotante.solo-atk .btn-hud-atacar,
+.hud-combate-flotante.solo-huir .btn-hud-huir {
+  flex: 0 0 auto;
+  min-width: 76px;
+  max-width: 104px;
+}
+.hud-combate-flotante.ambos-botones .btn-hud-combate {
+  flex: 1 1 0;
+  min-width: 0;
+  max-width: 148px;
+}
 .hud-combate-flotante > * { pointer-events: auto; }
 .hud-combate-flotante .hud-ataque-cooldown {
   position: absolute;
@@ -832,6 +845,15 @@ button { font-family: inherit; }
   font-weight: 900;
   color: #ffe45c;
   text-shadow: 0 2px 2px #000;
+}
+.inv-ataque-resumen {
+  font-size: 11px;
+  font-weight: 800;
+  color: #ffb4a8;
+  text-shadow: 0 1px 2px #000;
+  margin: 0 0 4px;
+  line-height: 1.25;
+  flex: 0 0 auto;
 }
 .inv-selected-name {
   max-width: 55%;
@@ -1786,6 +1808,26 @@ body.mariel-bloqueado-actualizar #pantalla-actualizar {
 }
 .mjo-barra-enemigo .mjo-barra-fill {
   background: linear-gradient(90deg, #c11031, #ff453a);
+}
+.mjo-barra-enemigo.mjo-barra-cerca {
+  width: 78px;
+  height: 16px;
+  position: relative;
+  border: 1px solid rgba(0, 0, 0, .35);
+}
+.mjo-barra-enemigo.mjo-barra-cerca .mjo-vida-num {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  font-weight: 900;
+  color: #fff;
+  letter-spacing: -.02em;
+  text-shadow: 0 1px 2px #000, 0 0 4px #000;
+  z-index: 1;
+  pointer-events: none;
 }
 .marcador-jugador-online.es-amigo .mjo-punto {
   background: #30d158; box-shadow: 0 0 0 4px rgba(48,209,88,.35);
