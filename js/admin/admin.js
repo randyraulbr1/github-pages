@@ -3174,6 +3174,23 @@ const Admin = {
           grip.classList.add('oculto');
           marcador.options.draggable = true;
           if (marcador.dragging) marcador.dragging.enable();
+          // Móvil: mismo gesto desde el cuadrito azul inicia el arrastre Leaflet
+          if (ev.type === 'touchstart' && pinEl) {
+            const t = ev.touches?.[0];
+            if (t) {
+              requestAnimationFrame(() => {
+                pinEl.dispatchEvent(new MouseEvent('mousedown', {
+                  bubbles: true,
+                  cancelable: true,
+                  view: window,
+                  clientX: t.clientX,
+                  clientY: t.clientY,
+                  button: 0,
+                  buttons: 1
+                }));
+              });
+            }
+          }
         };
         grip.addEventListener('mousedown', armar);
         grip.addEventListener('touchstart', armar, { passive: false });
@@ -3272,7 +3289,7 @@ const Admin = {
     for (const t of DATOS_TESOROS) {
       if (this.eliminado(t.id)) continue;
       const fantasma = L.marker(t.posicion, {
-        draggable: modo === 'organizar',
+        draggable: false,
         opacity: 0.75,
         icon: L.divIcon({ className: '', html: '<div class="icono-tesoro">✨</div>', iconSize: [30, 30], iconAnchor: [15, 15] })
       }).addTo(Mapa.mapa);
@@ -3291,7 +3308,7 @@ const Admin = {
     for (const t of this.tesorosTodos()) {
       if (t._marcador) continue;
       const fantasma = L.marker(t.pos, {
-        draggable: modo === 'organizar',
+        draggable: false,
         opacity: 0.75,
         icon: L.divIcon({ className: '', html: '<div class="icono-tesoro">🎁</div>', iconSize: [30, 30], iconAnchor: [15, 15] })
       }).addTo(Mapa.mapa);

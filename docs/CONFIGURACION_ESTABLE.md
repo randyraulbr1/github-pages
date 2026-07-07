@@ -1,6 +1,6 @@
 # Configuración estable — tcodm.com (v191+)
 
-**Estado verificado:** jugadores en vivo, mapa del admin visible para todos al momento, Amigos y Sincronizar funcionando.
+**Estado verificado (v194–v195):** jugadores en vivo, mapa del admin visible en **cualquier dispositivo** tras limpiar caché, Amigos y Sincronizar funcionando. Organizar pines solo con el cuadrito azul ⊞.
 
 No cambiar estos puntos sin revisar este documento.
 
@@ -46,6 +46,44 @@ Archivo: `.github/workflows/deploy-pages.yml`
 3. **Sin token** (p. ej. tras actualizar) → `asegurarSesionServidor` re-loguea con clave guardada o modal en pantalla (no `prompt()` en móvil).
 4. **Otros jugadores** leen mundo por socket + `/api/public/mundo` y ven pins/objetos al instante.
 5. **Amigos** → `Amigos.iniciarUI()` en `principal.js` (no depender solo de `Multijugador.iniciar`).
+6. **Borrar caché / nuevo dispositivo** → el servidor es la fuente de verdad; el cliente descarga el mundo completo. El admin no debe perder pins locales si el servidor llega con menos contenido (v194).
+
+---
+
+## Multi-dispositivo y persistencia del mapa (v194+)
+
+| Protección | Dónde |
+|------------|-------|
+| No sobrescribir mapa local si el servidor tiene menos objetos | `Admin.refrescarMundoTrasLogin` + `_contarMapaAdminCompleto` |
+| Backup del admin antes de actualizar | `mariel_admin_backup_v1` en `version_app.js` |
+| Caché de amigos entre sesiones | `mariel_amigos_social_v1` en `amigos.js` |
+| Aviso «Actualizar» al instante | `version.json` en `main` + `MarielVersion` |
+
+**Comprobación:** Randy sincroniza → otro móvil borra caché → entra → ve mapa y jugadores en vivo.
+
+---
+
+## HUD izquierdo (barras + botones)
+
+Estructura en `index.html`:
+
+- `#hud-nucleo-fijo` → barras de vida/hambre/XP + botones ⚙️👤🔔 (tamaño **fijo**).
+- `#letrero-misiones` y `#letrero-pin-chat` → **fuera** del núcleo, debajo, sin estirar las barras.
+
+CSS (`css/estilos.css`): `#hud-nucleo-fijo` con `width` / `min-width` / `max-width` iguales; Wi‑Fi en `position: absolute; right: -22px`.
+
+---
+
+## Admin: organizar pines (cuadrito azul ⊞)
+
+Modo **Organizar** (`Admin.entrarModo('organizar')`):
+
+1. Cada pin muestra **⊞ cuadrito azul** (`.admin-pin-grip`) y **✕ rojo** (`.admin-pin-x`).
+2. **Solo** al tocar/arrastrar el cuadrito azul se activa el movimiento (no arrastrar el icono directamente).
+3. En móvil, el mismo gesto desde el cuadrito inicia el arrastre Leaflet.
+4. Texto en pantalla: «⊞ Arrastra con el cuadrito · ✕ borra el pin».
+
+Archivos: `js/admin/admin.js` → `_arrastreOrganizarMarcador`; `css/estilos.css` → `.admin-pin-grip`.
 
 ---
 
@@ -55,12 +93,15 @@ Archivo: `.github/workflows/deploy-pages.yml`
 |---------|-----|
 | `js/online/sync_servidor.js` | Token propio, modal contraseña, `publicar`, `asegurarSesionServidor` |
 | `js/online/multijugador.js` | Socket.io, jugadores en mapa, polling mundo |
-| `js/online/amigos.js` | Panel amigos |
-| `js/admin/admin.js` | `_syncMapaServidor`, `publicarMundo`, Sincronizar manual |
+| `js/online/amigos.js` | Panel amigos + caché social |
+| `js/admin/admin.js` | `_syncMapaServidor`, `publicarMundo`, Sincronizar, organizar pines |
 | `js/principal.js` | Arranque: `Amigos.iniciarUI()`, token servidor, multijugador |
 | `js/usuarios/usuarios.js` | Login guarda clave; admin auto-sync tras entrar |
+| `js/nucleo/version_app.js` | Aviso actualizar + backup admin |
 | `js/config/config.js` | `version`, `servidorOnline`, `adminNombre` / `adminAlias` |
 | `sw.js` | `CACHE = mariel-explorer-v###` — subir versión al publicar |
+| `css/estilos.css` | HUD fijo + estilos pin admin |
+| `index.html` | Estructura `#hud-nucleo-fijo` |
 
 ---
 
@@ -83,4 +124,4 @@ Archivo: `.github/workflows/deploy-pages.yml`
 
 ---
 
-*Última configuración estable documentada: v191 (jul 2026).*
+*Última configuración estable documentada: v195 (jul 2026).*

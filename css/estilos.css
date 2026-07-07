@@ -25,7 +25,8 @@ button { font-family: inherit; }
   flex-direction: column;
   align-items: flex-start;
   gap: 6px;
-  max-width: none;
+  width: fit-content;
+  max-width: min(85vw, 300px);
   pointer-events: none;
 }
 #panel-hud-izq > * { pointer-events: auto; }
@@ -33,7 +34,10 @@ button { font-family: inherit; }
 #hud-nucleo-fijo {
   position: relative;
   width: min(72vw, 240px);
+  min-width: min(72vw, 240px);
+  max-width: min(72vw, 240px);
   flex-shrink: 0;
+  box-sizing: border-box;
 }
 
 .indicador-wifi {
@@ -96,6 +100,8 @@ button { font-family: inherit; }
   flex-direction: column;
   gap: 4px;
   width: 100%;
+  max-width: 100%;
+  min-width: 0;
   flex-shrink: 0;
   padding: 0;
   background: transparent;
@@ -217,8 +223,10 @@ button { font-family: inherit; }
   background: transparent;
   border: none;
   box-shadow: none;
-  width: fit-content;
-  margin-left: auto;
+  width: 100%;
+  max-width: 100%;
+  flex-shrink: 0;
+  margin-left: 0;
 }
 .btn-hud-accion {
   position: relative;
@@ -237,13 +245,14 @@ button { font-family: inherit; }
 }
 .btn-hud-accion:active { transform: scale(.92); }
 .btn-hud-mini {
-  width: clamp(26px, 7vw, 32px);
-  height: clamp(26px, 7vw, 32px);
-  font-size: clamp(12px, 3.2vw, 15px);
+  width: 28px;
+  height: 28px;
+  font-size: 14px;
   border-radius: 10px;
   background: transparent;
   border: none;
   box-shadow: none;
+  flex-shrink: 0;
 }
 #hud-acciones-mini .btn-hud-accion {
   border: none;
@@ -517,13 +526,13 @@ button { font-family: inherit; }
 @media (min-width: 768px) {
   #barra-inferior-wrap { max-width: 440px; }
   #botones-inferiores { gap: 10px; padding: 6px 10px; }
-  #hud-nucleo-fijo { width: min(280px, 28vw); }
+  #hud-nucleo-fijo { width: 280px; min-width: 280px; max-width: 280px; }
   #hud-dinero-cantidad { font-size: 12px; }
 }
 @media (min-width: 1024px) {
   #barra-inferior-wrap { bottom: calc(16px + env(safe-area-inset-bottom)); }
-  #panel-hud-izq { left: 16px; }
-  #hud-nucleo-fijo { width: 300px; }
+  #panel-hud-izq { left: 16px; max-width: 300px; }
+  #hud-nucleo-fijo { width: 300px; min-width: 300px; max-width: 300px; }
 }
 .btn-burbuja {
   display: flex; flex-direction: column; align-items: center; gap: 3px;
@@ -1993,9 +2002,9 @@ body.mariel-bloqueado-actualizar #pantalla-actualizar {
   .ventana-caja { max-width: 440px; border-radius: 22px; max-height: 82vh; }
   #rejilla-mochila { gap: 10px; padding: 18px; }
   .slot { font-size: 34px; border-radius: 16px; }
-  #hud-nucleo-fijo { width: 280px; }
+  #hud-nucleo-fijo { width: 280px; min-width: 280px; max-width: 280px; }
   #contenedor-vida { height: 20px; }
-  .btn-hud-mini { width: 34px; height: 34px; font-size: 16px; border-radius: 11px; }
+  .btn-hud-mini { width: 32px; height: 32px; font-size: 15px; border-radius: 11px; }
   .perfil-hud { max-width: 340px; padding: 8px 12px; }
   .perfil-avatar { width: 40px; height: 40px; font-size: 18px; }
   .notificacion { max-width: 380px; }
@@ -2299,7 +2308,7 @@ body.cuenta-eliminada .ventana { display: none !important; }
 #admin-vista-crear-jugador { overflow: hidden; }
 
 @media (min-width: 900px) {
-  #hud-nucleo-fijo { width: 260px; }
+  #hud-nucleo-fijo { width: 260px; min-width: 260px; max-width: 260px; }
   .perfil-hud { max-width: 320px; }
   .admin-editor-horizontal { min-height: 320px; }
   .admin-rejilla-fija { max-width: 300px; }
@@ -2621,6 +2630,10 @@ body.jugador-muerto #admin-controles { pointer-events: none; opacity: .35; }
 .admin-pin-moviendo .admin-pin-grip { display: none !important; }
 .admin-pin-armado {
   filter: drop-shadow(0 0 8px rgba(56,198,255,.85));
+  cursor: grabbing;
+}
+.admin-pin-armado > *:not(.admin-pin-x):not(.admin-pin-grip) {
+  pointer-events: none;
 }
 .admin-pin-x {
   position: absolute;
