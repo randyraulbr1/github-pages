@@ -421,6 +421,111 @@ function registrarRecogidaTesoro(tesoroId, playerId, io) {
   return { ok: true, recogidoAt };
 }
 
+const BOLSA_DROP_TTL_MS = 5 * 60 * 1000;
+const MOCHILA_SLOTS = 25;
+const MAX_PILA = 10;
+
+/** Quita bolsas vacías o sin recoger tras 5 minutos. */
+function limpiarBolsasExpiradas(mundo) {
+  if (!mundo?.bolsasDrop?.length) return;
+  const now = Date.now();
+  mundo.bolsasDrop = mundo.bolsasDrop.filter((b) => {
+    if (!b?.items?.length) return false;
+    if (b.ultimoRecogidoEn) return true;
+    return now - (b.creadoEn || 0) < BOLSA_DROP_TTL_MS;
+  });
+}
+
+function findBolsaDrop(mundo, bolsaId) {
+  if (!mundo?.bolsasDrop?.length || !bolsaId) return null;
+  return mundo.bolsasDrop.find((b) => b && b.id === bolsaId) || null;
+}
+
+function crearBolsaDrop(playerId, x, y, items, io) {
+  const snapshot = getWorldSnapshot() || { actualizadoEn: Date.now(), bolsasDrop: [] };
+  if (!snapshot.bolsasDrop) snapshot.bolsasDrop = [];
+  limpiarBolsasExpiradas(snapshot);
+
+  const lista = (items || [])
+    .filter((it) => it?.id && (it.cantidad || 1) > 0)
+    .map((it) => ({ id: it.id, cantidad: Math.max(1, parseInt(it.cantidad, 10) || 1) }));
+  if (!lista.length) return { ok: false, error: 'Sin objetos' };
+  if (!Number.isFinite(x) || !Number.isFinite(y)) return { ok: false, error: 'Posición inválida' };
+
+  const bolsa = {
+    id: 'bolsa_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2, 7),
+    pos: [+x, +y],
+    items: lista,
+    creadoEn: Date.now(),
+    dropperPlayerId: playerId || null,
+    esBolsa: true
+  };
+  snapshot.bolsasDrop.push(bolsa);
+  snapshot.actualizadoEn = Date.now();
+  saveWorldSnapshot(snapshot);
+  if (io) io.emit('world:bagUpdate', { bolsa });
+  return { ok: true, bolsa };
+}
+
+function aplicarRecogidaBolsa(bolsa, recogidos) {
+  const tomados = [];
+  for (const r of (recogidos || [])) {
+    if (!r?.id || (r.cantidad || 0) <= 0) continue;
+    const idx = bolsa.items.findIndex((it) => it.id === r.id);
+    if (idx < 0) continue;
+    const max = bolsa.items[idx].cantidad || 1;
+    const q = Math.min(max, Math.max(1, parseInt(r.cantidad, 10) || 1));
+    if (q <= 0) continue;
+    bolsa.items[idx].cantidad -= q;
+    if (bolsa.items[idx].cantidad <= 0) bolsa.items.splice(idx, 1);
+    tomados.push({ id: r.id, cantidad: q });
+  }
+  return tomados;
+}
+
+function recogerBolsaDrop(bolsaId, playerId, recogidos, io) {
+  const snapshot = getWorldSnapshot() || { actualizadoEn: Date.now(), bolsasDrop: [] };
+  if (!snapshot.bolsasDrop) snapshot.bolsasDrop = [];
+  limpiarBolsasExpiradas(snapshot);
+
+  const bolsa = findBolsaDrop(snapshot, bolsaId);
+  if (!bolsa) return { ok: false, error: 'Bolsa no encontrada' };
+  if (!bolsa.items?.length) return { ok: false, error: 'Bolsa vacía' };
+
+  const tomados = aplicarRecogidaBolsa(bolsa, recogidos);
+  if (!tomados.length) return { ok: false, error: 'Nada que recoger' };
+
+  bolsa.ultimoRecogidoEn = Date.now();
+  if (!bolsa.items.length) {
+    snapshot.bolsasDrop = snapshot.bolsasDrop.filter((b) => b.id !== bolsaId);
+    snapshot.actualizadoEn = Date.now();
+    saveWorldSnapshot(snapshot);
+    if (io) io.emit('world:bagRemove', { bolsaId });
+    return { ok: true, tomados, vacia: true };
+  }
+
+  snapshot.actualizadoEn = Date.now();
+  saveWorldSnapshot(snapshot);
+  if (io) io.emit('world:bagUpdate', { bolsa });
+  return { ok: true, tomados, bolsa, vacia: false };
+}
+
+/** Borra bolsas expiradas o vacías y avisa a los clientes. */
+function sincronizarBolsasExpiradas(io) {
+  const snapshot = getWorldSnapshot();
+  if (!snapshot?.bolsasDrop?.length) return;
+  const antes = snapshot.bolsasDrop.map((b) => b.id);
+  limpiarBolsasExpiradas(snapshot);
+  const despues = new Set(snapshot.bolsasDrop.map((b) => b.id));
+  const removidas = antes.filter((id) => !despues.has(id));
+  if (!removidas.length) return;
+  snapshot.actualizadoEn = Date.now();
+  saveWorldSnapshot(snapshot);
+  if (io) {
+    for (const bolsaId of removidas) io.emit('world:bagRemove', { bolsaId });
+  }
+}
+
 function registrarRecogidaObjeto(origenId, playerId, io) {
   const snapshot = getWorldSnapshot() || { actualizadoEn: Date.now() };
   if (!snapshot.objetosEstado) snapshot.objetosEstado = {};
@@ -555,6 +660,10 @@ function syncMundoFromJson(mundo, io) {
   const prev = getWorldSnapshot();
   fusionarJugadoresPublicacion(mundo, prev);
   fusionarMapaPublicacion(mundo, prev);
+  if (prev?.bolsasDrop?.length && !mundo.bolsasDrop?.length) {
+    mundo.bolsasDrop = prev.bolsasDrop;
+  }
+  limpiarBolsasExpiradas(mundo);
   if (prev?.cuerposMuertos) {
     mundo.cuerposMuertos = mundo.cuerposMuertos || prev.cuerposMuertos;
     limpiarCuerposExpirados(mundo);
@@ -745,5 +854,9 @@ module.exports = {
   actualizarPartidaEnSnapshot,
   revivirPartidaEnSnapshot,
   buscarPerfilIdPorNombre,
-  eliminarJugadorDeSnapshot
+  eliminarJugadorDeSnapshot,
+  limpiarBolsasExpiradas,
+  crearBolsaDrop,
+  recogerBolsaDrop,
+  sincronizarBolsasExpiradas
 };

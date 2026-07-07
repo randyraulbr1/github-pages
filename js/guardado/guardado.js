@@ -84,6 +84,7 @@ const Guardado = {
       admin: { misiones: [], tesoros: [], objetos: [] },
       preferencias: { notifChat: true, notifAmigos: true },
       objetosSuelto: [],
+      bolsasDrop: [],
       nubeT: 0
     };
   },

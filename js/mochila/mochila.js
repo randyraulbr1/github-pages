@@ -248,6 +248,49 @@ const Mochila = {
     return true;
   },
 
+  /** Agrega hasta `cantidad`; devuelve cuántas entraron. */
+  agregarHasta(id, cantidad = 1, opciones = {}) {
+    const item = Items.obtener(id);
+    if (!item) return { agregado: 0, restante: cantidad };
+    const maxPila = item.unico ? 1 : (CONFIG.maxPila || 10);
+    let restante = cantidad;
+    let agregado = 0;
+
+    if (item.unico) {
+      for (let i = 0; i < this.slots.length && restante > 0; i++) {
+        if (!this.slots[i]) {
+          this.slots[i] = { id, cantidad: 1 };
+          if (opciones.texto) this.slots[i].texto = opciones.texto;
+          restante--;
+          agregado++;
+        }
+      }
+    } else {
+      for (const sl of this.slots) {
+        if (restante <= 0) break;
+        if (sl && sl.id === id && sl.cantidad < maxPila) {
+          const cabe = Math.min(restante, maxPila - sl.cantidad);
+          sl.cantidad += cabe;
+          restante -= cabe;
+          agregado += cabe;
+        }
+      }
+      for (let i = 0; i < this.slots.length && restante > 0; i++) {
+        if (!this.slots[i]) {
+          const poner = Math.min(restante, maxPila);
+          this.slots[i] = { id, cantidad: poner };
+          restante -= poner;
+          agregado += poner;
+        }
+      }
+    }
+
+    if (agregado > 0) {
+      Historial.registrar('objetos', { detalle: 'Obtenido: ' + item.nombre, monto: agregado });
+    }
+    return { agregado, restante };
+  },
+
   quitar(id, cantidad = 1, motivo = 'Usado') {
     if (this.contar(id) < cantidad) return false;
     let restante = cantidad;
@@ -572,10 +615,8 @@ const Mochila = {
     this.hoverTarget = null;
     const controls = document.getElementById('inv-controls');
     if (controls) controls.classList.remove('show');
-    const useBtn = document.getElementById('inv-use-btn');
-    const useAllBtn = document.getElementById('inv-use-all-btn');
-    if (useBtn) useBtn.style.display = '';
-    if (useAllBtn) useAllBtn.style.display = '';
+    document.getElementById('inv-use-btn')?.classList.remove('on');
+    document.getElementById('inv-use-all-btn')?.classList.remove('on');
     document.querySelectorAll('.slot.over, .inv-equip-slot.over, .inv-ctrl-btn.over')
       .forEach(s => s.classList.remove('over'));
     this._actualizarNombreArrastre();
@@ -615,6 +656,15 @@ const Mochila = {
       if (!ok) return false;
     }
 
+    const itemsSoltar = [{ id: sl.id, cantidad: sl.cantidad || 1 }];
+    if (typeof Bolsas !== 'undefined') {
+      const soltado = await Bolsas.soltar(itemsSoltar, 'Eliminado del inventario');
+      if (!soltado) {
+        this._toast('No se pudo dejar la bolsa en el mapa');
+        return false;
+      }
+    }
+
     if (place === 'equip') {
       Guardado.datos.armaEquipada = null;
     } else {
@@ -626,7 +676,7 @@ const Mochila = {
     }
     this.guardar();
     Historial.registrar('objetos', { detalle: 'Eliminado: ' + item.nombre, monto: -sl.cantidad });
-    this._toast('Objeto borrado');
+    this._toast('Objeto dejado en el suelo');
     return true;
   },
 

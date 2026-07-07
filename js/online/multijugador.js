@@ -306,6 +306,16 @@ const Multijugador = {
       Admin.aplicarRecogidaCompartida(data.origenId, data.recogidoAt, data.playerId);
     });
 
+    this.socket.on('world:bagUpdate', (data) => {
+      if (!data?.bolsa || typeof Bolsas === 'undefined') return;
+      Bolsas.aplicarBolsaRemota(data.bolsa);
+    });
+
+    this.socket.on('world:bagRemove', (data) => {
+      if (!data?.bolsaId || typeof Bolsas === 'undefined') return;
+      Bolsas.aplicarBolsaEliminada(data.bolsaId);
+    });
+
     this.socket.on('enemy:attack', (data) => {
       if (typeof Vida !== 'undefined' && data.damage) {
         Vida.recibirDano(data.damage, null, data.enemyName || 'Enemigo');
@@ -907,6 +917,31 @@ const Multijugador = {
         }
         resolve(!!res?.ok);
       });
+    });
+  },
+
+  soltarBolsa(payload) {
+    return new Promise((resolve) => {
+      if (!this.socket || !this.activo || !payload?.pos) return resolve(null);
+      this.socket.emit('world:dropBag', {
+        x: payload.pos[0],
+        y: payload.pos[1],
+        items: payload.items || []
+      }, (res) => {
+        resolve(res?.ok ? res.bolsa : null);
+      });
+    });
+  },
+
+  recogerBolsa(bolsaId, recogidos, pos) {
+    return new Promise((resolve) => {
+      if (!this.socket || !this.activo || !bolsaId) return resolve({ ok: false });
+      this.socket.emit('world:pickupBag', {
+        bolsaId,
+        recogidos: recogidos || [],
+        x: pos?.[0],
+        y: pos?.[1]
+      }, (res) => resolve(res || { ok: false }));
     });
   },
 

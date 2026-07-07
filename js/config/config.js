@@ -3,7 +3,7 @@
 // ============================================================
 const CONFIG = {
   // Cambiar al publicar: obliga al móvil a descartar caché vieja
-  version: '141',
+  version: '142',
   maxPila: 10,
 
   // Nombre reservado del administrador (solo este jugador ve el panel admin)
@@ -39,6 +39,7 @@ const CONFIG = {
 
   // Distancias (en metros)
   distanciaInteraccion: 20,      // distancia para poder tocar tiendas, pesca, etc.
+  bolsaDropMinutos: 5,           // bolsa en el suelo sin recoger nada
   distanciaVerMuerto: 50,        // distancia para revivir/saquear
   cuerpoMuertoHoras: 1,          // pin ⚰️ visible en mapa (aunque desconecte)
   vidaAlRevivir: 40,             // vida al ser revivido (amigo o admin)

@@ -331,6 +331,7 @@ const Admin = {
 
   // ---------- VISTA COMBINADA: publicado en GitHub + borradores locales ----------
   _liberarMarcadorObjeto(id) {
+    this._liberarMarcadorBolsa(id);
     if (!id) return;
     const m = this._marcadoresObjeto[id];
     if (m) {
@@ -1240,6 +1241,7 @@ const Admin = {
     if (!this.publicado.enemigosEstado) this.publicado.enemigosEstado = {};
     if (!this.publicado.objetosEstado) this.publicado.objetosEstado = {};
     if (!this.publicado.tiendasAdmin) this.publicado.tiendasAdmin = [];
+    if (!this.publicado.bolsasDrop) this.publicado.bolsasDrop = [];
 
     for (const en of (this.publicado.enemigos || [])) {
       if (!en?.id) continue;
@@ -2377,6 +2379,79 @@ const Admin = {
       this._revisarTesoro(t, Utilidades.distanciaMetros(GPS.posicion, t.pos));
     }
     this._refrescarObjetosMapa();
+    this._refrescarBolsasMapa();
+  },
+
+  _refrescarBolsasMapa() {
+    if (typeof Bolsas === 'undefined') return;
+    for (const b of Bolsas.todas()) {
+      if (!b?.pos) continue;
+      if (!b._marcador) this._crearMarcadorBolsa(b);
+      else {
+        b._marcador.setLatLng(b.pos);
+        this._revisarBolsa(b);
+      }
+    }
+  },
+
+  _liberarMarcadorBolsa(id) {
+    if (!id) return;
+    const m = this._marcadoresBolsa?.[id];
+    if (m) {
+      try { m.remove(); } catch (e) { /* */ }
+      delete this._marcadoresBolsa[id];
+    }
+    if (typeof Bolsas !== 'undefined') {
+      for (const b of Bolsas.todas()) {
+        if (b && b.id === id) b._marcador = null;
+      }
+    }
+    if (typeof Mapa !== 'undefined') {
+      const p = Mapa.puntosInteractivos.find(x => x.id === id);
+      if (p) p.marcador = null;
+    }
+  },
+
+  _vincularMarcadorBolsa(b, marcador) {
+    if (!b?.id || !marcador) return;
+    if (!this._marcadoresBolsa) this._marcadoresBolsa = {};
+    b._marcador = marcador;
+    this._marcadoresBolsa[b.id] = marcador;
+    if (typeof Mapa !== 'undefined') {
+      const p = Mapa.puntosInteractivos.find(x => x.id === b.id);
+      if (p) p.marcador = marcador;
+    }
+  },
+
+  _crearMarcadorBolsa(b) {
+    if (!b?.items?.length || !b.pos) return;
+    if (!Mapa.puntosInteractivos.find(x => x.id === b.id)) {
+      Mapa.registrarPunto({
+        id: b.id,
+        posicion: b.pos,
+        radio: CONFIG.distanciaInteraccion,
+        marcador: null,
+        alCambiarDistancia: () => this._revisarBolsa(b)
+      });
+    }
+    this._revisarBolsa(b);
+  },
+
+  _revisarBolsa(b) {
+    if (!b?.items?.length) return;
+    const disponible = typeof Bolsas !== 'undefined' && Bolsas.disponible(b);
+    if (disponible && !b._marcador) {
+      this._liberarMarcadorBolsa(b.id);
+      b._marcador = Mapa.crearMarcadorEmoji(b.pos, '🎒', 28);
+      const el = b._marcador.getElement?.();
+      if (el) el.classList.add('marcador-bolsa-drop');
+      this._vincularMarcadorBolsa(b, b._marcador);
+      b._marcador.on('click', () => {
+        if (typeof Bolsas !== 'undefined') void Bolsas.recoger(b);
+      });
+    } else if (!disponible) {
+      this._liberarMarcadorBolsa(b.id);
+    }
   },
 
   _refrescarObjetosMapa() {
@@ -2535,6 +2610,9 @@ const Admin = {
   },
 
   async _recogerObjeto(o) {
+    if (typeof Bolsas !== 'undefined' && Bolsas._esBolsa(o)) {
+      return Bolsas.recoger(o);
+    }
     if (!this._objetoDisponible(o)) return;
     const d = Utilidades.distanciaMetros(GPS.posicion, o.pos);
     if (d > CONFIG.distanciaInteraccion) {

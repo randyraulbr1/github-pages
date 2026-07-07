@@ -25,7 +25,7 @@ const {
 } = require('./db');
 const { verifyToken, isGameAdminName } = require('./auth');
 const { startEnemyAI } = require('./enemyAI');
-const { registrarRecogidaObjeto, registrarRecogidaTesoro, registrarCuerpoMuerto, quitarCuerpoMuerto, getCuerpoMuerto, sincronizarCuerposExpirados, actualizarInventarioCuerpo, registrarLootMuerto, actualizarPartidaEnSnapshot, revivirPartidaEnSnapshot, buscarPerfilIdPorNombre } = require('./syncMundo');
+const { registrarRecogidaObjeto, registrarRecogidaTesoro, registrarCuerpoMuerto, quitarCuerpoMuerto, getCuerpoMuerto, sincronizarCuerposExpirados, sincronizarBolsasExpiradas, actualizarInventarioCuerpo, registrarLootMuerto, actualizarPartidaEnSnapshot, revivirPartidaEnSnapshot, buscarPerfilIdPorNombre, limpiarBolsasExpiradas, crearBolsaDrop, recogerBolsaDrop } = require('./syncMundo');
 
 /** playerId -> { socketId, playerId, name, x, y, hp, hpMax, level } */
 const onlinePlayers = new Map();
@@ -144,6 +144,7 @@ function setupSockets(io) {
   }, SYNC_INTERVAL_MS);
 
   setInterval(() => sincronizarCuerposExpirados(io), 120000);
+  setInterval(() => sincronizarBolsasExpiradas(io), 60000);
 
   io.on('connection', (socket) => {
     const player = findPlayerById(socket.playerId);
@@ -456,6 +457,36 @@ function setupSockets(io) {
       const origenId = (payload?.origenId || '').trim();
       if (!origenId) return ack?.({ ok: false, error: 'origenId requerido' });
       const result = registrarRecogidaObjeto(origenId, socket.playerId, io);
+      ack?.(result);
+    });
+
+    socket.on('world:dropBag', (payload, ack) => {
+      const pl = findPlayerById(socket.playerId);
+      if (!pl) return ack?.({ ok: false, error: 'Jugador no encontrado' });
+      const x = Number(payload?.x ?? payload?.pos?.[0]);
+      const y = Number(payload?.y ?? payload?.pos?.[1]);
+      if (!Number.isFinite(x) || !Number.isFinite(y)) {
+        return ack?.({ ok: false, error: 'Posición inválida' });
+      }
+      if (distanciaMetros(pl.x, pl.y, x, y) > REVIVE_DISTANCE_METERS) {
+        return ack?.({ ok: false, error: 'Demasiado lejos para soltar' });
+      }
+      const result = crearBolsaDrop(socket.playerId, x, y, payload?.items, io);
+      ack?.(result);
+    });
+
+    socket.on('world:pickupBag', (payload, ack) => {
+      const bolsaId = (payload?.bolsaId || '').trim();
+      if (!bolsaId) return ack?.({ ok: false, error: 'bolsaId requerido' });
+      const pl = findPlayerById(socket.playerId);
+      if (!pl) return ack?.({ ok: false, error: 'Jugador no encontrado' });
+      const bx = Number(payload?.x ?? payload?.pos?.[0]);
+      const by = Number(payload?.y ?? payload?.pos?.[1]);
+      if (Number.isFinite(bx) && Number.isFinite(by) &&
+          distanciaMetros(pl.x, pl.y, bx, by) > REVIVE_DISTANCE_METERS) {
+        return ack?.({ ok: false, error: 'Demasiado lejos' });
+      }
+      const result = recogerBolsaDrop(bolsaId, socket.playerId, payload?.recogidos, io);
       ack?.(result);
     });
 
