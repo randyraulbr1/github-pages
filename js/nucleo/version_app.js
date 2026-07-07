@@ -19,6 +19,9 @@ const MarielVersion = {
       const fuerza = sessionStorage.getItem('mariel_force_version');
       const cuando = parseInt(sessionStorage.getItem('mariel_actualizado_en') || '0', 10);
       if (!fuerza || !cuando || Date.now() - cuando > 120000) return;
+      const emb = this._num(this._embebida);
+      const objetivo = this._num(fuerza);
+      if (!emb || emb < objetivo) return;
       this._embebida = fuerza;
       this._remota = fuerza;
       localStorage.setItem('mariel_app_version', fuerza);
@@ -105,13 +108,15 @@ const MarielVersion = {
   },
 
   versionLocal() {
-    const partes = [
-      this._embebida,
-      typeof CONFIG !== 'undefined' ? CONFIG.version : null,
-      localStorage.getItem('mariel_app_version')
-    ].map(v => this._num(v)).filter(n => n > 0);
-    const mejor = partes.length ? Math.max(...partes) : 0;
-    return mejor ? String(mejor) : (this._embebida || '?');
+    return String(this.versionCargada() || this._embebida || '?');
+  },
+
+  /** Versión realmente cargada en esta sesión (no localStorage). */
+  versionCargada() {
+    const emb = this._num(this._embebida);
+    const cfg = typeof CONFIG !== 'undefined' ? this._num(CONFIG.version) : 0;
+    if (emb && cfg) return Math.min(emb, cfg);
+    return emb || cfg || 0;
   },
 
   _parseVersionTexto(txt) {
@@ -144,75 +149,51 @@ const MarielVersion = {
     return null;
   },
 
-  _versionObjetivo(local, remoto) {
-    const r = this._num(remoto);
-    const l = this._num(local);
-    const emb = this._num(this._embebida);
-    if (r > l) return remoto;
-    if (r > emb) return remoto;
-    if (emb > l) return this._embebida;
-    return null;
-  },
-
   necesitaActualizar(local, remoto) {
-    const l = this._num(local);
+    const cargada = this._num(local) || this.versionCargada();
     const r = this._num(remoto);
-    if (!r) return false;
-    const emb = this._num(this._embebida);
-    if (emb >= r) return false;
-    return r > l;
+    return r > 0 && r > cargada;
   },
 
   _desbloquearActualizacion(version) {
-    const v = String(version || this._embebida || this._remota || '');
-    if (v) localStorage.setItem('mariel_app_version', v);
+    const v = String(version || this.versionCargada() || this._embebida || this._remota || '');
+    if (v && v !== '?') localStorage.setItem('mariel_app_version', v);
     this._bloqueado = false;
     document.body.classList.remove('mariel-bloqueado-actualizar');
     document.getElementById('pantalla-actualizar')?.classList.add('oculto');
     const btn = document.getElementById('btn-actualizar-app');
     if (btn) {
       btn.disabled = false;
-      btn.textContent = 'Actualizar e entrar';
+      btn.textContent = 'Actualizar';
     }
   },
 
   revisar() {
-    const local = this.versionLocal();
+    const cargada = this.versionCargada();
     const remoto = this._remota;
-    const emb = this._num(this._embebida);
     const r = this._num(remoto);
 
-    if (r && emb >= r) {
-      this._desbloquearActualizacion(String(emb));
+    if (r && cargada >= r) {
+      this._desbloquearActualizacion(String(cargada));
       return false;
     }
 
-    const objetivo = this._versionObjetivo(local, remoto || this._embebida);
-    if (objetivo && this._num(objetivo) > this._num(local)) {
-      this.mostrarBloqueo(local, objetivo);
+    if (r && r > cargada) {
+      this.mostrarBloqueo(String(cargada || '?'), String(r));
       return true;
     }
 
-    if (!this._bloqueado && remoto && this._num(remoto) <= this._num(local)) {
-      localStorage.setItem('mariel_app_version', remoto);
-    }
-    if (this._bloqueado && r && r <= this._num(local)) {
-      this._desbloquearActualizacion(local);
+    if (this._bloqueado && r && r <= cargada) {
+      this._desbloquearActualizacion(String(cargada));
     }
     return false;
   },
 
   mostrarBloqueo(local, remoto) {
-    if (this._bloqueado) {
-      const det = document.getElementById('actualizar-detalle');
-      if (det) det.textContent = 'Tu versión: ' + local + ' · Nueva: ' + remoto;
-      return;
-    }
+    if (this._bloqueado) return;
     this._bloqueado = true;
+    this._remota = String(remoto || this._remota || '');
     document.body.classList.add('mariel-bloqueado-actualizar');
-
-    const det = document.getElementById('actualizar-detalle');
-    if (det) det.textContent = 'Tu versión: ' + local + ' · Nueva: ' + remoto;
 
     const pant = document.getElementById('pantalla-actualizar');
     if (pant) pant.classList.remove('oculto');
@@ -227,10 +208,6 @@ const MarielVersion = {
       el.classList.add('oculto');
       el.classList.remove('show');
     });
-
-    if (typeof Notificaciones !== 'undefined') {
-      Notificaciones.mostrar('⬆️ Hay una actualización — pulsa Actualizar', 'alerta', 8000);
-    }
   },
 
   async _limpiarTodaCache() {
@@ -275,7 +252,7 @@ const MarielVersion = {
     const msg = (t) => { if (btn) btn.textContent = t; };
     if (btn) btn.disabled = true;
 
-    msg('Comprobando versión…');
+    msg('Comprobando…');
     let objetivo = null;
     try {
       objetivo = await this.obtenerRemota();
@@ -284,7 +261,7 @@ const MarielVersion = {
     if (!objetivo || objetivo === '?') {
       if (btn) {
         btn.disabled = false;
-        btn.textContent = 'Actualizar e entrar';
+        btn.textContent = 'Actualizar';
       }
       this._actualizando = false;
       return;
@@ -297,13 +274,13 @@ const MarielVersion = {
       sessionStorage.setItem('mariel_actualizado_en', String(Date.now()));
     } catch (e) { /* */ }
 
-    msg('Limpiando caché…');
+    msg('Actualizando…');
     await this._limpiarTodaCache();
 
-    msg('Descargando v' + objetivo + '…');
+    msg('Descargando…');
     await this._precargarVersion(objetivo);
 
-    msg('Entrando al juego…');
+    msg('Entrando…');
     await new Promise((r) => setTimeout(r, 250));
 
     const url = location.origin + '/?_mariel=' + Date.now();
