@@ -157,8 +157,10 @@ const Amigos = {
       Notificaciones.mostrar('📡 Conéctate al servidor para chatear', 'alerta', 3000);
       return;
     }
+    const nombre = this.friends.find(f => Number(f.playerId) === id)?.name;
+    Chat.marcarContacto(id, nombre);
     Chat.openConversation(id);
-    this._toast('Chat con ' + (this.friends.find(f => Number(f.playerId) === id)?.name || 'jugador'));
+    this._toast('Chat con ' + (nombre || 'jugador'));
   },
 
   _token() {
@@ -185,6 +187,10 @@ const Amigos = {
     this.friendIds = new Set((data.friendIds || this.friends.map(f => f.playerId)).map(Number));
     this.blockedIds = new Set((data.blockedIds || this.blocked.map(b => b.playerId)).map(Number));
     this._pintar();
+    if (typeof Chat !== 'undefined') {
+      if (Chat.activePlayer) Chat.updateFriendButton();
+      Chat.renderChatList();
+    }
     if (typeof Multijugador !== 'undefined') {
       Multijugador._actualizarLineasAmigo();
       Multijugador._redibujar(false);
@@ -432,23 +438,28 @@ const Amigos = {
     let principal = '';
     let secundario = '';
 
+    const btnChat = this.estaBloqueado(id) ? '' :
+      '<button type="button" class="popup-jugador-amigo-btn" data-accion="chatear" data-id="' + id +
+      '">💬 Chatear</button>';
+
     if (this.esAmigo(id)) {
       const marcado = this.esMarcado(id);
-      principal =
+      principal = btnChat +
         '<button type="button" class="popup-jugador-amigo-btn' + (marcado ? ' activo' : '') +
         '" data-accion="marcar" data-id="' + id + '">' +
         (marcado ? '📍 Pin en mapa' : '📍 Marcar en mapa') + '</button>';
       secundario =
         '<button type="button" class="popup-jugador-link" data-accion="quitar" data-id="' + id + '">Quitar amigo</button>';
     } else if (this.pendingOut.some(r => Number(r.toPlayerId) === id)) {
-      principal = '<div class="popup-jugador-pendiente">⏳ Solicitud enviada</div>';
+      principal = btnChat + '<div class="popup-jugador-pendiente">⏳ Solicitud enviada</div>';
     } else if (this.estaBloqueado(id)) {
       principal =
         '<button type="button" class="popup-jugador-amigo-btn secundario" data-accion="desbloquear" data-id="' + id + '">' +
         'Desbloquear jugador</button>';
     } else {
-      principal =
-        '<button type="button" class="popup-jugador-amigo-btn" data-accion="agregar" data-id="' + id + '">' +
+      principal = btnChat;
+      secundario =
+        '<button type="button" class="popup-jugador-amigo-btn secundario" data-accion="agregar" data-id="' + id + '">' +
         '👥 Agregar amigo</button>';
     }
 
@@ -468,6 +479,15 @@ const Amigos = {
     if (!btn) return;
     const id = Number(btn.dataset.id);
     const acc = btn.dataset.accion;
+    if (acc === 'chatear') {
+      let nombre = '';
+      if (typeof Multijugador !== 'undefined' && Multijugador.online) {
+        const p = Multijugador.online.find(x => Number(x.playerId) === id);
+        nombre = p?.name || '';
+      }
+      if (typeof Chat !== 'undefined') Chat.abrirDesdeMapa(id, nombre);
+      return;
+    }
     if (acc === 'agregar') this.solicitar(id);
     else if (acc === 'marcar') this.toggleMarcar(id);
     else if (acc === 'quitar') this.eliminar(id);

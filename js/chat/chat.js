@@ -6,6 +6,8 @@ const Chat = {
   activePlayer: null,
   chats: {},
   unread: {},
+  _contactosKey: 'mariel_chat_contactos',
+  _contactos: {},
   _colocandoPin: null,
   _pinsMapa: {},
   _pinActivo: null,
@@ -38,9 +40,85 @@ const Chat = {
     return typeof Multijugador !== 'undefined' && Multijugador.activo && !!this._token();
   },
 
+  _cargarContactos() {
+    try {
+      const raw = localStorage.getItem(this._contactosKey);
+      this._contactos = raw ? JSON.parse(raw) : {};
+      if (!this._contactos || typeof this._contactos !== 'object') this._contactos = {};
+    } catch (e) {
+      this._contactos = {};
+    }
+  },
+
+  _guardarContactos() {
+    localStorage.setItem(this._contactosKey, JSON.stringify(this._contactos));
+  },
+
+  marcarContacto(playerId, nombre) {
+    const id = Number(playerId);
+    if (!id || id === this._miId()) return;
+    this._cargarContactos();
+    const prev = this._contactos[id] || {};
+    this._contactos[id] = {
+      name: nombre || prev.name || ('Jugador ' + id),
+      desde: prev.desde || Date.now()
+    };
+    this._guardarContactos();
+  },
+
+  quitarContacto(playerId) {
+    const id = Number(playerId);
+    this._cargarContactos();
+    delete this._contactos[id];
+    this._guardarContactos();
+  },
+
+  esContacto(playerId) {
+    this._cargarContactos();
+    return Object.prototype.hasOwnProperty.call(this._contactos, Number(playerId));
+  },
+
+  _nombreJugador(playerId) {
+    const id = Number(playerId);
+    if (typeof Amigos !== 'undefined') {
+      const f = Amigos.friends.find(x => Number(x.playerId) === id);
+      if (f?.name) return f.name;
+    }
+    if (typeof Multijugador !== 'undefined' && Multijugador.online) {
+      const p = Multijugador.online.find(x => Number(x.playerId) === id);
+      if (p?.name) return p.name;
+    }
+    this._cargarContactos();
+    if (this._contactos[id]?.name) return this._contactos[id].name;
+    const list = this.chats[id];
+    if (list?.length) {
+      const otro = list.find(m => m.from !== 'me' && m.name);
+      if (otro?.name) return otro.name;
+    }
+    return 'Jugador ' + id;
+  },
+
+  _estaOnline(playerId) {
+    const id = Number(playerId);
+    if (typeof Multijugador !== 'undefined' && Multijugador.online) {
+      return Multijugador.online.some(p => Number(p.playerId) === id);
+    }
+    return false;
+  },
+
+  abrirDesdeMapa(playerId, nombre) {
+    if (!this._online()) {
+      Notificaciones.mostrar('📡 Conéctate al servidor para chatear', 'alerta', 3000);
+      return;
+    }
+    this.marcarContacto(playerId, nombre);
+    this.openConversation(playerId);
+  },
+
   iniciarUI() {
     if (this._uiLista) return;
     this._uiLista = true;
+    this._cargarContactos();
     const btn = document.getElementById('btn-chat');
     if (!btn) return;
     btn.classList.remove('oculto');
@@ -57,6 +135,10 @@ const Chat = {
     });
     document.getElementById('locationBtnChat')?.addEventListener('click', () => this.openMapToSend());
     document.getElementById('friendBtnChat')?.addEventListener('click', () => this.toggleFriend());
+    document.getElementById('friendAcceptBtnChat')?.addEventListener('click', () => this._aceptarSolicitudChat());
+    document.getElementById('friendRejectBtnChat')?.addEventListener('click', () => this._rechazarSolicitudChat());
+    document.getElementById('chat-confirm-cancel')?.addEventListener('click', () => this._cerrarConfirmBorrar());
+    document.getElementById('chat-confirm-ok')?.addEventListener('click', () => this._confirmarBorrarChat());
     document.getElementById('btn-chat-pin-confirmar')?.addEventListener('click', () => this.confirmarColocacionPin());
     document.getElementById('btn-chat-pin-cancelar')?.addEventListener('click', () => this.cancelarColocacionPin());
 
@@ -152,6 +234,7 @@ const Chat = {
   _jugadoresDisponibles() {
     const map = new Map();
     const yo = this._miId();
+    this._cargarContactos();
 
     if (typeof Amigos !== 'undefined') {
       for (const f of Amigos.friends || []) {
@@ -159,24 +242,29 @@ const Chat = {
         map.set(Number(f.playerId), {
           id: Number(f.playerId),
           name: f.name,
-          online: !!f.online,
+          online: this._estaOnline(f.playerId) || !!f.online,
           friend: true
         });
       }
     }
 
-    if (typeof Multijugador !== 'undefined' && Multijugador.online) {
-      for (const p of Multijugador.online) {
-        const id = Number(p.playerId);
-        if (!id || id === yo) continue;
-        if (typeof Amigos !== 'undefined' && Amigos.estaBloqueado(id)) continue;
-        const prev = map.get(id);
-        map.set(id, {
-          id,
-          name: p.name || prev?.name || ('Jugador ' + id),
-          online: true,
-          friend: prev?.friend || (typeof Amigos !== 'undefined' && Amigos.esAmigo(id))
-        });
+    for (const [idStr, info] of Object.entries(this._contactos)) {
+      const id = Number(idStr);
+      if (!id || id === yo) continue;
+      if (typeof Amigos !== 'undefined' && Amigos.estaBloqueado(id)) continue;
+      if (map.has(id)) continue;
+      map.set(id, {
+        id,
+        name: info.name || this._nombreJugador(id),
+        online: this._estaOnline(id),
+        friend: false
+      });
+    }
+
+    for (const j of map.values()) {
+      if (!j.online) j.online = this._estaOnline(j.id);
+      if (!j.name || j.name.startsWith('Jugador ')) {
+        j.name = this._nombreJugador(j.id);
       }
     }
 
@@ -226,6 +314,9 @@ const Chat = {
     if (!msg) return;
     const yo = this._miId();
     const other = msg.fromPlayerId === yo ? msg.toPlayerId : msg.fromPlayerId;
+    if (msg.fromPlayerId !== yo) {
+      this.marcarContacto(other, msg.fromName);
+    }
     const normal = this._normalizarMsg(msg);
     if (!this.chats[other]) this.chats[other] = [];
     if (!this.chats[other].some(m => m.id === normal.id)) {
@@ -329,12 +420,16 @@ const Chat = {
     if (sub) sub.textContent = 'Selecciona un jugador';
     document.getElementById('emojiPanelChat')?.classList.remove('show');
     document.getElementById('friendBtnChat')?.classList.add('oculto');
+    document.getElementById('friendAcceptBtnChat')?.classList.add('oculto');
+    document.getElementById('friendRejectBtnChat')?.classList.add('oculto');
+    document.getElementById('friendPendingChat')?.classList.add('oculto');
     this._estadoLinea('');
     this.renderChatList();
   },
 
   async openConversation(playerId) {
     this.activePlayer = Number(playerId);
+    this.marcarContacto(this.activePlayer, this._nombreJugador(this.activePlayer));
     this.unread[this.activePlayer] = 0;
     document.getElementById('chatList')?.classList.remove('show');
     document.getElementById('chatView')?.classList.add('show');
@@ -387,7 +482,9 @@ const Chat = {
     lista.innerHTML = '';
 
     if (!jugadores.length) {
-      lista.innerHTML = '<div class="chat-vacio">No hay jugadores disponibles.<br>Conéctate al servidor y agrega amigos.</div>';
+      lista.innerHTML =
+        '<div class="chat-vacio">No hay chats todavía.<br>' +
+        'Agrega amigos o toca un jugador en el mapa → <b>Chatear</b>.</div>';
       return;
     }
 
@@ -396,6 +493,7 @@ const Chat = {
       const row = document.createElement('button');
       row.type = 'button';
       row.className = 'chat-row';
+      row.dataset.playerId = String(j.id);
       row.innerHTML =
         '<div class="avatar ' + (j.online ? 'online' : '') + '">' + this._avatarEmoji(j.name) + '</div>' +
         '<div class="chat-row-info">' +
@@ -411,8 +509,87 @@ const Chat = {
             : '') +
         '</div>';
       row.addEventListener('click', () => this.openConversation(j.id));
+      this._enlazarBorrarChat(row, j.id, j.name);
       lista.appendChild(row);
     }
+  },
+
+  _enlazarBorrarChat(row, playerId, nombre) {
+    let timer = null;
+    let longPress = false;
+    const iniciar = (e) => {
+      if (e.type === 'mousedown' && e.button !== 0) return;
+      clearTimeout(timer);
+      longPress = false;
+      timer = setTimeout(() => {
+        timer = null;
+        longPress = true;
+        row.classList.add('borrar-pulsado');
+        this._pedirBorrarChat(playerId, nombre);
+        setTimeout(() => row.classList.remove('borrar-pulsado'), 200);
+      }, 550);
+    };
+    const cancelar = () => {
+      clearTimeout(timer);
+      timer = null;
+    };
+    row.addEventListener('touchstart', iniciar, { passive: true });
+    row.addEventListener('touchend', cancelar);
+    row.addEventListener('touchmove', cancelar);
+    row.addEventListener('touchcancel', cancelar);
+    row.addEventListener('mousedown', iniciar);
+    row.addEventListener('mouseup', cancelar);
+    row.addEventListener('mouseleave', cancelar);
+    row.addEventListener('contextmenu', (e) => {
+      e.preventDefault();
+      longPress = true;
+      this._pedirBorrarChat(playerId, nombre);
+    });
+    row.addEventListener('click', (e) => {
+      if (!longPress) return;
+      e.preventDefault();
+      e.stopPropagation();
+      longPress = false;
+    }, true);
+  },
+
+  _pedirBorrarChat(playerId, nombre) {
+    const id = Number(playerId);
+    const esAmigo = typeof Amigos !== 'undefined' && Amigos.esAmigo(id);
+    const titulo = document.getElementById('chat-confirm-title');
+    const texto = document.getElementById('chat-confirm-text');
+    if (titulo) titulo.textContent = '¿Borrar chat?';
+    if (texto) {
+      texto.textContent = esAmigo
+        ? ('¿Borrar la conversación con ' + nombre + '? Seguirá en tus amigos.')
+        : ('¿Borrar el chat con ' + nombre + '? Dejará de aparecer en la lista.');
+    }
+    this._borrarChatPendiente = id;
+    document.getElementById('chat-overlay')?.classList.remove('oculto');
+  },
+
+  _cerrarConfirmBorrar() {
+    this._borrarChatPendiente = null;
+    document.getElementById('chat-overlay')?.classList.add('oculto');
+  },
+
+  _confirmarBorrarChat() {
+    const id = this._borrarChatPendiente;
+    this._cerrarConfirmBorrar();
+    if (!id) return;
+    this._ejecutarBorrarChat(id);
+  },
+
+  _ejecutarBorrarChat(playerId) {
+    const id = Number(playerId);
+    const esAmigo = typeof Amigos !== 'undefined' && Amigos.esAmigo(id);
+    delete this.chats[id];
+    delete this.unread[id];
+    if (!esAmigo) this.quitarContacto(id);
+    if (this.activePlayer === id) this.showList();
+    else this.renderChatList();
+    this._actualizarBadge();
+    Notificaciones.mostrar('Chat borrado', 'info', 2200);
   },
 
   _ultimoMensaje(playerId) {
@@ -537,23 +714,68 @@ const Chat = {
       Notificaciones.mostrar('Ya es tu amigo ★', 'info', 2500);
       return;
     }
-    Amigos.solicitar(this.activePlayer);
-    this.updateFriendButton();
+    if (Amigos.pendingOut.some(r => Number(r.toPlayerId) === this.activePlayer)) {
+      Notificaciones.mostrar('Ya enviaste solicitud de amistad', 'info', 2500);
+      return;
+    }
+    Amigos.solicitar(this.activePlayer).then(() => this.updateFriendButton());
     const jug = this._jugadoresDisponibles().find(j => j.id === this.activePlayer);
     this._estadoLinea('Solicitud de amistad enviada a ' + (jug?.name || 'jugador'));
   },
 
+  _solicitudEntrante() {
+    if (typeof Amigos === 'undefined' || !this.activePlayer) return null;
+    return Amigos.pendingIn.find(r => Number(r.fromPlayerId) === this.activePlayer) || null;
+  },
+
+  _aceptarSolicitudChat() {
+    const s = this._solicitudEntrante();
+    if (!s || typeof Amigos === 'undefined') return;
+    Amigos.aceptar(s.id).then(() => {
+      this.updateFriendButton();
+      this.renderChatList();
+      this._estadoLinea('Ahora son amigos ★');
+    });
+  },
+
+  _rechazarSolicitudChat() {
+    const s = this._solicitudEntrante();
+    if (!s || typeof Amigos === 'undefined') return;
+    Amigos.rechazar(s.id).then(() => {
+      this.updateFriendButton();
+      this._estadoLinea('Solicitud rechazada');
+    });
+  },
+
   updateFriendButton() {
-    const btn = document.getElementById('friendBtnChat');
-    if (!btn || !this.activePlayer) return;
-    const esAmigo = typeof Amigos !== 'undefined' && Amigos.esAmigo(this.activePlayer);
-    if (esAmigo) {
-      btn.classList.add('oculto');
+    const addBtn = document.getElementById('friendBtnChat');
+    const acceptBtn = document.getElementById('friendAcceptBtnChat');
+    const rejectBtn = document.getElementById('friendRejectBtnChat');
+    const pendingLbl = document.getElementById('friendPendingChat');
+    [addBtn, acceptBtn, rejectBtn, pendingLbl].forEach(el => el?.classList.add('oculto'));
+
+    if (!this.activePlayer || typeof Amigos === 'undefined') return;
+    const id = this.activePlayer;
+
+    if (Amigos.esAmigo(id) || Amigos.estaBloqueado(id)) return;
+
+    const entrante = this._solicitudEntrante();
+    if (entrante) {
+      acceptBtn?.classList.remove('oculto');
+      rejectBtn?.classList.remove('oculto');
       return;
     }
-    btn.classList.remove('oculto', 'friend-added');
-    btn.textContent = '👥';
-    btn.title = 'Agregar amigo';
+
+    if (Amigos.pendingOut.some(r => Number(r.toPlayerId) === id)) {
+      pendingLbl?.classList.remove('oculto');
+      return;
+    }
+
+    addBtn?.classList.remove('oculto', 'friend-added');
+    if (addBtn) {
+      addBtn.textContent = '👥';
+      addBtn.title = 'Agregar amigo';
+    }
   },
 
   openMapToSend() {
