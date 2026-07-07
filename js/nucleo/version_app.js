@@ -66,14 +66,17 @@ const MarielVersion = {
   },
 
   /** Aplica aviso temprano del script inline en index.html (evita condición de carrera). */
-  _aplicarPendienteInline() {
+  _aplicarPendienteInline(opts) {
+    const bloquear = opts?.bloquear !== false;
     const p = window.__MARIEL_UPDATE_PENDING;
     if (!p?.remote) return false;
     const rem = this._num(p.remote);
     const loc = this.versionCargada();
     if (rem <= loc) return false;
     this._remota = String(p.remote);
-    this.mostrarBloqueo(String(loc || p.local || '?'), String(p.remote));
+    if (bloquear) {
+      this.mostrarBloqueo(String(loc || p.local || '?'), String(p.remote));
+    }
     return true;
   },
 
@@ -237,8 +240,9 @@ const MarielVersion = {
     this._estadoActualizar('', false);
   },
 
-  revisar() {
-    if (this._aplicarPendienteInline()) return true;
+  revisar(opts) {
+    const bloquear = opts?.bloquear !== false;
+    if (this._aplicarPendienteInline({ bloquear })) return bloquear;
 
     const cargada = this.versionCargada();
     const remoto = this._remota;
@@ -250,8 +254,11 @@ const MarielVersion = {
     }
 
     if (r && r > cargada) {
-      this.mostrarBloqueo(String(cargada || '?'), String(r));
-      return true;
+      if (bloquear) {
+        this.mostrarBloqueo(String(cargada || '?'), String(r));
+        return true;
+      }
+      return false;
     }
 
     return this._bloqueado;
@@ -320,14 +327,15 @@ const MarielVersion = {
   async actualizar(opts) {
     if (this._actualizando) return { ok: false, error: 'en_curso' };
     this._actualizando = true;
+    const manual = !!opts?.manual;
 
     const onProg = (pct, txt) => {
-      if (txt) this._estadoActualizar(txt, true);
+      if (!manual && txt) this._estadoActualizar(txt, true);
       if (typeof opts?.onProgreso === 'function') opts.onProgreso(pct, txt);
     };
 
     const btn = document.getElementById('btn-actualizar-app');
-    if (btn) {
+    if (btn && !manual) {
       btn.disabled = true;
       btn.textContent = 'Actualizar';
     }
@@ -339,7 +347,7 @@ const MarielVersion = {
     } catch (e) { /* */ }
     objetivo = String(objetivo || this._remota || this._embebida || '');
     if (!objetivo || objetivo === '?') {
-      if (btn) btn.disabled = false;
+      if (btn && !manual) btn.disabled = false;
       onProg(0, 'No se pudo comprobar la versión. Reintenta.');
       this._actualizando = false;
       return { ok: false, error: 'sin_version' };
@@ -347,8 +355,8 @@ const MarielVersion = {
 
     const cargada = this.versionCargada();
     if (!this.necesitaActualizar(cargada, objetivo)) {
-      if (btn) btn.disabled = false;
-      this._estadoActualizar('', false);
+      if (btn && !manual) btn.disabled = false;
+      if (!manual) this._estadoActualizar('', false);
       onProg(100, 'Ya tienes la versión ' + objetivo);
       this._actualizando = false;
       return { ok: true, yaAlDia: true, version: objetivo };
@@ -376,18 +384,19 @@ const MarielVersion = {
     return { ok: true, version: objetivo };
   },
 
-  async comprobarRemota() {
-    await this._comprobarRemota();
+  async comprobarRemota(opts) {
+    await this._comprobarRemota(opts);
   },
 
-  async _comprobarRemota() {
+  async _comprobarRemota(opts) {
     if (this._comprobando) return;
     this._comprobando = true;
+    const bloquear = opts?.bloquear !== false;
     try {
-      if (this._aplicarPendienteInline()) return;
+      if (this._aplicarPendienteInline({ bloquear })) return;
       const remoto = await this.obtenerRemota();
       if (remoto) this._remota = remoto;
-      this.revisar();
+      this.revisar({ bloquear });
     } finally {
       this._comprobando = false;
     }
