@@ -585,9 +585,9 @@ const Multijugador = {
     }
     Guardado.guardarAhora();
     this.enviarStats(true);
-    if (typeof Notificaciones !== 'undefined') {
-      Notificaciones.mostrar('✏️ El administrador actualizó tu personaje', 'info', 5000);
-    }
+    // (Sin notificación: el servidor reenvía la partida a menudo con hora
+    //  nueva, así que el aviso "El administrador actualizó tu personaje"
+    //  salía en bucle. Se aplica el cambio en silencio.)
   },
 
   _aplicarPartidaServidor(data) {
