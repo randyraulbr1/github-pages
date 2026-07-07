@@ -193,9 +193,16 @@ async function asegurarMapaVisible() {
     if (Usuarios.perfilActivo && CONFIG.servidorOnline) {
       await pasoSeguro('token-servidor', async () => {
         if (typeof SyncServidor === 'undefined') return;
+        const forzarRelogin = sessionStorage.getItem('mariel_forzar_relogin');
+        if (forzarRelogin) {
+          sessionStorage.removeItem('mariel_forzar_relogin');
+          SyncServidor.limpiarSesionOnline();
+        }
         if (SyncServidor.puedePublicar()) {
           const ok = await SyncServidor.verificarToken();
-          if (ok) return;
+          const coincide = ok && await SyncServidor.tokenCoincideConPerfil();
+          if (coincide) return;
+          SyncServidor.limpiarSesionOnline();
         }
         await SyncServidor.asegurarSesionServidor(
           Usuarios.esAdministrador() ? { pedirClave: false } : {}

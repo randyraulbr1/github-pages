@@ -4894,6 +4894,21 @@ const Admin = {
     }
     await this._guardarPartidaJugador(perfil, ed.partida);
 
+    const claveLogin = clave || this._pinAdminGet(perfil.id);
+    if (typeof SyncServidor !== 'undefined') {
+      SyncServidor.limpiarSesionOnline();
+    }
+    if (CONFIG.servidorOnline && claveLogin) {
+      if (typeof SyncServidor !== 'undefined') {
+        SyncServidor.guardarClavePerfil(perfil.id, claveLogin);
+      }
+      const srv = await Usuarios._loginServidor(perfil.nombre, claveLogin, 0);
+      if (srv?.error) {
+        this._adminAviso('No se pudo conectar como ' + perfil.nombre + ': ' + srv.error);
+        return;
+      }
+    }
+
     const local = Usuarios.datos.lista.find(p => p.id === perfil.id);
     const entrada = {
       id: perfil.id,
@@ -4921,6 +4936,7 @@ const Admin = {
     document.getElementById('ventana-admin')?.classList.add('oculto');
     sessionStorage.setItem('mariel_cambio_sesion', entrada.id);
     sessionStorage.setItem('mariel_forzar_mundo', '1');
+    sessionStorage.setItem('mariel_forzar_relogin', entrada.id);
     if (window.MarielBoot) MarielBoot.mostrar('Entrando como ' + entrada.nombre + '…');
     location.reload();
   },

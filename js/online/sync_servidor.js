@@ -3,6 +3,8 @@
  */
 const SyncServidor = {
   TOKEN_KEY: 'mariel_online_token',
+  SESION_PERFIL_KEY: 'mariel_online_perfil_id',
+  SESION_PLAYER_KEY: 'mariel_online_player_id',
 
   _getToken() {
     try {
@@ -49,10 +51,103 @@ const SyncServidor = {
       nombres.push(Usuarios.perfilActivo.nombre);
     }
     if (typeof Usuarios !== 'undefined' && Usuarios.esAdministrador && Usuarios.esAdministrador()) {
-      if (CONFIG.adminNombre) nombres.push(CONFIG.adminNombre);
-      for (const a of (CONFIG.adminAlias || [])) nombres.push(a);
+      const p = Usuarios.perfilActivo;
+      const nom = String(p?.nombre || '').trim().toLowerCase();
+      const adm = String(CONFIG.adminNombre || '').trim().toLowerCase();
+      const alias = (CONFIG.adminAlias || []).map(a => String(a).toLowerCase());
+      const adminId = CONFIG.adminId || 'pmr7x4zhznzw5o';
+      const esCuentaAdmin = p?.id === adminId || nom === adm || alias.includes(nom);
+      if (esCuentaAdmin) {
+        if (CONFIG.adminNombre) nombres.push(CONFIG.adminNombre);
+        for (const a of (CONFIG.adminAlias || [])) nombres.push(a);
+      }
     }
     return [...new Set(nombres.map(n => String(n || '').trim()).filter(Boolean))];
+  },
+
+  _tokenPayload() {
+    try {
+      const t = this._getToken();
+      if (!t) return null;
+      return JSON.parse(atob(t.split('.')[1]));
+    } catch (e) {
+      return null;
+    }
+  },
+
+  marcarSesionOnline(datos) {
+    if (!datos) return;
+    try {
+      if (datos.perfilId) localStorage.setItem(this.SESION_PERFIL_KEY, String(datos.perfilId));
+      if (datos.playerId != null) localStorage.setItem(this.SESION_PLAYER_KEY, String(datos.playerId));
+    } catch (e) { /* */ }
+  },
+
+  limpiarSesionOnline() {
+    try {
+      localStorage.removeItem(this.TOKEN_KEY);
+      localStorage.removeItem(this.SESION_PERFIL_KEY);
+      localStorage.removeItem(this.SESION_PLAYER_KEY);
+    } catch (e) { /* */ }
+    if (typeof Multijugador !== 'undefined') {
+      if (Multijugador.socket) {
+        try {
+          Multijugador.socket.removeAllListeners();
+          Multijugador.socket.disconnect();
+        } catch (e) { /* */ }
+      }
+      Multijugador.socket = null;
+      Multijugador.activo = false;
+    }
+  },
+
+  tokenCoincideConPerfilSync() {
+    if (!this.puedePublicar() || typeof Usuarios === 'undefined' || !Usuarios.perfilActivo) {
+      return false;
+    }
+    const perfil = Usuarios.perfilActivo;
+    const payload = this._tokenPayload();
+    if (!payload?.playerId) return false;
+
+    const guardadoPerfilId = localStorage.getItem(this.SESION_PERFIL_KEY);
+    const guardadoPlayerId = localStorage.getItem(this.SESION_PLAYER_KEY);
+    if (guardadoPerfilId && guardadoPlayerId) {
+      return guardadoPerfilId === perfil.id &&
+        Number(guardadoPlayerId) === Number(payload.playerId);
+    }
+
+    const nombrePerfil = String(perfil.nombre || '').trim().toLowerCase();
+    const nombreToken = String(payload.username || '').trim().toLowerCase();
+    return perfil.id === 'srv_' + payload.playerId &&
+      nombrePerfil && nombreToken && nombrePerfil === nombreToken;
+  },
+
+  async tokenCoincideConPerfil() {
+    if (this.tokenCoincideConPerfilSync()) return true;
+    if (!this.puedePublicar() || typeof Usuarios === 'undefined' || !Usuarios.perfilActivo) {
+      return false;
+    }
+    const perfil = Usuarios.perfilActivo;
+    const payload = this._tokenPayload();
+    if (!payload?.playerId) return false;
+
+    const base = this._base();
+    if (!base) return false;
+    try {
+      const r = await Utilidades.fetchConTimeout(base + '/api/player/me', {
+        headers: { Authorization: 'Bearer ' + this._getToken() },
+        cache: 'no-store'
+      }, 12000);
+      if (!r.ok) return false;
+      const data = await r.json().catch(() => ({}));
+      const nombreSrv = String(data.player?.name || '').trim().toLowerCase();
+      const nombrePerfil = String(perfil.nombre || '').trim().toLowerCase();
+      if (!nombreSrv || nombreSrv !== nombrePerfil) return false;
+      this.marcarSesionOnline({ perfilId: perfil.id, playerId: payload.playerId });
+      return true;
+    } catch (e) {
+      return false;
+    }
   },
 
   guardarClavePerfil(perfilId, clave) {
@@ -156,6 +251,10 @@ const SyncServidor = {
       const srv = await Usuarios._loginServidor(usuario, clave, 0);
       if (srv && !srv.error && this._getToken()) {
         this.guardarClavePerfil(perfil.id, clave);
+        this.marcarSesionOnline({
+          perfilId: srv.perfil?.id || perfil.id,
+          playerId: srv.player?.id
+        });
         return true;
       }
     }
@@ -213,8 +312,11 @@ const SyncServidor = {
 
     if (this.puedePublicar()) {
       const valido = await this.verificarToken();
-      if (valido) return true;
-      localStorage.removeItem(this.TOKEN_KEY);
+      if (valido) {
+        const coincide = await this.tokenCoincideConPerfil();
+        if (coincide) return true;
+      }
+      this.limpiarSesionOnline();
     }
 
     const perfil = Usuarios.perfilActivo;

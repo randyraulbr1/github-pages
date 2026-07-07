@@ -239,6 +239,12 @@ const Usuarios = {
         (typeof Multijugador !== 'undefined' && Multijugador.TOKEN_KEY) || 'mariel_online_token',
         data.token
       );
+      if (typeof SyncServidor !== 'undefined') {
+        SyncServidor.marcarSesionOnline({
+          perfilId: data.perfil?.id,
+          playerId: data.player?.id
+        });
+      }
       return data;
     } catch (e) {
       if ((intento || 0) < 2) {
@@ -265,6 +271,12 @@ const Usuarios = {
         (typeof Multijugador !== 'undefined' && Multijugador.TOKEN_KEY) || 'mariel_online_token',
         data.token
       );
+      if (typeof SyncServidor !== 'undefined') {
+        SyncServidor.marcarSesionOnline({
+          perfilId: data.perfil?.id,
+          playerId: data.player?.id
+        });
+      }
       return data;
     } catch (e) {
       if ((intento || 0) < 2) {
@@ -572,7 +584,9 @@ const Usuarios = {
 
   cerrarSesion() {
     sessionStorage.removeItem('mariel_clave_servidor');
-    if (typeof Multijugador !== 'undefined' && Multijugador.socket) {
+    if (typeof SyncServidor !== 'undefined') {
+      SyncServidor.limpiarSesionOnline();
+    } else if (typeof Multijugador !== 'undefined' && Multijugador.socket) {
       Multijugador.socket.disconnect();
       Multijugador.activo = false;
     }

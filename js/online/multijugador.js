@@ -83,7 +83,12 @@ const Multijugador = {
 
     if (typeof SyncServidor !== 'undefined') {
       await SyncServidor.despertarServidor();
-      if (!localStorage.getItem(this.TOKEN_KEY) || !(await SyncServidor.verificarToken())) {
+      if (localStorage.getItem(this.TOKEN_KEY)) {
+        const valido = await SyncServidor.verificarToken();
+        const coincide = valido && await SyncServidor.tokenCoincideConPerfil();
+        if (!coincide) SyncServidor.limpiarSesionOnline();
+      }
+      if (!localStorage.getItem(this.TOKEN_KEY)) {
         await SyncServidor.asegurarSesionServidor({});
       }
     }
@@ -1844,6 +1849,10 @@ const Multijugador = {
 
   enviarPosicion(lat, lng, forzar) {
     if (!this.socket || !this.activo) return;
+    if (typeof SyncServidor !== 'undefined' && SyncServidor.puedePublicar() &&
+        !SyncServidor.tokenCoincideConPerfilSync()) {
+      return;
+    }
     const ahora = Date.now();
     if (!forzar && ahora - this._ultimoEnvio < 700) return;
     this._ultimoEnvio = ahora;
