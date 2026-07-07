@@ -83,7 +83,26 @@ const SyncServidor = {
     }
   },
 
-  /** Volcado forzado SQLite → GitHub (respaldo). */
+  /** Deja solo la cuenta admin en el servidor (borra el resto). */
+  async limpiarCuentas() {
+    const base = (CONFIG.servidorOnline || '').replace(/\/$/, '');
+    const token = localStorage.getItem(Multijugador.TOKEN_KEY);
+    if (!base || !token) {
+      return { ok: false, error: 'Inicia sesión como admin en el servidor.' };
+    }
+    try {
+      const r = await Utilidades.fetchConTimeout(base + '/api/player/limpiar-cuentas', {
+        method: 'POST',
+        headers: this._headers()
+      }, 25000);
+      const data = await r.json().catch(() => ({}));
+      if (r.ok && data.ok) return data;
+      return { ok: false, error: data.error || ('Error ' + r.status) };
+    } catch (e) {
+      return { ok: false, error: 'Sin conexión al servidor' };
+    }
+  },
+
   async sincronizarGitHub() {
     const base = (CONFIG.servidorOnline || '').replace(/\/$/, '');
     const token = localStorage.getItem(Multijugador.TOKEN_KEY);

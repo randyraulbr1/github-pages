@@ -108,9 +108,24 @@ async function arrancar() {
   }
 
   try {
-    const { restaurarMundoAlArranque, recuperarJugadoresPerdidos } = require('./importSnapshot');
+    const { restaurarMundoAlArranque, recuperarJugadoresPerdidos, leerMundoJson } = require('./importSnapshot');
     await restaurarMundoAlArranque();
     await recuperarJugadoresPerdidos();
+    const archivo = leerMundoJson();
+    if (archivo?.soloAdmin) {
+      const { dejarSoloAdminEnSnapshot } = require('./syncCuentas');
+      const { getWorldSnapshot } = require('./db');
+      const { pushMundoToGitHub } = require('./githubMundo');
+      const { respaldarJugadoresEnGitHub } = require('./jugadoresBackup');
+      const purge = await dejarSoloAdminEnSnapshot({ io });
+      console.log('[mundo] soloAdmin al arranque:', purge.eliminados?.join(', ') || 'ok');
+      const snap = getWorldSnapshot();
+      if (snap) {
+        delete snap.soloAdmin;
+        await pushMundoToGitHub(snap, { mensaje: 'solo admin tras purge' }).catch(() => {});
+        await respaldarJugadoresEnGitHub(snap).catch(() => {});
+      }
+    }
   } catch (e) {
     console.warn('   restaurarMundoAlArranque:', e.message);
   }

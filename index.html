@@ -16,7 +16,7 @@
   <link rel="stylesheet" href="css/notificaciones.css?v=117">
   <script>
     (function () {
-      var E = '170';
+      var E = '171';
       var CANON = 'https://raw.githubusercontent.com/randyraulbr1/github-pages/claude/web-rpg-gps-game-n3ybow/version.json';
       window.__MARIEL_EMBEDDED__ = E;
       function revisar(j) {
@@ -51,8 +51,8 @@
     </div>
   </div>
 
-  <script src="js/nucleo/version_app.js?v=170"></script>
-  <script>MarielVersion.iniciar('170');</script>
+  <script src="js/nucleo/version_app.js?v=171"></script>
+  <script>MarielVersion.iniciar('171');</script>
 
   <!-- PANTALLA DE CARGA (visible desde el primer instante) -->
   <div id="pantalla-carga">
@@ -661,6 +661,7 @@
           <div id="admin-vista-jugadores" class="admin-vista oculto">
             <div class="admin-jugadores-toolbar">
               <button type="button" id="admin-crear-jugador" class="btn-auth-principal admin-btn-toolbar">+ Crear jugador</button>
+              <button type="button" id="admin-limpiar-cuentas" class="fila-opcion admin-btn-toolbar" title="Borra todas las cuentas excepto randy">🗑️ Solo randy</button>
             </div>
             <input id="admin-buscar-jugador" type="search" placeholder="🔍 Buscar nombre, teléfono o ID…">
             <div class="admin-jugadores-tabs">
@@ -957,7 +958,7 @@
   <script src="lib/leaflet/leaflet.js?v=104"></script>
 
   <!-- MÓDULOS DEL JUEGO (orden importante) -->
-  <script src="js/config/config.js?v=170"></script>
+  <script src="js/config/config.js?v=171"></script>
   <script src="js/nucleo/utilidades.js?v=137"></script>
   <script src="js/mundo/mundo_publico.js?v=104"></script>
   <script src="js/notificaciones/notificaciones.js?v=137"></script>
@@ -992,7 +993,7 @@
   <script>
     // Registrar la app instalable (PWA)
     if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.register('sw.js?v=170', { updateViaCache: 'none' })
+      navigator.serviceWorker.register('sw.js?v=171', { updateViaCache: 'none' })
         .then(function (reg) {
           if (typeof MarielVersion !== 'undefined') MarielVersion.registrarServiceWorker(reg);
         })

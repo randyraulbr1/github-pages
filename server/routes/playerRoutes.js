@@ -14,7 +14,7 @@ const {
 } = require('../db');
 const { authMiddleware, gameAdminMiddleware, hashPassword } = require('../auth');
 const { syncMundoFromJson, actualizarPartidaEnSnapshot, registrarCuentaEnSnapshot } = require('../syncMundo');
-const { respaldarCuentasEnGitHub } = require('../syncCuentas');
+const { respaldarCuentasEnGitHub, dejarSoloAdminEnSnapshot } = require('../syncCuentas');
 const { restaurarJugadorSiExiste } = require('../recoveryCuentas');
 const { forcePushMundoActual } = require('../githubMundo');
 const { getSyncStatus } = require('../syncStatus');
@@ -96,6 +96,23 @@ router.post('/registrar-cuenta', authMiddleware, (req, res) => {
     });
   }
   res.json({ ok });
+});
+
+/** Admin: dejar solo cuenta randy — borra todas las demás */
+router.post('/limpiar-cuentas', authMiddleware, gameAdminMiddleware, async (req, res) => {
+  const io = req.app.get('io');
+  const r = await dejarSoloAdminEnSnapshot({ io });
+  const snap = getWorldSnapshot();
+  try {
+    const { pushMundoToGitHub } = require('../githubMundo');
+    const { respaldarJugadoresEnGitHub } = require('../jugadoresBackup');
+    await pushMundoToGitHub(snap, { mensaje: 'purge solo admin' });
+    await respaldarJugadoresEnGitHub(snap);
+  } catch (e) {
+    console.warn('[limpiar-cuentas] GitHub:', e.message);
+  }
+  registrar('admin_purge', 'Cuentas limpiadas — solo admin');
+  res.json(r);
 });
 
 /** Admin del juego: restaurar cuenta desde backup o papelera */

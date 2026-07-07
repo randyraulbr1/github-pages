@@ -1269,6 +1269,7 @@ const Admin = {
     enlazar('admin-opt-visibilidad', () => this.toggleOptimizacionVisibilidad());
     enlazar('admin-jugadores', () => this._listarCuentasAsync());
     enlazar('admin-crear-jugador', () => this._abrirCrearJugador());
+    enlazar('admin-limpiar-cuentas', () => this._limpiarCuentasUi());
     enlazar('btn-admin-crear-jugador-guardar', () => this._guardarCrearJugador());
     const chkInv = document.getElementById('admin-nuevo-inventario-default');
     if (chkInv) {
@@ -3575,6 +3576,26 @@ const Admin = {
   // ---------- CUENTAS REGISTRADAS (panel admin) ----------
   listarCuentas() {
     this._listarCuentasAsync();
+  },
+
+  async _limpiarCuentasUi() {
+    if (!this.esAdminJugador()) return;
+    if (!confirm('¿Borrar TODAS las cuentas excepto randy?\n\nNo se puede deshacer. Luego creas jugadores nuevos desde aquí o desde el teléfono.')) return;
+    if (typeof SyncServidor === 'undefined' || !SyncServidor.puedePublicar()) {
+      this._adminAviso('Inicia sesión en el servidor primero.', 'error');
+      return;
+    }
+    const r = await SyncServidor.limpiarCuentas();
+    if (r.ok) {
+      const n = (r.eliminados || []).length;
+      Notificaciones.mostrar(
+        '🗑️ Cuentas eliminadas' + (n ? ': ' + r.eliminados.join(', ') : '') + ' — solo queda randy',
+        'exito', 8000
+      );
+      this._listarCuentasAsync({ soloRefrescar: true, sinServidor: true });
+    } else {
+      this._adminAviso('No se pudo limpiar: ' + (r.error || 'error'), 'error');
+    }
   },
 
   async _listarCuentasAsync(opciones) {
