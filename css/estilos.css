@@ -1526,6 +1526,54 @@ body.mariel-bloqueado-actualizar #pantalla-actualizar {
   padding: 12px 10px 5px;
   font-size: 10px;
 }
+.admin-sync-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.admin-sync-wrap .fila-opcion { width: 100%; }
+.indicador-sincronizar {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding: 0 4px 2px;
+}
+.indicador-sincronizar.oculto { display: none; }
+.indicador-sincronizar-linea {
+  display: block;
+  width: 100%;
+  height: 3px;
+  border-radius: 3px;
+  background: linear-gradient(90deg, #38bdf8, #60a5fa, #38bdf8);
+  background-size: 200% 100%;
+  animation: indicador-sync-pulso 1s linear infinite;
+}
+.indicador-sincronizar.estado-ok .indicador-sincronizar-linea {
+  animation: none;
+  background: #4ade80;
+  background-size: 100% 100%;
+}
+.indicador-sincronizar.estado-error .indicador-sincronizar-linea {
+  animation: none;
+  background: #f87171;
+  background-size: 100% 100%;
+}
+.indicador-sincronizar-texto {
+  font-size: 10px;
+  line-height: 1.2;
+  color: rgba(255, 255, 255, 0.72);
+  text-align: center;
+}
+.indicador-sincronizar.estado-ok .indicador-sincronizar-texto { color: #86efac; }
+.indicador-sincronizar.estado-error .indicador-sincronizar-texto { color: #fca5a5; }
+@keyframes indicador-sync-pulso {
+  0% { background-position: 0% 50%; }
+  100% { background-position: 200% 50%; }
+}
+#admin-publicar:disabled {
+  opacity: 0.55;
+  pointer-events: none;
+}
 .admin-panel-derecho {
   flex: 1;
   display: flex;
