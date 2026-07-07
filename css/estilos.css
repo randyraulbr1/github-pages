@@ -1846,7 +1846,7 @@ body.mariel-bloqueado-actualizar #pantalla-actualizar {
   overflow: hidden;
   background: rgba(0, 0, 0, .35);
   border-radius: 3px;
-  transition: width .22s ease, height .22s ease, border-radius .22s ease;
+  transition: none;
 }
 .marcador-enemigo-map .mjo-vida-num {
   display: none;
