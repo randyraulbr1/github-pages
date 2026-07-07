@@ -730,8 +730,9 @@ const Admin = {
 
   async _asegurarTokenServidor(pedirClave) {
     if (typeof SyncServidor === 'undefined') return false;
-    await SyncServidor.despertarServidor();
-    if (SyncServidor.puedePublicar()) return true;
+    if (SyncServidor.puedePublicar()) {
+      if (await SyncServidor.verificarToken()) return true;
+    }
     return SyncServidor.asegurarSesionServidor(pedirClave ? { pedirClave: true } : {});
   },
 
@@ -4845,10 +4846,10 @@ const Admin = {
       if (typeof SyncServidor !== 'undefined') {
         await SyncServidor.despertarServidor();
       }
-      if (typeof SyncServidor !== 'undefined' && !SyncServidor.puedePublicar()) {
+      if (typeof SyncServidor !== 'undefined') {
         const okSesion = await SyncServidor.asegurarSesionServidor({ pedirClave: true });
         if (!okSesion) {
-          errorMsg = 'No se pudo conectar';
+          errorMsg = 'Sin sesión en el servidor — escribe tu contraseña';
           return;
         }
       }
@@ -4882,12 +4883,15 @@ const Admin = {
       this._ultimoErrorPub = 'Solo el administrador puede sincronizar';
       return false;
     }
-    if (typeof SyncServidor !== 'undefined' && !SyncServidor.puedePublicar()) {
+    if (typeof SyncServidor !== 'undefined') {
+      const pedirClave = !silencioso;
       const okSesion = await SyncServidor.asegurarSesionServidor(
-        silencioso && !opts?.soloSync ? {} : { pedirClave: true }
+        pedirClave ? { pedirClave: true } : {}
       );
       if (!okSesion) {
-        this._ultimoErrorPub = 'No se pudo conectar al servidor';
+        this._ultimoErrorPub = pedirClave
+          ? 'Sin sesión en el servidor — escribe tu contraseña'
+          : 'Sin sesión en el servidor';
         return false;
       }
     }
@@ -4940,9 +4944,16 @@ const Admin = {
     const json = JSON.stringify(adminLocal, (clave, valor) =>
       clave.startsWith('_') ? undefined : valor, 2);
 
-    if (!CONFIG.servidorOnline || typeof SyncServidor === 'undefined' || !SyncServidor.puedePublicar()) {
-      this._ultimoErrorPub = 'Sin conexión al servidor';
+    if (!CONFIG.servidorOnline || typeof SyncServidor === 'undefined') {
+      this._ultimoErrorPub = 'Servidor no configurado';
       return false;
+    }
+    if (!SyncServidor.puedePublicar()) {
+      const okSesion = await SyncServidor.asegurarSesionServidor({ pedirClave: !silencioso });
+      if (!okSesion) {
+        this._ultimoErrorPub = 'Sin sesión en el servidor — escribe tu contraseña';
+        return false;
+      }
     }
 
     const resultado = await SyncServidor.publicar(json);
