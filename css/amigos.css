@@ -56,22 +56,99 @@
 }
 
 #ventana-amigos .panel-content {
-  padding: 12px 14px 14px;
-  overflow-y: auto;
+  padding: 10px 12px 12px;
+  overflow: hidden;
   flex: 1;
   min-height: 0;
-  scrollbar-width: thin;
-  scrollbar-color: #6f7783 rgba(0, 0, 0, 0.16);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
 }
 
-#ventana-amigos .panel-content::-webkit-scrollbar { width: 6px; }
-#ventana-amigos .panel-content::-webkit-scrollbar-track {
+#ventana-amigos .amigos-seccion-lista {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+#ventana-amigos .amigos-lista-scroll {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: #6f7783 rgba(0, 0, 0, 0.16);
+  padding-right: 2px;
+}
+
+#ventana-amigos .amigos-lista-scroll::-webkit-scrollbar { width: 6px; }
+#ventana-amigos .amigos-lista-scroll::-webkit-scrollbar-track {
   background: rgba(0, 0, 0, 0.1);
   border-radius: 999px;
 }
-#ventana-amigos .panel-content::-webkit-scrollbar-thumb {
+#ventana-amigos .amigos-lista-scroll::-webkit-scrollbar-thumb {
   background: #6a7280;
   border-radius: 999px;
+}
+
+#ventana-amigos .amigos-carpeta {
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  border-radius: 10px;
+  background: rgba(0, 0, 0, 0.12);
+  overflow: hidden;
+}
+
+#ventana-amigos .amigos-carpeta-compact {
+  flex-shrink: 0;
+}
+
+#ventana-amigos .amigos-carpeta-sum {
+  list-style: none;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 32px;
+  padding: 6px 10px;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.82);
+  cursor: pointer;
+  user-select: none;
+}
+
+#ventana-amigos .amigos-carpeta-sum::-webkit-details-marker { display: none; }
+
+#ventana-amigos .amigos-carpeta-sum::after {
+  content: '▸';
+  margin-left: auto;
+  font-size: 11px;
+  opacity: 0.75;
+  transition: transform 0.15s ease;
+}
+
+#ventana-amigos .amigos-carpeta[open] .amigos-carpeta-sum::after {
+  transform: rotate(90deg);
+}
+
+#ventana-amigos .amigos-carpeta-inner {
+  padding: 0 8px 8px;
+}
+
+#ventana-amigos .amigos-titulo-lista {
+  margin: 0;
+  font-size: 11px;
+}
+
+#ventana-amigos .count-inline {
+  font-size: 11px;
+  font-weight: 700;
+  color: #dce3ee;
+  text-transform: none;
+  letter-spacing: 0;
+  margin-left: 4px;
 }
 
 #ventana-amigos .section-title {
@@ -85,60 +162,70 @@
 }
 
 #ventana-amigos .add-box {
-  background: rgba(0, 0, 0, 0.14);
-  border: 1px solid rgba(255, 255, 255, 0.09);
-  border-radius: 12px;
-  padding: 10px;
-  margin-bottom: 14px;
+  background: transparent;
+  border: 0;
+  border-radius: 0;
+  padding: 0;
+  margin: 0;
 }
 
 #ventana-amigos .add-row,
 #ventana-amigos .search-row {
   display: flex;
-  gap: 8px;
+  gap: 6px;
   align-items: stretch;
 }
 
 #ventana-amigos .search-row {
-  margin-bottom: 10px;
+  margin-bottom: 0;
+}
+
+#ventana-amigos .amigos-carpeta-inner input,
+#ventana-amigos .add-row input {
+  flex: 1;
+  min-width: 0;
+  min-height: 32px;
+  border-radius: 8px;
+  border: 1px solid rgba(0, 0, 0, 0.12);
+  background: #edf1f6;
+  color: #111;
+  padding: 0 10px;
+  font-size: 14px;
 }
 
 #ventana-amigos input {
   flex: 1;
   min-width: 0;
-  min-height: 38px;
-  border-radius: 10px;
+  min-height: 32px;
+  border-radius: 8px;
   border: 1px solid rgba(0, 0, 0, 0.12);
   background: #edf1f6;
   color: #111;
-  padding: 0 12px;
-  font-size: 16px;
+  padding: 0 10px;
+  font-size: 14px;
 }
 
 #ventana-amigos input::placeholder {
   color: #6b7280;
-  font-size: 14px;
+  font-size: 12px;
 }
 
 #ventana-amigos .add-btn {
-  width: 40px;
-  min-height: 38px;
+  width: 32px;
+  min-height: 32px;
   flex-shrink: 0;
-  border-radius: 10px;
+  border-radius: 8px;
   border: 1px solid #2f6cb0;
   background: linear-gradient(180deg, #69a7ff, #366db5);
   color: white;
-  font-size: 20px;
+  font-size: 17px;
   font-weight: 800;
   cursor: pointer;
   line-height: 1;
 }
 
 #ventana-amigos .count {
-  color: #dce3ee;
-  font-size: 12px;
-  font-weight: 700;
-  margin: -2px 0 8px;
+  display: none;
 }
 
 #ventana-amigos .friends-list {
@@ -312,15 +399,15 @@
 #ventana-amigos .menu-item.fav-activo { color: #ffe985; }
 
 #ventana-amigos .amigos-pendientes {
-  margin-bottom: 12px;
-  padding: 10px;
-  border-radius: 12px;
+  margin-bottom: 8px;
+  padding: 8px;
+  border-radius: 10px;
   background: rgba(0, 0, 0, 0.14);
   border: 1px solid rgba(255, 214, 10, 0.18);
 }
 
 #ventana-amigos .amigos-pendientes-titulo {
-  font-size: 10px;
+  font-size: 9px;
   font-weight: 800;
   letter-spacing: 0.05em;
   margin-bottom: 8px;
@@ -328,13 +415,13 @@
 }
 
 #ventana-amigos .amigos-bloqueados {
-  margin-top: 14px;
-  padding-top: 12px;
+  margin-top: 8px;
+  padding-top: 8px;
   border-top: 1px solid rgba(255, 255, 255, 0.09);
 }
 
 #ventana-amigos .amigos-bloqueados-titulo {
-  font-size: 10px;
+  font-size: 9px;
   font-weight: 800;
   letter-spacing: 0.05em;
   margin-bottom: 8px;
@@ -457,17 +544,18 @@
   }
 
   #ventana-amigos .panel-content {
-    padding: 14px 16px 16px;
+    padding: 12px 14px 14px;
+    gap: 9px;
   }
 
-  #ventana-amigos .section-title {
+  #ventana-amigos .amigos-carpeta-sum {
+    min-height: 34px;
     font-size: 11px;
-    margin-bottom: 9px;
   }
 
   #ventana-amigos .add-box {
-    margin-bottom: 16px;
-    padding: 11px;
+    margin-bottom: 0;
+    padding: 0;
   }
 
   #ventana-amigos .friend-card {
@@ -504,27 +592,17 @@
   }
 
   #ventana-amigos .panel-content {
-    padding: 16px 18px 18px;
+    padding: 14px 16px 16px;
   }
 
-  #ventana-amigos .panel-title {
-    font-size: 17px;
-  }
-
-  #ventana-amigos .friend-name {
-    font-size: 14px;
-  }
-
-  #ventana-amigos .pop-menu {
-    width: 188px;
-  }
-
-  #ventana-amigos input {
-    min-height: 40px;
+  #ventana-amigos input,
+  #ventana-amigos .amigos-carpeta-inner input,
+  #ventana-amigos .add-row input {
+    min-height: 34px;
   }
 
   #ventana-amigos .add-btn {
-    width: 42px;
-    min-height: 40px;
+    width: 34px;
+    min-height: 34px;
   }
 }

@@ -491,8 +491,6 @@ const Amigos = {
         '<button type="button" class="popup-jugador-amigo-btn' + (marcado ? ' activo' : '') +
         '" data-accion="marcar" data-id="' + id + '">' +
         (marcado ? '📍 Pin en mapa' : '📍 Marcar en mapa') + '</button>';
-      secundario =
-        '<button type="button" class="popup-jugador-link" data-accion="quitar" data-id="' + id + '">Quitar amigo</button>';
     } else if (this.pendingOut.some(r => Number(r.toPlayerId) === id)) {
       principal = btnChat + '<div class="popup-jugador-pendiente">⏳ Solicitud enviada</div>';
     } else if (this.estaBloqueado(id)) {

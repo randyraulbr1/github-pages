@@ -149,6 +149,9 @@ button { font-family: inherit; }
 #contenedor-hambre .barra-texto-int,
 #contenedor-xp .barra-texto-int {
   font-size: 8px;
+  left: 6px;
+  right: 6px;
+  padding: 0 1px;
 }
 
 #contenedor-dinero, #contenedor-vida, #contenedor-hambre, #contenedor-xp {
@@ -167,6 +170,8 @@ button { font-family: inherit; }
   height: 8px;
   border-radius: 2px;
   background: rgba(0,0,0,.35);
+  margin-left: -1px;
+  margin-right: -1px;
 }
 #dinero-relleno {
   position: absolute; inset: 0; width: 0;
@@ -1846,7 +1851,7 @@ body.mariel-bloqueado-actualizar #pantalla-actualizar {
   overflow: hidden;
   background: rgba(0, 0, 0, .35);
   border-radius: 3px;
-  transition: width .22s ease, height .22s ease, border-radius .22s ease;
+  transition: none;
 }
 .marcador-enemigo-map .mjo-vida-num {
   display: none;

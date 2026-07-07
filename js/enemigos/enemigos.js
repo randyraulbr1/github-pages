@@ -56,13 +56,37 @@ const Enemigos = {
     return Utilidades.distanciaMetros(GPS.posicion, pos);
   },
 
-  /** Histéresis para no parpadear la barra numérica en el borde del círculo. */
-  _jugadorEnZonaParaBarra(e) {
+  /** Histéresis: barra grande solo con jugador en zona roja; pequeña al salir o enemigo en spawn. */
+  _estadoBarraEnemigo(e) {
+    if (this._estaInvisible() || !GPS.posicion) {
+      return { enZona: false, vidaGrande: false };
+    }
     const d = this._distanciaJugadorEnemigo(e);
     const r = this._radioZona(e);
-    const margen = 5;
-    if (e._vidaGrande) return d <= r + margen;
-    return d <= r;
+    const MARGEN_SALIDA = 14;
+    const enZona = d <= r;
+    let vidaGrande = false;
+    if (e._vidaGrande) {
+      vidaGrande = d <= r + MARGEN_SALIDA;
+    } else {
+      vidaGrande = d <= r;
+    }
+    if (e.posOrigen?.length >= 2) {
+      const pos = this._posDesdeMarcador(e) || e.pos;
+      const enSpawn = Utilidades.distanciaMetros(pos, e.posOrigen) <= 3;
+      if (enSpawn && d > r) vidaGrande = false;
+    }
+    if (this._online() && e.facingDeg == null && d > r) {
+      vidaGrande = false;
+    }
+    return { enZona, vidaGrande };
+  },
+
+  _aplicarEstadoBarraEnemigo(e) {
+    const st = this._estadoBarraEnemigo(e);
+    e._enZona = st.enZona;
+    e._vidaGrande = st.vidaGrande;
+    return st;
   },
 
   _marcadorVisible(id) {
@@ -750,15 +774,11 @@ const Enemigos = {
       if (data?.targetPlayerId != null) {
         e._targetPlayerId = data.targetPlayerId;
       }
-      if (typeof GPS !== 'undefined' && GPS.posicion) {
-        const dLoc = this._distanciaJugadorEnemigo(e);
-        e._enZona = dLoc <= this._radioZona(e);
-        e._vidaGrande = this._jugadorEnZonaParaBarra(e);
-      }
     }
 
     if (!this._marcadores[origenId]) this._crearEnMapa(e);
     else {
+      this._aplicarEstadoBarraEnemigo(e);
       this._actualizarConoDOM(e);
       this._actualizarBarra(e);
     }
@@ -783,11 +803,12 @@ const Enemigos = {
 
   _actualizarMarcador(e) {
     const m = this._marcadores[e.id];
-    if (m) {
-      m.setLatLng(e.pos);
-      this._refrescarIconoMarcador(e);
-    }
+    if (m) m.setLatLng(e.pos);
     this._sincronizarZonas(e);
+    const d = this._distanciaJugadorEnemigo(e);
+    this._aplicarEstadoBarraEnemigo(e);
+    this._actualizarVisibilidadZonas(e, d);
+    this._actualizarConoDOM(e);
     this._actualizarBarra(e);
   },
 
@@ -1167,10 +1188,9 @@ const Enemigos = {
 
       const radioZona = this._radioZona(e);
       const radioAtaque = this._radioAtaque(e);
-      const enZona = !invisible && d <= radioZona;
+      const stBarra = this._aplicarEstadoBarraEnemigo(e);
+      const enZona = stBarra.enZona;
       const enAtaque = !invisible && d <= radioAtaque;
-      e._enZona = enZona;
-      e._vidaGrande = !invisible && this._jugadorEnZonaParaBarra(e);
       this._actualizarVisibilidadZonas(e, d);
 
       if (online) {

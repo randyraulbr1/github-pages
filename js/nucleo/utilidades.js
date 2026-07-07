@@ -3,6 +3,25 @@
 // ============================================================
 const Utilidades = {
 
+  desplazarMetros(pos, metros, bearingDeg) {
+    if (!pos || pos.length < 2) return pos;
+    const m = Math.max(0, metros || 0);
+    if (m <= 0) return pos.slice();
+    const br = ((bearingDeg != null ? bearingDeg : Math.random() * 360) * Math.PI) / 180;
+    const R = 6371000;
+    const lat1 = pos[0] * Math.PI / 180;
+    const lon1 = pos[1] * Math.PI / 180;
+    const d = m / R;
+    const lat2 = Math.asin(
+      Math.sin(lat1) * Math.cos(d) + Math.cos(lat1) * Math.sin(d) * Math.cos(br)
+    );
+    const lon2 = lon1 + Math.atan2(
+      Math.sin(br) * Math.sin(d) * Math.cos(lat1),
+      Math.cos(d) - Math.sin(lat1) * Math.sin(lat2)
+    );
+    return [lat2 * 180 / Math.PI, lon2 * 180 / Math.PI];
+  },
+
   // Distancia en metros entre dos puntos [lat, lon] (fórmula haversine)
   distanciaMetros(a, b) {
     const R = 6371000;
