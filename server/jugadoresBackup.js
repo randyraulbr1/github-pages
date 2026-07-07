@@ -46,7 +46,6 @@ async function respaldarJugadoresEnGitHub(mundo) {
     );
     const partidaSnap = partidas[adminJugador.id];
     if (partidaSnap) adminArchivo.partida = partidaSnap;
-    adminArchivo.actualizadoEn = Date.now();
     const adminRes = await putArchivoGitHubSiCambio(
       'datos/jugadores/admin.json',
       adminArchivo,

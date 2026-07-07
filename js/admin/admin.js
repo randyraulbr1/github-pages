@@ -1261,6 +1261,8 @@ const Admin = {
     enlazar('admin-precios', () => this.abrirFormulario('precio'));
     enlazar('admin-item-nuevo', () => this.abrirFormulario('item_nuevo'));
     enlazar('admin-mantenimiento', () => this.abrirMantenimiento());
+    enlazar('admin-sync-github', () => this.abrirSyncGitHub());
+    enlazar('btn-admin-sync-github', () => this._forzarSyncGitHubUi());
     enlazar('admin-mensaje', () => this.abrirMensaje());
     enlazar('admin-organizar', () => this.entrarModo('organizar'));
     enlazar('admin-mover-pin', () => this.toggleMoverPinJugador());
@@ -3410,6 +3412,70 @@ const Admin = {
     Notificaciones.mostrar('🟢 Mantenimiento desactivado', 'exito', 5000);
     this._publicarParaTodos(true);
     this._volverAlPanel();
+  },
+
+  async abrirSyncGitHub() {
+    this._mostrarPanelDerecho('admin-vista-sync-github', '☁️ Respaldo GitHub');
+    await this._pintarEstadoSyncGitHub();
+  },
+
+  async _pintarEstadoSyncGitHub() {
+    const est = document.getElementById('admin-sync-estado');
+    const det = document.getElementById('admin-sync-detalle');
+    if (!est) return;
+    if (typeof SyncServidor === 'undefined' || !SyncServidor.puedePublicar()) {
+      est.textContent = '⚠️ Inicia sesión en el servidor para sincronizar.';
+      est.className = 'admin-clave-estado';
+      if (det) det.textContent = '';
+      return;
+    }
+    est.textContent = 'Consultando servidor…';
+    const data = await SyncServidor.obtenerEstadoSync();
+    if (!data?.status) {
+      est.textContent = '⚠️ No se pudo leer el estado del servidor.';
+      est.className = 'admin-clave-estado';
+      if (det) det.textContent = '';
+      return;
+    }
+    const s = data.status;
+    const ok = s.ultimaSyncOk;
+    if (ok) {
+      const hace = Math.round((Date.now() - ok.at) / 60000);
+      est.textContent = '✅ Última sync GitHub: hace ' + hace + ' min';
+      est.className = 'admin-clave-estado ok';
+    } else {
+      est.textContent = '⚠️ Aún no hay sync exitosa registrada';
+      est.className = 'admin-clave-estado';
+    }
+    const lineas = [
+      'Jugadores en servidor: ' + (s.jugadores ?? '?'),
+      'Objetos: ' + (s.objetos ?? '?') + ' · Enemigos: ' + (s.enemigos ?? '?'),
+      'Token GitHub: ' + (s.tokenValido === true ? '✅' : s.tokenValido === false ? '❌' : '?')
+    ];
+    if (s.ultimoError) {
+      lineas.push('Último error: ' + s.ultimoError.error);
+    }
+    if (det) det.textContent = lineas.join('\n');
+  },
+
+  async _forzarSyncGitHubUi() {
+    const btn = document.getElementById('btn-admin-sync-github');
+    if (typeof SyncServidor === 'undefined' || !SyncServidor.puedePublicar()) {
+      this._adminAviso('Inicia sesión en el servidor primero.', 'error');
+      return;
+    }
+    if (btn) { btn.disabled = true; btn.textContent = 'Sincronizando…'; }
+    try {
+      const r = await SyncServidor.sincronizarGitHub();
+      if (r.ok) {
+        Notificaciones.mostrar('☁️ Respaldo en GitHub actualizado', 'exito', 6000);
+        await this._pintarEstadoSyncGitHub();
+      } else {
+        this._adminAviso('No se pudo sincronizar: ' + (r.error || r.reason || 'error'), 'error');
+      }
+    } finally {
+      if (btn) { btn.disabled = false; btn.textContent = '☁️ Sincronizar con GitHub ahora'; }
+    }
   },
 
   enviarMensaje() { this.abrirMensaje(); },
