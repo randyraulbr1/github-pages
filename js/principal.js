@@ -209,6 +209,7 @@ async function esperarMundoEnMapa() {
     Cofres.iniciar();
     await pasoSeguro('admin', () => { Admin.iniciar(); });
     await pasoSeguro('opciones', () => { Opciones.iniciar(); });
+    if (typeof Amigos !== 'undefined') Amigos.iniciarUI();
     Mapa.restaurarVista();
 
     document.querySelectorAll('.btn-cerrar').forEach(b => {
