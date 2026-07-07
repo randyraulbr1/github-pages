@@ -297,9 +297,14 @@ const MarielVersion = {
     await Promise.all(urls.map(u => fetch(u, opts).catch(() => null)));
   },
 
-  async actualizar() {
-    if (this._actualizando) return;
+  async actualizar(opts) {
+    if (this._actualizando) return { ok: false, error: 'en_curso' };
     this._actualizando = true;
+
+    const onProg = (pct, txt) => {
+      if (txt) this._estadoActualizar(txt, true);
+      if (typeof opts?.onProgreso === 'function') opts.onProgreso(pct, txt);
+    };
 
     const btn = document.getElementById('btn-actualizar-app');
     if (btn) {
@@ -307,7 +312,7 @@ const MarielVersion = {
       btn.textContent = 'Actualizar';
     }
 
-    this._estadoActualizar('Comprobando versión…', true);
+    onProg(8, 'Comprobando versión…');
     let objetivo = null;
     try {
       objetivo = await this.obtenerRemota();
@@ -315,9 +320,18 @@ const MarielVersion = {
     objetivo = String(objetivo || this._remota || this._embebida || '');
     if (!objetivo || objetivo === '?') {
       if (btn) btn.disabled = false;
-      this._estadoActualizar('No se pudo comprobar la versión. Reintenta.', true);
+      onProg(0, 'No se pudo comprobar la versión. Reintenta.');
       this._actualizando = false;
-      return;
+      return { ok: false, error: 'sin_version' };
+    }
+
+    const cargada = this.versionCargada();
+    if (!this.necesitaActualizar(cargada, objetivo)) {
+      if (btn) btn.disabled = false;
+      this._estadoActualizar('', false);
+      onProg(100, 'Ya tienes la versión ' + objetivo);
+      this._actualizando = false;
+      return { ok: true, yaAlDia: true, version: objetivo };
     }
 
     this._remota = objetivo;
@@ -328,17 +342,18 @@ const MarielVersion = {
     } catch (e) { /* */ }
 
     this._prepararLoginTrasActualizacion();
-    this._estadoActualizar('Limpiando caché…', true);
+    onProg(28, 'Limpiando caché…');
     await this._limpiarTodaCache();
 
-    this._estadoActualizar('Descargando v' + objetivo + '…', true);
+    onProg(58, 'Descargando v' + objetivo + '…');
     await this._precargarVersion(objetivo);
 
-    this._estadoActualizar('Listo — iniciar sesión…', true);
+    onProg(92, 'Listo — iniciar sesión…');
     await new Promise((r) => setTimeout(r, 350));
 
     const url = location.origin + '/?_mariel=' + Date.now();
     location.replace(url);
+    return { ok: true, version: objetivo };
   },
 
   async comprobarRemota() {
