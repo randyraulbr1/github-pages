@@ -83,6 +83,54 @@ const SyncServidor = {
     }
   },
 
+  /** Volcado forzado SQLite → GitHub (respaldo). */
+  async sincronizarGitHub() {
+    const base = (CONFIG.servidorOnline || '').replace(/\/$/, '');
+    const token = localStorage.getItem(Multijugador.TOKEN_KEY);
+    if (!base || !token) {
+      return { ok: false, error: 'Inicia sesión como admin en el servidor.' };
+    }
+    for (let intento = 0; intento < 3; intento++) {
+      try {
+        const r = await Utilidades.fetchConTimeout(base + '/api/player/force-git-sync', {
+          method: 'POST',
+          headers: this._headers()
+        }, 20000);
+        const data = await r.json().catch(() => ({}));
+        if (r.ok && data.ok) return data;
+        if (intento < 2) {
+          await new Promise(res => setTimeout(res, 2000 * (intento + 1)));
+          continue;
+        }
+        return { ok: false, error: data.error || data.reason || ('Error ' + r.status) };
+      } catch (e) {
+        if (intento < 2) {
+          await new Promise(res => setTimeout(res, 2000 * (intento + 1)));
+          continue;
+        }
+        return { ok: false, error: 'Sin conexión al servidor' };
+      }
+    }
+    return { ok: false, error: 'Sin conexión al servidor' };
+  },
+
+  /** Estado de la última sync a GitHub (solo admin). */
+  async obtenerEstadoSync() {
+    const base = (CONFIG.servidorOnline || '').replace(/\/$/, '');
+    const token = localStorage.getItem(Multijugador.TOKEN_KEY);
+    if (!base || !token) return null;
+    try {
+      const r = await Utilidades.fetchConTimeout(base + '/api/player/sync-status', {
+        headers: this._headers(),
+        cache: 'no-store'
+      }, 10000);
+      const data = await r.json().catch(() => ({}));
+      return data.ok ? data : null;
+    } catch (e) {
+      return null;
+    }
+  },
+
   /** Descarga el mundo desde SQLite (público o autenticado). */
   async obtenerMundo() {
     const base = (CONFIG.servidorOnline || '').replace(/\/$/, '');

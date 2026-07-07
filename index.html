@@ -16,7 +16,7 @@
   <link rel="stylesheet" href="css/notificaciones.css?v=117">
   <script>
     (function () {
-      var E = '169';
+      var E = '170';
       var CANON = 'https://raw.githubusercontent.com/randyraulbr1/github-pages/claude/web-rpg-gps-game-n3ybow/version.json';
       window.__MARIEL_EMBEDDED__ = E;
       function revisar(j) {
@@ -51,8 +51,8 @@
     </div>
   </div>
 
-  <script src="js/nucleo/version_app.js?v=169"></script>
-  <script>MarielVersion.iniciar('169');</script>
+  <script src="js/nucleo/version_app.js?v=170"></script>
+  <script>MarielVersion.iniciar('170');</script>
 
   <!-- PANTALLA DE CARGA (visible desde el primer instante) -->
   <div id="pantalla-carga">
@@ -642,6 +642,7 @@
           <div class="admin-seccion-titulo">🌍 Servidor</div>
           <button class="fila-opcion admin-nav" id="admin-mantenimiento"><span class="icono-opcion">🚧</span> Mantenimiento: <span id="admin-mant-nav-texto">OFF</span></button>
           <button class="fila-opcion admin-nav" id="admin-publicar"><span class="icono-opcion">🔄</span> Sincronizar</button>
+          <button class="fila-opcion admin-nav" id="admin-sync-github"><span class="icono-opcion">☁️</span> Respaldo GitHub</button>
         </nav>
 
         <aside id="admin-panel-derecho" class="admin-panel-derecho oculto">
@@ -800,6 +801,15 @@
             </div>
           </div>
 
+          <div id="admin-vista-sync-github" class="admin-vista oculto">
+            <div class="admin-clave-cuerpo">
+              <p class="admin-clave-ayuda">Sube el mundo del servidor (SQLite) a GitHub como respaldo. El juego en vivo usa el servidor; GitHub es copia de seguridad.</p>
+              <p id="admin-sync-estado" class="admin-clave-estado">Cargando estado…</p>
+              <p id="admin-sync-detalle" class="admin-clave-ayuda" style="font-size:12px;word-break:break-all;"></p>
+              <button type="button" id="btn-admin-sync-github" class="btn-auth-principal">☁️ Sincronizar con GitHub ahora</button>
+            </div>
+          </div>
+
           <div id="admin-vista-cofre" class="admin-vista oculto">
             <div class="admin-clave-cuerpo">
               <p class="admin-clave-ayuda">Arrastra objetos ADM ∞ al cofre (6 casillas). Luego coloca el pin en el mapa.</p>
@@ -947,7 +957,7 @@
   <script src="lib/leaflet/leaflet.js?v=104"></script>
 
   <!-- MÓDULOS DEL JUEGO (orden importante) -->
-  <script src="js/config/config.js?v=169"></script>
+  <script src="js/config/config.js?v=170"></script>
   <script src="js/nucleo/utilidades.js?v=137"></script>
   <script src="js/mundo/mundo_publico.js?v=104"></script>
   <script src="js/notificaciones/notificaciones.js?v=137"></script>
@@ -982,7 +992,7 @@
   <script>
     // Registrar la app instalable (PWA)
     if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.register('sw.js?v=169', { updateViaCache: 'none' })
+      navigator.serviceWorker.register('sw.js?v=170', { updateViaCache: 'none' })
         .then(function (reg) {
           if (typeof MarielVersion !== 'undefined') MarielVersion.registrarServiceWorker(reg);
         })
