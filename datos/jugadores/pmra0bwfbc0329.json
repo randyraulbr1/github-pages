@@ -4,7 +4,7 @@
   "telefono": "2352647622",
   "pinHash": "f8c8e3791cc16bf1b71829933c0f1eed8bb9f6ae7cf8fd8944b606abb5c12f5c",
   "creado": 1783389950183,
-  "actualizadoEn": 1783389952692,
+  "actualizadoEn": 1783390000142,
   "partida": {
     "datos": {
       "mochila": [
@@ -46,8 +46,10 @@
       },
       "vida": 100,
       "hambre": 50,
-      "muerto": false
+      "muerto": false,
+      "nivel": 1,
+      "xp": 0
     },
-    "t": 1783389950184
+    "t": 1783389998853
   }
 }
