@@ -16,10 +16,7 @@
           "id": "pan",
           "cantidad": 3
         },
-        {
-          "id": "botiquin",
-          "cantidad": 2
-        },
+        null,
         null,
         null,
         null,
@@ -52,8 +49,8 @@
       "xp": 175,
       "nivel": 2,
       "posicionJugador": [
-        22.99330362046794,
-        -82.7535416185856
+        22.993876452514325,
+        -82.75359123945238
       ],
       "tesorosRecogidos": [],
       "misiones": {},
@@ -300,12 +297,64 @@
           ],
           "hashAnterior": "9e2471afedfcaf0189f0aa953bee50717ee2519f0a82b306d4a68dc026d823eb",
           "hash": "f31c55ae6e0e4fde2a802305287f6c1d6331fb6b6c1a07f29f57eae62768d2d1"
+        },
+        {
+          "t": 1783444552398,
+          "detalle": "Revivió a 33: Botiquín",
+          "monto": -1,
+          "saldo": null,
+          "lugar": "campo abierto",
+          "pos": [
+            22.99351,
+            -82.753846
+          ],
+          "hashAnterior": "f31c55ae6e0e4fde2a802305287f6c1d6331fb6b6c1a07f29f57eae62768d2d1",
+          "hash": "d3bb7207078bd45c669af01e60dea7c55a608fdaa30d0217c41cc0fdeff9724a"
+        },
+        {
+          "t": 1783445124422,
+          "detalle": "Revivió a 33: Botiquín",
+          "monto": -1,
+          "saldo": null,
+          "lugar": "campo abierto",
+          "pos": [
+            22.993593,
+            -82.75399
+          ],
+          "hashAnterior": "d3bb7207078bd45c669af01e60dea7c55a608fdaa30d0217c41cc0fdeff9724a",
+          "hash": "2fe07176b3f8563903882347ad332dec4c75e0f41e453f3b33b5e728cd1bae5e"
+        },
+        {
+          "t": 1783445274156,
+          "detalle": "Eliminado: Pan",
+          "monto": -3,
+          "saldo": null,
+          "lugar": "campo abierto",
+          "pos": [
+            22.993593,
+            -82.75399
+          ],
+          "hashAnterior": "2fe07176b3f8563903882347ad332dec4c75e0f41e453f3b33b5e728cd1bae5e",
+          "hash": "fc3044d2309ad03972d2cd9ba7b41e10727b1e3df10c7c9aeb4d884570fc6adf"
+        },
+        {
+          "t": 1783445281953,
+          "detalle": "Obtenido: Pan",
+          "monto": 3,
+          "saldo": null,
+          "lugar": "campo abierto",
+          "pos": [
+            22.993593,
+            -82.75399
+          ],
+          "hashAnterior": "fc3044d2309ad03972d2cd9ba7b41e10727b1e3df10c7c9aeb4d884570fc6adf",
+          "hash": "6b0146872ccbd6eeb8b55b52f34eea1e9a7074d7133758bc5090453d737e6c23"
         }
       ],
       "mensajesVistos": [],
       "muerto": false,
       "armaEquipada": "arma_nv1"
     },
-    "t": 1783444312338
+    "t": 1783446387205
   }
 }
