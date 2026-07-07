@@ -113,6 +113,11 @@ async function esperarMapaListo() {
     await Usuarios.iniciar();
     if (Usuarios.perfilActivo && typeof Admin !== 'undefined' && Admin.refrescarMundoTrasLogin) {
       await pasoSeguro('mundo-servidor', () => Admin.refrescarMundoTrasLogin());
+      Usuarios.verificarCuentaEnMundo();
+    }
+    if (Usuarios._cuentaEliminada) {
+      ocultarCarga();
+      return;
     }
 
     // —— FASE 3: PARTIDA DEL JUGADOR ACTIVO ——

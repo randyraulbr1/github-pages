@@ -368,6 +368,18 @@ function eliminarJugadorDeSnapshot(perfilId, io) {
   if (!perfilId) return false;
   const snapshot = getWorldSnapshot();
   if (!snapshot) return false;
+  const jugador = (snapshot.jugadores || []).find(j => j && j.id === perfilId);
+  const nombre = jugador?.nombre || '';
+  let playerId = null;
+  if (String(perfilId).startsWith('srv_')) {
+    const n = parseInt(String(perfilId).slice(4), 10);
+    if (Number.isFinite(n)) playerId = n;
+  }
+  if (!playerId && nombre) {
+    const { findPlayerByName } = require('./db');
+    const p = findPlayerByName(nombre);
+    if (p) playerId = p.id;
+  }
   if (snapshot.jugadores) {
     snapshot.jugadores = snapshot.jugadores.filter(j => j && j.id !== perfilId);
   }
@@ -375,11 +387,12 @@ function eliminarJugadorDeSnapshot(perfilId, io) {
   snapshot.actualizadoEn = Date.now();
   saveWorldSnapshot(snapshot);
   if (io) {
-    io.emit('partida:sync', {
+    const { expulsarCuentasEliminadas } = require('./sockets');
+    expulsarCuentasEliminadas(io, [{
       perfilId,
-      eliminado: true,
-      actualizadoEn: snapshot.actualizadoEn
-    });
+      playerId,
+      nombre
+    }]);
   }
   return true;
 }
@@ -791,6 +804,10 @@ function syncMundoFromJson(mundo, io) {
         const r = purgarCuentasFueraDeSnapshot(mundo);
         if (r.removed > 0) {
           console.log('[mundo] Cuentas purgadas (admin):', r.removed);
+          if (io && r.removedAccounts?.length) {
+            const { expulsarCuentasEliminadas } = require('./sockets');
+            expulsarCuentasEliminadas(io, r.removedAccounts);
+          }
         }
       }
       delete mundo.purgarJugadores;

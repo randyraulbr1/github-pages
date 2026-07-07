@@ -696,4 +696,31 @@ function setupSockets(io) {
   });
 }
 
-module.exports = { setupSockets, onlinePlayers };
+/** Expulsa jugadores cuya cuenta fue eliminada por el admin. */
+function expulsarCuentasEliminadas(io, cuentas) {
+  if (!io || !Array.isArray(cuentas) || !cuentas.length) return;
+  const t = Date.now();
+  for (const c of cuentas) {
+    const playerId = c.playerId;
+    const perfilId = c.perfilId || (playerId ? 'srv_' + playerId : null);
+    const payload = {
+      perfilId,
+      nombre: c.nombre || '',
+      motivo: 'eliminada',
+      t
+    };
+    if (perfilId) {
+      io.emit('partida:sync', { perfilId, eliminado: true, actualizadoEn: t });
+    }
+    if (playerId) {
+      io.to('player:' + playerId).emit('account:deleted', payload);
+      const online = onlinePlayers.get(playerId);
+      if (online?.socketId) {
+        const sock = io.sockets.sockets.get(online.socketId);
+        if (sock) sock.disconnect(true);
+      }
+    }
+  }
+}
+
+module.exports = { setupSockets, onlinePlayers, expulsarCuentasEliminadas };

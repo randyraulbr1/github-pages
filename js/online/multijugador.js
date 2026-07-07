@@ -290,14 +290,22 @@ const Multijugador = {
       Admin._ultimoFirmaPublicada = Admin._firmaMundo(json);
       Admin._aplicarMundoRemoto(json);
       if (data.mundo.cuerposMuertos) this._aplicarCuerpos(data.mundo.cuerposMuertos);
-      if (typeof Usuarios !== 'undefined' && !Usuarios.esAdministrador() &&
-          typeof Notificaciones !== 'undefined') {
-        Notificaciones.mostrar('🌍 El admin actualizó el mapa', 'info', 4000);
+      if (typeof Usuarios !== 'undefined') {
+        Usuarios.verificarCuentaEnMundo();
+        if (!Usuarios.esAdministrador() && typeof Notificaciones !== 'undefined') {
+          Notificaciones.mostrar('🌍 El admin actualizó el mapa', 'info', 4000);
+        }
       }
     });
 
     this.socket.on('partida:sync', (data) => {
       this._aplicarPartidaServidor(data);
+    });
+
+    this.socket.on('account:deleted', (data) => {
+      if (typeof Usuarios !== 'undefined' && Usuarios._cuentaMeAfecta(data)) {
+        Usuarios.expulsarCuentaEliminada();
+      }
     });
 
     this.socket.on('world:tesoroRecogido', (data) => {
@@ -417,6 +425,9 @@ const Multijugador = {
         Admin.publicado.jugadores = Admin.publicado.jugadores.filter(
           j => j && j.id !== data.perfilId
         );
+      }
+      if (typeof Usuarios !== 'undefined' && Usuarios._cuentaMeAfecta(data)) {
+        Usuarios.expulsarCuentaEliminada();
       }
     } else if (data.partida) {
       const prev = Admin.publicado.partidas[data.perfilId];

@@ -17,7 +17,7 @@
   <script>
     // Aviso temprano en móvil (antes de cargar 20+ archivos JS)
     (function () {
-      var V = '153';
+      var V = '154';
       var texto = document.getElementById('carga-texto');
       if (texto) texto.textContent = 'Conectando…';
       var prev = localStorage.getItem('mariel_app_version');
@@ -88,6 +88,16 @@
       <div class="auth-sub">Otro dispositivo inició sesión en tu cuenta</div>
       <p class="auth-aviso">Por seguridad solo puede haber una sesión activa. Cierra sesión aquí para entrar en el otro dispositivo.</p>
       <button id="btn-sesion-remota-salir" class="btn-auth-principal">Cerrar sesión</button>
+    </div>
+  </div>
+
+  <!-- PANTALLA: CUENTA ELIMINADA POR EL ADMIN -->
+  <div id="pantalla-cuenta-eliminada" class="pantalla-auth oculto">
+    <div class="auth-caja">
+      <div class="auth-titulo">🗑️</div>
+      <div class="auth-sub">Cuenta eliminada</div>
+      <p class="auth-aviso">Tu cuenta fue eliminada por el administrador. Ya no puedes entrar al juego con este perfil.</p>
+      <button id="btn-cuenta-eliminada-ok" class="btn-auth-principal">Entendido</button>
     </div>
   </div>
 
@@ -917,7 +927,7 @@
   <script src="lib/leaflet/leaflet.js?v=104"></script>
 
   <!-- MÓDULOS DEL JUEGO (orden importante) -->
-  <script src="js/config/config.js?v=153"></script>
+  <script src="js/config/config.js?v=154"></script>
   <script src="js/nucleo/utilidades.js?v=137"></script>
   <script src="js/mundo/mundo_publico.js?v=104"></script>
   <script src="js/notificaciones/notificaciones.js?v=137"></script>
@@ -942,18 +952,18 @@
   <script src="js/correo/correo.js?v=104"></script>
   <script src="js/enemigos/enemigos.js?v=137"></script>
   <script src="js/online/sync_servidor.js?v=104"></script>
-  <script src="js/admin/admin.js?v=153"></script>
+  <script src="js/admin/admin.js?v=154"></script>
   <script src="js/opciones/opciones.js?v=152"></script>
   <script src="js/online/mundo_online.js?v=104"></script>
   <script src="js/online/amigos.js?v=107"></script>
   <script src="js/chat/chat.js?v=137"></script>
-  <script src="js/online/multijugador.js?v=153"></script>
+  <script src="js/online/multijugador.js?v=154"></script>
   <script src="js/principal.js?v=104"></script>
   <script>
     // Registrar la app instalable (PWA)
     if ('serviceWorker' in navigator) {
       const yaTeniaVersion = !!navigator.serviceWorker.controller;
-      navigator.serviceWorker.register('sw.js?v=153', { updateViaCache: 'none' })
+      navigator.serviceWorker.register('sw.js?v=154', { updateViaCache: 'none' })
         .then(function (reg) { reg.update(); })
         .catch(function () {});
       // Cuando llega una versión nueva del juego: avisar y recargar solo

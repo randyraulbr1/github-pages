@@ -1964,6 +1964,7 @@ body.en-auth #zona-notificaciones { display: none !important; }
 }
 .auth-aviso { font-size: 13px; color: #9aa5bd; line-height: 1.5; margin: 8px 0 16px; text-align: center; }
 #pantalla-sesion-remota { z-index: 6000; }
+#pantalla-cuenta-eliminada { z-index: 6001; }
 body.sesion-cerrada #mapa,
 body.sesion-cerrada #panel-hud-izq,
 body.sesion-cerrada #contenedor-dinero,
@@ -1974,7 +1975,18 @@ body.sesion-cerrada #banner-tesoro,
 body.sesion-cerrada #hud-combate-flotante,
 body.sesion-cerrada #admin-controles,
 body.sesion-cerrada #zona-notificaciones,
-body.sesion-cerrada .ventana { display: none !important; }
+body.sesion-cerrada .ventana,
+body.cuenta-eliminada #mapa,
+body.cuenta-eliminada #panel-hud-izq,
+body.cuenta-eliminada #contenedor-dinero,
+body.cuenta-eliminada #botones-inferiores,
+body.cuenta-eliminada #letrero-misiones,
+body.cuenta-eliminada #letrero-pin-chat,
+body.cuenta-eliminada #banner-tesoro,
+body.cuenta-eliminada #hud-combate-flotante,
+body.cuenta-eliminada #admin-controles,
+body.cuenta-eliminada #zona-notificaciones,
+body.cuenta-eliminada .ventana { display: none !important; }
 
 .ventana-admin-editor-caja { max-height: 92vh; overflow-y: auto; }
 .admin-editor-oro { padding: 10px 14px; display: flex; align-items: center; gap: 10px; }
