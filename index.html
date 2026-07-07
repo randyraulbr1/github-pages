@@ -17,12 +17,16 @@
   <script>
     // Aviso temprano en móvil (antes de cargar 20+ archivos JS)
     (function () {
-      var V = '163';
+      var V = '164';
       var texto = document.getElementById('carga-texto');
       if (texto) texto.textContent = 'Conectando…';
-      var prev = localStorage.getItem('mariel_app_version');
-      if (prev && prev !== V && 'serviceWorker' in navigator) {
-        localStorage.setItem('mariel_app_version', V);
+
+      function limpiarCacheYRecargar(nuevaV) {
+        localStorage.setItem('mariel_app_version', nuevaV);
+        if (!('serviceWorker' in navigator)) {
+          location.reload();
+          return;
+        }
         navigator.serviceWorker.getRegistrations().then(function (rs) {
           return Promise.all(rs.map(function (r) { return r.unregister(); }));
         }).then(function () {
@@ -31,9 +35,27 @@
             return Promise.all(ks.map(function (k) { return caches.delete(k); }));
           });
         }).then(function () { location.reload(); });
+      }
+
+      var prev = localStorage.getItem('mariel_app_version');
+      if (prev && prev !== V) {
+        limpiarCacheYRecargar(V);
         return;
       }
       localStorage.setItem('mariel_app_version', V);
+
+      // Comprueba versión en el servidor aunque index.html esté en caché (PWA v162/v163)
+      fetch('js/config/config.js?nocache=' + Date.now(), { cache: 'no-store' }).then(function (r) {
+        return r.text();
+      }).then(function (txt) {
+        var m = txt.match(/version:\s*['"](\d+)['"]/);
+        var remoto = m && m[1];
+        if (!remoto || remoto === V) return;
+        if (remoto !== localStorage.getItem('mariel_app_version')) {
+          limpiarCacheYRecargar(remoto);
+        }
+      }).catch(function () { /* sin red */ });
+
       // Si tras 25 s sigue la pantalla de carga, algo falló (caché vieja o red muy lenta)
       setTimeout(function () {
         var carga = document.getElementById('pantalla-carga');
@@ -930,7 +952,7 @@
   <script src="lib/leaflet/leaflet.js?v=104"></script>
 
   <!-- MÓDULOS DEL JUEGO (orden importante) -->
-  <script src="js/config/config.js?v=158"></script>
+  <script src="js/config/config.js?v=164"></script>
   <script src="js/nucleo/utilidades.js?v=137"></script>
   <script src="js/mundo/mundo_publico.js?v=104"></script>
   <script src="js/notificaciones/notificaciones.js?v=137"></script>
@@ -966,7 +988,7 @@
     // Registrar la app instalable (PWA)
     if ('serviceWorker' in navigator) {
       const yaTeniaVersion = !!navigator.serviceWorker.controller;
-      navigator.serviceWorker.register('sw.js?v=158', { updateViaCache: 'none' })
+      navigator.serviceWorker.register('sw.js?v=164', { updateViaCache: 'none' })
         .then(function (reg) { reg.update(); })
         .catch(function () {});
       // Cuando llega una versión nueva del juego: avisar y recargar solo
