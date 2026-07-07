@@ -109,7 +109,7 @@ async function esperarMundoEnMapa() {
     if (typeof Admin !== 'undefined' && typeof Notificaciones !== 'undefined' &&
         !Usuarios.esAdministrador() && Admin._contarElementosMapa(Admin.publicado || {}) === 0) {
       Notificaciones.mostrar(
-        '🗺️ El mapa aún no tiene objetos publicados. El admin debe colocarlos y sincronizar.',
+        '🗺️ El mapa aún no tiene objetos publicados. El admin debe colocarlos y pulsar Guardar mapa.',
         'info', 8000
       );
     }

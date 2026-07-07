@@ -3,7 +3,7 @@
 // ============================================================
 const CONFIG = {
   // Cambiar al publicar: obliga al móvil a descartar caché vieja
-  version: '203',
+  version: '204',
   maxPila: 10,
 
   // Nombre reservado del administrador (solo este jugador ve el panel admin)
@@ -20,7 +20,7 @@ const CONFIG = {
   radioColocarCofre: 60,
 
   // ☁️ NUBE: servidor en vivo (Render) + respaldo en datos/mundo.json (GitHub Pages).
-  // Admin: inicia sesión y pulsa Sincronizar → todos ven el cambio al instante.
+  // Admin: inicia sesión y pulsa Guardar mapa → todos ven el cambio al instante.
   firebaseMundoUrl: '',
   // Centro del pueblo de Mariel, Artemisa, Cuba
   centro: [22.9936, -82.7539],
