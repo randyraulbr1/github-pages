@@ -205,8 +205,11 @@ const Opciones = {
 
   _pintarVersion() {
     const el = document.getElementById('opciones-version');
-    if (!el || typeof CONFIG === 'undefined') return;
-    const v = CONFIG.version || '?';
+    if (!el) return;
+    const v = window.__MARIEL_EMBEDDED__
+      || (typeof MarielVersion !== 'undefined' && MarielVersion._embebida)
+      || (typeof CONFIG !== 'undefined' && CONFIG.version)
+      || '?';
     const guardada = localStorage.getItem('mariel_app_version');
     const alDia = !guardada || guardada === v;
     el.textContent = alDia
