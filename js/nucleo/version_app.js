@@ -1,13 +1,13 @@
 // Detecta actualizaciones al instante y bloquea el juego hasta pulsar Actualizar.
 const MarielVersion = {
-  // Fuente canónica en GitHub (no depende de la caché de tcodm.com)
-  _versionCanonica: 'https://raw.githubusercontent.com/randyraulbr1/github-pages/claude/web-rpg-gps-game-n3ybow/version.json',
+  // Fuente canónica: rama main (donde se fusionan los PRs)
+  _versionCanonica: 'https://raw.githubusercontent.com/randyraulbr1/github-pages/main/version.json',
 
   _bloqueado: false,
   _embebida: null,
   _remota: null,
-  _pollMs: 20000,
-  _swPollMs: 45000,
+  _pollMs: 12000,
+  _swPollMs: 25000,
   _pollTimer: null,
   _swTimer: null,
   _comprobando: false,
@@ -92,7 +92,10 @@ const MarielVersion = {
         this._comprobarRemota();
       });
       navigator.serviceWorker.addEventListener('message', (ev) => {
-        if (ev.data?.tipo === 'nueva-version') this._comprobarRemota();
+        if (ev.data?.tipo === 'nueva-version') {
+          if (ev.data.version) this._remota = String(ev.data.version);
+          this._comprobarRemota();
+        }
       });
     }
   },
@@ -159,12 +162,15 @@ const MarielVersion = {
 
   async obtenerRemota() {
     const ts = Date.now();
-    const opts = { cache: 'no-store', headers: { 'Cache-Control': 'no-cache' } };
-    const urls = [
+    const opts = { cache: 'no-store', headers: { 'Cache-Control': 'no-cache', Pragma: 'no-cache' } };
+    const origen = (typeof location !== 'undefined' && location.origin) ? location.origin : '';
+    const urls = [];
+    if (origen) urls.push(origen + '/version.json?_=' + ts);
+    urls.push(
       this._versionCanonica + '?_=' + ts,
       'version.json?_=' + ts,
       'js/config/config.js?_=' + ts
-    ];
+    );
     for (const url of urls) {
       try {
         const r = await fetch(url, opts);

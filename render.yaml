@@ -12,8 +12,6 @@ services:
         value: production
       - key: JWT_SECRET
         generateValue: true
-      - key: ADMIN_PASSWORD
-        sync: false
       - key: CORS_ORIGINS
         value: https://tcodm.com,https://www.tcodm.com,https://randyraulbr1.github.io
       - key: GITHUB_REPO

@@ -37,7 +37,8 @@ jobs:
             --exclude='scripts' \
             --exclude='docs' \
             --exclude='client' \
-            --exclude='online' \
+            # IMPORTANTE: '/online' con barra = solo carpeta raíz. Sin barra borra js/online/ (Amigos, sync, multijugador).
+            --exclude='/online' \
             --exclude='*.md' \
             --exclude='render.yaml' \
             --exclude='.gitignore' \

@@ -2,8 +2,18 @@
  * Publica el mundo del admin al servidor Render (fuente única de verdad).
  */
 const SyncServidor = {
+  TOKEN_KEY: 'mariel_online_token',
+
+  _getToken() {
+    try {
+      return localStorage.getItem(this.TOKEN_KEY) || '';
+    } catch (e) {
+      return '';
+    }
+  },
+
   puedePublicar() {
-    return !!(CONFIG.servidorOnline && localStorage.getItem(Multijugador.TOKEN_KEY));
+    return !!(CONFIG.servidorOnline && this._getToken());
   },
 
   _base() {
@@ -53,9 +63,103 @@ const SyncServidor = {
       if (typeof Usuarios !== 'undefined' && Usuarios.esAdministrador && Usuarios.esAdministrador()) {
         localStorage.setItem('mariel_dev_clave_admin', clave);
         const nom = String(Usuarios.perfilActivo?.nombre || '').toLowerCase();
-        if (nom === 'randy') localStorage.setItem('mariel_dev_clave_randy', clave);
+        if (nom === 'randy' || nom === 'soycaos') {
+          localStorage.setItem('mariel_dev_clave_randy', clave);
+        }
       }
     } catch (e) { /* */ }
+  },
+
+  /** Modal en pantalla (prompt() no funciona bien en móvil/PWA). */
+  _pedirClaveModal(usuario) {
+    return new Promise((resolve) => {
+      const existente = document.getElementById('sync-servidor-overlay');
+      if (existente) existente.remove();
+
+      const overlay = document.createElement('div');
+      overlay.id = 'sync-servidor-overlay';
+      overlay.setAttribute('role', 'dialog');
+      overlay.setAttribute('aria-modal', 'true');
+      overlay.style.cssText = [
+        'position:fixed', 'inset:0', 'z-index:99999', 'background:rgba(0,0,0,.72)',
+        'display:flex', 'align-items:center', 'justify-content:center', 'padding:16px'
+      ].join(';');
+
+      const caja = document.createElement('div');
+      caja.style.cssText = [
+        'background:#1e2630', 'color:#f0f4f8', 'border-radius:14px', 'padding:20px',
+        'max-width:340px', 'width:100%', 'box-shadow:0 8px 32px rgba(0,0,0,.45)',
+        'font-family:system-ui,sans-serif'
+      ].join(';');
+
+      const titulo = document.createElement('h3');
+      titulo.textContent = 'Conectar al servidor';
+      titulo.style.cssText = 'margin:0 0 8px;font-size:1.05rem';
+
+      const texto = document.createElement('p');
+      texto.textContent = 'Escribe la contraseña de ' + (usuario || 'tu cuenta') + ' para sincronizar el mapa:';
+      texto.style.cssText = 'margin:0 0 14px;font-size:.9rem;line-height:1.4;color:#b8c4d0';
+
+      const input = document.createElement('input');
+      input.type = 'password';
+      input.autocomplete = 'current-password';
+      input.placeholder = 'Contraseña';
+      input.style.cssText = [
+        'width:100%', 'box-sizing:border-box', 'padding:12px', 'border-radius:8px',
+        'border:1px solid #3a4a5c', 'background:#0f1419', 'color:#fff', 'font-size:16px',
+        'margin-bottom:14px'
+      ].join(';');
+
+      const fila = document.createElement('div');
+      fila.style.cssText = 'display:flex;gap:10px';
+
+      const btnCancel = document.createElement('button');
+      btnCancel.type = 'button';
+      btnCancel.textContent = 'Cancelar';
+      btnCancel.style.cssText = 'flex:1;padding:12px;border:none;border-radius:8px;background:#586272;color:#fff;font-size:.95rem';
+
+      const btnOk = document.createElement('button');
+      btnOk.type = 'button';
+      btnOk.textContent = 'Conectar';
+      btnOk.style.cssText = 'flex:1;padding:12px;border:none;border-radius:8px;background:#3d8bfd;color:#fff;font-size:.95rem;font-weight:600';
+
+      let cerrado = false;
+      const terminar = (valor) => {
+        if (cerrado) return;
+        cerrado = true;
+        overlay.remove();
+        resolve(valor || '');
+      };
+
+      btnCancel.onclick = () => terminar('');
+      btnOk.onclick = () => terminar(input.value);
+      input.addEventListener('keydown', (ev) => {
+        if (ev.key === 'Enter') { ev.preventDefault(); terminar(input.value); }
+        if (ev.key === 'Escape') terminar('');
+      });
+
+      fila.appendChild(btnCancel);
+      fila.appendChild(btnOk);
+      caja.appendChild(titulo);
+      caja.appendChild(texto);
+      caja.appendChild(input);
+      caja.appendChild(fila);
+      overlay.appendChild(caja);
+      document.body.appendChild(overlay);
+      setTimeout(() => input.focus(), 80);
+    });
+  },
+
+  async _intentarLoginConClave(clave, usuarios, perfil) {
+    if (!clave) return false;
+    for (const usuario of usuarios) {
+      const srv = await Usuarios._loginServidor(usuario, clave, 0);
+      if (srv && !srv.error && this._getToken()) {
+        this.guardarClavePerfil(perfil.id, clave);
+        return true;
+      }
+    }
+    return false;
   },
 
   /** Despierta Render (plan gratis) antes de login o sync. */
@@ -79,11 +183,11 @@ const SyncServidor = {
     const base = this._base();
     try {
       const r = await Utilidades.fetchConTimeout(base + '/api/player/me', {
-        headers: { Authorization: 'Bearer ' + localStorage.getItem(Multijugador.TOKEN_KEY) },
+        headers: { Authorization: 'Bearer ' + this._getToken() },
         cache: 'no-store'
       }, 12000);
       if (r.status === 401 || r.status === 403) {
-        localStorage.removeItem(Multijugador.TOKEN_KEY);
+        localStorage.removeItem(this.TOKEN_KEY);
         return false;
       }
       return r.ok;
@@ -95,52 +199,62 @@ const SyncServidor = {
   /** Obtiene token JWT del servidor si falta (sesión local sin login-game). */
   async asegurarSesionServidor(opciones) {
     const opts = opciones || {};
-    if (!CONFIG.servidorOnline || typeof Usuarios === 'undefined' || !Usuarios.perfilActivo) {
+    if (!CONFIG.servidorOnline) {
+      return false;
+    }
+    if (typeof Usuarios === 'undefined' || !Usuarios.perfilActivo) {
       return false;
     }
 
-    await this.despertarServidor();
+    const despierto = await this.despertarServidor();
+    if (!despierto && !opts.omitirDespertar) {
+      /* seguir: a veces /health falla pero la API responde */
+    }
 
     if (this.puedePublicar()) {
       const valido = await this.verificarToken();
       if (valido) return true;
+      localStorage.removeItem(this.TOKEN_KEY);
     }
 
     const perfil = Usuarios.perfilActivo;
     const usuarios = this._usuariosLogin();
+
     for (const clave of this._clavesGuardadas()) {
-      for (const usuario of usuarios) {
-        const srv = await Usuarios._loginServidor(usuario, clave, 0);
-        if (srv && !srv.error) {
-          this.guardarClavePerfil(perfil.id, clave);
-          return true;
-        }
+      if (await this._intentarLoginConClave(clave, usuarios, perfil)) {
+        return true;
       }
     }
 
     if (opts.pedirClave) {
       const usuario = perfil.nombre || perfil.id;
-      const clave = prompt(
-        'Contraseña de ' + usuario + ' para conectar al servidor:',
-        ''
-      );
+      let clave = '';
+      if (typeof window !== 'undefined' && window.prompt) {
+        try {
+          clave = window.prompt(
+            'Contraseña de ' + usuario + ' para conectar al servidor:',
+            ''
+          ) || '';
+        } catch (e) { /* prompt bloqueado en PWA */ }
+      }
+      if (!clave) {
+        clave = await this._pedirClaveModal(usuario);
+      }
       if (!clave) return false;
-      for (const u of usuarios) {
-        const srv = await Usuarios._loginServidor(u, clave, 0);
-        if (srv && !srv.error) {
-          this.guardarClavePerfil(perfil.id, clave);
-          return true;
-        }
+      if (await this._intentarLoginConClave(clave, usuarios, perfil)) {
+        return true;
       }
       if (typeof Notificaciones !== 'undefined') {
         Notificaciones.mostrar('❌ Contraseña incorrecta o servidor no responde', 'error', 6000);
       }
+      return false;
     }
-    return this.puedePublicar();
+
+    return false;
   },
 
   _headers() {
-    const token = localStorage.getItem(Multijugador.TOKEN_KEY);
+    const token = this._getToken();
     return {
       'Content-Type': 'application/json',
       Authorization: 'Bearer ' + token
@@ -149,9 +263,9 @@ const SyncServidor = {
 
   async publicar(jsonStr) {
     const base = this._base();
-    const token = localStorage.getItem(Multijugador.TOKEN_KEY);
+    const token = this._getToken();
     if (!base || !token) {
-      return { ok: false, error: 'Sin token — entra con tu contraseña' };
+      return { ok: false, error: 'Sin sesión — vuelve a entrar con tu contraseña' };
     }
     await this.despertarServidor();
     const body = typeof jsonStr === 'string' ? jsonStr : JSON.stringify(jsonStr);
@@ -164,7 +278,7 @@ const SyncServidor = {
         }, 35000);
         const data = await r.json().catch(() => ({}));
         if (r.status === 401 || r.status === 403) {
-          localStorage.removeItem(Multijugador.TOKEN_KEY);
+          localStorage.removeItem(this.TOKEN_KEY);
           return { ok: false, error: r.status === 403
             ? 'Sin permiso de admin en el servidor'
             : 'Sesión expirada — vuelve a entrar' };
@@ -190,7 +304,7 @@ const SyncServidor = {
   /** Sube vida/muerto de la partida al snapshot del servidor. */
   async subirPartida(perfilId, partida) {
     const base = this._base();
-    const token = localStorage.getItem(Multijugador.TOKEN_KEY);
+    const token = this._getToken();
     if (!base || !token || !perfilId || !partida) return false;
     try {
       const r = await fetch(base + '/api/player/sync-partida', {
@@ -207,7 +321,7 @@ const SyncServidor = {
 
   async registrarCuenta(perfil, partida, clave) {
     const base = this._base();
-    const token = localStorage.getItem(Multijugador.TOKEN_KEY);
+    const token = this._getToken();
     if (!base || !token || !perfil?.id) return false;
     try {
       const body = { perfil, partida: partida || null };
@@ -227,9 +341,9 @@ const SyncServidor = {
   /** Deja solo la cuenta admin en el servidor (borra el resto). */
   async limpiarCuentas() {
     const base = this._base();
-    const token = localStorage.getItem(Multijugador.TOKEN_KEY);
+    const token = this._getToken();
     if (!base || !token) {
-      return { ok: false, error: 'Sin conexión al servidor' };
+      return { ok: false, error: 'Sin sesión en el servidor' };
     }
     try {
       const r = await Utilidades.fetchConTimeout(base + '/api/player/limpiar-cuentas', {
@@ -240,15 +354,15 @@ const SyncServidor = {
       if (r.ok && data.ok) return data;
       return { ok: false, error: data.error || ('Error ' + r.status) };
     } catch (e) {
-      return { ok: false, error: 'Sin conexión al servidor' };
+      return { ok: false, error: 'Servidor no responde' };
     }
   },
 
   async sincronizarGitHub() {
     const base = this._base();
-    const token = localStorage.getItem(Multijugador.TOKEN_KEY);
+    const token = this._getToken();
     if (!base || !token) {
-      return { ok: false, error: 'Sin conexión al servidor' };
+      return { ok: false, error: 'Sin sesión en el servidor' };
     }
     for (let intento = 0; intento < 3; intento++) {
       try {
@@ -268,16 +382,16 @@ const SyncServidor = {
           await new Promise(res => setTimeout(res, 2000 * (intento + 1)));
           continue;
         }
-        return { ok: false, error: 'Sin conexión al servidor' };
+        return { ok: false, error: 'Servidor no responde' };
       }
     }
-    return { ok: false, error: 'Sin conexión al servidor' };
+    return { ok: false, error: 'Servidor no responde' };
   },
 
   /** Estado de la última sync a GitHub (solo admin). */
   async obtenerEstadoSync() {
     const base = this._base();
-    const token = localStorage.getItem(Multijugador.TOKEN_KEY);
+    const token = this._getToken();
     if (!base || !token) return null;
     try {
       const r = await Utilidades.fetchConTimeout(base + '/api/player/sync-status', {
@@ -295,7 +409,7 @@ const SyncServidor = {
   async obtenerMundo() {
     const base = this._base();
     if (!base) return null;
-    const token = localStorage.getItem(Multijugador.TOKEN_KEY);
+    const token = this._getToken();
     const headers = token ? { Authorization: 'Bearer ' + token } : {};
     const url = token ? base + '/api/player/mundo' : base + '/api/public/mundo';
     try {

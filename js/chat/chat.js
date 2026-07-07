@@ -10,9 +10,12 @@ const Chat = {
   _contactos: {},
   _colocandoPin: null,
   _pinsMapa: {},
+  _pinsAbandonados: new Set(),
+  _abandonadosKey: 'mariel_pins_chat_abandonados',
   _pinActivo: null,
   _lineaPin: null,
   _clickFueraOk: false,
+  _confirmModo: null,
 
   _miId() {
     if (typeof Multijugador !== 'undefined' && Multijugador._miPlayerId) {
@@ -118,6 +121,7 @@ const Chat = {
   iniciarUI() {
     if (this._uiLista) return;
     this._uiLista = true;
+    this._cargarPinsAbandonados();
     this._cargarContactos();
     const btn = document.getElementById('btn-chat');
     if (!btn) return;
@@ -183,7 +187,7 @@ const Chat = {
 
     document.getElementById('letrero-pin-chat')?.addEventListener('click', (e) => {
       const btn = e.target.closest('[data-dejar-pin]');
-      if (btn) this.dejarDeSeguirPin();
+      if (btn) this._pedirDejarSeguirPin();
     });
 
     if (!this._clickFueraOk) {
@@ -558,22 +562,63 @@ const Chat = {
     const esAmigo = typeof Amigos !== 'undefined' && Amigos.esAmigo(id);
     const titulo = document.getElementById('chat-confirm-title');
     const texto = document.getElementById('chat-confirm-text');
+    const cancelBtn = document.getElementById('chat-confirm-cancel');
+    const okBtn = document.getElementById('chat-confirm-ok');
     if (titulo) titulo.textContent = '¿Borrar chat?';
     if (texto) {
       texto.textContent = esAmigo
         ? ('¿Borrar la conversación con ' + nombre + '? Seguirá en tus amigos.')
         : ('¿Borrar el chat con ' + nombre + '? Dejará de aparecer en la lista.');
     }
+    if (cancelBtn) cancelBtn.textContent = 'Cancelar';
+    if (okBtn) {
+      okBtn.textContent = 'Borrar';
+      okBtn.classList.add('danger');
+    }
+    this._confirmModo = 'borrar';
     this._borrarChatPendiente = id;
+    document.getElementById('chat-overlay')?.classList.remove('oculto');
+  },
+
+  _pedirDejarSeguirPin() {
+    if (!this._pinActivo || !this._pinsMapa[this._pinActivo]) return;
+    const pin = this._pinsMapa[this._pinActivo];
+    const titulo = document.getElementById('chat-confirm-title');
+    const texto = document.getElementById('chat-confirm-text');
+    const cancelBtn = document.getElementById('chat-confirm-cancel');
+    const okBtn = document.getElementById('chat-confirm-ok');
+    if (titulo) titulo.textContent = '¿Dejar de seguir el pin?';
+    if (texto) {
+      texto.textContent = 'Se borrará el pin del mapa y la línea azul. No volverá a aparecer.';
+    }
+    if (cancelBtn) cancelBtn.textContent = 'No';
+    if (okBtn) {
+      okBtn.textContent = 'Sí';
+      okBtn.classList.remove('danger');
+    }
+    this._confirmModo = 'pin';
     document.getElementById('chat-overlay')?.classList.remove('oculto');
   },
 
   _cerrarConfirmBorrar() {
     this._borrarChatPendiente = null;
+    this._confirmModo = null;
+    const cancelBtn = document.getElementById('chat-confirm-cancel');
+    const okBtn = document.getElementById('chat-confirm-ok');
+    if (cancelBtn) cancelBtn.textContent = 'Cancelar';
+    if (okBtn) {
+      okBtn.textContent = 'Borrar';
+      okBtn.classList.add('danger');
+    }
     document.getElementById('chat-overlay')?.classList.add('oculto');
   },
 
   _confirmarBorrarChat() {
+    if (this._confirmModo === 'pin') {
+      this._cerrarConfirmBorrar();
+      this.abandonarPinActivo();
+      return;
+    }
     const id = this._borrarChatPendiente;
     this._cerrarConfirmBorrar();
     if (!id) return;
@@ -856,9 +901,33 @@ const Chat = {
     });
   },
 
+  _keyPin(lat, lng) {
+    return Number(lat).toFixed(5) + ',' + Number(lng).toFixed(5);
+  },
+
+  _cargarPinsAbandonados() {
+    try {
+      const raw = localStorage.getItem(this._abandonadosKey);
+      const lista = raw ? JSON.parse(raw) : [];
+      this._pinsAbandonados = new Set((lista || []).filter(Boolean));
+    } catch (e) {
+      this._pinsAbandonados = new Set();
+    }
+  },
+
+  _guardarPinsAbandonados() {
+    try {
+      localStorage.setItem(this._abandonadosKey, JSON.stringify([...this._pinsAbandonados]));
+    } catch (e) { /* */ }
+  },
+
   agregarPinMapa(lat, lng, etiqueta) {
     if (!Mapa.mapa || !Number.isFinite(lat) || !Number.isFinite(lng)) return;
-    const key = lat.toFixed(5) + ',' + lng.toFixed(5);
+    const key = this._keyPin(lat, lng);
+    if (this._pinsAbandonados.has(key)) {
+      Notificaciones.mostrar('📍 Ya dejaste de seguir este pin', 'alerta', 3500);
+      return;
+    }
     if (!this._pinsMapa[key]) {
       const marcador = L.marker([lat, lng], {
         icon: this._iconoPinMapa(false)
@@ -872,6 +941,7 @@ const Chat = {
   },
 
   _activarPinMapa(key) {
+    if (this._pinsAbandonados.has(key) || !this._pinsMapa[key]) return;
     const prev = this._pinActivo;
     if (prev && this._pinsMapa[prev]) {
       this._pinsMapa[prev].marcador.setIcon(this._iconoPinMapa(false));
@@ -893,12 +963,29 @@ const Chat = {
       pin.marcador.setIcon(this._iconoPinMapa(false));
       if (!silencioso) {
         Notificaciones.mostrar(
-          '📍 Dejaste de seguir el pin de ' + (pin.etiqueta || 'ubicación') + '. El pin sigue en el mapa.',
+          '📍 Dejaste de seguir el pin de ' + (pin.etiqueta || 'ubicación') + '.',
           'info', 4500
         );
       }
     }
     this._pintarLetreroPin();
+  },
+
+  abandonarPinActivo() {
+    const pinKey = this._pinActivo;
+    if (!pinKey) return;
+    const pin = this._pinsMapa[pinKey];
+    this._pinActivo = null;
+    this._actualizarLineaPin();
+    if (pin?.marcador) {
+      try { pin.marcador.off('click'); } catch (e) { /* */ }
+      pin.marcador.remove();
+    }
+    delete this._pinsMapa[pinKey];
+    this._pinsAbandonados.add(pinKey);
+    this._guardarPinsAbandonados();
+    this._pintarLetreroPin();
+    Notificaciones.mostrar('📍 Dejaste de seguir el pin. Ya no aparece en el mapa.', 'info', 4500);
   },
 
   _pintarLetreroPin() {

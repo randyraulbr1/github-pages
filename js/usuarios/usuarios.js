@@ -65,7 +65,7 @@ const Usuarios = {
       this.perfilActivo = null;
       document.body.classList.add('en-auth');
       this.mostrarLogin();
-      if (this._resolver) { this._resolver(); this._resolver = null; }
+      // No resolver aquí: esperar a que iniciarSesion/crear llamen _activar()
     });
   },
 
@@ -220,6 +220,7 @@ const Usuarios = {
       const data = await r.json().catch(() => ({}));
       if (!r.ok || !data.ok || !data.token) return { error: data.error || 'No se pudo entrar', codigo: data.codigo };
       localStorage.setItem(
+        (typeof SyncServidor !== 'undefined' && SyncServidor.TOKEN_KEY) ||
         (typeof Multijugador !== 'undefined' && Multijugador.TOKEN_KEY) || 'mariel_online_token',
         data.token
       );
@@ -245,6 +246,7 @@ const Usuarios = {
       const data = await r.json().catch(() => ({}));
       if (!r.ok || !data.ok || !data.token) return { error: data.error || 'No se pudo registrar' };
       localStorage.setItem(
+        (typeof SyncServidor !== 'undefined' && SyncServidor.TOKEN_KEY) ||
         (typeof Multijugador !== 'undefined' && Multijugador.TOKEN_KEY) || 'mariel_online_token',
         data.token
       );
@@ -392,10 +394,24 @@ const Usuarios = {
     this._guardarLista();
     this._ocultarAuth();
     if (window.MarielBoot) MarielBoot.enfrente('Cargando tu partida…');
-    if (this._resolver) { this._resolver(); this._resolver = null; }
+    if (this._resolver) {
+      this._resolver();
+      this._resolver = null;
+    } else {
+      // Arranque ya terminó sin sesión (p. ej. tras actualizar): recargar con perfil guardado
+      location.reload();
+      return;
+    }
     this._publicarSesionEnFondo(perfil, token);
-    if (typeof SyncServidor !== 'undefined' && SyncServidor.registrarCuenta) {
-      SyncServidor.registrarCuenta(perfil, null).catch(() => {});
+    if (typeof SyncServidor !== 'undefined') {
+      SyncServidor.asegurarSesionServidor({}).then((ok) => {
+        if (ok) SyncServidor.registrarCuenta(perfil, null).catch(() => {});
+        if (ok && typeof Admin !== 'undefined' && Admin.esAdminJugador && Admin.esAdminJugador()) {
+          setTimeout(() => {
+            if (Admin._publicarParaTodos) Admin._publicarParaTodos(true);
+          }, 2500);
+        }
+      }).catch(() => {});
     }
   },
 

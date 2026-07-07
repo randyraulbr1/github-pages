@@ -345,30 +345,29 @@ const Admin = {
     if (!CONFIG.servidorOnline || !this._mundoCargado) return false;
     this._asegurarMoverPinAdminDefault();
     try {
+      if (typeof SyncServidor !== 'undefined' && SyncServidor.despertarServidor) {
+        await SyncServidor.despertarServidor();
+      }
       let data = null;
       if (typeof SyncServidor !== 'undefined' && SyncServidor.obtenerMundo) {
         data = await SyncServidor.obtenerMundo();
       }
       if (!data?.mundo) return false;
-      const tsRemoto = data.actualizadoEn || data.mundo.actualizadoEn || 0;
+      const m = data.mundo;
+      const tsRemoto = data.actualizadoEn || m.actualizadoEn || 0;
       const tsLocal = this.publicado?.actualizadoEn || 0;
-      const remotoMapa = typeof MundoPublico !== 'undefined' && MundoPublico.mundoTieneMapa
-        ? MundoPublico.mundoTieneMapa(data.mundo) : false;
-      const remotoJugadores = (data.mundo.jugadores?.length || 0) > 0 ||
-        Object.keys(data.mundo.partidas || {}).length > 0;
-      const localMapa = this._contarElementosMapa(this.publicado || {}) > 0;
-      if (!remotoMapa && !remotoJugadores) return false;
-      if (tsRemoto < tsLocal && localMapa && !remotoJugadores) return false;
-      const json = JSON.stringify(data.mundo);
+      const nRemoto = this._contarElementosMapa(m);
+      const nLocal = this._contarElementosMapa(this.publicado || {});
+      const hayPartidas = Object.keys(m.partidas || {}).length > 0;
+      if (nRemoto < nLocal && tsRemoto <= tsLocal && !hayPartidas) return false;
+      const json = JSON.stringify(m);
       this._crudoPublicado = json;
       this._ultimoFirmaPublicada = this._firmaMundo(json);
       if (typeof Multijugador !== 'undefined') {
-        Multijugador.mundoServidorTs = tsRemoto;
+        Multijugador.mundoServidorTs = Math.max(Multijugador.mundoServidorTs || 0, tsRemoto);
       }
-      this._aplicarMundoRemoto(json);
-      if (typeof Multijugador !== 'undefined' && Multijugador.aplicarMundoPendiente) {
-        Multijugador.aplicarMundoPendiente();
-      }
+      this._aplicarMundoRemoto(json, { forzar: nRemoto >= nLocal || hayPartidas });
+      this.pintarMapaCompleto();
       if (typeof Multijugador !== 'undefined' && Multijugador._sincronizarPinesPartida) {
         Multijugador._sincronizarPinesPartida();
       }
@@ -673,7 +672,7 @@ const Admin = {
     if (!this._mundoCargado) return;
     if (!this.esAdminJugador()) return;
     if (typeof SyncServidor !== 'undefined' && !SyncServidor.puedePublicar()) {
-      SyncServidor.asegurarSesionServidor().then((ok) => {
+      this._asegurarTokenServidor(false).then((ok) => {
         if (ok) this._encolarPublicacion(true);
       });
       return;
@@ -696,11 +695,14 @@ const Admin = {
     if (!this._pubPendiente || this._publicando) return;
     if (!this.esAdminJugador()) return;
     const puedeServidor = typeof SyncServidor !== 'undefined' && SyncServidor.puedePublicar();
-    if (!puedeServidor) return;
+    if (!puedeServidor) {
+      const okToken = await this._asegurarTokenServidor(false);
+      if (!okToken) return;
+    }
     this._pubPendiente = false;
     this._publicando = true;
     try {
-      const ok = await this.publicarMundo(this._pubSilencioso !== false);
+      const ok = await this.publicarMundo(this._pubSilencioso !== false, this._optsSubidaMapa());
       if (!ok) {
         this._intentosPub = (this._intentosPub || 0) + 1;
         if (this._intentosPub < 10) {
@@ -722,26 +724,47 @@ const Admin = {
     }
   },
 
-  // Sube el mapa para que TODOS los jugadores lo vean (servidor en vivo)
-  async _publicarParaTodos(silencioso, opts) {
-    if (!this._mundoCargado) return false;
-    if (!this.esAdminJugador()) return false;
-    if (typeof SyncServidor !== 'undefined' && !SyncServidor.puedePublicar()) {
-      const ok = await SyncServidor.asegurarSesionServidor(
-        silencioso ? {} : { pedirClave: true }
-      );
-      if (!ok) {
-        if (!silencioso) {
-          Notificaciones.mostrar(
-            '⚠️ Entra con la contraseña de admin para publicar al servidor.',
-            'alerta', 12000
-          );
-        }
-        return false;
+  _optsSubidaMapa(extra) {
+    return Object.assign({ soloSync: true, forzar: true, confiarLocal: true }, extra || {});
+  },
+
+  async _asegurarTokenServidor(pedirClave) {
+    if (typeof SyncServidor === 'undefined') return false;
+    if (SyncServidor.puedePublicar()) {
+      if (await SyncServidor.verificarToken()) return true;
+    }
+    return SyncServidor.asegurarSesionServidor(pedirClave ? { pedirClave: true } : {});
+  },
+
+  // Sube el mapa al servidor Render para que todos lo vean en vivo
+  async _syncMapaServidor(silencioso, opts) {
+    if (!this._mundoCargado || !this.esAdminJugador()) return false;
+    const okToken = await this._asegurarTokenServidor(!silencioso);
+    if (!okToken) {
+      if (!silencioso) {
+        Notificaciones.mostrar(
+          '⚠️ Sin sesión en el servidor. Vuelve a entrar con tu contraseña.',
+          'alerta', 8000
+        );
       }
+      return false;
     }
     clearTimeout(this._tempPublicar);
-    return this.publicarMundo(silencioso !== false, opts);
+    const ok = await this.publicarMundo(!!silencioso, this._optsSubidaMapa(opts));
+    if (ok && !silencioso) {
+      Notificaciones.mostrar('📡 Mapa en el servidor — todos lo ven en vivo', 'exito', 4000);
+    } else if (!ok && !silencioso) {
+      Notificaciones.mostrar(
+        '❌ No se subió al servidor: ' + (this._ultimoErrorPub || 'revisa conexión'),
+        'error', 8000
+      );
+    }
+    return ok;
+  },
+
+  // Sube el mapa para que TODOS los jugadores lo vean (servidor en vivo)
+  async _publicarParaTodos(silencioso, opts) {
+    return this._syncMapaServidor(silencioso !== false, opts);
   },
 
   _tokenPublicacion() {
@@ -1597,6 +1620,9 @@ const Admin = {
     this._aplicarRevivirDesdeNube();
     if (this.modo === 'organizar') this._reaplicarArrastreOrganizar();
     this._refrescarListaJugadoresSiAbierta();
+    if (typeof Multijugador !== 'undefined' && Multijugador._sincronizarPinesPartida) {
+      Multijugador._sincronizarPinesPartida();
+    }
   },
 
   _jugadorEstaMuerto(pd, vida) {
@@ -2569,7 +2595,7 @@ const Admin = {
     localStorage.setItem(this.CLAVE, JSON.stringify(this.datos,
       (clave, valor) => clave.startsWith('_') ? undefined : valor));
     this._pubPendiente = true;
-    const ok = await this._publicarParaTodos(true);
+    const ok = await this._syncMapaServidor(false);
     if (!ok && this.esAdminJugador()) {
       this._adminAviso('No se publicó en el servidor. Revisa tu conexión y pulsa Sincronizar.', 'error');
     }
@@ -3218,6 +3244,7 @@ const Admin = {
         t.posicion[1] = +p.lng.toFixed(6);
         this.datos.posiciones[t.id] = [t.posicion[0], t.posicion[1]];
         this.guardar();
+        this._encolarPublicacion(true);
       });
       this._fantasmas.push(fantasma);
     }
@@ -3235,6 +3262,7 @@ const Admin = {
         t.pos[0] = +p.lat.toFixed(6); t.pos[1] = +p.lng.toFixed(6);
         this.datos.posiciones[t.id] = [t.pos[0], t.pos[1]];
         this.guardar();
+        this._encolarPublicacion(true);
       });
       this._fantasmas.push(fantasma);
     }
@@ -3375,6 +3403,9 @@ const Admin = {
     document.getElementById('admin-controles').classList.add('oculto');
     if (typeof Enemigos !== 'undefined' && Enemigos._recargar) Enemigos._recargar();
     if (typeof GPS !== 'undefined') GPS._actualizarArrastre();
+    if (this._pubPendiente && this.esAdminJugador()) {
+      this._procesarColaPublicacion();
+    }
   },
 
   _mostrarControles(texto, conConfirmar) {
@@ -4815,10 +4846,10 @@ const Admin = {
       if (typeof SyncServidor !== 'undefined') {
         await SyncServidor.despertarServidor();
       }
-      if (typeof SyncServidor !== 'undefined' && !SyncServidor.puedePublicar()) {
+      if (typeof SyncServidor !== 'undefined') {
         const okSesion = await SyncServidor.asegurarSesionServidor({ pedirClave: true });
         if (!okSesion) {
-          errorMsg = 'No se pudo conectar';
+          errorMsg = 'Sin sesión en el servidor — escribe tu contraseña';
           return;
         }
       }
@@ -4852,12 +4883,15 @@ const Admin = {
       this._ultimoErrorPub = 'Solo el administrador puede sincronizar';
       return false;
     }
-    if (typeof SyncServidor !== 'undefined' && !SyncServidor.puedePublicar()) {
+    if (typeof SyncServidor !== 'undefined') {
+      const pedirClave = !silencioso;
       const okSesion = await SyncServidor.asegurarSesionServidor(
-        silencioso && !opts?.soloSync ? {} : { pedirClave: true }
+        pedirClave ? { pedirClave: true } : {}
       );
       if (!okSesion) {
-        this._ultimoErrorPub = 'No se pudo conectar al servidor';
+        this._ultimoErrorPub = pedirClave
+          ? 'Sin sesión en el servidor — escribe tu contraseña'
+          : 'Sin sesión en el servidor';
         return false;
       }
     }
@@ -4910,9 +4944,16 @@ const Admin = {
     const json = JSON.stringify(adminLocal, (clave, valor) =>
       clave.startsWith('_') ? undefined : valor, 2);
 
-    if (!CONFIG.servidorOnline || typeof SyncServidor === 'undefined' || !SyncServidor.puedePublicar()) {
-      this._ultimoErrorPub = 'Sin conexión al servidor';
+    if (!CONFIG.servidorOnline || typeof SyncServidor === 'undefined') {
+      this._ultimoErrorPub = 'Servidor no configurado';
       return false;
+    }
+    if (!SyncServidor.puedePublicar()) {
+      const okSesion = await SyncServidor.asegurarSesionServidor({ pedirClave: !silencioso });
+      if (!okSesion) {
+        this._ultimoErrorPub = 'Sin sesión en el servidor — escribe tu contraseña';
+        return false;
+      }
     }
 
     const resultado = await SyncServidor.publicar(json);
@@ -4924,6 +4965,17 @@ const Admin = {
           'error', 9000
         );
       }
+      return false;
+    }
+
+    const enviados = this._contarElementosMapa(adminLocal);
+    const guardados = (resultado.data?.objetos || 0) + (resultado.data?.misiones || 0);
+    if (enviados > 0 && guardados === 0 && this.esAdminJugador()) {
+      this._ultimoErrorPub = 'El servidor no guardó los pins del mapa';
+      Notificaciones.mostrar(
+        '⚠️ El servidor no guardó el mapa. Comprueba que entras como Randy y pulsa Sincronizar.',
+        'error', 10000
+      );
       return false;
     }
 
