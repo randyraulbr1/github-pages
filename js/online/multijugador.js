@@ -183,6 +183,7 @@ const Multijugador = {
     });
 
     this._enlazarEventos();
+    this._enlazarCartelServidor();
 
     if (typeof Amigos !== 'undefined') Amigos.iniciarUI();
     if (typeof Chat !== 'undefined') {
@@ -615,6 +616,42 @@ const Multijugador = {
     }
   },
 
+  _enlazarCartelServidor() {
+    const cartel = document.getElementById('cartel-servidor-actualizando');
+    if (!cartel || cartel._marielServidorOk) return;
+    cartel._marielServidorOk = true;
+    cartel.addEventListener('click', () => this._recargarPaginaServidor());
+  },
+
+  _recargarPaginaServidor() {
+    try {
+      sessionStorage.setItem('mariel_reconectar_servidor', String(Date.now()));
+    } catch (e) { /* */ }
+    if (this.socket) {
+      try { this.socket.disconnect(); } catch (err) { /* */ }
+    }
+    const url = location.origin + '/?_serv=' + Date.now();
+    location.replace(url);
+  },
+
+  _actualizarCartelServidor(estado) {
+    const cartel = document.getElementById('cartel-servidor-actualizando');
+    if (!cartel) return;
+    const mostrar = (estado === 'reconectando' || estado === 'offline') &&
+      CONFIG.servidorOnline && Usuarios?.perfilActivo;
+    const titulo = cartel.querySelector('.cartel-servidor-texto');
+    if (!mostrar) {
+      cartel.classList.add('oculto');
+      return;
+    }
+    if (titulo) {
+      titulo.textContent = estado === 'offline'
+        ? 'Sin conexión al servidor'
+        : 'Servidor actualizando';
+    }
+    cartel.classList.remove('oculto');
+  },
+
   _actualizarIndicadorConexion(estado) {
     const el = document.getElementById('indicador-conexion');
     if (!el) return;
@@ -622,6 +659,7 @@ const Multijugador = {
       el.classList.add('oculto');
       el.classList.remove('visible', 'estado-reconectando', 'estado-offline');
       el.setAttribute('aria-hidden', 'true');
+      this._actualizarCartelServidor('online');
       return;
     }
     el.classList.remove('oculto', 'visible', 'estado-reconectando', 'estado-offline');
@@ -637,6 +675,7 @@ const Multijugador = {
       el.title = 'Conectado al servidor';
       el.setAttribute('aria-hidden', 'true');
     }
+    this._actualizarCartelServidor(estado);
   },
 
   _aplicarMundoAlCliente(data, avisar) {
