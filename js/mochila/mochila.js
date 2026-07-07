@@ -19,6 +19,7 @@ const Mochila = {
       Guardado.datos.mochila[1] = { id: 'pan', cantidad: 1 };
     }
     this.slots = Guardado.datos.mochila;
+    this._sanearArmaEquipada();
     this._sincronizarArmaEquipada();
 
     document.getElementById('btn-mochila').addEventListener('click', () => this.abrir());
@@ -33,9 +34,14 @@ const Mochila = {
 
     document.getElementById('inv-confirm-cancel')?.addEventListener('click', () => this._resolverConfirm(false));
     document.getElementById('inv-confirm-ok')?.addEventListener('click', () => this._resolverConfirm(true));
+    document.querySelectorAll('[data-cierra="ventana-mochila"]').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        setTimeout(() => this._notificarCambioArma(), 0);
+      });
+    });
 
     this.pintar();
-    this.pintarArmaHud();
+    this._notificarCambioArma();
   },
 
   abrir() {
@@ -48,11 +54,13 @@ const Mochila = {
   },
 
   guardar() {
+    const cambioArma = this._sanearArmaEquipada();
     Guardado.datos.mochila = this.slots;
     Guardado.guardar();
     if (typeof Tesoros !== 'undefined' && Tesoros.activos) Tesoros.refrescarBanner();
     if (typeof Admin !== 'undefined' && Admin.datos) Admin.refrescarVisibles();
     if (typeof Misiones !== 'undefined' && Misiones.lista.length) Misiones.refrescar();
+    if (cambioArma) this._notificarCambioArma();
   },
 
   _statsConsumo() {
@@ -90,6 +98,35 @@ const Mochila = {
 
   _indiceEnMochila(id) {
     return this.slots.findIndex(s => s && s.id === id);
+  },
+
+  /** Si el arma figura en la mochila, no puede estar equipada (HUD = mano). */
+  _sanearArmaEquipada() {
+    const id = this.armaEquipadaId();
+    if (!id) return false;
+    if (this._indiceEnMochila(id) >= 0) {
+      Guardado.datos.armaEquipada = null;
+      return true;
+    }
+    return false;
+  },
+
+  /** Arma equipada de verdad: flag activo y no está en ningún slot de mochila. */
+  _armaRealmenteEquipada() {
+    this._sanearArmaEquipada();
+    const id = this.armaEquipadaId();
+    if (!id) return null;
+    const item = Items.seguro(id);
+    if (!Items.esArma(item)) {
+      Guardado.datos.armaEquipada = null;
+      return null;
+    }
+    return id;
+  },
+
+  _refrescarTrasGuardado() {
+    this.slots = Guardado.datos.mochila || this.slots;
+    this._notificarCambioArma();
   },
 
   _sincronizarArmaEquipada() {
@@ -136,7 +173,7 @@ const Mochila = {
   armaEquipadaId() { return Guardado.datos.armaEquipada || null; },
 
   danoArmaEquipada() {
-    const id = this.armaEquipadaId();
+    const id = this._armaRealmenteEquipada();
     if (!id) return 0;
     const item = Items.obtener(id);
     if (!item || item.tipo !== 'arma') return 0;
@@ -162,6 +199,7 @@ const Mochila = {
     Guardado.datos.armaEquipada = id;
     this.guardar();
     this.pintar();
+    this._notificarCambioArma();
     return true;
   },
 
@@ -176,8 +214,9 @@ const Mochila = {
     }
 
     const anterior = this.slots[dest];
-    this.slots[dest] = { id, cantidad: 1 };
     Guardado.datos.armaEquipada = null;
+
+    this.slots[dest] = { id, cantidad: 1 };
 
     if (anterior) {
       const libre = this._primerSlotLibre();
@@ -192,6 +231,7 @@ const Mochila = {
 
     this.guardar();
     this.pintar();
+    this._notificarCambioArma();
     return true;
   },
 
@@ -248,9 +288,53 @@ const Mochila = {
     return true;
   },
 
+  /** Agrega hasta `cantidad`; devuelve cuántas entraron. */
+  agregarHasta(id, cantidad = 1, opciones = {}) {
+    const item = Items.obtener(id);
+    if (!item) return { agregado: 0, restante: cantidad };
+    const maxPila = item.unico ? 1 : (CONFIG.maxPila || 10);
+    let restante = cantidad;
+    let agregado = 0;
+
+    if (item.unico) {
+      for (let i = 0; i < this.slots.length && restante > 0; i++) {
+        if (!this.slots[i]) {
+          this.slots[i] = { id, cantidad: 1 };
+          if (opciones.texto) this.slots[i].texto = opciones.texto;
+          restante--;
+          agregado++;
+        }
+      }
+    } else {
+      for (const sl of this.slots) {
+        if (restante <= 0) break;
+        if (sl && sl.id === id && sl.cantidad < maxPila) {
+          const cabe = Math.min(restante, maxPila - sl.cantidad);
+          sl.cantidad += cabe;
+          restante -= cabe;
+          agregado += cabe;
+        }
+      }
+      for (let i = 0; i < this.slots.length && restante > 0; i++) {
+        if (!this.slots[i]) {
+          const poner = Math.min(restante, maxPila);
+          this.slots[i] = { id, cantidad: poner };
+          restante -= poner;
+          agregado += poner;
+        }
+      }
+    }
+
+    if (agregado > 0) {
+      Historial.registrar('objetos', { detalle: 'Obtenido: ' + item.nombre, monto: agregado });
+    }
+    return { agregado, restante };
+  },
+
   quitar(id, cantidad = 1, motivo = 'Usado') {
     if (this.contar(id) < cantidad) return false;
     let restante = cantidad;
+    let quitoEquipada = false;
     for (let i = 0; i < this.slots.length && restante > 0; i++) {
       const sl = this.slots[i];
       if (sl && sl.id === id) {
@@ -262,11 +346,13 @@ const Mochila = {
     }
     if (restante > 0 && this.armaEquipadaId() === id) {
       Guardado.datos.armaEquipada = null;
+      quitoEquipada = true;
       restante -= 1;
     }
     if (restante > 0) return false;
     this.guardar();
     this.pintar();
+    if (quitoEquipada) this._notificarCambioArma();
     const item = Items.seguro(id);
     Historial.registrar('objetos', { detalle: motivo + ': ' + item.nombre, monto: -cantidad });
     return true;
@@ -302,30 +388,50 @@ const Mochila = {
     return h;
   },
 
+  _notificarCambioArma() {
+    const aplicar = () => {
+      this._sanearArmaEquipada();
+      this.pintarArmaHud();
+      const ventana = document.getElementById('ventana-mochila');
+      if (ventana && !ventana.classList.contains('oculto')) {
+        this._pintarSlotEquip();
+      }
+    };
+    aplicar();
+    requestAnimationFrame(aplicar);
+  },
+
   pintarArmaHud() {
-    const id = this.armaEquipadaId();
-    const item = id ? Items.seguro(id) : null;
-    const tiene = !!item;
-    const icon = item ? (item.icono || '🗡️') : null;
-    const nombre = item ? item.nombre : 'Sin arma';
-    const dano = item ? (item.dano || 0) : 0;
-    const titulo = dano > 0 ? nombre + ' (+' + dano + ' daño)' : (tiene ? nombre : 'Sin arma');
     const hud = document.getElementById('hud-arma-equipada');
-    const status = document.getElementById('inv-weapon-status');
-    if (hud) {
-      hud.textContent = tiene ? (icon || '🗡️') : '✋';
-      hud.title = tiene ? ('Arma: ' + titulo) : 'Sin arma equipada';
-      hud.classList.toggle('equipada', !!tiene);
-      hud.setAttribute('aria-hidden', tiene ? 'false' : 'true');
+    if (!hud) return;
+
+    const id = this._armaRealmenteEquipada();
+    let icono = '✋';
+    let titulo = 'Sin arma equipada';
+    let equipada = false;
+
+    if (id) {
+      const item = Items.seguro(id);
+      icono = item.icono || '🗡️';
+      const dano = item.dano || 0;
+      titulo = dano > 0 ? item.nombre + ' (+' + dano + ' daño)' : item.nombre;
+      equipada = true;
     }
-    if (status) status.textContent = tiene ? ('⚔️ ' + nombre) : '⚔️ Sin arma';
-    this._pintarSlotEquip();
+
+    hud.replaceChildren(document.createTextNode(icono));
+    hud.title = equipada ? ('Arma: ' + titulo) : titulo;
+    hud.setAttribute('aria-label', equipada ? ('Arma equipada: ' + titulo) : titulo);
+    hud.classList.toggle('equipada', equipada);
+    void hud.offsetHeight;
+
+    const status = document.getElementById('inv-weapon-status');
+    if (status) status.textContent = equipada ? ('⚔️ ' + Items.seguro(id).nombre) : '⚔️ Sin arma';
   },
 
   _pintarSlotEquip() {
     const slot = document.getElementById('slot-arma-equipada');
     if (!slot) return;
-    const id = this.armaEquipadaId();
+    const id = this._armaRealmenteEquipada();
     const item = id ? Items.seguro(id) : null;
     slot.querySelectorAll('.inv-item-drag').forEach(x => x.remove());
     slot.classList.toggle('filled', !!item);
@@ -344,28 +450,29 @@ const Mochila = {
 
   pintar() {
     const rejilla = document.getElementById('rejilla-mochila');
-    if (!rejilla) return;
-    const usados = this.slots.filter(Boolean).length;
-    const cap = document.getElementById('inv-capacidad');
-    if (cap) cap.textContent = usados + ' / ' + this.TOTAL_SLOTS;
-    const dinInv = document.getElementById('inv-dinero-cantidad');
-    if (dinInv && typeof Dinero !== 'undefined') dinInv.textContent = Dinero.saldo;
+    if (rejilla) {
+      const usados = this.slots.filter(Boolean).length;
+      const cap = document.getElementById('inv-capacidad');
+      if (cap) cap.textContent = usados + ' / ' + this.TOTAL_SLOTS;
+      const dinInv = document.getElementById('inv-dinero-cantidad');
+      if (dinInv && typeof Dinero !== 'undefined') dinInv.textContent = Dinero.saldo;
 
-    rejilla.innerHTML = '';
-    this.slots.forEach((sl, i) => {
-      const celda = document.createElement('div');
-      celda.className = 'slot';
-      celda.dataset.place = 'bag';
-      celda.dataset.index = i;
-      if (sl && sl.id !== this.armaEquipadaId()) {
-        const item = Items.seguro(sl.id);
-        celda.innerHTML = this._htmlItem(item.icono, sl.cantidad, true);
-        const dragEl = celda.querySelector('.inv-item-drag');
-        if (dragEl) this._enlazarSlot(dragEl, 'bag', i);
-      }
-      celda.addEventListener('pointerdown', (e) => this._onSlotPointerDown(e, 'bag', i));
-      rejilla.appendChild(celda);
-    });
+      rejilla.innerHTML = '';
+      this.slots.forEach((sl, i) => {
+        const celda = document.createElement('div');
+        celda.className = 'slot';
+        celda.dataset.place = 'bag';
+        celda.dataset.index = i;
+        if (sl && sl.id !== this._armaRealmenteEquipada()) {
+          const item = Items.seguro(sl.id);
+          celda.innerHTML = this._htmlItem(item.icono, sl.cantidad, true);
+          const dragEl = celda.querySelector('.inv-item-drag');
+          if (dragEl) this._enlazarSlot(dragEl, 'bag', i);
+        }
+        celda.addEventListener('pointerdown', (e) => this._onSlotPointerDown(e, 'bag', i));
+        rejilla.appendChild(celda);
+      });
+    }
 
     this._pintarSlotEquip();
     this._actualizarNombreArrastre();
@@ -469,7 +576,7 @@ const Mochila = {
     if (fromPlace === 'equip' && fromKey === 'weapon') {
       if (toPlace === 'bag') {
         const dest = typeof toKey === 'number' ? toKey : this._primerSlotLibre();
-        if (this.desequiparArma(dest)) { /* ok */ }
+        this.desequiparArma(dest);
       }
       return;
     }
@@ -499,6 +606,7 @@ const Mochila = {
       this.slots[destino] = o;
       this.slots[origen] = d || null;
     }
+    this._sanearArmaEquipada();
     this.guardar();
   },
 
@@ -572,10 +680,8 @@ const Mochila = {
     this.hoverTarget = null;
     const controls = document.getElementById('inv-controls');
     if (controls) controls.classList.remove('show');
-    const useBtn = document.getElementById('inv-use-btn');
-    const useAllBtn = document.getElementById('inv-use-all-btn');
-    if (useBtn) useBtn.style.display = '';
-    if (useAllBtn) useAllBtn.style.display = '';
+    document.getElementById('inv-use-btn')?.classList.remove('on');
+    document.getElementById('inv-use-all-btn')?.classList.remove('on');
     document.querySelectorAll('.slot.over, .inv-equip-slot.over, .inv-ctrl-btn.over')
       .forEach(s => s.classList.remove('over'));
     this._actualizarNombreArrastre();
@@ -615,10 +721,21 @@ const Mochila = {
       if (!ok) return false;
     }
 
+    const itemsSoltar = [{ id: sl.id, cantidad: sl.cantidad || 1 }];
+    if (typeof Bolsas !== 'undefined') {
+      const soltado = await Bolsas.soltar(itemsSoltar, 'Eliminado del inventario');
+      if (!soltado) {
+        this._toast('No se pudo dejar la bolsa en el mapa');
+        return false;
+      }
+    }
+
+    const eraArma = Items.esArma(item);
     if (place === 'equip') {
       Guardado.datos.armaEquipada = null;
     } else {
       this.slots[key] = null;
+      if (this.armaEquipadaId() === sl.id) Guardado.datos.armaEquipada = null;
     }
     if (this.selected && this.selected.place === place && this.selected.key === key) {
       this.selected = null;
@@ -626,7 +743,8 @@ const Mochila = {
     }
     this.guardar();
     Historial.registrar('objetos', { detalle: 'Eliminado: ' + item.nombre, monto: -sl.cantidad });
-    this._toast('Objeto borrado');
+    this._toast('Objeto dejado en el suelo');
+    if (eraArma) this._notificarCambioArma();
     return true;
   },
 
@@ -718,6 +836,7 @@ const Mochila = {
         this.slotSeleccionado = -1;
       }
       this.guardar();
+      this._notificarCambioArma();
       return;
     }
     const sl = this.slots[key];

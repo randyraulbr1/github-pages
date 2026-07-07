@@ -47,10 +47,20 @@ button { font-family: inherit; }
   width: 100%;
 }
 .barra-nivel {
-  font-size: 11px; font-weight: 900; color: #111;
-  flex-shrink: 0; width: 34px; text-align: right;
-  text-shadow: 0 0 3px #fff, 0 0 6px rgba(255,255,255,.85);
+  font-size: 11px;
+  font-weight: 900;
+  color: #fff;
+  flex-shrink: 0;
+  min-width: 34px;
+  text-align: center;
   letter-spacing: -.02em;
+  line-height: 1.15;
+  background: rgba(0, 0, 0, 0.35);
+  border: 1px solid rgba(0, 0, 0, 0.4);
+  border-radius: 2px;
+  padding: 2px 4px;
+  box-sizing: border-box;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.9);
 }
 .fila-barra-xp .barra-nivel { margin-right: 3px; }
 
@@ -230,23 +240,13 @@ button { font-family: inherit; }
 }
 .slot-arma-nombre { font-size: 13px; font-weight: 700; color: #e8eef8; }
 .hud-arma-equipada {
-  width: clamp(26px, 7vw, 30px);
-  height: clamp(26px, 7vw, 30px);
-  border-radius: 8px;
-  display: flex; align-items: center; justify-content: center;
-  font-size: clamp(13px, 3.5vw, 15px);
   flex-shrink: 0;
   pointer-events: none;
-  user-select: none;
-  background: rgba(12, 16, 28, .55);
-  border: 2px solid rgba(255, 255, 255, .18);
-  box-shadow: 0 3px 10px rgba(0, 0, 0, .35);
-  margin-bottom: 0;
-  opacity: 1;
+  cursor: default;
 }
 .hud-arma-equipada.equipada {
-  border-color: rgba(255, 255, 255, .28);
-  background: rgba(12, 16, 28, .65);
+  border-color: rgba(191, 90, 242, .55);
+  box-shadow: 0 0 0 2px rgba(191, 90, 242, .2), 0 3px 10px rgba(0, 0, 0, .35);
 }
 #zona-dano-flotante {
   position: fixed; left: 50%; top: 42%;
@@ -292,6 +292,14 @@ button { font-family: inherit; }
   flex-direction: column;
   align-items: center;
   text-align: center;
+}
+.marcador-bolsa-drop {
+  filter: drop-shadow(0 2px 6px rgba(0,0,0,.45));
+  animation: bolsa-pulso 2s ease-in-out infinite;
+}
+@keyframes bolsa-pulso {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.08); }
 }
 .marcador-enemigo-map {
   pointer-events: none;
@@ -1966,6 +1974,7 @@ body.en-auth #zona-notificaciones { display: none !important; }
 }
 .auth-aviso { font-size: 13px; color: #9aa5bd; line-height: 1.5; margin: 8px 0 16px; text-align: center; }
 #pantalla-sesion-remota { z-index: 6000; }
+#pantalla-cuenta-eliminada { z-index: 6001; }
 body.sesion-cerrada #mapa,
 body.sesion-cerrada #panel-hud-izq,
 body.sesion-cerrada #contenedor-dinero,
@@ -1976,7 +1985,18 @@ body.sesion-cerrada #banner-tesoro,
 body.sesion-cerrada #hud-combate-flotante,
 body.sesion-cerrada #admin-controles,
 body.sesion-cerrada #zona-notificaciones,
-body.sesion-cerrada .ventana { display: none !important; }
+body.sesion-cerrada .ventana,
+body.cuenta-eliminada #mapa,
+body.cuenta-eliminada #panel-hud-izq,
+body.cuenta-eliminada #contenedor-dinero,
+body.cuenta-eliminada #botones-inferiores,
+body.cuenta-eliminada #letrero-misiones,
+body.cuenta-eliminada #letrero-pin-chat,
+body.cuenta-eliminada #banner-tesoro,
+body.cuenta-eliminada #hud-combate-flotante,
+body.cuenta-eliminada #admin-controles,
+body.cuenta-eliminada #zona-notificaciones,
+body.cuenta-eliminada .ventana { display: none !important; }
 
 .ventana-admin-editor-caja { max-height: 92vh; overflow-y: auto; }
 .admin-editor-oro { padding: 10px 14px; display: flex; align-items: center; gap: 10px; }

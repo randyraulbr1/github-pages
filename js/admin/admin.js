@@ -117,6 +117,9 @@ const Admin = {
     } else {
       this.datos.moverPinJugador = !!this.datos.moverPinJugador;
     }
+    if (this.datos.optimizarVisibilidad === undefined) {
+      this.datos.optimizarVisibilidad = this.publicado.optimizarVisibilidad !== false;
+    }
     this.guardar();
 
     // Posiciones únicas del mundo: lo publicado es la verdad, el local solo añade lo no publicado aún
@@ -331,6 +334,7 @@ const Admin = {
 
   // ---------- VISTA COMBINADA: publicado en GitHub + borradores locales ----------
   _liberarMarcadorObjeto(id) {
+    this._liberarMarcadorBolsa(id);
     if (!id) return;
     const m = this._marcadoresObjeto[id];
     if (m) {
@@ -456,6 +460,20 @@ const Admin = {
         }, (marc) => {
           const ll = marc.getLatLng();
           this._moverCuerpoAdmin(p.playerId, +ll.lat.toFixed(6), +ll.lng.toFixed(6));
+        });
+      }
+      for (const p of (Multijugador.online || [])) {
+        if (Multijugador._estaMuerto(p)) continue;
+        const m = Multijugador.marcadores[p.playerId];
+        if (!m) continue;
+        this._arrastreOrganizarMarcador(m, {
+          id: 'jugador_' + p.playerId,
+          marcador: m,
+          _jugadorPlayerId: p.playerId,
+          nombre: p.name || 'Jugador'
+        }, (marc) => {
+          const ll = marc.getLatLng();
+          this._moverJugadorAdmin(p.playerId, +ll.lat.toFixed(6), +ll.lng.toFixed(6));
         });
       }
     }
@@ -1056,6 +1074,7 @@ const Admin = {
     enlazar('admin-mensaje', () => this.abrirMensaje());
     enlazar('admin-organizar', () => this.entrarModo('organizar'));
     enlazar('admin-mover-pin', () => this.toggleMoverPinJugador());
+    enlazar('admin-opt-visibilidad', () => this.toggleOptimizacionVisibilidad());
     enlazar('admin-jugadores', () => this._listarCuentasAsync());
     enlazar('admin-crear-jugador', () => this._abrirCrearJugador());
     enlazar('btn-admin-crear-jugador-guardar', () => this._guardarCrearJugador());
@@ -1089,6 +1108,7 @@ const Admin = {
     enlazar('admin-ban-perm', () => this._aplicarBan(0));
     enlazar('admin-ban-quitar', () => this._aplicarBan(null));
     this._actualizarEtiquetaMoverPin();
+    this._actualizarEtiquetaOptimizacionVisibilidad();
     this._actualizarEtiquetaVerCofresOcultos();
     this._actualizarEtiquetaMantenimientoNav();
     if (typeof Cofres !== 'undefined') {
@@ -1102,6 +1122,45 @@ const Admin = {
     return this.esAdminJugador() && !!this.datos.moverPinJugador;
   },
 
+  optimizacionVisibilidadActiva() {
+    if (this.publicado?.optimizarVisibilidad === false) return false;
+    if (this.esAdminJugador() && this.datos?.optimizarVisibilidad === false) return false;
+    return CONFIG.optimizarVisibilidad !== false;
+  },
+
+  /** Jugadores/enemigos visibles según distancia (admin ve todo si la optimización está ON). */
+  entidadVisibleEnRango(distancia) {
+    if (!this.optimizacionVisibilidadActiva()) return true;
+    if (this.esAdminJugador()) return true;
+    return distancia <= (CONFIG.distanciaVerEntidades || 500);
+  },
+
+  toggleOptimizacionVisibilidad() {
+    if (!this.esAdminJugador()) return;
+    const activa = this.optimizacionVisibilidadActiva();
+    this.datos.optimizarVisibilidad = !activa;
+    this.guardar();
+    this._encolarPublicacion(true);
+    this._actualizarEtiquetaOptimizacionVisibilidad();
+    if (typeof Multijugador !== 'undefined') Multijugador.refrescarMarcadoresDistancia();
+    if (typeof Enemigos !== 'undefined') Enemigos.refrescarVisibilidadDistancia();
+    Notificaciones.mostrar(
+      this.datos.optimizarVisibilidad
+        ? '👁️ Optimización 500 m activada (tú ves todo el mapa)'
+        : '👁️ Optimización desactivada: todos ven jugadores y enemigos lejanos',
+      'info', 4500
+    );
+  },
+
+  _actualizarEtiquetaOptimizacionVisibilidad() {
+    const el = document.getElementById('admin-opt-visibilidad-texto');
+    if (!el) return;
+    const on = this.optimizacionVisibilidadActiva();
+    el.textContent = 'Optimización 500 m: ' + (on ? 'ON' : 'OFF');
+    const btn = document.getElementById('admin-opt-visibilidad');
+    if (btn) btn.classList.toggle('admin-toggle-on', on);
+  },
+
   toggleMoverPinJugador() {
     if (!this.esAdminJugador()) return;
     this.datos.moverPinJugador = !this.datos.moverPinJugador;
@@ -1111,7 +1170,7 @@ const Admin = {
     if (typeof GPS !== 'undefined') GPS._actualizarArrastre();
     Notificaciones.mostrar(
       this.datos.moverPinJugador
-        ? '🎯 Puedes arrastrar el pin azul del jugador'
+        ? '🎯 Puedes arrastrar tu pin y el de otros jugadores (modo Organizar)'
         : '🎯 Pin del jugador bloqueado (solo GPS 📍)',
       'info', 4000
     );
@@ -1240,6 +1299,7 @@ const Admin = {
     if (!this.publicado.enemigosEstado) this.publicado.enemigosEstado = {};
     if (!this.publicado.objetosEstado) this.publicado.objetosEstado = {};
     if (!this.publicado.tiendasAdmin) this.publicado.tiendasAdmin = [];
+    if (!this.publicado.bolsasDrop) this.publicado.bolsasDrop = [];
 
     for (const en of (this.publicado.enemigos || [])) {
       if (!en?.id) continue;
@@ -1280,6 +1340,7 @@ const Admin = {
       this.publicado.moverPinJugador = true;
     }
     this._actualizarEtiquetaMoverPin();
+    this._actualizarEtiquetaOptimizacionVisibilidad();
     if (typeof GPS !== 'undefined') GPS._actualizarArrastre();
 
     this.refrescarVisibles();
@@ -2377,6 +2438,89 @@ const Admin = {
       this._revisarTesoro(t, Utilidades.distanciaMetros(GPS.posicion, t.pos));
     }
     this._refrescarObjetosMapa();
+    this._refrescarBolsasMapa();
+  },
+
+  _refrescarBolsasMapa() {
+    if (typeof Bolsas === 'undefined' || !GPS.posicion) return;
+    for (const b of Bolsas.todas()) {
+      if (!b?.pos) continue;
+      const d = Utilidades.distanciaMetros(GPS.posicion, b.pos);
+      if (!b._marcador && Bolsas.visibleCerca(b, d)) this._crearMarcadorBolsa(b, d);
+      else if (b._marcador) {
+        b._marcador.setLatLng(b.pos);
+        this._revisarBolsa(b, d);
+      } else {
+        this._revisarBolsa(b, d);
+      }
+    }
+  },
+
+  _liberarMarcadorBolsa(id) {
+    if (!id) return;
+    const m = this._marcadoresBolsa?.[id];
+    if (m) {
+      try { m.remove(); } catch (e) { /* */ }
+      delete this._marcadoresBolsa[id];
+    }
+    if (typeof Bolsas !== 'undefined') {
+      for (const b of Bolsas.todas()) {
+        if (b && b.id === id) b._marcador = null;
+      }
+    }
+    if (typeof Mapa !== 'undefined') {
+      const p = Mapa.puntosInteractivos.find(x => x.id === id);
+      if (p) p.marcador = null;
+    }
+  },
+
+  _vincularMarcadorBolsa(b, marcador) {
+    if (!b?.id || !marcador) return;
+    if (!this._marcadoresBolsa) this._marcadoresBolsa = {};
+    b._marcador = marcador;
+    this._marcadoresBolsa[b.id] = marcador;
+    if (typeof Mapa !== 'undefined') {
+      const p = Mapa.puntosInteractivos.find(x => x.id === b.id);
+      if (p) p.marcador = marcador;
+    }
+  },
+
+  _crearMarcadorBolsa(b, distancia) {
+    if (!b?.items?.length || !b.pos) return;
+    const d = typeof distancia === 'number'
+      ? distancia
+      : Utilidades.distanciaMetros(GPS.posicion ? GPS.posicion : CONFIG.centro, b.pos);
+    if (!Mapa.puntosInteractivos.find(x => x.id === b.id)) {
+      Mapa.registrarPunto({
+        id: b.id,
+        posicion: b.pos,
+        radio: CONFIG.distanciaInteraccion,
+        marcador: null,
+        alCambiarDistancia: (dist) => this._revisarBolsa(b, dist)
+      });
+    }
+    this._revisarBolsa(b, d);
+  },
+
+  _revisarBolsa(b, distancia) {
+    if (!b?.items?.length) return;
+    const d = typeof distancia === 'number'
+      ? distancia
+      : (GPS.posicion ? Utilidades.distanciaMetros(GPS.posicion, b.pos) : Infinity);
+    const debeVerse = typeof Bolsas !== 'undefined' && Bolsas.visibleCerca(b, d);
+
+    if (debeVerse && !b._marcador) {
+      this._liberarMarcadorBolsa(b.id);
+      b._marcador = Mapa.crearMarcadorEmoji(b.pos, '🎒', 28);
+      const el = b._marcador.getElement?.();
+      if (el) el.classList.add('marcador-bolsa-drop');
+      this._vincularMarcadorBolsa(b, b._marcador);
+      b._marcador.on('click', () => {
+        if (typeof Bolsas !== 'undefined') void Bolsas.recoger(b);
+      });
+    } else if (!debeVerse) {
+      this._liberarMarcadorBolsa(b.id);
+    }
   },
 
   _refrescarObjetosMapa() {
@@ -2535,6 +2679,9 @@ const Admin = {
   },
 
   async _recogerObjeto(o) {
+    if (typeof Bolsas !== 'undefined' && Bolsas._esBolsa(o)) {
+      return Bolsas.recoger(o);
+    }
     if (!this._objetoDisponible(o)) return;
     const d = Utilidades.distanciaMetros(GPS.posicion, o.pos);
     if (d > CONFIG.distanciaInteraccion) {
@@ -2636,6 +2783,33 @@ const Admin = {
     this._publicarParaTodos(true);
   },
 
+  _moverJugadorAdmin(playerId, lat, lng) {
+    const pid = Number(playerId);
+    if (!pid || !Number.isFinite(lat) || !Number.isFinite(lng)) return;
+
+    if (typeof Multijugador !== 'undefined') {
+      const p = Multijugador.online.find(x => Number(x.playerId) === pid);
+      if (p) {
+        p.x = lat;
+        p.y = lng;
+        const m = Multijugador.marcadores[pid];
+        if (m) m.setLatLng([lat, lng]);
+      }
+      const perfil = p
+        ? this.jugadoresGlobales().find(j =>
+          (j.nombre || '').trim().toLowerCase() === (p.name || '').trim().toLowerCase())
+        : null;
+      Multijugador.adminMoverJugador(pid, lat, lng, perfil?.id || null);
+    }
+
+    if (typeof Notificaciones !== 'undefined') {
+      Notificaciones.mostrar('📍 Jugador movido en el mapa', 'exito', 2000);
+    }
+    if (this.modo === 'organizar') {
+      requestAnimationFrame(() => this._reaplicarArrastreOrganizar());
+    }
+  },
+
   _arrastreOrganizarMarcador(marcador, punto, alMoverPos, alArrastrar) {
     if (!marcador) return;
     this._limpiarPinOrganizar(marcador, punto);
@@ -2662,6 +2836,7 @@ const Admin = {
             this._eliminarCuerpoAdmin(punto._cuerpoPlayerId);
             return;
           }
+          if (punto._jugadorPlayerId) return;
           this._eliminarPin(punto, true);
         });
         el.appendChild(btn);
@@ -4369,6 +4544,7 @@ const Admin = {
       combate: this.combateConfig(),
       combateEnemigos: this.combateEnemigosConfig(),
       moverPinJugador: !!this.datos.moverPinJugador,
+      optimizarVisibilidad: this.optimizacionVisibilidadActiva(),
       adminPinClaves: Object.assign(
         {}, this.publicado.adminPinClaves || {}, this.datos.jugadoresPinAdmin || {}
       )

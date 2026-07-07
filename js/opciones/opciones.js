@@ -29,6 +29,14 @@ const Opciones = {
       this.cerrar();
     });
 
+    document.getElementById('opcion-restablecer-pin')?.addEventListener('click', () => {
+      this._confirmar(
+        'reset-pin',
+        '¿Restablecer tu pin?',
+        'Tu pin volverá al centro de Mariel (22.988784, -82.754494). Úsalo si quedó fuera del mapa o en un borde.'
+      );
+    });
+
     document.querySelectorAll('.opciones-toggle').forEach(btn => {
       btn.addEventListener('click', () => this._togglePref(btn));
     });
@@ -124,6 +132,10 @@ const Opciones = {
     }
     if (accion === 'report') {
       this.reportar();
+      return;
+    }
+    if (accion === 'reset-pin') {
+      this._restablecerPin();
     }
   },
 
@@ -134,6 +146,18 @@ const Opciones = {
     el.classList.add('show');
     clearTimeout(this._toastTimer);
     this._toastTimer = setTimeout(() => el.classList.remove('show'), 1700);
+  },
+
+  _restablecerPin() {
+    if (typeof GPS !== 'undefined' && GPS.restablecerPin) {
+      GPS.restablecerPin(CONFIG.pinRestablecer);
+    } else if (typeof Guardado !== 'undefined' && Guardado.datos) {
+      Guardado.datos.posicionJugador = CONFIG.pinRestablecer.slice();
+      Guardado.guardar();
+      if (typeof Mapa !== 'undefined') Mapa.centrarEnJugador(true);
+    }
+    this._toast('Pin restablecido en Mariel');
+    this.cerrar();
   },
 
   pintarPerfilOpciones() {
@@ -166,6 +190,7 @@ const Opciones = {
     this._refrescarAdmin();
     this.pintarPerfilOpciones();
     this._pintarPreferencias();
+    this._pintarVersion();
     this._cerrarConfirm();
     const v = document.getElementById('ventana-opciones');
     v?.classList.remove('oculto');
@@ -176,6 +201,17 @@ const Opciones = {
     const prefs = Guardado.datos?.preferencias || {};
     this._setToggle(document.getElementById('opcion-toggle-chat'), prefs.notifChat !== false);
     this._setToggle(document.getElementById('opcion-toggle-amigos'), prefs.notifAmigos !== false);
+  },
+
+  _pintarVersion() {
+    const el = document.getElementById('opciones-version');
+    if (!el || typeof CONFIG === 'undefined') return;
+    const v = CONFIG.version || '?';
+    const guardada = localStorage.getItem('mariel_app_version');
+    const alDia = !guardada || guardada === v;
+    el.textContent = alDia
+      ? ('Versión ' + v + ' · actualizada')
+      : ('Versión ' + v + ' · recarga para actualizar');
   },
 
   _guardarPreferencia(clave, valor) {

@@ -3,7 +3,7 @@
 // ============================================================
 const CONFIG = {
   // Cambiar al publicar: obliga al móvil a descartar caché vieja
-  version: '141',
+  version: '156',
   maxPila: 10,
 
   // Nombre reservado del administrador (solo este jugador ve el panel admin)
@@ -24,6 +24,8 @@ const CONFIG = {
   firebaseMundoUrl: '',
   // Centro del pueblo de Mariel, Artemisa, Cuba
   centro: [22.9936, -82.7539],
+  // Posición de rescate si el pin queda fuera del mapa
+  pinRestablecer: [22.988784, -82.754494],
 
   // Cuadrado jugable: no se puede ver ni salir fuera de esta zona
   limites: [
@@ -39,6 +41,10 @@ const CONFIG = {
 
   // Distancias (en metros)
   distanciaInteraccion: 20,      // distancia para poder tocar tiendas, pesca, etc.
+  bolsaDropMinutos: 5,           // bolsa en el suelo sin recoger nada
+  distanciaVerBolsa: 60,         // ver bolsas de objetos eliminados en el mapa
+  distanciaVerEntidades: 500,    // jugadores y enemigos en el mapa (optimización)
+  optimizarVisibilidad: true,    // ocultar entidades lejanas (admin puede desactivar)
   distanciaVerMuerto: 50,        // distancia para revivir/saquear
   cuerpoMuertoHoras: 1,          // pin ⚰️ visible en mapa (aunque desconecte)
   vidaAlRevivir: 40,             // vida al ser revivido (amigo o admin)

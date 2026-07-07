@@ -84,6 +84,7 @@ const Guardado = {
       admin: { misiones: [], tesoros: [], objetos: [] },
       preferencias: { notifChat: true, notifAmigos: true },
       objetosSuelto: [],
+      bolsasDrop: [],
       nubeT: 0
     };
   },
@@ -134,7 +135,10 @@ const Guardado = {
     this._aplicarSnapshot(nube.datos);
     this.datos.nubeT = nube.t;
     this.datos.nubeFusionada = true;
-    if (typeof Mochila !== 'undefined') Mochila.pintar();
+    if (typeof Mochila !== 'undefined') {
+      Mochila._refrescarTrasGuardado();
+      Mochila.pintar();
+    }
   },
 
   guardar() {

@@ -7,6 +7,7 @@ const Usuarios = {
   perfilActivo: null,
   _resolver: null,
   _sesionCerrada: false,
+  _cuentaEliminada: false,
   _mundoCache: null,
 
   _CUENTAS_RESET_V: '56',
@@ -394,6 +395,63 @@ const Usuarios = {
     document.getElementById('pantalla-sesion-remota').classList.remove('oculto');
   },
 
+  _cuentaMeAfecta(data) {
+    if (!this.perfilActivo) return false;
+    if (data?.perfilId && data.perfilId === this.perfilActivo.id) return true;
+    const nom = String(data?.nombre || '').trim().toLowerCase();
+    const mio = String(this.perfilActivo.nombre || '').trim().toLowerCase();
+    return !!(nom && mio && nom === mio);
+  },
+
+  verificarCuentaEnMundo() {
+    if (!this.perfilActivo || this._cuentaEliminada || this.esAdministrador()) return;
+    if (typeof Admin === 'undefined' || !Admin.publicado) return;
+    const remotos = Admin.publicado.jugadores || [];
+    if (!remotos.length && CONFIG.servidorOnline) return;
+    const id = this.perfilActivo.id;
+    const nom = String(this.perfilActivo.nombre || '').trim().toLowerCase();
+    const sigue = remotos.some(j =>
+      j && (j.id === id || String(j.nombre || '').trim().toLowerCase() === nom)
+    );
+    if (!sigue) this.expulsarCuentaEliminada();
+  },
+
+  expulsarCuentaEliminada() {
+    if (this._cuentaEliminada) return;
+    this._cuentaEliminada = true;
+    const tokenKey = (typeof Multijugador !== 'undefined' && Multijugador.TOKEN_KEY)
+      ? Multijugador.TOKEN_KEY : 'mariel_online_token';
+    localStorage.removeItem(tokenKey);
+    sessionStorage.removeItem('mariel_clave_servidor');
+    if (typeof Multijugador !== 'undefined' && Multijugador.socket) {
+      Multijugador.socket.disconnect();
+      Multijugador.activo = false;
+    }
+    if (this.perfilActivo) {
+      const id = this.perfilActivo.id;
+      this.datos.lista = (this.datos.lista || []).filter(p => p.id !== id);
+      localStorage.removeItem(CONFIG.claveGuardado + '::' + id);
+      this.datos.activo = null;
+      this.datos.sesionId = null;
+      this.perfilActivo = null;
+      this._guardarLista();
+    }
+    document.body.classList.add('cuenta-eliminada');
+    document.querySelectorAll('.ventana').forEach(v => v.classList.add('oculto'));
+    const pantalla = document.getElementById('pantalla-cuenta-eliminada');
+    if (pantalla) pantalla.classList.remove('oculto');
+    if (window.MarielBoot) MarielBoot.ocultar();
+  },
+
+  salirCuentaEliminada() {
+    this._cuentaEliminada = false;
+    document.body.classList.remove('cuenta-eliminada');
+    const pantalla = document.getElementById('pantalla-cuenta-eliminada');
+    if (pantalla) pantalla.classList.add('oculto');
+    document.body.classList.add('en-auth');
+    this.mostrarLogin();
+  },
+
   cerrarSesion() {
     sessionStorage.removeItem('mariel_clave_servidor');
     if (typeof Multijugador !== 'undefined' && Multijugador.socket) {
@@ -487,10 +545,12 @@ document.addEventListener('DOMContentLoaded', () => {
   const btnDevRandy = document.getElementById('btn-dev-login-randy');
   const btnReg = document.getElementById('btn-crear-perfil');
   const btnSalirRemoto = document.getElementById('btn-sesion-remota-salir');
+  const btnCuentaEliminada = document.getElementById('btn-cuenta-eliminada-ok');
   if (irReg) irReg.addEventListener('click', () => Usuarios.mostrarRegistro());
   if (irLog) irLog.addEventListener('click', () => Usuarios.mostrarLogin());
   if (btnLog) btnLog.addEventListener('click', () => Usuarios.iniciarSesion());
   if (btnDevRandy) btnDevRandy.addEventListener('click', () => Usuarios.entrarComoRandyDev());
   if (btnReg) btnReg.addEventListener('click', () => Usuarios.crear());
   if (btnSalirRemoto) btnSalirRemoto.addEventListener('click', () => Usuarios.cerrarSesion());
+  if (btnCuentaEliminada) btnCuentaEliminada.addEventListener('click', () => Usuarios.salirCuentaEliminada());
 });

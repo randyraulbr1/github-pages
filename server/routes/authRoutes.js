@@ -109,6 +109,11 @@ router.post('/login-game', (req, res) => {
     return res.status(400).json({ ok: false, error: 'Contraseña mínimo 4 caracteres' });
   }
 
+  const enSnapshot = buscarJugadorSnapshot(usuario);
+  if (!enSnapshot) {
+    return res.status(401).json({ ok: false, error: 'No estás registrado' });
+  }
+
   let user = findUserByUsername(usuario);
   if (user && comparePassword(clave, user.password_hash)) {
     const player = findPlayerByUserId(user.id);
@@ -130,9 +135,9 @@ router.post('/login-game', (req, res) => {
     });
   }
 
-  const legacy = buscarJugadorSnapshot(usuario);
+  const legacy = enSnapshot;
   if (!legacy) {
-    return res.status(401).json({ ok: false, error: 'No existe esa cuenta' });
+    return res.status(401).json({ ok: false, error: 'No estás registrado' });
   }
   if (!legacy.pinHash) {
     return res.status(401).json({ ok: false, error: 'Cuenta sin contraseña. Pide al admin que la configure.' });
@@ -257,6 +262,10 @@ router.post('/register', (req, res) => {
 router.post('/login', (req, res) => {
   const username = (req.body.username || req.body.usuario || '').trim();
   const password = req.body.password || req.body.clave || '';
+
+  if (!buscarJugadorSnapshot(username)) {
+    return res.status(401).json({ ok: false, error: 'No estás registrado' });
+  }
 
   const user = findUserByUsername(username);
   if (!user || !comparePassword(password, user.password_hash)) {

@@ -181,24 +181,41 @@ function getJugadoresPublicos() {
 
 /** Borra de SQLite usuarios que ya no están en la lista publicada por el admin. */
 function purgarCuentasFueraDeSnapshot(mundo) {
-  if (!Array.isArray(mundo?.jugadores)) return { ok: true, removed: 0 };
+  if (!Array.isArray(mundo?.jugadores)) return { ok: true, removed: 0, removedAccounts: [] };
   if (!mundo.jugadores.length) {
     console.warn('[mundo] purgar omitido: lista de jugadores vacía');
-    return { ok: true, removed: 0, skipped: true };
+    return { ok: true, removed: 0, skipped: true, removedAccounts: [] };
   }
   const nombres = new Set(
     mundo.jugadores.map(j => String(j.nombre || '').toLowerCase()).filter(Boolean)
   );
+  const snap = getWorldSnapshot();
   const rows = listUsersWithPlayers();
   const del = db.prepare('DELETE FROM users WHERE id = ?');
   let removed = 0;
+  const removedAccounts = [];
   for (const r of rows) {
     const nombre = String(r.name || r.username || '').toLowerCase();
     if (!nombre || nombres.has(nombre)) continue;
+    const nombreVisible = String(r.name || r.username || '').trim();
+    let perfilId = null;
+    if (snap?.jugadores?.length) {
+      const j = snap.jugadores.find(x =>
+        x?.nombre && x.nombre.toLowerCase() === nombre
+      );
+      if (j?.id) perfilId = j.id;
+    }
+    if (!perfilId && r.player_id) perfilId = 'srv_' + r.player_id;
+    removedAccounts.push({
+      userId: r.user_id,
+      playerId: r.player_id,
+      nombre: nombreVisible,
+      perfilId
+    });
     del.run(r.user_id);
     removed++;
   }
-  return { ok: true, removed };
+  return { ok: true, removed, removedAccounts };
 }
 
 async function respaldarCuentasEnGitHub() {

@@ -194,6 +194,22 @@ const Multijugador = {
       if (i >= 0) Object.assign(this.online[i], p);
       else this.online.push(p);
       this._actualizarMarcador(this.online[i >= 0 ? i : this.online.length - 1]);
+      if (typeof Admin !== 'undefined' && Admin.modo === 'organizar') {
+        requestAnimationFrame(() => Admin._reaplicarArrastreOrganizar());
+      }
+    });
+
+    this.socket.on('player:adminMove', (data) => {
+      const x = Number(data?.x);
+      const y = Number(data?.y);
+      if (!Number.isFinite(x) || !Number.isFinite(y)) return;
+      if (typeof GPS !== 'undefined' && GPS._actualizar) {
+        GPS.dejarDeSeguir();
+        GPS._actualizar([x, y]);
+      }
+      if (typeof Notificaciones !== 'undefined') {
+        Notificaciones.mostrar('📍 El administrador movió tu pin en el mapa', 'info', 4500);
+      }
     });
 
     this.socket.on('player:updateStats', (p) => {
@@ -274,14 +290,22 @@ const Multijugador = {
       Admin._ultimoFirmaPublicada = Admin._firmaMundo(json);
       Admin._aplicarMundoRemoto(json);
       if (data.mundo.cuerposMuertos) this._aplicarCuerpos(data.mundo.cuerposMuertos);
-      if (typeof Usuarios !== 'undefined' && !Usuarios.esAdministrador() &&
-          typeof Notificaciones !== 'undefined') {
-        Notificaciones.mostrar('🌍 El admin actualizó el mapa', 'info', 4000);
+      if (typeof Usuarios !== 'undefined') {
+        Usuarios.verificarCuentaEnMundo();
+        if (!Usuarios.esAdministrador() && typeof Notificaciones !== 'undefined') {
+          Notificaciones.mostrar('🌍 El admin actualizó el mapa', 'info', 4000);
+        }
       }
     });
 
     this.socket.on('partida:sync', (data) => {
       this._aplicarPartidaServidor(data);
+    });
+
+    this.socket.on('account:deleted', (data) => {
+      if (typeof Usuarios !== 'undefined' && Usuarios._cuentaMeAfecta(data)) {
+        Usuarios.expulsarCuentaEliminada();
+      }
     });
 
     this.socket.on('world:tesoroRecogido', (data) => {
@@ -304,6 +328,16 @@ const Multijugador = {
     this.socket.on('world:objetoRecogido', (data) => {
       if (!data?.origenId || typeof Admin === 'undefined') return;
       Admin.aplicarRecogidaCompartida(data.origenId, data.recogidoAt, data.playerId);
+    });
+
+    this.socket.on('world:bagUpdate', (data) => {
+      if (!data?.bolsa || typeof Bolsas === 'undefined') return;
+      Bolsas.aplicarBolsaRemota(data.bolsa);
+    });
+
+    this.socket.on('world:bagRemove', (data) => {
+      if (!data?.bolsaId || typeof Bolsas === 'undefined') return;
+      Bolsas.aplicarBolsaEliminada(data.bolsaId);
     });
 
     this.socket.on('enemy:attack', (data) => {
@@ -361,6 +395,21 @@ const Multijugador = {
     return true;
   },
 
+  _distanciaJugador(p) {
+    if (!GPS.posicion || !p) return Infinity;
+    const pos = this._posMarcador(p);
+    return Utilidades.distanciaMetros(GPS.posicion, [pos.x, pos.y]);
+  },
+
+  _debeMostrarJugador(p) {
+    if (!this._visible(p.playerId)) return false;
+    if (typeof Admin !== 'undefined' && Admin.entidadVisibleEnRango) {
+      return Admin.entidadVisibleEnRango(this._distanciaJugador(p));
+    }
+    const max = CONFIG.distanciaVerEntidades || 500;
+    return CONFIG.optimizarVisibilidad === false || this._distanciaJugador(p) <= max;
+  },
+
   _iniciarPollingMundo() {
     if (this._pollMundo) clearInterval(this._pollMundo);
     this._pollMundo = setInterval(() => this._pullMundoServidor(), 4000);
@@ -376,6 +425,9 @@ const Multijugador = {
         Admin.publicado.jugadores = Admin.publicado.jugadores.filter(
           j => j && j.id !== data.perfilId
         );
+      }
+      if (typeof Usuarios !== 'undefined' && Usuarios._cuentaMeAfecta(data)) {
+        Usuarios.expulsarCuentaEliminada();
       }
     } else if (data.partida) {
       const prev = Admin.publicado.partidas[data.perfilId];
@@ -910,6 +962,31 @@ const Multijugador = {
     });
   },
 
+  soltarBolsa(payload) {
+    return new Promise((resolve) => {
+      if (!this.socket || !this.activo || !payload?.pos) return resolve(null);
+      this.socket.emit('world:dropBag', {
+        x: payload.pos[0],
+        y: payload.pos[1],
+        items: payload.items || []
+      }, (res) => {
+        resolve(res?.ok ? res.bolsa : null);
+      });
+    });
+  },
+
+  recogerBolsa(bolsaId, recogidos, pos) {
+    return new Promise((resolve) => {
+      if (!this.socket || !this.activo || !bolsaId) return resolve({ ok: false });
+      this.socket.emit('world:pickupBag', {
+        bolsaId,
+        recogidos: recogidos || [],
+        x: pos?.[0],
+        y: pos?.[1]
+      }, (res) => resolve(res || { ok: false }));
+    });
+  },
+
   _estaMuerto(p) {
     return !!(p && (p.dead || (p.hp != null && p.hp <= 0)));
   },
@@ -1047,6 +1124,20 @@ const Multijugador = {
     this._ultimoEnvio = ahora;
     this.socket.emit('player:move', { x: lat, y: lng, gps: true, force: forzar }, () => {});
     this.enviarStats(false);
+  },
+
+  adminMoverJugador(playerId, lat, lng, perfilId) {
+    if (!this.socket || !this.activo) return;
+    this.socket.emit('admin:movePlayerPin', {
+      targetPlayerId: playerId,
+      x: lat,
+      y: lng,
+      perfilId: perfilId || null
+    }, (res) => {
+      if (!res?.ok && typeof Notificaciones !== 'undefined') {
+        Notificaciones.mostrar('❌ ' + (res.error || 'No se pudo mover al jugador'), 'error', 4000);
+      }
+    });
   },
 
   enviarStats(forzar) {
@@ -1188,6 +1279,10 @@ const Multijugador = {
       if (c) this._actualizarMarcadorCuerpo(c);
       return;
     }
+    if (!this._debeMostrarJugador(p)) {
+      this._quitarMarcador(id);
+      return;
+    }
     const pos = this._posMarcador(p);
     let m = this.marcadores[id];
     const icon = this._iconoJugador(p);
@@ -1234,6 +1329,9 @@ const Multijugador = {
     if (typeof Amigos !== 'undefined') Amigos._pintarSiAbierto();
     if (mostrarAviso !== false && this.online.length && typeof Notificaciones !== 'undefined') {
       Notificaciones.mostrar('👥 ' + this.online.length + ' jugador(es) en vivo', 'info', 3000);
+    }
+    if (typeof Admin !== 'undefined' && Admin.modo === 'organizar') {
+      requestAnimationFrame(() => Admin._reaplicarArrastreOrganizar());
     }
   }
 };

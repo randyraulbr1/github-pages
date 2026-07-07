@@ -25,7 +25,7 @@ const {
 } = require('./db');
 const { verifyToken, isGameAdminName } = require('./auth');
 const { startEnemyAI } = require('./enemyAI');
-const { registrarRecogidaObjeto, registrarRecogidaTesoro, registrarCuerpoMuerto, quitarCuerpoMuerto, getCuerpoMuerto, sincronizarCuerposExpirados, actualizarInventarioCuerpo, registrarLootMuerto, actualizarPartidaEnSnapshot, revivirPartidaEnSnapshot, buscarPerfilIdPorNombre } = require('./syncMundo');
+const { registrarRecogidaObjeto, registrarRecogidaTesoro, registrarCuerpoMuerto, quitarCuerpoMuerto, getCuerpoMuerto, sincronizarCuerposExpirados, sincronizarBolsasExpiradas, actualizarInventarioCuerpo, registrarLootMuerto, actualizarPartidaEnSnapshot, revivirPartidaEnSnapshot, buscarPerfilIdPorNombre, limpiarBolsasExpiradas, crearBolsaDrop, recogerBolsaDrop } = require('./syncMundo');
 
 /** playerId -> { socketId, playerId, name, x, y, hp, hpMax, level } */
 const onlinePlayers = new Map();
@@ -144,6 +144,7 @@ function setupSockets(io) {
   }, SYNC_INTERVAL_MS);
 
   setInterval(() => sincronizarCuerposExpirados(io), 120000);
+  setInterval(() => sincronizarBolsasExpiradas(io), 60000);
 
   io.on('connection', (socket) => {
     const player = findPlayerById(socket.playerId);
@@ -361,6 +362,45 @@ function setupSockets(io) {
       ack?.({ ok: true, hp: cura });
     });
 
+    socket.on('admin:movePlayerPin', (payload, ack) => {
+      const adminPl = findPlayerById(socket.playerId);
+      if (!adminPl || !isGameAdminName(adminPl.name)) {
+        return ack?.({ ok: false, error: 'Solo el administrador del juego' });
+      }
+
+      const targetId = parseInt(payload?.targetPlayerId, 10);
+      const targetX = Number(payload?.x);
+      const targetY = Number(payload?.y);
+      if (!targetId || !Number.isFinite(targetX) || !Number.isFinite(targetY)) {
+        return ack?.({ ok: false, error: 'Datos inválidos' });
+      }
+
+      const targetDb = findPlayerById(targetId);
+      if (!targetDb) return ack?.({ ok: false, error: 'Jugador no encontrado' });
+
+      const updated = updatePlayer(targetId, { x: targetX, y: targetY });
+      const data = formatPlayer(updated);
+      const online = onlinePlayers.get(targetId);
+      if (online) {
+        online.x = data.x;
+        online.y = data.y;
+        broadcastMove(io, targetId, online);
+      }
+
+      io.to('player:' + targetId).emit('player:adminMove', { x: targetX, y: targetY });
+
+      const perfilId = payload?.perfilId || buscarPerfilIdPorNombre(targetDb.name, targetId);
+      if (perfilId) {
+        const snap = getWorldSnapshot();
+        const prev = snap?.partidas?.[perfilId];
+        const datos = prev?.datos ? Object.assign({}, prev.datos) : {};
+        datos.posicionJugador = [targetX, targetY];
+        actualizarPartidaEnSnapshot(perfilId, { datos, t: Date.now() }, io);
+      }
+
+      ack?.({ ok: true, x: targetX, y: targetY });
+    });
+
     socket.on('player:revive', (payload, ack) => {
       const targetId = parseInt(payload?.targetPlayerId, 10);
       const targetOnline = onlinePlayers.get(targetId);
@@ -456,6 +496,36 @@ function setupSockets(io) {
       const origenId = (payload?.origenId || '').trim();
       if (!origenId) return ack?.({ ok: false, error: 'origenId requerido' });
       const result = registrarRecogidaObjeto(origenId, socket.playerId, io);
+      ack?.(result);
+    });
+
+    socket.on('world:dropBag', (payload, ack) => {
+      const pl = findPlayerById(socket.playerId);
+      if (!pl) return ack?.({ ok: false, error: 'Jugador no encontrado' });
+      const x = Number(payload?.x ?? payload?.pos?.[0]);
+      const y = Number(payload?.y ?? payload?.pos?.[1]);
+      if (!Number.isFinite(x) || !Number.isFinite(y)) {
+        return ack?.({ ok: false, error: 'Posición inválida' });
+      }
+      if (distanciaMetros(pl.x, pl.y, x, y) > REVIVE_DISTANCE_METERS) {
+        return ack?.({ ok: false, error: 'Demasiado lejos para soltar' });
+      }
+      const result = crearBolsaDrop(socket.playerId, x, y, payload?.items, io);
+      ack?.(result);
+    });
+
+    socket.on('world:pickupBag', (payload, ack) => {
+      const bolsaId = (payload?.bolsaId || '').trim();
+      if (!bolsaId) return ack?.({ ok: false, error: 'bolsaId requerido' });
+      const pl = findPlayerById(socket.playerId);
+      if (!pl) return ack?.({ ok: false, error: 'Jugador no encontrado' });
+      const bx = Number(payload?.x ?? payload?.pos?.[0]);
+      const by = Number(payload?.y ?? payload?.pos?.[1]);
+      if (Number.isFinite(bx) && Number.isFinite(by) &&
+          distanciaMetros(pl.x, pl.y, bx, by) > REVIVE_DISTANCE_METERS) {
+        return ack?.({ ok: false, error: 'Demasiado lejos' });
+      }
+      const result = recogerBolsaDrop(bolsaId, socket.playerId, payload?.recogidos, io);
       ack?.(result);
     });
 
@@ -626,4 +696,31 @@ function setupSockets(io) {
   });
 }
 
-module.exports = { setupSockets, onlinePlayers };
+/** Expulsa jugadores cuya cuenta fue eliminada por el admin. */
+function expulsarCuentasEliminadas(io, cuentas) {
+  if (!io || !Array.isArray(cuentas) || !cuentas.length) return;
+  const t = Date.now();
+  for (const c of cuentas) {
+    const playerId = c.playerId;
+    const perfilId = c.perfilId || (playerId ? 'srv_' + playerId : null);
+    const payload = {
+      perfilId,
+      nombre: c.nombre || '',
+      motivo: 'eliminada',
+      t
+    };
+    if (perfilId) {
+      io.emit('partida:sync', { perfilId, eliminado: true, actualizadoEn: t });
+    }
+    if (playerId) {
+      io.to('player:' + playerId).emit('account:deleted', payload);
+      const online = onlinePlayers.get(playerId);
+      if (online?.socketId) {
+        const sock = io.sockets.sockets.get(online.socketId);
+        if (sock) sock.disconnect(true);
+      }
+    }
+  }
+}
+
+module.exports = { setupSockets, onlinePlayers, expulsarCuentasEliminadas };

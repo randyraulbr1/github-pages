@@ -9,15 +9,15 @@
   <link rel="icon" type="image/png" href="iconos/icono-192.png">
   <link rel="apple-touch-icon" href="iconos/icono-192.png">
   <link rel="stylesheet" href="lib/leaflet/leaflet.css">
-  <link rel="stylesheet" href="css/estilos.css?v=140">
+  <link rel="stylesheet" href="css/estilos.css?v=147">
   <link rel="stylesheet" href="css/chat.css?v=137">
-  <link rel="stylesheet" href="css/amigos.css">
-  <link rel="stylesheet" href="css/opciones.css?v=116">
+  <link rel="stylesheet" href="css/amigos.css?v=156">
+  <link rel="stylesheet" href="css/opciones.css?v=152">
   <link rel="stylesheet" href="css/notificaciones.css?v=117">
   <script>
     // Aviso temprano en móvil (antes de cargar 20+ archivos JS)
     (function () {
-      var V = '140';
+      var V = '155';
       var texto = document.getElementById('carga-texto');
       if (texto) texto.textContent = 'Conectando…';
       var prev = localStorage.getItem('mariel_app_version');
@@ -88,6 +88,16 @@
       <div class="auth-sub">Otro dispositivo inició sesión en tu cuenta</div>
       <p class="auth-aviso">Por seguridad solo puede haber una sesión activa. Cierra sesión aquí para entrar en el otro dispositivo.</p>
       <button id="btn-sesion-remota-salir" class="btn-auth-principal">Cerrar sesión</button>
+    </div>
+  </div>
+
+  <!-- PANTALLA: CUENTA ELIMINADA POR EL ADMIN -->
+  <div id="pantalla-cuenta-eliminada" class="pantalla-auth oculto">
+    <div class="auth-caja">
+      <div class="auth-titulo">🗑️</div>
+      <div class="auth-sub">Cuenta eliminada</div>
+      <p class="auth-aviso">Tu cuenta fue eliminada por el administrador. Ya no puedes entrar al juego con este perfil.</p>
+      <button id="btn-cuenta-eliminada-ok" class="btn-auth-principal">Entendido</button>
     </div>
   </div>
 
@@ -171,7 +181,7 @@
 
   <!-- BOTONES INFERIORES -->
   <div id="botones-inferiores">
-    <span id="hud-arma-equipada" class="hud-arma-equipada" title="Arma equipada" aria-hidden="true">✋</span>
+    <button type="button" id="hud-arma-equipada" class="btn-hud-accion btn-hud-principal hud-arma-equipada" tabindex="-1" aria-label="Sin arma equipada">✋</button>
     <button id="btn-mochila" class="btn-hud-accion btn-hud-principal hud-btn-mochila" type="button" title="Mochila">🎒</button>
     <button id="btn-gps" class="btn-hud-accion btn-hud-principal hud-btn-gps" type="button" title="GPS">📍</button>
     <button id="btn-chat" class="btn-hud-accion btn-hud-principal hud-btn-chat oculto" type="button" title="Chat">💬<span id="badge-chat" class="badge-chat oculto">0</span></button>
@@ -536,6 +546,11 @@
           <div class="opciones-row-text">Centrar mapa</div>
         </button>
 
+        <button type="button" class="opciones-action" id="opcion-restablecer-pin">
+          <div class="opciones-icon">📍</div>
+          <div class="opciones-row-text">Restablecer pin</div>
+        </button>
+
         <button type="button" class="opciones-action" id="opcion-tarjeta">
           <div class="opciones-icon">🎫</div>
           <div class="opciones-row-text">Mi tarjeta</div>
@@ -555,6 +570,8 @@
           <div class="opciones-icon">🛠️</div>
           <div class="opciones-row-text">Administrador</div>
         </button>
+
+        <p class="opciones-version" id="opciones-version" aria-label="Versión del juego">Versión —</p>
       </div>
     </div>
   </div>
@@ -588,6 +605,7 @@
           <button class="fila-opcion admin-nav" id="admin-crear-tienda"><span class="icono-opcion">🏪</span> Tienda</button>
           <button class="fila-opcion admin-nav" id="admin-organizar"><span class="icono-opcion">✋</span> Organizar pines</button>
           <button class="fila-opcion admin-nav" id="admin-mover-pin"><span class="icono-opcion">🎯</span> <span id="admin-mover-pin-texto">Mover pin: OFF</span></button>
+          <button class="fila-opcion admin-nav" id="admin-opt-visibilidad"><span class="icono-opcion">👁️</span> <span id="admin-opt-visibilidad-texto">Optimización 500 m: ON</span></button>
 
           <div class="admin-seccion-titulo">⚙️ Catálogo</div>
           <button class="fila-opcion admin-nav" id="admin-precios"><span class="icono-opcion">💲</span> Precios</button>
@@ -909,19 +927,20 @@
   <script src="lib/leaflet/leaflet.js?v=104"></script>
 
   <!-- MÓDULOS DEL JUEGO (orden importante) -->
-  <script src="js/config/config.js?v=140"></script>
+  <script src="js/config/config.js?v=156"></script>
   <script src="js/nucleo/utilidades.js?v=137"></script>
   <script src="js/mundo/mundo_publico.js?v=104"></script>
   <script src="js/notificaciones/notificaciones.js?v=137"></script>
   <script src="js/usuarios/usuarios.js?v=137"></script>
-  <script src="js/guardado/guardado.js?v=137"></script>
+  <script src="js/guardado/guardado.js?v=149"></script>
   <script src="js/historial/historial.js?v=104"></script>
   <script src="js/dinero/dinero.js?v=104"></script>
   <script src="js/vida/vida.js?v=137"></script>
   <script src="js/items/items.js?v=140"></script>
-  <script src="js/mochila/mochila.js?v=140"></script>
+  <script src="js/mochila/mochila.js?v=151"></script>
+  <script src="js/bolsas/bolsas.js?v=149"></script>
   <script src="js/mapa/mapa.js?v=104"></script>
-  <script src="js/gps/gps.js?v=104"></script>
+  <script src="js/gps/gps.js?v=150"></script>
   <script src="js/tiendas/datos_tiendas.js?v=104"></script>
   <script src="js/tiendas/tiendas.js?v=104"></script>
   <script src="js/pesca/pesca.js?v=104"></script>
@@ -933,18 +952,18 @@
   <script src="js/correo/correo.js?v=104"></script>
   <script src="js/enemigos/enemigos.js?v=137"></script>
   <script src="js/online/sync_servidor.js?v=104"></script>
-  <script src="js/admin/admin.js?v=140"></script>
-  <script src="js/opciones/opciones.js?v=116"></script>
+  <script src="js/admin/admin.js?v=156"></script>
+  <script src="js/opciones/opciones.js?v=152"></script>
   <script src="js/online/mundo_online.js?v=104"></script>
   <script src="js/online/amigos.js?v=107"></script>
   <script src="js/chat/chat.js?v=137"></script>
-  <script src="js/online/multijugador.js?v=137"></script>
+  <script src="js/online/multijugador.js?v=156"></script>
   <script src="js/principal.js?v=104"></script>
   <script>
     // Registrar la app instalable (PWA)
     if ('serviceWorker' in navigator) {
       const yaTeniaVersion = !!navigator.serviceWorker.controller;
-      navigator.serviceWorker.register('sw.js?v=140', { updateViaCache: 'none' })
+      navigator.serviceWorker.register('sw.js?v=156', { updateViaCache: 'none' })
         .then(function (reg) { reg.update(); })
         .catch(function () {});
       // Cuando llega una versión nueva del juego: avisar y recargar solo
