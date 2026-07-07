@@ -739,6 +739,8 @@ function registrarAtaqueEnemigo(enemyId, playerId, px, py, playerLevel, io) {
   let hp = stPrev.vida != null ? stPrev.vida : (data.hp != null ? data.hp : hpMax);
   if (hp <= 0) return { ok: false, error: 'Enemigo ya derrotado' };
 
+  data.hpMax = hpMax;
+
   const radioZona = data.radioZona || 40;
   if (distanciaMetros(px, py, row.x, row.y) > radioZona + 3) {
     return { ok: false, error: 'Fuera de la zona roja' };
@@ -779,6 +781,7 @@ function registrarAtaqueEnemigo(enemyId, playerId, px, py, playerLevel, io) {
     }
   } else {
     data.hp = hp;
+    data.hpMax = hpMax;
   }
 
   if (!eliminado) {

@@ -1825,7 +1825,7 @@ body.mariel-bloqueado-actualizar #pantalla-actualizar {
   border: 1px solid rgba(0, 0, 0, .35);
 }
 .mjo-barra-enemigo.mjo-barra-cerca .mjo-barra-fill {
-  opacity: 0;
+  opacity: 1;
 }
 .mjo-barra-enemigo.mjo-barra-cerca .mjo-vida-num {
   position: absolute;
