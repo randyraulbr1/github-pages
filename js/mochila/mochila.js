@@ -19,6 +19,7 @@ const Mochila = {
       Guardado.datos.mochila[1] = { id: 'pan', cantidad: 1 };
     }
     this.slots = Guardado.datos.mochila;
+    this._sanearArmaEquipada();
     this._sincronizarArmaEquipada();
 
     document.getElementById('btn-mochila').addEventListener('click', () => this.abrir());
@@ -35,7 +36,6 @@ const Mochila = {
     document.getElementById('inv-confirm-ok')?.addEventListener('click', () => this._resolverConfirm(true));
 
     this.pintar();
-    this.pintarArmaHud();
   },
 
   abrir() {
@@ -48,12 +48,13 @@ const Mochila = {
   },
 
   guardar() {
+    this._sanearArmaEquipada();
     Guardado.datos.mochila = this.slots;
     Guardado.guardar();
     if (typeof Tesoros !== 'undefined' && Tesoros.activos) Tesoros.refrescarBanner();
     if (typeof Admin !== 'undefined' && Admin.datos) Admin.refrescarVisibles();
     if (typeof Misiones !== 'undefined' && Misiones.lista.length) Misiones.refrescar();
-    this._pintarSlotEquip();
+    this._actualizarVistaArma();
   },
 
   _statsConsumo() {
@@ -91,6 +92,17 @@ const Mochila = {
 
   _indiceEnMochila(id) {
     return this.slots.findIndex(s => s && s.id === id);
+  },
+
+  /** Si el arma figura en la mochila, no puede estar equipada (HUD = mano). */
+  _sanearArmaEquipada() {
+    const id = this.armaEquipadaId();
+    if (!id) return false;
+    if (this._indiceEnMochila(id) >= 0) {
+      Guardado.datos.armaEquipada = null;
+      return true;
+    }
+    return false;
   },
 
   _sincronizarArmaEquipada() {
@@ -161,7 +173,6 @@ const Mochila = {
 
     this.slots[idx] = null;
     Guardado.datos.armaEquipada = id;
-    this.pintarArmaHud();
     this.guardar();
     this.pintar();
     return true;
@@ -193,7 +204,6 @@ const Mochila = {
     }
 
     this.guardar();
-    this.pintarArmaHud();
     this.pintar();
     return true;
   },
@@ -348,10 +358,17 @@ const Mochila = {
     return h;
   },
 
+  _actualizarVistaArma() {
+    this._sanearArmaEquipada();
+    this._pintarSlotEquip();
+    this.pintarArmaHud();
+  },
+
   pintarArmaHud() {
     const hud = document.getElementById('hud-arma-equipada');
     if (!hud) return;
 
+    this._sanearArmaEquipada();
     const id = this.armaEquipadaId();
     let icono = '✋';
     let titulo = 'Sin arma equipada';
@@ -394,7 +411,6 @@ const Mochila = {
       slot._invSlotOk = true;
       slot.addEventListener('pointerdown', (e) => this._onSlotPointerDown(e, 'equip', 'weapon'));
     }
-    this.pintarArmaHud();
   },
 
   pintar() {
@@ -423,7 +439,7 @@ const Mochila = {
       });
     }
 
-    this._pintarSlotEquip();
+    this._actualizarVistaArma();
     this._actualizarNombreArrastre();
   },
 
@@ -682,6 +698,7 @@ const Mochila = {
       Guardado.datos.armaEquipada = null;
     } else {
       this.slots[key] = null;
+      if (this.armaEquipadaId() === sl.id) Guardado.datos.armaEquipada = null;
     }
     if (this.selected && this.selected.place === place && this.selected.key === key) {
       this.selected = null;

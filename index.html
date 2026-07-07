@@ -17,7 +17,7 @@
   <script>
     // Aviso temprano en móvil (antes de cargar 20+ archivos JS)
     (function () {
-      var V = '146';
+      var V = '148';
       var texto = document.getElementById('carga-texto');
       if (texto) texto.textContent = 'Conectando…';
       var prev = localStorage.getItem('mariel_app_version');
@@ -910,18 +910,18 @@
   <script src="lib/leaflet/leaflet.js?v=104"></script>
 
   <!-- MÓDULOS DEL JUEGO (orden importante) -->
-  <script src="js/config/config.js?v=146"></script>
+  <script src="js/config/config.js?v=148"></script>
   <script src="js/nucleo/utilidades.js?v=137"></script>
   <script src="js/mundo/mundo_publico.js?v=104"></script>
   <script src="js/notificaciones/notificaciones.js?v=137"></script>
   <script src="js/usuarios/usuarios.js?v=137"></script>
-  <script src="js/guardado/guardado.js?v=137"></script>
+  <script src="js/guardado/guardado.js?v=148"></script>
   <script src="js/historial/historial.js?v=104"></script>
   <script src="js/dinero/dinero.js?v=104"></script>
   <script src="js/vida/vida.js?v=137"></script>
   <script src="js/items/items.js?v=140"></script>
-  <script src="js/mochila/mochila.js?v=146"></script>
-  <script src="js/bolsas/bolsas.js?v=146"></script>
+  <script src="js/mochila/mochila.js?v=148"></script>
+  <script src="js/bolsas/bolsas.js?v=148"></script>
   <script src="js/mapa/mapa.js?v=104"></script>
   <script src="js/gps/gps.js?v=104"></script>
   <script src="js/tiendas/datos_tiendas.js?v=104"></script>
@@ -946,7 +946,7 @@
     // Registrar la app instalable (PWA)
     if ('serviceWorker' in navigator) {
       const yaTeniaVersion = !!navigator.serviceWorker.controller;
-      navigator.serviceWorker.register('sw.js?v=146', { updateViaCache: 'none' })
+      navigator.serviceWorker.register('sw.js?v=148', { updateViaCache: 'none' })
         .then(function (reg) { reg.update(); })
         .catch(function () {});
       // Cuando llega una versión nueva del juego: avisar y recargar solo
