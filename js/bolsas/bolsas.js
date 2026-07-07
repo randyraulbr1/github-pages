@@ -60,7 +60,9 @@ const Bolsas = {
   },
 
   visibleCerca(b, distancia) {
-    if (!this.disponible(b) || !b?.pos) return false;
+    if (!b?.items?.length || !b?.pos) return false;
+    if (this._ocultaParaMi(b)) return false;
+    if (!b.ultimoRecogidoEn && Date.now() - (b.creadoEn || 0) >= this.ttlMs()) return false;
     const d = typeof distancia === 'number'
       ? distancia
       : (typeof GPS !== 'undefined' && GPS.posicion
@@ -72,7 +74,19 @@ const Bolsas = {
   disponible(b) {
     if (!b?.items?.length) return false;
     if (!b.ultimoRecogidoEn && Date.now() - (b.creadoEn || 0) >= this.ttlMs()) return false;
+    if (b.recogibleDesde && Date.now() < b.recogibleDesde) return false;
+    if (b.soloDropper && b.dropperPlayerId) {
+      const miId = typeof Multijugador !== 'undefined' ? Multijugador._miPlayerId() : -1;
+      if (miId > 0 && miId !== b.dropperPlayerId) return false;
+    }
     return true;
+  },
+
+  _ocultaParaMi(b) {
+    if (!b?.ocultoParaPlayerId || !b.ocultoHasta) return false;
+    if (Date.now() >= b.ocultoHasta) return false;
+    const miId = typeof Multijugador !== 'undefined' ? Multijugador._miPlayerId() : -1;
+    return miId > 0 && miId === b.ocultoParaPlayerId;
   },
 
   /** Suelta una bolsa en el mapa (al eliminar del inventario). */
@@ -147,7 +161,13 @@ const Bolsas = {
 
   /** Recoge lo que quepa en la mochila. */
   async recoger(bolsa) {
-    if (!bolsa || !this.disponible(bolsa)) return false;
+    if (!bolsa || !bolsa.items?.length) return false;
+    if (bolsa.recogibleDesde && Date.now() < bolsa.recogibleDesde) {
+      const seg = Math.ceil((bolsa.recogibleDesde - Date.now()) / 1000);
+      Notificaciones.mostrar('⏳ Podrás recoger en ' + seg + ' s', 'info', 2500);
+      return false;
+    }
+    if (!this.disponible(bolsa)) return false;
     if (!GPS.posicion || !bolsa.pos) return false;
     const d = Utilidades.distanciaMetros(GPS.posicion, bolsa.pos);
     if (d > CONFIG.distanciaInteraccion) {

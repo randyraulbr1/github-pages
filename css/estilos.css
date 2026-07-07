@@ -573,22 +573,33 @@ button { font-family: inherit; }
   border: 1px solid rgba(255,255,255,.2);
 }
 
-/* HUD combate en zona roja */
+/* HUD combate en zona roja — encima de la barra inferior */
 .hud-combate-flotante {
+  position: relative;
+  z-index: 1001;
+  display: flex;
+  flex-direction: row;
+  align-items: stretch;
+  gap: 8px;
+  width: 100%;
+  max-width: min(calc(100vw - 16px), 320px);
+  pointer-events: none;
+}
+.hud-combate-flotante > * { pointer-events: auto; }
+.hud-combate-flotante .hud-ataque-cooldown {
+  position: absolute;
+  top: -7px;
+  left: 0;
+  right: 0;
+  width: 100%;
+}
+.banner-huida {
   position: fixed;
   top: calc(118px + env(safe-area-inset-top));
   left: 50%;
   transform: translateX(-50%);
   z-index: 1001;
-  display: flex;
-  flex-direction: column;
-  align-items: stretch;
-  gap: 6px;
-  width: min(88vw, 260px);
-  pointer-events: none;
-}
-.hud-combate-flotante > * { pointer-events: auto; }
-.banner-huida {
+  max-width: min(88vw, 280px);
   padding: 7px 12px;
   border-radius: 12px;
   background: rgba(16, 20, 31, .9);
@@ -612,8 +623,9 @@ button { font-family: inherit; }
   transition: width .15s linear;
 }
 .btn-hud-combate {
-  width: 100%;
-  padding: 11px 14px;
+  flex: 1;
+  min-width: 0;
+  padding: 12px 10px;
   border: none;
   border-radius: 14px;
   font-size: 15px;
@@ -2018,6 +2030,7 @@ body.en-auth #botones-inferiores,
 body.en-auth #letrero-misiones,
 body.en-auth #letrero-pin-chat,
 body.en-auth #banner-tesoro,
+body.en-auth #banner-huida,
 body.en-auth #hud-combate-flotante,
 body.en-auth #admin-controles,
 body.en-auth #zona-notificaciones { display: none !important; }
@@ -2168,6 +2181,7 @@ body.sesion-cerrada #botones-inferiores,
 body.sesion-cerrada #letrero-misiones,
 body.sesion-cerrada #letrero-pin-chat,
 body.sesion-cerrada #banner-tesoro,
+body.sesion-cerrada #banner-huida,
 body.sesion-cerrada #hud-combate-flotante,
 body.sesion-cerrada #admin-controles,
 body.sesion-cerrada #zona-notificaciones,

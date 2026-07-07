@@ -91,6 +91,7 @@ function startEnemyAI(io, onlinePlayers) {
     for (const obj of objects) {
       const data = parseEnemyData(obj);
       if (data.hp <= 0) continue;
+      if (data.ocultoHasta && Date.now() < data.ocultoHasta) continue;
 
       const inZone = players.filter(p => {
         if (p.dead || (p.hp != null && p.hp <= 0)) return false;
