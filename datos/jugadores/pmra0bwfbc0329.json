@@ -4,20 +4,26 @@
   "telefono": "2352647622",
   "pinHash": "f8c8e3791cc16bf1b71829933c0f1eed8bb9f6ae7cf8fd8944b606abb5c12f5c",
   "creado": 1783389950183,
-  "actualizadoEn": 1783390180201,
+  "actualizadoEn": 1783390192211,
   "partida": {
     "datos": {
       "mochila": [
         {
           "id": "agua",
-          "cantidad": 2
+          "cantidad": 4
         },
         {
           "id": "pan",
           "cantidad": 1
         },
-        null,
-        null,
+        {
+          "id": "botiquin",
+          "cantidad": 1
+        },
+        {
+          "id": "arroz_congri",
+          "cantidad": 1
+        },
         null,
         null,
         null,
@@ -56,11 +62,64 @@
       "correoRecibidos": [],
       "correoTiendaLocal": [],
       "historialDinero": [],
-      "historialObjetos": [],
+      "historialObjetos": [
+        {
+          "t": 1783390179013,
+          "detalle": "Obtenido: Botiquín",
+          "monto": 1,
+          "saldo": null,
+          "lugar": "campo abierto",
+          "pos": [
+            22.9936,
+            -82.7539
+          ],
+          "hashAnterior": "GENESIS",
+          "hash": "f746f23159d48a0e1375c4400725fabf497c86d4151c828120294d30c2f11979"
+        },
+        {
+          "t": 1783390179956,
+          "detalle": "Obtenido: Botella de agua",
+          "monto": 1,
+          "saldo": null,
+          "lugar": "campo abierto",
+          "pos": [
+            22.9936,
+            -82.7539
+          ],
+          "hashAnterior": "f746f23159d48a0e1375c4400725fabf497c86d4151c828120294d30c2f11979",
+          "hash": "c1cf82a6308dbc351dbca817341178e0bf97a3f8269baac559c5b89daf68da0f"
+        },
+        {
+          "t": 1783390180696,
+          "detalle": "Obtenido: Arroz congrí",
+          "monto": 1,
+          "saldo": null,
+          "lugar": "campo abierto",
+          "pos": [
+            22.9936,
+            -82.7539
+          ],
+          "hashAnterior": "c1cf82a6308dbc351dbca817341178e0bf97a3f8269baac559c5b89daf68da0f",
+          "hash": "fc9d26f4f1c6814d27d9a708f4335a03498c024fa39fbfc7e26f7d2db739865c"
+        },
+        {
+          "t": 1783390189006,
+          "detalle": "Obtenido: Botella de agua",
+          "monto": 1,
+          "saldo": null,
+          "lugar": "campo abierto",
+          "pos": [
+            22.9936,
+            -82.7539
+          ],
+          "hashAnterior": "fc9d26f4f1c6814d27d9a708f4335a03498c024fa39fbfc7e26f7d2db739865c",
+          "hash": "fe5201f42798bab10e4c02c07283dc1701dc3b6917534f0f462d8ef0e478295b"
+        }
+      ],
       "mensajesVistos": [],
       "muerto": false,
       "armaEquipada": null
     },
-    "t": 1783390177599
+    "t": 1783390189220
   }
 }
