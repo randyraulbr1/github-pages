@@ -4,15 +4,41 @@
   "telefono": "7709908375",
   "pinHash": "4bdc96ffc0926b62d55708e3c1755ca3f04b8c28bec6fd85777117da67497f11",
   "creado": 1783263656375,
-  "actualizadoEn": 1783390228887,
+  "actualizadoEn": 1783391218316,
   "partida": {
     "datos": {
       "mochila": [
-        { "id": "agua", "cantidad": 2 },
-        { "id": "pan", "cantidad": 1 },
-        null, null, null, null, null, null, null, null,
-        null, null, null, null, null, null, null, null,
-        null, null, null, null, null, null
+        {
+          "id": "agua",
+          "cantidad": 2
+        },
+        {
+          "id": "pan",
+          "cantidad": 1
+        },
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null
       ],
       "dinero": {
         "saldo": 100,
@@ -22,7 +48,7 @@
       "hambre": 50,
       "xp": 0,
       "nivel": 1,
-      "posicionJugador": [22.993613493277536, -82.75336995720863],
+      "posicionJugador": null,
       "tesorosRecogidos": [],
       "misiones": {},
       "misionesEstado": {},
@@ -31,32 +57,21 @@
       "correoTiendaLocal": [],
       "historialDinero": [
         {
-          "t": 1783389828123,
+          "t": 1783390470215,
           "detalle": "Dinero inicial",
           "monto": 100,
           "saldo": 100,
           "lugar": "sin posición",
           "pos": null,
           "hashAnterior": "GENESIS",
-          "hash": "b5ae987bc6462a1d9e45fbc222081086d3f81cb408bec914cc6f90a149965f43"
+          "hash": "b9c4c8744b33b14211627dc537c8ce910918ea1ce47583f9bf50e288b9697e6c"
         }
       ],
-      "historialObjetos": [
-        {
-          "t": 1783389866406,
-          "detalle": "Obtenido: Cuchillo de combate",
-          "monto": 1,
-          "saldo": null,
-          "lugar": "campo abierto",
-          "pos": [22.9936, -82.7539],
-          "hashAnterior": "GENESIS",
-          "hash": "d7ea08aeb11864efb88ceaa82e1e0f28b3c4b3ce713a0c4ed5e20257060daa10"
-        }
-      ],
+      "historialObjetos": [],
       "mensajesVistos": [],
       "muerto": false,
-      "armaEquipada": "arma_nv1"
+      "armaEquipada": null
     },
-    "t": 1783390222166
+    "t": 1783391210121
   }
 }
