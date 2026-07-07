@@ -4,17 +4,14 @@
   "telefono": "7709908375",
   "pinHash": "4bdc96ffc0926b62d55708e3c1755ca3f04b8c28bec6fd85777117da67497f11",
   "creado": 1783263656375,
-  "actualizadoEn": 1783382279187,
+  "actualizadoEn": 1783384819376,
   "partida": {
     "datos": {
       "mochila": [
+        null,
         {
           "id": "agua",
           "cantidad": 2
-        },
-        {
-          "id": "pan",
-          "cantidad": 1
         },
         null,
         null,
@@ -70,7 +67,73 @@
           "hash": "d9e2f81fdee235f79a2793f7e7e47bbf6189e17d017116c8489ab42c609b6b88"
         }
       ],
-      "historialObjetos": [],
+      "historialObjetos": [
+        {
+          "t": 1783383892445,
+          "detalle": "Obtenido: Alabarda",
+          "monto": 1,
+          "saldo": null,
+          "lugar": "campo abierto",
+          "pos": [
+            22.993488,
+            -82.753783
+          ],
+          "hashAnterior": "GENESIS",
+          "hash": "8234f8d6d297a4ff33b6fde709223a29fb9e984fb53567a33c94d706820f6cda"
+        },
+        {
+          "t": 1783384021536,
+          "detalle": "Eliminado: Alabarda",
+          "monto": -1,
+          "saldo": null,
+          "lugar": "campo abierto",
+          "pos": [
+            22.993488,
+            -82.753783
+          ],
+          "hashAnterior": "8234f8d6d297a4ff33b6fde709223a29fb9e984fb53567a33c94d706820f6cda",
+          "hash": "21500e840533a3bfacbae20e904fb4ff0a0e9b0b6d974c9d0da24763b83b9497"
+        },
+        {
+          "t": 1783384670701,
+          "detalle": "Obtenido: Alabarda",
+          "monto": 1,
+          "saldo": null,
+          "lugar": "campo abierto",
+          "pos": [
+            22.993488,
+            -82.753783
+          ],
+          "hashAnterior": "21500e840533a3bfacbae20e904fb4ff0a0e9b0b6d974c9d0da24763b83b9497",
+          "hash": "5d6439e17a8d3b8fcbda2ef3ac24da3a134bfd2fbdf72499f59425928fd2cbe5"
+        },
+        {
+          "t": 1783384714079,
+          "detalle": "Eliminado: Alabarda",
+          "monto": -1,
+          "saldo": null,
+          "lugar": "campo abierto",
+          "pos": [
+            22.993488,
+            -82.753783
+          ],
+          "hashAnterior": "5d6439e17a8d3b8fcbda2ef3ac24da3a134bfd2fbdf72499f59425928fd2cbe5",
+          "hash": "6f48afa445ac456eb3caf848bd48a1f85257409821cbcaacbfda76bd8ec8190b"
+        },
+        {
+          "t": 1783384716827,
+          "detalle": "Eliminado: Pan",
+          "monto": -1,
+          "saldo": null,
+          "lugar": "campo abierto",
+          "pos": [
+            22.993488,
+            -82.753783
+          ],
+          "hashAnterior": "6f48afa445ac456eb3caf848bd48a1f85257409821cbcaacbfda76bd8ec8190b",
+          "hash": "f45806e715c0ce2bc08283468fe5d6cf1961f8c00e5a0cde312571eb4facaf58"
+        }
+      ],
       "mensajesVistos": [
         "msg_mr9ujbbi",
         "msg_mr9ukn1m"
@@ -78,6 +141,6 @@
       "muerto": false,
       "armaEquipada": null
     },
-    "t": 1783382275734
+    "t": 1783384809746
   }
 }
