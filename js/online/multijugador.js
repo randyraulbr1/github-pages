@@ -1,0 +1,1599 @@
+/**
+ * Multijugador en vivo — integrado en Mariel Explorer (tcodm.com).
+ * Jugadores con vida/nivel, amigos, objetos compartidos del servidor.
+ */
+const Multijugador = {
+  TOKEN_KEY: 'mariel_online_token',
+  socket: null,
+  activo: false,
+  marcadores: {},
+  cuerpos: {},
+  cuerposMarcadores: {},
+  online: [],
+  _ultimoEnvio: 0,
+  _ultimoStats: 0,
+  mundoServidorTs: 0,
+  _animaciones: {},
+  _lineasAmigo: {},
+  _pollMundo: null,
+  _ultimoPullMundo: 0,
+  _mundoPendiente: null,
+  _reconectando: false,
+  _mundoSocketListo: false,
+  _marcadoresPartida: {},
+
+  urlServidor() {
+    return (CONFIG.servidorOnline || '').replace(/\/$/, '');
+  },
+
+  async _cargarSocketIo() {
+    if (typeof io !== 'undefined') return;
+    const url = this.urlServidor();
+    if (!url) return;
+    await new Promise((resolve, reject) => {
+      const s = document.createElement('script');
+      s.src = url + '/socket.io/socket.io.js';
+      s.onload = resolve;
+      s.onerror = () => reject(new Error('Sin socket.io'));
+      document.head.appendChild(s);
+    });
+  },
+
+  async sincronizarCuenta(usuario, clave) {
+    const base = this.urlServidor();
+    const nombre = (typeof Usuarios !== 'undefined' && Usuarios.perfilActivo)
+      ? Usuarios.perfilActivo.nombre
+      : (usuario || '').trim();
+    if (!base || !nombre || !clave) return false;
+    const body = JSON.stringify({ usuario: nombre, clave });
+    const headers = { 'Content-Type': 'application/json' };
+    try {
+      let r = await Utilidades.fetchConTimeout(base + '/api/login-game', {
+        method: 'POST',
+        headers,
+        body
+      }, 12000);
+      let data = await r.json().catch(() => ({}));
+      if (r.ok && data.ok && data.token) {
+        localStorage.setItem(this.TOKEN_KEY, data.token);
+        return true;
+      }
+      r = await fetch(base + '/api/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username: nombre, password: clave })
+      });
+      data = await r.json().catch(() => ({}));
+      if (data.token) {
+        localStorage.setItem(this.TOKEN_KEY, data.token);
+        return true;
+      }
+    } catch (e) { /* servidor dormido o sin red */ }
+    return false;
+  },
+
+  /** Conecta al servidor en vivo (después de que el mapa esté listo). */
+  async conectar() {
+    const base = this.urlServidor();
+    if (!base || typeof Usuarios === 'undefined' || !Usuarios.perfilActivo) return false;
+    if (typeof Mapa === 'undefined' || !Mapa.mapa) return false;
+
+    let token = localStorage.getItem(this.TOKEN_KEY);
+    if (!token) {
+      const claves = [];
+      try {
+        const s = sessionStorage.getItem('mariel_clave_servidor');
+        if (s) claves.push(s);
+      } catch (e) { /* */ }
+      if (typeof Usuarios !== 'undefined' && Usuarios.esAdministrador && Usuarios.esAdministrador()) {
+        try {
+          const dev = localStorage.getItem('mariel_dev_clave_randy');
+          if (dev) claves.push(dev);
+        } catch (e2) { /* */ }
+      }
+      for (const clave of claves) {
+        await this.sincronizarCuenta(Usuarios.perfilActivo.nombre, clave);
+        token = localStorage.getItem(this.TOKEN_KEY);
+        if (token) break;
+      }
+    }
+    if (!token && typeof SyncServidor !== 'undefined') {
+      await SyncServidor.asegurarSesionServidor();
+      token = localStorage.getItem(this.TOKEN_KEY);
+    }
+    if (!token) return false;
+
+    await this.iniciar();
+    return !!this.socket;
+  },
+
+  /**
+   * Conecta y espera game:init / mundo del socket antes de quitar la pantalla de carga.
+   */
+  async conectarYEsperarMundo(timeoutMs) {
+    const limite = typeof timeoutMs === 'number' ? timeoutMs : 12000;
+    const ok = await this.conectar();
+    if (!this.socket) return false;
+    if (this._mundoSocketListo) return true;
+
+    return new Promise((resolve) => {
+      let hecho = false;
+      const terminar = (valor) => {
+        if (hecho) return;
+        hecho = true;
+        clearTimeout(timer);
+        if (this.socket) {
+          this.socket.off('game:init', alListo);
+          this.socket.off('connect', alConectar);
+        }
+        resolve(!!valor);
+      };
+      const alListo = () => {
+        this._mundoSocketListo = true;
+        terminar(true);
+      };
+      const alConectar = () => {
+        this.socket.once('game:init', alListo);
+      };
+      const timer = setTimeout(() => terminar(this.activo), limite);
+
+      if (this.socket.connected) {
+        this.socket.once('game:init', alListo);
+      } else {
+        this.socket.once('connect', alConectar);
+      }
+    });
+  },
+
+  async iniciar() {
+    const base = this.urlServidor();
+    const token = localStorage.getItem(this.TOKEN_KEY);
+    if (!base || !token || typeof Usuarios === 'undefined' || !Usuarios.perfilActivo) return;
+    if (typeof Mapa === 'undefined' || !Mapa.mapa) return;
+
+    try {
+      await this._cargarSocketIo();
+    } catch (e) {
+      return;
+    }
+
+    if (this.socket) {
+      this.socket.removeAllListeners();
+      this.socket.disconnect();
+      this.socket = null;
+    }
+
+    this.activo = false;
+    this.socket = io(base, {
+      auth: { token },
+      transports: ['websocket', 'polling'],
+      reconnection: true,
+      reconnectionAttempts: 20,
+      reconnectionDelay: 1500,
+      reconnectionDelayMax: 8000,
+      timeout: 25000
+    });
+
+    this._enlazarEventos();
+
+    if (typeof Amigos !== 'undefined') Amigos.iniciarUI();
+    if (typeof Chat !== 'undefined') {
+      Chat.iniciarUI();
+      Chat.enlazarSocket(this.socket);
+    }
+  },
+
+  _enlazarEventos() {
+    if (!this.socket) return;
+
+    this.socket.on('connect_error', () => {
+      this.activo = false;
+      this._actualizarIndicadorConexion('reconectando');
+    });
+
+    this.socket.on('connect', () => {
+      this.activo = true;
+      this._reconectando = false;
+      this._ocultarAvisoReconexion();
+      this._actualizarIndicadorConexion('online');
+      if (typeof GPS !== 'undefined' && GPS.posicion) {
+        this.enviarPosicion(GPS.posicion[0], GPS.posicion[1], true);
+      }
+      this.enviarStats(true);
+      this._iniciarPollingMundo();
+      this.loadWorld();
+      if (typeof Chat !== 'undefined') Chat.refrescarConversaciones();
+      if (typeof Usuarios !== 'undefined' && Usuarios.perfilActivo &&
+          typeof SyncServidor !== 'undefined' && SyncServidor.registrarCuenta) {
+        SyncServidor.registrarCuenta(Usuarios.perfilActivo, null).catch(() => {});
+      }
+    });
+
+    this.socket.on('disconnect', (motivo) => {
+      this.activo = false;
+      if (motivo === 'io client disconnect') {
+        this._actualizarIndicadorConexion('offline');
+        return;
+      }
+      this._actualizarIndicadorConexion('reconectando');
+      if (this._pollMundo) {
+        clearInterval(this._pollMundo);
+        this._pollMundo = null;
+      }
+    });
+
+    this.socket.io.on('reconnect', () => {
+      this.activo = true;
+      this._reconectando = false;
+      this._ocultarAvisoReconexion();
+      this._actualizarIndicadorConexion('online');
+    });
+
+    this.socket.io.on('reconnect_attempt', () => {
+      this._actualizarIndicadorConexion('reconectando');
+    });
+
+    this.socket.io.on('reconnect_failed', () => {
+      this.activo = false;
+      this._actualizarIndicadorConexion('offline');
+      this._intentarReconectarManual();
+    });
+
+    this.socket.on('game:init', (data) => {
+      this._mundoSocketListo = true;
+      if (typeof Amigos !== 'undefined' && data.social) Amigos.aplicarSocial(data.social);
+      this.online = (data.onlinePlayers || []).filter(p => this._visible(p.playerId));
+      this._redibujar(false);
+      if (data.cuerposMuertos) this._aplicarCuerpos(data.cuerposMuertos);
+      if (data.worldObjects && typeof Enemigos !== 'undefined') {
+        for (const obj of data.worldObjects) {
+          if (obj?.type !== 'enemy' || !obj.data?.origenId) continue;
+          Enemigos.actualizarDesdeServidor(obj.data.origenId, obj.x, obj.y, obj.data);
+        }
+      }
+      if (data.mundoSnapshot) {
+        this._aplicarMundoServidor({
+          mundo: data.mundoSnapshot,
+          actualizadoEn: data.mundoActualizadoEn || data.mundoSnapshot.actualizadoEn || 0
+        }, false);
+      }
+      this.enviarStats(true);
+    });
+
+    this.socket.on('players:sync', (data) => {
+      this.online = (data.players || []).filter(p => this._visible(p.playerId));
+      this._redibujar(false);
+    });
+
+    this.socket.on('player:online', (p) => {
+      if (!this._visible(p.playerId)) return;
+      const i = this.online.findIndex(x => Number(x.playerId) === Number(p.playerId));
+      if (i >= 0) this.online[i] = p; else this.online.push(p);
+      this._redibujar(false);
+    });
+
+    this.socket.on('player:offline', (p) => {
+      this.online = this.online.filter(x => Number(x.playerId) !== Number(p.playerId));
+      this._quitarMarcador(p.playerId);
+      this._redibujarCuerpos();
+      if (typeof Amigos !== 'undefined') Amigos.refrescar();
+    });
+
+    this.socket.on('player:move', (p) => {
+      if (!this._visible(p.playerId)) return;
+      const i = this.online.findIndex(x => Number(x.playerId) === Number(p.playerId));
+      if (i >= 0) Object.assign(this.online[i], p);
+      else this.online.push(p);
+      this._actualizarMarcador(this.online[i >= 0 ? i : this.online.length - 1]);
+      if (typeof Admin !== 'undefined' && Admin.modo === 'organizar') {
+        requestAnimationFrame(() => Admin._reaplicarArrastreOrganizar());
+      }
+    });
+
+    this.socket.on('player:adminMove', (data) => {
+      const x = Number(data?.x);
+      const y = Number(data?.y);
+      if (!Number.isFinite(x) || !Number.isFinite(y)) return;
+      if (typeof GPS !== 'undefined' && GPS._actualizar) {
+        GPS.dejarDeSeguir();
+        GPS._actualizar([x, y]);
+      }
+      if (typeof Notificaciones !== 'undefined') {
+        Notificaciones.mostrar('📍 El administrador movió tu pin en el mapa', 'info', 4500);
+      }
+    });
+
+    this.socket.on('player:updateStats', (p) => {
+      if (!this._visible(p.playerId)) return;
+      const i = this.online.findIndex(x => Number(x.playerId) === Number(p.playerId));
+      if (i >= 0) {
+        Object.assign(this.online[i], p);
+        if (this._estaMuerto(this.online[i])) this._asegurarCuerpoLocal(this.online[i]);
+        this._actualizarMarcador(this.online[i]);
+        this._redibujarCuerpos();
+      }
+    });
+
+    this.socket.on('player:revived', (data) => {
+      if (!data?.playerId) return;
+      const pid = Number(data.playerId);
+      if (pid === this._miPlayerId()) {
+        if (data.deadInventory) this._aplicarInventarioMuerto(data.deadInventory);
+        if (typeof Vida !== 'undefined') {
+          const nombre = (data.reviverName || 'Un jugador').replace(/</g, '');
+          Vida.revivir(
+            data.hp,
+            '❤️ ' + nombre + ' te revivió con un botiquín. ¡Ya puedes seguir jugando!'
+          );
+        }
+      }
+      const i = this.online.findIndex(x => Number(x.playerId) === pid);
+      if (i >= 0) {
+        this.online[i].hp = data.hp;
+        this.online[i].dead = false;
+        this.online[i].deathX = null;
+        this.online[i].deathY = null;
+        this.online[i].deadInventory = [];
+        this.online[i].deadLevel = null;
+        this._actualizarMarcador(this.online[i]);
+      }
+      delete this.cuerpos[String(pid)];
+      this._quitarMarcadorCuerpo(String(pid));
+      this._redibujarCuerpos();
+    });
+
+    this.socket.on('world:updateObject', (obj) => {
+      if (!obj?.data?.origenId) return;
+      if (obj.type === 'enemy' && typeof Enemigos !== 'undefined') {
+        Enemigos.actualizarDesdeServidor(obj.data.origenId, obj.x, obj.y, obj.data);
+        return;
+      }
+      if (typeof Admin === 'undefined') return;
+      const origenId = obj.data.origenId;
+      const recogido = Admin.publicado?.objetosEstado?.[origenId]?.recogidoAt;
+      if (recogido) {
+        Admin.aplicarRecogidaCompartida(origenId, recogido, null);
+        return;
+      }
+      Admin.publicado.posiciones = Admin.publicado.posiciones || {};
+      Admin.publicado.posiciones[origenId] = [obj.x, obj.y];
+      if (obj.type === 'item') {
+        const o = Admin.objetosTodos().find(x => x.id === origenId);
+        if (o) {
+          o.pos = [obj.x, obj.y];
+          if (!o._marcador) Admin._crearMarcadorObjeto(o);
+          else {
+            o._marcador.setLatLng(o.pos);
+            Admin._revisarObjeto(o);
+          }
+        }
+      }
+    });
+
+    this.socket.on('world:removeObject', () => { /* el mundo completo llega por mundo:sync */ });
+
+    this.socket.on('mundo:sync', (data) => {
+      if (!data?.mundo || typeof Admin === 'undefined') return;
+      const ts = data.actualizadoEn || data.mundo.actualizadoEn || Date.now();
+      const json = JSON.stringify(data.mundo);
+      this.mundoServidorTs = Math.max(this.mundoServidorTs, ts);
+      Admin._crudoPublicado = json;
+      Admin._ultimoFirmaPublicada = Admin._firmaMundo(json);
+      Admin._aplicarMundoRemoto(json);
+      if (data.mundo.cuerposMuertos) this._aplicarCuerpos(data.mundo.cuerposMuertos);
+      if (typeof Usuarios !== 'undefined') {
+        Usuarios.verificarCuentaEnMundo().catch(() => {});
+        if (!Usuarios.esAdministrador() && typeof Notificaciones !== 'undefined') {
+          Notificaciones.mostrar('🌍 El admin actualizó el mapa', 'info', 4000);
+        }
+      }
+    });
+
+    this.socket.on('partida:sync', (data) => {
+      this._aplicarPartidaServidor(data);
+    });
+
+    this.socket.on('account:deleted', (data) => {
+      if (typeof Usuarios !== 'undefined' && Usuarios._cuentaMeAfecta(data)) {
+        Usuarios.expulsarCuentaEliminada();
+      }
+    });
+
+    this.socket.on('world:tesoroRecogido', (data) => {
+      if (!data?.tesoroId || typeof Admin === 'undefined') return;
+      Admin.aplicarRecogidaTesoro(data.tesoroId, data.recogidoAt);
+    });
+
+    this.socket.on('player:lootUpdate', (data) => {
+      if (!data?.playerId) return;
+      if (Number(data.playerId) === this._miPlayerId()) {
+        this._aplicarInventarioMuerto(data.deadInventory || []);
+      }
+      this._aplicarLootLocal(data.playerId, data.deadInventory || []);
+    });
+
+    this.socket.on('cuerpos:sync', (data) => {
+      this._aplicarCuerpos(data?.cuerpos || {});
+    });
+
+    this.socket.on('world:objetoRecogido', (data) => {
+      if (!data?.origenId || typeof Admin === 'undefined') return;
+      Admin.aplicarRecogidaCompartida(data.origenId, data.recogidoAt, data.playerId);
+    });
+
+    this.socket.on('world:bagUpdate', (data) => {
+      if (!data?.bolsa || typeof Bolsas === 'undefined') return;
+      Bolsas.aplicarBolsaRemota(data.bolsa);
+    });
+
+    this.socket.on('world:bagRemove', (data) => {
+      if (!data?.bolsaId || typeof Bolsas === 'undefined') return;
+      Bolsas.aplicarBolsaEliminada(data.bolsaId);
+    });
+
+    this.socket.on('enemy:attack', (data) => {
+      if (typeof Vida !== 'undefined' && data.damage) {
+        Vida.recibirDano(data.damage, null, data.enemyName || 'Enemigo');
+        this.enviarStats(true);
+      }
+    });
+
+    this.socket.on('friends:request', (data) => {
+      if (typeof Amigos !== 'undefined') {
+        Amigos.refrescar();
+        const nombre = data?.fromName || 'Un jugador';
+        Notificaciones.mostrarSocial('📨 ' + nombre + ' quiere ser tu amigo', 'info', 'amigos', 4500);
+      }
+    });
+
+    this.socket.on('friends:accepted', () => {
+      if (typeof Amigos !== 'undefined') {
+        Amigos.refrescar();
+        Notificaciones.mostrar('✅ Tienes un nuevo amigo', 'exito', 3500);
+      }
+      this._redibujar(false);
+    });
+
+    this.socket.on('friends:update', () => {
+      if (typeof Amigos !== 'undefined') Amigos.refrescar();
+    });
+
+    this.socket.on('friends:data', (data) => {
+      if (typeof Amigos !== 'undefined') Amigos.aplicarSocial(data);
+    });
+
+    if (!this._clickAmigosOk) {
+      this._clickAmigosOk = true;
+      document.addEventListener('click', (ev) => {
+        if (typeof Amigos !== 'undefined') Amigos.manejarPopupClick(ev);
+      });
+    }
+    if (!this._visibilidadOk) {
+      this._visibilidadOk = true;
+      document.addEventListener('visibilitychange', () => {
+        if (document.visibilityState !== 'visible') return;
+        if (this.activo) return;
+        if (typeof Usuarios === 'undefined' || !Usuarios.perfilActivo) return;
+        this._intentarReconectarManual();
+        this._sincronizarPinesPartida();
+      });
+    }
+  },
+
+  _miPlayerId() {
+    try {
+      const t = localStorage.getItem(this.TOKEN_KEY);
+      if (!t) return -1;
+      const payload = JSON.parse(atob(t.split('.')[1]));
+      return Number(payload.playerId);
+    } catch (e) { return -1; }
+  },
+
+  _visible(playerId) {
+    const id = Number(playerId);
+    if (id === this._miPlayerId()) return false;
+    if (typeof Amigos !== 'undefined' && Amigos.estaBloqueado(id)) return false;
+    return true;
+  },
+
+  _distanciaJugador(p) {
+    if (!GPS.posicion || !p) return Infinity;
+    const pos = this._posMarcador(p);
+    return Utilidades.distanciaMetros(GPS.posicion, [pos.x, pos.y]);
+  },
+
+  _estaEnVivo(playerId) {
+    const id = Number(playerId);
+    if (!Number.isFinite(id) || id < 0) return false;
+    return this.online.some(p => Number(p.playerId) === id);
+  },
+
+  _debeMostrarJugador(p) {
+    if (!p || !this._visible(p.playerId)) return false;
+    if (this._estaEnVivo(p.playerId)) return true;
+    if (typeof Amigos !== 'undefined' && Amigos.esMarcado(p.playerId)) return true;
+    if (typeof Admin !== 'undefined' && Admin.entidadVisibleEnRango) {
+      return Admin.entidadVisibleEnRango(this._distanciaJugador(p));
+    }
+    const max = CONFIG.distanciaVerEntidades || 500;
+    return CONFIG.optimizarVisibilidad === false || this._distanciaJugador(p) <= max;
+  },
+
+  _iniciarPollingMundo() {
+    if (this._pollMundo) clearInterval(this._pollMundo);
+    this._pollMundo = setInterval(() => this._pullMundoServidor(), 4000);
+  },
+
+  _aplicarPartidaServidor(data) {
+    if (!data?.perfilId || typeof Admin === 'undefined') return;
+    if (!Admin.publicado) return;
+    if (!Admin.publicado.partidas) Admin.publicado.partidas = {};
+    if (data.eliminado) {
+      delete Admin.publicado.partidas[data.perfilId];
+      if (Admin.publicado.jugadores) {
+        Admin.publicado.jugadores = Admin.publicado.jugadores.filter(
+          j => j && j.id !== data.perfilId
+        );
+      }
+      if (typeof Usuarios !== 'undefined' && Usuarios._cuentaMeAfecta(data)) {
+        Usuarios.expulsarCuentaEliminada();
+      }
+    } else if (data.partida) {
+      const prev = Admin.publicado.partidas[data.perfilId];
+      if (!prev || (data.partida.t || 0) >= (prev.t || 0)) {
+        Admin.publicado.partidas[data.perfilId] = data.partida;
+      }
+    }
+    Admin._aplicarRevivirDesdeNube();
+    if (typeof Usuarios !== 'undefined' && Usuarios.perfilActivo?.id === data.perfilId &&
+        data.partida?.datos?.muerto && Array.isArray(data.partida.datos.muerteInventario)) {
+      this._aplicarInventarioMuerto(data.partida.datos.muerteInventario);
+    }
+    const vistaJug = document.getElementById('admin-vista-jugadores');
+    if (vistaJug && !vistaJug.classList.contains('oculto') && Admin._adminAbierto?.()) {
+      Admin._listarCuentasAsync({ soloRefrescar: true });
+    }
+  },
+
+  _ocultarAvisoReconexion() {
+    if (typeof Notificaciones !== 'undefined' && Notificaciones._ocultarToast) {
+      Notificaciones._ocultarToast();
+    }
+  },
+
+  _intentarReconectarManual() {
+    if (this._reconectarTimer) return;
+    this._reconectarTimer = setTimeout(async () => {
+      this._reconectarTimer = null;
+      if (this.activo || typeof Usuarios === 'undefined' || !Usuarios.perfilActivo) return;
+      if (typeof SyncServidor !== 'undefined') {
+        await SyncServidor.asegurarSesionServidor().catch(() => {});
+      }
+      await this.conectar();
+    }, 4000);
+  },
+
+  _mostrarReconectando(activo) {
+    this._reconectando = !!activo;
+    this._actualizarIndicadorConexion(activo ? 'reconectando' : (this.activo ? 'online' : 'offline'));
+    if (typeof Notificaciones === 'undefined') return;
+    if (activo) {
+      Notificaciones.mostrar('📡 Reconectando al servidor…', 'alerta', 4000);
+    } else {
+      this._ocultarAvisoReconexion();
+    }
+  },
+
+  _actualizarIndicadorConexion(estado) {
+    const el = document.getElementById('indicador-conexion');
+    if (!el) return;
+    if (!CONFIG.servidorOnline || !Usuarios?.perfilActivo) {
+      el.classList.add('oculto');
+      return;
+    }
+    el.classList.remove('oculto', 'estado-reconectando', 'estado-offline');
+    if (estado === 'reconectando') {
+      el.classList.add('estado-reconectando');
+      el.title = 'Reconectando al servidor…';
+    } else if (estado === 'offline') {
+      el.classList.add('estado-offline');
+      el.title = 'Sin conexión al servidor';
+    } else {
+      el.title = 'Conectado al servidor (verde = en vivo)';
+    }
+  },
+
+  _aplicarMundoAlCliente(data, avisar) {
+    if (!data?.mundo) return false;
+    const m = data.mundo;
+    const tieneMapa = (m.misiones?.length || 0) + (m.objetos?.length || 0) +
+      (m.enemigos?.length || 0) + (m.tesoros?.length || 0) +
+      (m.tiendasAdmin?.length || 0) + Object.keys(m.posiciones || {}).length;
+    const tieneContenido = typeof MundoPublico !== 'undefined' && MundoPublico.mundoTieneContenido
+      ? MundoPublico.mundoTieneContenido(m) : tieneMapa > 0;
+    const tieneJugadores = (m.jugadores?.length || 0) > 0 ||
+      Object.keys(m.partidas || {}).length > 0;
+    if (!tieneContenido && !tieneJugadores) return false;
+
+    if (typeof Admin === 'undefined' || typeof Admin._aplicarMundoRemoto !== 'function') {
+      this._mundoPendiente = data;
+      return false;
+    }
+
+    const ts = data.actualizadoEn || m.actualizadoEn || Date.now();
+    const json = JSON.stringify(m);
+    const firma = Admin._firmaMundo(json);
+    if (ts <= this.mundoServidorTs && firma === Admin._ultimoFirmaPublicada) return false;
+
+    this.mundoServidorTs = Math.max(this.mundoServidorTs, ts);
+    Admin._crudoPublicado = json;
+    Admin._ultimoFirmaPublicada = firma;
+    Admin._aplicarMundoRemoto(json, { soloMapa: true });
+    if (m.cuerposMuertos) this._aplicarCuerpos(m.cuerposMuertos);
+    if (tieneContenido) this._mundoSocketListo = true;
+    this._sincronizarPinesPartida();
+    if (avisar && typeof Usuarios !== 'undefined' && !Usuarios.esAdministrador() &&
+        typeof Notificaciones !== 'undefined') {
+      Notificaciones.mostrar('🌍 El admin actualizó el mapa', 'info', 4000);
+    }
+    return true;
+  },
+
+  aplicarMundoPendiente() {
+    if (!this._mundoPendiente) return false;
+    const data = this._mundoPendiente;
+    this._mundoPendiente = null;
+    return this._aplicarMundoAlCliente(data, false);
+  },
+
+  async loadWorld() {
+    return this.obtenerMundoServidor();
+  },
+
+  _aplicarMundoServidor(data, avisar) {
+    return this._aplicarMundoAlCliente(data, avisar);
+  },
+
+  /** Descarga el mundo del servidor (SQLite). */
+  async obtenerMundoServidor() {
+    if (typeof SyncServidor !== 'undefined' && SyncServidor.obtenerMundo) {
+      const data = await SyncServidor.obtenerMundo();
+      if (data?.mundo) {
+        return this._aplicarMundoServidor(data, false);
+      }
+    }
+    const base = this.urlServidor();
+    if (!base) return false;
+    try {
+      const r = await fetch(base + '/api/public/mundo', { cache: 'no-store' });
+      const data = await r.json().catch(() => ({}));
+      if (!data.ok || !data.mundo) return false;
+      if (typeof MundoPublico !== 'undefined' && MundoPublico.mundoTieneContenido &&
+          !MundoPublico.mundoTieneContenido(data.mundo)) {
+        const tieneJugadores = (data.mundo.jugadores?.length || 0) > 0 ||
+          Object.keys(data.mundo.partidas || {}).length > 0;
+        if (!tieneJugadores) {
+          const gh = await MundoPublico._descargarDesdeGitHub?.();
+          if (gh?.texto) {
+            return this._aplicarMundoServidor({
+              mundo: JSON.parse(gh.texto),
+              actualizadoEn: gh.actualizadoEn || 0
+            }, false);
+          }
+          return false;
+        }
+      }
+      return this._aplicarMundoServidor({
+        mundo: data.mundo,
+        actualizadoEn: data.actualizadoEn || data.mundo.actualizadoEn || 0
+      }, false);
+    } catch (e) {
+      return false;
+    }
+  },
+
+  async _pullMundoVersion() {
+    const base = this.urlServidor();
+    if (!base) return false;
+    try {
+      const r = await fetch(base + '/api/public/mundo/version', { cache: 'no-store' });
+      const data = await r.json().catch(() => ({}));
+      if (!data.ok) return false;
+      const ts = data.actualizadoEn || 0;
+      if (ts > this.mundoServidorTs) {
+        return this.obtenerMundoServidor();
+      }
+      return false;
+    } catch (e) {
+      return false;
+    }
+  },
+
+  async _pullMundoServidor() {
+    if (this.activo) {
+      return this._pullMundoVersion();
+    }
+    const ahora = Date.now();
+    if (ahora - this._ultimoPullMundo < 2500) return;
+    this._ultimoPullMundo = ahora;
+    await this.obtenerMundoServidor();
+  },
+
+  recogerTesoroCompartido(tesoroId) {
+    return new Promise((resolve) => {
+      if (!this.socket || !this.activo || !tesoroId) return resolve(false);
+      this.socket.emit('world:tesoroRecogido', { tesoroId }, (res) => {
+        if (res?.ok && typeof Admin !== 'undefined') {
+          Admin.aplicarRecogidaTesoro(tesoroId, res.recogidoAt);
+        }
+        resolve(!!res?.ok);
+      });
+    });
+  },
+
+  saquearMuerto(playerId, itemId, cantidad, btn) {
+    if (!this.socket || !this.activo) return;
+    const tomar = Math.max(1, cantidad || 1);
+    const datos = this._datosPopupMuerto(playerId);
+    const maxDist = CONFIG.distanciaVerMuerto || 50;
+    const d = this._distanciaCuerpo(datos);
+    if (d > maxDist) {
+      Notificaciones.mostrar('📍 Demasiado lejos para saquear (' + Math.round(d) + ' m). Máx. ' + maxDist + ' m', 'info', 3500);
+      return;
+    }
+    const inv = (datos.deadInventory || []).map(x => ({ id: x.id, cantidad: x.cantidad || 1 }));
+    const idx = inv.findIndex(x => x.id === itemId);
+    if (idx < 0) {
+      Notificaciones.mostrar('❌ Ese objeto ya no está en el cuerpo', 'alerta', 2500);
+      this._refrescarPopupsMuertos(playerId);
+      return;
+    }
+    if (btn) {
+      btn.disabled = true;
+      btn.classList.add('cargando');
+      btn.textContent = '⏳';
+    }
+    const payload = {
+      targetPlayerId: playerId,
+      itemId,
+      cantidad: tomar
+    };
+    if (typeof GPS !== 'undefined' && GPS.posicion) {
+      payload.reviverX = GPS.posicion[0];
+      payload.reviverY = GPS.posicion[1];
+    }
+    this.socket.emit('player:lootBody', payload, (res) => {
+      if (btn) {
+        btn.disabled = false;
+        btn.classList.remove('cargando');
+        btn.textContent = 'Saquear';
+      }
+      if (res?.ok) {
+        inv[idx].cantidad -= tomar;
+        if (inv[idx].cantidad <= 0) inv.splice(idx, 1);
+        this._aplicarLootLocal(playerId, inv);
+        const fila = btn?.closest('.popup-muerto-item');
+        if (fila) {
+          fila.classList.add('popup-muerto-item-saqueado');
+          setTimeout(() => fila.remove(), 180);
+        }
+        if (typeof Mochila !== 'undefined' && res.item) {
+          Mochila.agregar(res.item.id, res.item.cantidad, { silencioso: true });
+        }
+        Notificaciones.mostrar('🎒 Saqueaste del cuerpo', 'exito', 3000);
+        this._refrescarPopupsMuertos(playerId);
+      } else {
+        Notificaciones.mostrar('❌ ' + (res?.error || 'No se pudo saquear'), 'alerta', 3500);
+        this._refrescarPopupsMuertos(playerId);
+      }
+    });
+  },
+
+  _aplicarLootLocal(playerId, deadInventory) {
+    const pid = Number(playerId);
+    const inv = deadInventory || [];
+    const i = this.online.findIndex(x => Number(x.playerId) === pid);
+    if (i >= 0) {
+      this.online[i].deadInventory = inv;
+      this._actualizarMarcador(this.online[i]);
+    }
+    const cid = String(playerId);
+    if (this.cuerpos[cid]) {
+      this.cuerpos[cid].deadInventory = inv;
+      this._actualizarMarcadorCuerpo(this.cuerpos[cid]);
+    }
+    this._refrescarPopupsMuertos(pid);
+  },
+
+  /** Si me saquean estando muerto: quita ítems de mi mochila local. */
+  _aplicarInventarioMuerto(deadInventory) {
+    if (typeof Guardado === 'undefined' || !Guardado.datos) return;
+    const inv = (deadInventory || []).map(x => ({
+      id: x.id,
+      cantidad: x.cantidad || 1
+    }));
+    const total = typeof Mochila !== 'undefined' && Mochila.TOTAL_SLOTS
+      ? Mochila.TOTAL_SLOTS : 25;
+    const slots = new Array(total).fill(null);
+    let i = 0;
+    for (const it of inv) {
+      if (!it.id || i >= total) break;
+      slots[i++] = { id: it.id, cantidad: it.cantidad };
+    }
+    Guardado.datos.mochila = slots;
+    Guardado.datos.muerteInventario = inv;
+    if (typeof Mochila !== 'undefined') {
+      Mochila.slots = slots;
+      if (typeof Mochila.pintar === 'function') Mochila.pintar();
+    }
+    Guardado.guardar();
+  },
+
+  _refrescarPopupsMuertos(playerId) {
+    const datos = this._datosPopupMuerto(playerId);
+    const html = this._popupMuertoHtml(datos);
+    const marcadores = [
+      this.marcadores[playerId],
+      this.cuerposMarcadores[String(playerId)]
+    ].filter(Boolean);
+    for (const m of marcadores) {
+      const popup = m.getPopup();
+      if (!popup) continue;
+      popup.setContent(html);
+    }
+  },
+
+  _esAdminMarcador(p) {
+    const nom = (p.name || '').trim().toLowerCase();
+    const adm = (CONFIG.adminNombre || 'soycaos').toLowerCase();
+    const alias = (CONFIG.adminAlias || []).map(a => a.toLowerCase());
+    return nom === adm || alias.includes(nom);
+  },
+
+  _nombreMarcador(p) {
+    if (this._esAdminMarcador(p)) return CONFIG.adminDisplayNombre || 'SoyCaos';
+    return (p.name || '?').replace(/</g, '');
+  },
+
+  _cuerpoVigente(c) {
+    if (!c) return false;
+    const ms = (CONFIG.cuerpoMuertoHoras || 1) * 3600000;
+    if (!c.muertoAt) return true;
+    return Date.now() - c.muertoAt < ms;
+  },
+
+  _tiempoRestanteCuerpo(c) {
+    if (!c?.muertoAt) return '';
+    const ms = (CONFIG.cuerpoMuertoHoras || 1) * 3600000;
+    const rest = ms - (Date.now() - c.muertoAt);
+    if (rest <= 0) return 'expirado';
+    const mins = Math.ceil(rest / 60000);
+    if (mins < 60) return mins + ' min';
+    return Math.floor(mins / 60) + ' h ' + (mins % 60) + ' min';
+  },
+
+  _distanciaCuerpo(datos) {
+    if (!GPS.posicion || datos.deathX == null || datos.deathY == null) return Infinity;
+    return Utilidades.distanciaMetros(GPS.posicion, [datos.deathX, datos.deathY]);
+  },
+
+  _popupMuertoHtml(p) {
+    const nombre = (p.name || 'Jugador').replace(/</g, '');
+    const nv = p.deadLevel || p.level || 1;
+    const datos = this._datosPopupMuerto(p.playerId);
+    const dist = this._distanciaCuerpo(datos);
+    const maxDist = CONFIG.distanciaVerMuerto || 50;
+    const cerca = dist <= maxDist;
+    const cuerpo = this.cuerpos[String(p.playerId)];
+    const restante = cuerpo ? this._tiempoRestanteCuerpo(cuerpo) : '';
+    let html = '<div class="popup-muerto">';
+    html += '<div class="popup-muerto-nombre">' + nombre + '</div>';
+    html += '<div class="popup-muerto-nivel">Nv ' + nv + ' · 💀 Muerto</div>';
+    if (restante && restante !== 'expirado') {
+      html += '<div class="popup-muerto-expira">⏱️ Desaparece en ' + restante + '</div>';
+    }
+    html += '<div class="popup-muerto-ayuda">' +
+      (cerca ? '📍 Estás cerca (' + Math.round(dist) + ' m)' : '📍 Acércate a menos de ' + maxDist + ' m (ahora ' + Math.round(dist) + ' m)') +
+      '<br>🎒 Cualquier jugador puede <b>saquear</b>.<br>🩹 <b>Revivir</b> requiere botiquín en tu mochila.</div>';
+    const items = datos.deadInventory || [];
+    if (items.length) {
+      html += '<div class="popup-muerto-items">';
+      for (const it of items) {
+        const item = typeof Items !== 'undefined' ? Items.seguro(it.id) : { nombre: it.id, icono: '📦' };
+        html += '<div class="popup-muerto-item"><span>' + (item.icono || '') + ' ' +
+          item.nombre + ' x' + (it.cantidad || 1) + '</span>' +
+          '<button type="button" data-loot-id="' + it.id + '" data-loot-pid="' + p.playerId +
+          '" data-loot-q="' + (it.cantidad || 1) + '">Saquear</button></div>';
+      }
+      html += '</div>';
+    }
+    html += '<button type="button" class="popup-muerto-revivir" data-revive-pid="' + p.playerId +
+      '">🩹 Revivir (botiquín)</button>';
+    const pid = Number(p.playerId);
+    const soyYo = pid === this._miPlayerId();
+    if (!soyYo && typeof Amigos !== 'undefined' && !Amigos.estaBloqueado(pid)) {
+      html += '<button type="button" class="popup-muerto-chat" data-chat-pid="' + pid +
+        '" data-chat-nombre="' + nombre.replace(/"/g, '&quot;') + '">💬 Chatear</button>';
+    }
+    const esAmigo = typeof Amigos !== 'undefined' && Amigos.esAmigo(pid);
+    if (!soyYo && !esAmigo && typeof Amigos !== 'undefined') {
+      html += '<button type="button" class="popup-muerto-amigo" data-amigo-pid="' + pid +
+        '">👥 Agregar amigo</button>';
+    }
+    html += '</div>';
+    return html;
+  },
+
+  _aplicarCuerpos(cuerpos) {
+    const filtrados = {};
+    for (const [id, c] of Object.entries(cuerpos || {})) {
+      if (this._cuerpoVigente(c)) filtrados[id] = c;
+    }
+    this.cuerpos = filtrados;
+    const miId = this._miPlayerId();
+    const miCuerpo = miId > 0 ? this.cuerpos[String(miId)] : null;
+    if (miCuerpo?.muertoAt && typeof Guardado !== 'undefined' && Guardado.datos) {
+      Guardado.datos.muertoAt = miCuerpo.muertoAt;
+      if (typeof Vida !== 'undefined' && Vida._actualizarTextoExpiraMuerte) {
+        Vida._actualizarTextoExpiraMuerte();
+      }
+    }
+    this._redibujarCuerpos();
+  },
+
+  _asegurarCuerpoLocal(p) {
+    if (!p || !this._estaMuerto(p)) return;
+    const id = String(p.playerId);
+    const pos = this._posMarcador(p);
+    if (pos.x == null || pos.y == null) return;
+    const prev = this.cuerpos[id];
+    this.cuerpos[id] = {
+      playerId: Number(p.playerId),
+      name: p.name || prev?.name || 'Jugador',
+      deathX: pos.x,
+      deathY: pos.y,
+      deadLevel: p.deadLevel || p.level || prev?.deadLevel || 1,
+      deadInventory: Array.isArray(p.deadInventory) ? p.deadInventory : (prev?.deadInventory || []),
+      muertoAt: prev?.muertoAt || Date.now()
+    };
+  },
+
+  _redibujarCuerpos() {
+    for (const p of this.online) {
+      if (this._estaMuerto(p)) this._asegurarCuerpoLocal(p);
+    }
+    for (const id of Object.keys(this.cuerposMarcadores)) {
+      if (!this.cuerpos[id] || !this._cuerpoVigente(this.cuerpos[id])) {
+        this._quitarMarcadorCuerpo(id);
+      }
+    }
+    for (const [id, c] of Object.entries(this.cuerpos)) {
+      if (!this._cuerpoVigente(c)) continue;
+      this._actualizarMarcadorCuerpo(c);
+    }
+    this._actualizarLineasAmigo();
+  },
+
+  _jugadorMuertoParaPopup(p) {
+    return {
+      playerId: p.playerId,
+      name: p.name,
+      deadLevel: p.deadLevel || p.level,
+      deadInventory: p.deadInventory || [],
+      deathX: p.deathX,
+      deathY: p.deathY,
+      dead: true
+    };
+  },
+
+  _datosPopupMuerto(playerId) {
+    const pid = Number(playerId);
+    const online = this.online.find(x => Number(x.playerId) === pid);
+    if (online && this._estaMuerto(online)) return this._jugadorMuertoParaPopup(online);
+    const c = this.cuerpos[String(pid)];
+    if (c) {
+      return {
+        playerId: c.playerId,
+        name: c.name,
+        deadLevel: c.deadLevel,
+        deadInventory: c.deadInventory || [],
+        deathX: c.deathX,
+        deathY: c.deathY,
+        dead: true
+      };
+    }
+    if (online) return this._jugadorMuertoParaPopup(online);
+    return { playerId: pid, name: 'Jugador', deadInventory: [], dead: true };
+  },
+
+  _bindPopupMuerto(m, playerId) {
+    m._muertoPlayerId = playerId;
+    if (m.unbindPopup) m.unbindPopup();
+    m.options.interactive = true;
+    if (typeof m.setInteractive === 'function') m.setInteractive(true);
+    m.bindPopup(
+      () => this._popupMuertoHtml(this._datosPopupMuerto(playerId)),
+      { maxWidth: 260, className: 'popup-muerto-wrap' }
+    );
+    this._enlazarPopupMuerto(m, playerId);
+  },
+
+  _actualizarMarcadorCuerpo(c) {
+    if (!Mapa.mapa || !c) return;
+    const id = String(c.playerId);
+    const p = {
+      playerId: c.playerId,
+      name: c.name,
+      deadLevel: c.deadLevel,
+      deadInventory: c.deadInventory || [],
+      deathX: c.deathX,
+      deathY: c.deathY,
+      dead: true
+    };
+    let m = this.cuerposMarcadores[id];
+    const icon = this._iconoJugadorMuerto(p);
+    const pos = { x: c.deathX, y: c.deathY };
+    if (!m) {
+      m = L.marker([pos.x, pos.y], {
+        icon,
+        interactive: true,
+        zIndexOffset: 10050
+      }).addTo(Mapa.mapa);
+      m.on('click', () => m.openPopup());
+      this._bindPopupMuerto(m, c.playerId);
+      this.cuerposMarcadores[id] = m;
+    } else {
+      m.setLatLng([pos.x, pos.y]);
+      m.setIcon(icon);
+      m.options.interactive = true;
+      if (typeof m.setInteractive === 'function') m.setInteractive(true);
+      m.off('click');
+      m.on('click', () => m.openPopup());
+      this._bindPopupMuerto(m, c.playerId);
+    }
+  },
+
+  _quitarMarcadorCuerpo(id) {
+    const m = this.cuerposMarcadores[id];
+    if (m && Mapa.mapa) Mapa.mapa.removeLayer(m);
+    delete this.cuerposMarcadores[id];
+  },
+
+  _enlazarPopupMuerto(m, playerId) {
+    m._muertoPlayerId = playerId;
+    m.off('popupopen').on('popupopen', () => {
+      const root = m.getPopup()?.getElement();
+      if (!root) return;
+      if (typeof L !== 'undefined' && L.DomEvent) {
+        L.DomEvent.disableClickPropagation(root);
+        L.DomEvent.disableScrollPropagation(root);
+      }
+      if (root._muertoClickFn) {
+        root.removeEventListener('click', root._muertoClickFn);
+      }
+      root._muertoClickFn = (ev) => this._manejarClickPopupMuerto(ev, m);
+      root.addEventListener('click', root._muertoClickFn);
+    });
+  },
+
+  _manejarClickPopupMuerto(ev, m) {
+    const btn = ev.target.closest('button');
+    if (!btn || btn.disabled) return;
+    ev.preventDefault();
+    ev.stopPropagation();
+    const pid = m._muertoPlayerId;
+    const datos = this._datosPopupMuerto(pid);
+    if (btn.classList.contains('popup-muerto-revivir')) {
+      if (btn.classList.contains('cargando')) return;
+      this.revivirJugador(datos, btn);
+      return;
+    }
+    if (btn.classList.contains('popup-muerto-amigo')) {
+      if (btn.classList.contains('cargando')) return;
+      btn.classList.add('cargando');
+      btn.textContent = '⏳ Enviando…';
+      if (typeof Amigos !== 'undefined') {
+        Amigos.solicitar(pid).finally(() => {
+          btn.classList.remove('cargando');
+          btn.textContent = '👥 Agregar amigo';
+        });
+      }
+      return;
+    }
+    if (btn.classList.contains('popup-muerto-chat')) {
+      const nombre = btn.getAttribute('data-chat-nombre') || '';
+      if (typeof Chat !== 'undefined') Chat.abrirDesdeMapa(pid, nombre);
+      if (m.closePopup) m.closePopup();
+      return;
+    }
+    if (btn.hasAttribute('data-loot-id')) {
+      if (btn.classList.contains('cargando')) return;
+      this.saquearMuerto(
+        Number(btn.getAttribute('data-loot-pid')),
+        btn.getAttribute('data-loot-id'),
+        Number(btn.getAttribute('data-loot-q') || 1),
+        btn
+      );
+    }
+  },
+
+  recogerObjetoCompartido(origenId) {
+    return new Promise((resolve) => {
+      if (!this.socket || !this.activo || !origenId) return resolve(false);
+      this.socket.emit('world:pickupShared', { origenId }, (res) => {
+        if (res?.ok && typeof Admin !== 'undefined') {
+          Admin.aplicarRecogidaCompartida(origenId, res.recogidoAt, this._miPlayerId());
+        }
+        resolve(!!res?.ok);
+      });
+    });
+  },
+
+  soltarBolsa(payload) {
+    return new Promise((resolve) => {
+      if (!this.socket || !this.activo || !payload?.pos) return resolve(null);
+      this.socket.emit('world:dropBag', {
+        x: payload.pos[0],
+        y: payload.pos[1],
+        items: payload.items || []
+      }, (res) => {
+        resolve(res?.ok ? res.bolsa : null);
+      });
+    });
+  },
+
+  recogerBolsa(bolsaId, recogidos, pos) {
+    return new Promise((resolve) => {
+      if (!this.socket || !this.activo || !bolsaId) return resolve({ ok: false });
+      this.socket.emit('world:pickupBag', {
+        bolsaId,
+        recogidos: recogidos || [],
+        x: pos?.[0],
+        y: pos?.[1]
+      }, (res) => resolve(res || { ok: false }));
+    });
+  },
+
+  _estaMuerto(p) {
+    return !!(p && (p.dead || (p.hp != null && p.hp <= 0)));
+  },
+
+  _posMarcador(p) {
+    if (this._estaMuerto(p) && p.deathX != null && p.deathY != null) {
+      return { x: p.deathX, y: p.deathY };
+    }
+    return { x: p.x, y: p.y };
+  },
+
+  _distanciaMarcador(p) {
+    if (!GPS.posicion || !p) return Infinity;
+    const pos = this._posMarcador(p);
+    return Utilidades.distanciaMetros(GPS.posicion, [pos.x, pos.y]);
+  },
+
+  _visibleMuertoCerca(p) {
+    return this._distanciaMarcador(p) <= (CONFIG.distanciaVerMuerto || 50);
+  },
+
+  refrescarMarcadoresDistancia() {
+    if (this.activo) {
+      for (const p of this.online) this._actualizarMarcador(p);
+      this._actualizarLineasAmigo();
+    }
+    this._sincronizarPinesPartida();
+  },
+
+  _nombreEnLinea(nombre) {
+    const n = String(nombre || '').trim().toLowerCase();
+    return this.online.some(p => {
+      if (String(p.name || '').trim().toLowerCase() !== n) return false;
+      const id = Number(p.playerId);
+      return !!(this.marcadores[id] || this.cuerposMarcadores[String(id)]);
+    });
+  },
+
+  _quitarMarcadorPartida(perfilId) {
+    const m = this._marcadoresPartida[perfilId];
+    if (m && Mapa.mapa) {
+      try { Mapa.mapa.removeLayer(m); } catch (e) { /* */ }
+    }
+    delete this._marcadoresPartida[perfilId];
+  },
+
+  _jugadorPartidaVisible(j, lat, lng) {
+    if (!j) return false;
+    const enVivo = this.online.find(p =>
+      String(p.name || '').trim().toLowerCase() === String(j.nombre || '').trim().toLowerCase()
+    );
+    if (enVivo) {
+      const fake = { playerId: enVivo.playerId, name: enVivo.name, x: lat, y: lng };
+      return this._debeMostrarJugador(fake);
+    }
+    const fake = { playerId: -1, name: j.nombre, x: lat, y: lng };
+    if (!this._debeMostrarJugador(fake)) return false;
+    return true;
+  },
+
+  _actualizarMarcadorPartida(j, lat, lng, partida) {
+    if (!Mapa.mapa || !j?.id) return;
+    const nivel = partida?.datos?.nivel || 1;
+    const fake = {
+      playerId: -1,
+      name: j.nombre,
+      x: lat,
+      y: lng,
+      level: nivel,
+      hp: partida?.datos?.vida ?? 100,
+      hpMax: 100
+    };
+    let m = this._marcadoresPartida[j.id];
+    const icon = this._iconoJugador(fake);
+    if (!m) {
+      m = L.marker([lat, lng], {
+        icon,
+        interactive: true,
+        zIndexOffset: 850
+      }).addTo(Mapa.mapa);
+      m.bindPopup(
+        () => '<b>' + this._nombreMarcador(fake) + '</b><br><small>Última posición guardada</small>',
+        { maxWidth: 260, className: 'popup-jugador-wrap', closeButton: true }
+      );
+      this._marcadoresPartida[j.id] = m;
+    } else {
+      m.setLatLng([lat, lng]);
+      m.setIcon(icon);
+    }
+  },
+
+  /** Pines de jugadores desde partidas guardadas (cuando no están conectados al socket). */
+  _sincronizarPinesPartida() {
+    if (!Mapa.mapa || typeof Admin === 'undefined' || !Admin.publicado) return;
+    const miId = typeof Usuarios !== 'undefined' ? Usuarios.perfilActivo?.id : null;
+    const jugadores = Admin.jugadoresGlobales ? Admin.jugadoresGlobales() : (Admin.publicado.jugadores || []);
+    const partidas = Admin.publicado.partidas || {};
+    const activos = new Set();
+
+    for (const j of jugadores) {
+      if (!j?.id || j.id === miId) continue;
+      if (this._nombreEnLinea(j.nombre)) continue;
+      const part = partidas[j.id];
+      const pos = part?.datos?.posicionJugador;
+      if (!pos || pos.length < 2) continue;
+      const lat = Number(pos[0]);
+      const lng = Number(pos[1]);
+      if (!Number.isFinite(lat) || !Number.isFinite(lng)) continue;
+      if (!this._jugadorPartidaVisible(j, lat, lng)) {
+        this._quitarMarcadorPartida(j.id);
+        continue;
+      }
+      activos.add(j.id);
+      this._actualizarMarcadorPartida(j, lat, lng, part);
+    }
+
+    for (const id of Object.keys(this._marcadoresPartida)) {
+      if (!activos.has(id)) this._quitarMarcadorPartida(id);
+    }
+  },
+
+  _destinoAmigoMarcado(pid) {
+    const id = Number(pid);
+    const jugador = this.online.find(p => Number(p.playerId) === id);
+    if (jugador && this._estaMuerto(jugador)) {
+      const pos = this._posMarcador(jugador);
+      return { x: pos.x, y: pos.y, muerto: true };
+    }
+    const cuerpo = this.cuerpos[String(id)];
+    if (cuerpo && cuerpo.deathX != null && cuerpo.deathY != null) {
+      return { x: cuerpo.deathX, y: cuerpo.deathY, muerto: true };
+    }
+    if (jugador && !this._estaMuerto(jugador)) {
+      const pos = this._posMarcador(jugador);
+      return { x: pos.x, y: pos.y, muerto: false };
+    }
+    return null;
+  },
+
+  _actualizarLineasAmigo() {
+    if (!Mapa.mapa || typeof Amigos === 'undefined') return;
+    const marcados = Amigos.obtenerMarcados();
+    const miPos = typeof GPS !== 'undefined' && GPS.posicion ? GPS.posicion : null;
+    const activos = new Set();
+
+    if (miPos && marcados.size) {
+      for (const pid of marcados) {
+        const dest = this._destinoAmigoMarcado(pid);
+        if (!dest) continue;
+        activos.add(String(pid));
+        const coords = [[miPos[0], miPos[1]], [dest.x, dest.y]];
+        const color = dest.muerto ? '#f59e0b' : '#5ce883';
+        let linea = this._lineasAmigo[pid];
+        if (!linea) {
+          linea = L.polyline(coords, {
+            color,
+            weight: dest.muerto ? 4 : 3,
+            opacity: 0.85,
+            dashArray: dest.muerto ? '8, 10' : '10, 12',
+            lineCap: 'round',
+            className: 'linea-amigo-mapa' + (dest.muerto ? ' linea-amigo-ataud' : '')
+          }).addTo(Mapa.mapa);
+          this._lineasAmigo[pid] = linea;
+        } else {
+          linea.setLatLngs(coords);
+          linea.setStyle({ color, weight: dest.muerto ? 4 : 3, dashArray: dest.muerto ? '8, 10' : '10, 12' });
+        }
+      }
+    }
+
+    for (const id of Object.keys(this._lineasAmigo)) {
+      if (!activos.has(id)) {
+        Mapa.mapa.removeLayer(this._lineasAmigo[id]);
+        delete this._lineasAmigo[id];
+      }
+    }
+  },
+
+  revivirJugador(p, btn) {
+    if (!this.socket || !this.activo || !p?.playerId) return;
+    const datos = this._datosPopupMuerto(p.playerId);
+    const d = this._distanciaMarcador(datos);
+    const maxDist = CONFIG.distanciaVerMuerto || 50;
+    if (d > maxDist) {
+      Notificaciones.mostrar('📍 Demasiado lejos para revivir (' + Math.round(d) + ' m). Máx. ' + maxDist + ' m', 'info', 3500);
+      return;
+    }
+    if (typeof Mochila === 'undefined' || !Mochila.tieneItem('botiquin')) {
+      Notificaciones.mostrar('🩹 Necesitas un botiquín en la mochila ($300 en la farmacia)', 'alerta', 4500);
+      return;
+    }
+    const cura = CONFIG.vidaAlRevivir || 40;
+    const hpMax = typeof Vida !== 'undefined' ? Vida.vidaMaxima() : 100;
+    if (btn) {
+      btn.disabled = true;
+      btn.classList.add('cargando');
+      btn.textContent = '⏳ Reviviendo…';
+    }
+    const payload = {
+      targetPlayerId: datos.playerId,
+      reviveHp: cura,
+      hpMax
+    };
+    if (typeof GPS !== 'undefined' && GPS.posicion) {
+      payload.reviverX = GPS.posicion[0];
+      payload.reviverY = GPS.posicion[1];
+    }
+    this.socket.emit('player:revive', payload, (res) => {
+      if (btn) {
+        btn.disabled = false;
+        btn.classList.remove('cargando');
+        btn.textContent = '🩹 Revivir (botiquín)';
+      }
+      if (res?.ok) {
+        Mochila.quitar('botiquin', 1, 'Revivió a ' + (datos.name || 'jugador'));
+        Notificaciones.mostrar('🩹 Reviviste a ' + (datos.name || 'jugador'), 'exito', 5000);
+        const marcador = this.marcadores[datos.playerId] || this.cuerposMarcadores[String(datos.playerId)];
+        if (marcador?.getPopup()?.isOpen()) marcador.closePopup();
+      } else {
+        Notificaciones.mostrar('❌ ' + (res?.error || 'No se pudo revivir'), 'error', 4000);
+      }
+    });
+  },
+
+  enviarPosicion(lat, lng, forzar) {
+    if (!this.socket || !this.activo) return;
+    const ahora = Date.now();
+    if (!forzar && ahora - this._ultimoEnvio < 700) return;
+    this._ultimoEnvio = ahora;
+    this.socket.emit('player:move', { x: lat, y: lng, gps: true, force: forzar }, () => {});
+    this.enviarStats(false);
+  },
+
+  adminMoverJugador(playerId, lat, lng, perfilId) {
+    if (!this.socket || !this.activo) return;
+    this.socket.emit('admin:movePlayerPin', {
+      targetPlayerId: playerId,
+      x: lat,
+      y: lng,
+      perfilId: perfilId || null
+    }, (res) => {
+      if (!res?.ok && typeof Notificaciones !== 'undefined') {
+        Notificaciones.mostrar('❌ ' + (res.error || 'No se pudo mover al jugador'), 'error', 4000);
+      }
+    });
+  },
+
+  enviarStats(forzar) {
+    if (!this.socket || !this.activo || typeof Vida === 'undefined') return;
+    const ahora = Date.now();
+    if (!forzar && ahora - this._ultimoStats < 3500) return;
+    this._ultimoStats = ahora;
+    const esAdmin = typeof Usuarios !== 'undefined' && Usuarios.esAdministrador();
+    const hpMax = Vida.vidaMaxima();
+    const muerto = Vida.estaMuerto();
+    const payload = {
+      hp: esAdmin ? hpMax : Math.round(Vida.actual),
+      hpMax,
+      level: esAdmin ? 999 : Vida.nivel,
+      hunger: Math.round(Vida.hambre),
+      xp: Vida.xp,
+      dead: muerto
+    };
+    if (muerto && typeof Guardado !== 'undefined' && Guardado.datos.muertePos) {
+      payload.deathX = Guardado.datos.muertePos[0];
+      payload.deathY = Guardado.datos.muertePos[1];
+      payload.deadInventory = (Guardado.datos.mochila || [])
+        .filter(Boolean)
+        .map(s => ({ id: s.id, cantidad: s.cantidad || 1 }));
+      payload.deadLevel = Vida.nivel;
+    }
+    if (typeof Guardado !== 'undefined' && Guardado.datos.invisibleHasta > Date.now()) {
+      payload.invisibleUntil = Guardado.datos.invisibleHasta;
+    } else {
+      payload.invisibleUntil = 0;
+    }
+    if (typeof Usuarios !== 'undefined' && Usuarios.perfilActivo) {
+      payload.perfilId = Usuarios.perfilActivo.id;
+      const cambioMuerte = muerto !== this._ultimoMuertoSync;
+      if (forzar || cambioMuerte) {
+        payload.partidaMin = {
+          vida: payload.hp,
+          muerto,
+          nivel: Vida.nivel,
+          hambre: Vida.hambre,
+          xp: Vida.xp
+        };
+        this._ultimoMuertoSync = muerto;
+      }
+    }
+    this.socket.emit('player:updateStats', payload, () => {});
+  },
+
+  _pctVida(p) {
+    const max = Math.max(1, p.hpMax || 100);
+    return Math.max(0, Math.min(100, Math.round((p.hp != null ? p.hp : max) / max * 100)));
+  },
+
+  _iconoJugadorMuerto(p) {
+    const nombre = this._nombreMarcador(p);
+    return L.divIcon({
+      className: '',
+      html: '<div class="marcador-jugador-muerto">' +
+        '<div class="mjm-etiqueta">' + nombre + '</div>' +
+        '<div class="mjm-carabela">⚰️</div></div>',
+      iconSize: [56, 58],
+      iconAnchor: [28, 54]
+    });
+  },
+
+  _iconoJugador(p) {
+    if (this._esAdminMarcador(p)) {
+      return L.divIcon({
+        className: '',
+        html: '<div class="marcador-jugador-online marcador-admin">' +
+          '<div class="mjo-corona">👑</div>' +
+          '<div class="mjo-etiqueta">' +
+          '<span class="mjo-nombre">' + (CONFIG.adminDisplayNombre || 'SoyCaos') + '</span>' +
+          '<span class="mjo-nivel mjo-nivel-inf">∞</span></div>' +
+          '<div class="mjo-barra mjo-barra-admin"><div class="mjo-barra-fill" style="width:100%"></div></div>' +
+          '<div class="mjo-punto mjo-punto-admin"></div></div>',
+        iconSize: [96, 62],
+        iconAnchor: [48, 58]
+      });
+    }
+    const amigo = typeof Amigos !== 'undefined' && Amigos.esAmigo(p.playerId);
+    const marcado = typeof Amigos !== 'undefined' && Amigos.esMarcado(p.playerId);
+    const pct = this._pctVida(p);
+    const nombre = this._nombreMarcador(p);
+    const nv = p.level || 1;
+    let clases = 'marcador-jugador-online';
+    if (amigo) clases += ' es-amigo';
+    if (marcado) clases += ' pin-marcado';
+    return L.divIcon({
+      className: '',
+      html: '<div class="' + clases + '">' +
+        '<div class="mjo-etiqueta">' +
+        '<span class="mjo-nombre">' + nombre + '</span>' +
+        '<span class="mjo-nivel">Nv ' + nv + '</span>' +
+        '</div>' +
+        '<div class="mjo-barra"><div class="mjo-barra-fill" style="width:' + pct + '%"></div></div>' +
+        '<div class="mjo-punto"></div></div>',
+      iconSize: [88, 56],
+      iconAnchor: [44, 54]
+    });
+  },
+
+  _animarMarcador(id, lat, lng) {
+    const m = this.marcadores[id];
+    if (!m || !Number.isFinite(lat) || !Number.isFinite(lng)) return;
+    if (this._animaciones[id]) cancelAnimationFrame(this._animaciones[id]);
+    const desde = m.getLatLng();
+    const dist = Math.abs(desde.lat - lat) + Math.abs(desde.lng - lng);
+    if (dist < 0.000003) {
+      m.setLatLng([lat, lng]);
+      return;
+    }
+    const inicio = performance.now();
+    const duracion = Math.min(900, Math.max(280, dist * 800000));
+    const paso = (ahora) => {
+      const t = Math.min(1, (ahora - inicio) / duracion);
+      const suave = t * (2 - t);
+      m.setLatLng([
+        desde.lat + (lat - desde.lat) * suave,
+        desde.lng + (lng - desde.lng) * suave
+      ]);
+      if (t < 1) {
+        this._animaciones[id] = requestAnimationFrame(paso);
+      } else {
+        delete this._animaciones[id];
+      }
+    };
+    this._animaciones[id] = requestAnimationFrame(paso);
+  },
+
+  _actualizarMarcador(p) {
+    if (!Mapa.mapa || !p) return;
+    const id = p.playerId;
+    const muerto = this._estaMuerto(p);
+    if (muerto) {
+      this._asegurarCuerpoLocal(p);
+      this._quitarMarcador(id);
+      const c = this.cuerpos[String(id)];
+      if (c) this._actualizarMarcadorCuerpo(c);
+      return;
+    }
+    if (!this._debeMostrarJugador(p)) {
+      this._quitarMarcador(id);
+      return;
+    }
+    const pos = this._posMarcador(p);
+    let m = this.marcadores[id];
+    const icon = this._iconoJugador(p);
+    if (!m) {
+      m = L.marker([pos.x, pos.y], {
+        icon,
+        interactive: true,
+        zIndexOffset: 900
+      }).addTo(Mapa.mapa);
+      m.bindPopup(
+        () => typeof Amigos !== 'undefined' ? Amigos.popupHtml(p) : p.name,
+        { maxWidth: 300, className: 'popup-jugador-wrap', closeButton: true }
+      );
+      this.marcadores[id] = m;
+    } else {
+      this._animarMarcador(id, pos.x, pos.y);
+      m.setIcon(icon);
+      m.off('click');
+      if (m.unbindPopup) m.unbindPopup();
+      m.bindPopup(
+        () => typeof Amigos !== 'undefined' ? Amigos.popupHtml(p) : p.name,
+        { maxWidth: 300, className: 'popup-jugador-wrap', closeButton: true }
+      );
+    }
+  },
+
+  _quitarMarcador(id) {
+    const m = this.marcadores[id];
+    if (m && Mapa.mapa) Mapa.mapa.removeLayer(m);
+    delete this.marcadores[id];
+  },
+
+  _redibujar(mostrarAviso) {
+    this.online = this.online.filter(p => this._visible(p.playerId));
+    const ids = new Set(this.online.map(p => String(p.playerId)));
+    for (const id of Object.keys(this.marcadores)) {
+      if (!ids.has(id)) this._quitarMarcador(id);
+    }
+    for (const p of this.online) {
+      this._actualizarMarcador(p);
+    }
+    this._redibujarCuerpos();
+    this._actualizarLineasAmigo();
+    this._sincronizarPinesPartida();
+    if (typeof Amigos !== 'undefined') Amigos._pintarSiAbierto();
+    if (mostrarAviso !== false && this.online.length && typeof Notificaciones !== 'undefined') {
+      Notificaciones.mostrar('👥 ' + this.online.length + ' jugador(es) en vivo', 'info', 3000);
+    }
+    if (typeof Admin !== 'undefined' && Admin.modo === 'organizar') {
+      requestAnimationFrame(() => Admin._reaplicarArrastreOrganizar());
+    }
+  }
+};

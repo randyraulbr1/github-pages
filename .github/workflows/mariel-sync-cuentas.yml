@@ -1,0 +1,16 @@
+# DESACTIVADO — el servidor Render es la única fuente de indice.json y backups.
+# El workflow competía con jugadoresBackup.js y generaba commits en bucle.
+#
+# Para reconstruir índice localmente (desarrollo):
+#   node scripts/mariel-sync-indice-local.js
+#
+name: Mariel — sync cuentas (desactivado)
+
+on:
+  workflow_dispatch:
+
+jobs:
+  noop:
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "Workflow desactivado — el servidor Render gestiona datos/jugadores/"

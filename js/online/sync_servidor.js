@@ -1,0 +1,223 @@
+/**
+ * Publica el mundo del admin al servidor Render (fuente única de verdad).
+ */
+const SyncServidor = {
+  puedePublicar() {
+    return !!(CONFIG.servidorOnline && localStorage.getItem(Multijugador.TOKEN_KEY));
+  },
+
+  _clavesGuardadas() {
+    const claves = [];
+    try {
+      const s = sessionStorage.getItem('mariel_clave_servidor');
+      if (s) claves.push(s);
+    } catch (e) { /* */ }
+    if (typeof Usuarios !== 'undefined' && Usuarios.esAdministrador && Usuarios.esAdministrador()) {
+      try {
+        const dev = localStorage.getItem('mariel_dev_clave_randy');
+        if (dev) claves.push(dev);
+      } catch (e2) { /* */ }
+    }
+    return [...new Set(claves.filter(Boolean))];
+  },
+
+  /** Obtiene token JWT del servidor si falta (sesión local sin login-game). */
+  async asegurarSesionServidor(opciones) {
+    const opts = opciones || {};
+    if (this.puedePublicar()) return true;
+    if (!CONFIG.servidorOnline || typeof Usuarios === 'undefined' || !Usuarios.perfilActivo) {
+      return false;
+    }
+    const perfil = Usuarios.perfilActivo;
+    const usuario = perfil.nombre || perfil.id;
+    for (const clave of this._clavesGuardadas()) {
+      const srv = await Usuarios._loginServidor(usuario, clave, 0);
+      if (srv && !srv.error) return true;
+    }
+    if (opts.pedirClave && Usuarios.esAdministrador && Usuarios.esAdministrador()) {
+      const clave = prompt(
+        'Contraseña de ' + usuario + ' para sincronizar con el servidor:',
+        ''
+      );
+      if (!clave) return false;
+      const srv = await Usuarios._loginServidor(usuario, clave, 0);
+      if (srv && !srv.error) {
+        try {
+          sessionStorage.setItem('mariel_clave_servidor', clave);
+          if (String(usuario).toLowerCase() === 'randy') {
+            localStorage.setItem('mariel_dev_clave_randy', clave);
+          }
+        } catch (e) { /* */ }
+        return true;
+      }
+      if (typeof Notificaciones !== 'undefined') {
+        Notificaciones.mostrar('❌ ' + (srv?.error || 'No se pudo conectar al servidor'), 'error', 6000);
+      }
+    }
+    return this.puedePublicar();
+  },
+
+  _headers() {
+    const token = localStorage.getItem(Multijugador.TOKEN_KEY);
+    return {
+      'Content-Type': 'application/json',
+      Authorization: 'Bearer ' + token
+    };
+  },
+
+  async publicar(jsonStr) {
+    const base = (CONFIG.servidorOnline || '').replace(/\/$/, '');
+    const token = localStorage.getItem(Multijugador.TOKEN_KEY);
+    if (!base || !token) {
+      return { ok: false, error: 'Sin conexión al servidor' };
+    }
+    const body = typeof jsonStr === 'string' ? jsonStr : JSON.stringify(jsonStr);
+    for (let intento = 0; intento < 3; intento++) {
+      try {
+        const r = await Utilidades.fetchConTimeout(base + '/api/player/sync-mundo', {
+          method: 'POST',
+          headers: this._headers(),
+          body: body
+        }, 12000);
+        const data = await r.json().catch(() => ({}));
+        if (r.ok && data.ok) return { ok: true, data };
+        if (intento < 2) {
+          await new Promise(res => setTimeout(res, 1500 * (intento + 1)));
+          continue;
+        }
+        return { ok: false, error: data.error || ('Error ' + r.status) };
+      } catch (e) {
+        if (intento < 2) {
+          await new Promise(res => setTimeout(res, 1500 * (intento + 1)));
+          continue;
+        }
+        return { ok: false, error: 'Sin conexión al servidor' };
+      }
+    }
+    return { ok: false, error: 'Sin conexión al servidor' };
+  },
+
+  /** Sube vida/muerto de la partida al snapshot del servidor. */
+  async subirPartida(perfilId, partida) {
+    const base = (CONFIG.servidorOnline || '').replace(/\/$/, '');
+    const token = localStorage.getItem(Multijugador.TOKEN_KEY);
+    if (!base || !token || !perfilId || !partida) return false;
+    try {
+      const r = await fetch(base + '/api/player/sync-partida', {
+        method: 'POST',
+        headers: this._headers(),
+        body: JSON.stringify({ perfilId, partida })
+      });
+      const data = await r.json().catch(() => ({}));
+      return !!data.ok;
+    } catch (e) {
+      return false;
+    }
+  },
+
+  async registrarCuenta(perfil, partida, clave) {
+    const base = (CONFIG.servidorOnline || '').replace(/\/$/, '');
+    const token = localStorage.getItem(Multijugador.TOKEN_KEY);
+    if (!base || !token || !perfil?.id) return false;
+    try {
+      const body = { perfil, partida: partida || null };
+      if (clave) body.clave = clave;
+      const r = await fetch(base + '/api/player/registrar-cuenta', {
+        method: 'POST',
+        headers: this._headers(),
+        body: JSON.stringify(body)
+      });
+      const data = await r.json().catch(() => ({}));
+      return !!data.ok;
+    } catch (e) {
+      return false;
+    }
+  },
+
+  /** Deja solo la cuenta admin en el servidor (borra el resto). */
+  async limpiarCuentas() {
+    const base = (CONFIG.servidorOnline || '').replace(/\/$/, '');
+    const token = localStorage.getItem(Multijugador.TOKEN_KEY);
+    if (!base || !token) {
+      return { ok: false, error: 'Sin conexión al servidor' };
+    }
+    try {
+      const r = await Utilidades.fetchConTimeout(base + '/api/player/limpiar-cuentas', {
+        method: 'POST',
+        headers: this._headers()
+      }, 25000);
+      const data = await r.json().catch(() => ({}));
+      if (r.ok && data.ok) return data;
+      return { ok: false, error: data.error || ('Error ' + r.status) };
+    } catch (e) {
+      return { ok: false, error: 'Sin conexión al servidor' };
+    }
+  },
+
+  async sincronizarGitHub() {
+    const base = (CONFIG.servidorOnline || '').replace(/\/$/, '');
+    const token = localStorage.getItem(Multijugador.TOKEN_KEY);
+    if (!base || !token) {
+      return { ok: false, error: 'Sin conexión al servidor' };
+    }
+    for (let intento = 0; intento < 3; intento++) {
+      try {
+        const r = await Utilidades.fetchConTimeout(base + '/api/player/force-git-sync', {
+          method: 'POST',
+          headers: this._headers()
+        }, 20000);
+        const data = await r.json().catch(() => ({}));
+        if (r.ok && data.ok) return data;
+        if (intento < 2) {
+          await new Promise(res => setTimeout(res, 2000 * (intento + 1)));
+          continue;
+        }
+        return { ok: false, error: data.error || data.reason || ('Error ' + r.status) };
+      } catch (e) {
+        if (intento < 2) {
+          await new Promise(res => setTimeout(res, 2000 * (intento + 1)));
+          continue;
+        }
+        return { ok: false, error: 'Sin conexión al servidor' };
+      }
+    }
+    return { ok: false, error: 'Sin conexión al servidor' };
+  },
+
+  /** Estado de la última sync a GitHub (solo admin). */
+  async obtenerEstadoSync() {
+    const base = (CONFIG.servidorOnline || '').replace(/\/$/, '');
+    const token = localStorage.getItem(Multijugador.TOKEN_KEY);
+    if (!base || !token) return null;
+    try {
+      const r = await Utilidades.fetchConTimeout(base + '/api/player/sync-status', {
+        headers: this._headers(),
+        cache: 'no-store'
+      }, 10000);
+      const data = await r.json().catch(() => ({}));
+      return data.ok ? data : null;
+    } catch (e) {
+      return null;
+    }
+  },
+
+  /** Descarga el mundo desde SQLite (público o autenticado). */
+  async obtenerMundo() {
+    const base = (CONFIG.servidorOnline || '').replace(/\/$/, '');
+    if (!base) return null;
+    const token = localStorage.getItem(Multijugador.TOKEN_KEY);
+    const headers = token ? { Authorization: 'Bearer ' + token } : {};
+    const url = token ? base + '/api/player/mundo' : base + '/api/public/mundo';
+    try {
+      const r = await fetch(url, { headers, cache: 'no-store' });
+      const data = await r.json().catch(() => ({}));
+      if (!data.ok) return null;
+      return {
+        mundo: data.mundo,
+        actualizadoEn: data.actualizadoEn || data.mundo?.actualizadoEn || 0
+      };
+    } catch (e) {
+      return null;
+    }
+  }
+};

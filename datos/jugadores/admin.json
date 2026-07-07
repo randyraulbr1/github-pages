@@ -1,0 +1,94 @@
+{
+  "id": "pmr7x4zhznzw5o",
+  "nombre": "randy",
+  "telefono": "7709908375",
+  "pinHash": "4bdc96ffc0926b62d55708e3c1755ca3f04b8c28bec6fd85777117da67497f11",
+  "creado": 1783263656375,
+  "actualizadoEn": 1783394059394,
+  "partida": {
+    "datos": {
+      "mochila": [
+        {
+          "id": "agua",
+          "cantidad": 2
+        },
+        {
+          "id": "pan",
+          "cantidad": 1
+        },
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null
+      ],
+      "dinero": {
+        "saldo": 100,
+        "control": "68e382a3687042dcd0420432d9bf210eada6d12606b6ecd367d18c724c2f4b38"
+      },
+      "vida": 100,
+      "hambre": 50,
+      "xp": 0,
+      "nivel": 1,
+      "posicionJugador": [
+        22.993675220843897,
+        -82.75410622358324
+      ],
+      "tesorosRecogidos": [],
+      "misiones": {},
+      "misionesEstado": {},
+      "correoEnviados": [],
+      "correoRecibidos": [],
+      "correoTiendaLocal": [],
+      "historialDinero": [
+        {
+          "t": 1783390470215,
+          "detalle": "Dinero inicial",
+          "monto": 100,
+          "saldo": 100,
+          "lugar": "sin posición",
+          "pos": null,
+          "hashAnterior": "GENESIS",
+          "hash": "b9c4c8744b33b14211627dc537c8ce910918ea1ce47583f9bf50e288b9697e6c"
+        }
+      ],
+      "historialObjetos": [
+        {
+          "t": 1783391259923,
+          "detalle": "Obtenido: Cuchillo de combate",
+          "monto": 1,
+          "saldo": null,
+          "lugar": "campo abierto",
+          "pos": [
+            22.993584,
+            -82.753796
+          ],
+          "hashAnterior": "GENESIS",
+          "hash": "1f67cace6a0018e72cf5a3ef9382c1555a7c2c2046425b6ba683581c10be805e"
+        }
+      ],
+      "mensajesVistos": [],
+      "muerto": false,
+      "armaEquipada": "arma_nv1"
+    },
+    "t": 1783396488100
+  }
+}

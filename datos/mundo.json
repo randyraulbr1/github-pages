@@ -1,0 +1,72 @@
+{
+  "actualizadoEn": 1783402800000,
+  "misiones": [],
+  "tesoros": [],
+  "objetos": [],
+  "enemigos": [],
+  "tiendasAdmin": [],
+  "posiciones": {},
+  "eliminados": [],
+  "precios": {},
+  "itemsNuevos": [],
+  "mantenimiento": {
+    "activo": false,
+    "mensaje": ""
+  },
+  "baneados": [],
+  "mensajes": [],
+  "jugadores": [
+    {
+      "id": "pmr7x4zhznzw5o",
+      "nombre": "randy",
+      "telefono": "7709908375",
+      "pinHash": "4bdc96ffc0926b62d55708e3c1755ca3f04b8c28bec6fd85777117da67497f11",
+      "creado": 1783263656375
+    }
+  ],
+  "partidas": {
+    "pmr7x4zhznzw5o": {
+      "datos": {
+        "mochila": [
+          { "id": "agua", "cantidad": 2 },
+          { "id": "pan", "cantidad": 1 },
+          null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null
+        ],
+        "dinero": { "saldo": 100, "control": "68e382a3687042dcd0420432d9bf210eada6d12606b6ecd367d18c724c2f4b38" },
+        "vida": 100,
+        "hambre": 50,
+        "xp": 0,
+        "nivel": 1,
+        "posicionJugador": [22.99338757014396, -82.75377228856088],
+        "tesorosRecogidos": [],
+        "misiones": {},
+        "misionesEstado": {},
+        "correoEnviados": [],
+        "correoRecibidos": [],
+        "correoTiendaLocal": [],
+        "historialDinero": [],
+        "historialObjetos": [],
+        "mensajesVistos": [],
+        "muerto": false,
+        "armaEquipada": "arma_nv1"
+      },
+      "t": 1783394056730
+    }
+  },
+  "cofres": [],
+  "correoReclamados": [],
+  "correoTienda": [],
+  "enemigosEstado": {},
+  "objetosEstado": {},
+  "tesorosEstado": {},
+  "tiendasStock": {},
+  "combate": {
+    "danoMin": 5,
+    "danoMax": 8,
+    "nivelReferencia": 1,
+    "radioZona": 40,
+    "radioPersecucion": 20,
+    "curacionMs": 120000
+  },
+  "optimizarVisibilidad": true
+}

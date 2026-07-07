@@ -1,0 +1,66 @@
+{
+  "id": "pmra42v1xlv3c5",
+  "nombre": "33",
+  "telefono": "",
+  "pinHash": "0a22b58a09f93652ac592f9424e5dedbeb450965c0e7ddc5b46f8ab21aa96bb1",
+  "creado": 1783396246965,
+  "actualizadoEn": 1783396494886,
+  "partida": {
+    "datos": {
+      "mochila": [
+        {
+          "id": "agua",
+          "cantidad": 2
+        },
+        {
+          "id": "pan",
+          "cantidad": 1
+        },
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null
+      ],
+      "dinero": {
+        "saldo": 100,
+        "control": "68e382a3687042dcd0420432d9bf210eada6d12606b6ecd367d18c724c2f4b38"
+      },
+      "vida": 100,
+      "hambre": 49,
+      "xp": 0,
+      "nivel": 1,
+      "posicionJugador": null,
+      "tesorosRecogidos": [],
+      "misiones": {},
+      "misionesEstado": {},
+      "correoEnviados": [],
+      "correoRecibidos": [],
+      "correoTiendaLocal": [],
+      "historialDinero": [],
+      "historialObjetos": [],
+      "mensajesVistos": [],
+      "muerto": false,
+      "armaEquipada": null
+    },
+    "t": 1783396468620
+  }
+}

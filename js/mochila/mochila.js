@@ -1,0 +1,901 @@
+// ============================================================
+// MOCHILA — solo arrastrar para mover; consumibles al soltar en ✔️ / TODO
+// ============================================================
+const Mochila = {
+  TOTAL_SLOTS: 25,
+  slots: [],
+  slotSeleccionado: -1,
+  selected: null,
+  dragging: null,
+  dragFrom: null,
+  ghost: null,
+  isDragging: false,
+  hoverTarget: null,
+
+  iniciar() {
+    if (!Guardado.datos.mochila) {
+      Guardado.datos.mochila = new Array(this.TOTAL_SLOTS).fill(null);
+      Guardado.datos.mochila[0] = { id: 'agua', cantidad: 2 };
+      Guardado.datos.mochila[1] = { id: 'pan', cantidad: 1 };
+    }
+    this.slots = Guardado.datos.mochila;
+    this._sanearArmaEquipada();
+    this._sincronizarArmaEquipada();
+
+    document.getElementById('btn-mochila').addEventListener('click', () => this.abrir());
+    const btnUsar = document.getElementById('btn-usar-item');
+    if (btnUsar) btnUsar.addEventListener('click', () => this.usarSeleccionado());
+    const btnEsc = document.getElementById('btn-escribir-item');
+    if (btnEsc) btnEsc.addEventListener('click', () => this.escribirNota());
+    const btnDel = document.getElementById('btn-eliminar-item');
+    if (btnDel) btnDel.addEventListener('click', () => this.eliminarSeleccionado());
+    const btnEq = document.getElementById('btn-equipar-item');
+    if (btnEq) btnEq.addEventListener('click', () => this.equiparSeleccionado());
+
+    document.getElementById('inv-confirm-cancel')?.addEventListener('click', () => this._resolverConfirm(false));
+    document.getElementById('inv-confirm-ok')?.addEventListener('click', () => this._resolverConfirm(true));
+    document.querySelectorAll('[data-cierra="ventana-mochila"]').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        setTimeout(() => this._notificarCambioArma(), 0);
+      });
+    });
+
+    this.pintar();
+    this._notificarCambioArma();
+  },
+
+  abrir() {
+    document.getElementById('ventana-mochila').classList.remove('oculto');
+    this.selected = null;
+    this.slotSeleccionado = -1;
+    this._cleanupDrag();
+    if (typeof Dinero !== 'undefined') Dinero.pintar();
+    this.pintar();
+  },
+
+  guardar() {
+    const cambioArma = this._sanearArmaEquipada();
+    Guardado.datos.mochila = this.slots;
+    Guardado.guardar();
+    if (typeof Tesoros !== 'undefined' && Tesoros.activos) Tesoros.refrescarBanner();
+    if (typeof Admin !== 'undefined' && Admin.datos) Admin.refrescarVisibles();
+    if (typeof Misiones !== 'undefined' && Misiones.lista.length) Misiones.refrescar();
+    if (cambioArma) this._notificarCambioArma();
+  },
+
+  _statsConsumo() {
+    return {
+      hambre: Vida.hambre,
+      hambreMax: CONFIG.hambreMaxima,
+      vida: Vida.actual,
+      vidaMax: Vida.vidaMaxima()
+    };
+  },
+
+  _toast(texto) {
+    const el = document.getElementById('inv-toast');
+    if (!el) {
+      if (typeof Notificaciones !== 'undefined') Notificaciones.mostrar(texto, 'exito', 1300);
+      return;
+    }
+    el.textContent = texto;
+    el.classList.add('show');
+    clearTimeout(this._toastTimer);
+    this._toastTimer = setTimeout(() => el.classList.remove('show'), 1300);
+  },
+
+  contar(id) {
+    let total = this.slots.reduce((s, sl) => s + (sl && sl.id === id ? sl.cantidad : 0), 0);
+    if (this.armaEquipadaId() === id) total += 1;
+    return total;
+  },
+  tieneItem(id) { return this.contar(id) > 0; },
+  slotsLibres() { return this.slots.filter(s => !s).length; },
+
+  _primerSlotLibre() {
+    return this.slots.findIndex(s => !s);
+  },
+
+  _indiceEnMochila(id) {
+    return this.slots.findIndex(s => s && s.id === id);
+  },
+
+  /** Si el arma figura en la mochila, no puede estar equipada (HUD = mano). */
+  _sanearArmaEquipada() {
+    const id = this.armaEquipadaId();
+    if (!id) return false;
+    if (this._indiceEnMochila(id) >= 0) {
+      Guardado.datos.armaEquipada = null;
+      return true;
+    }
+    return false;
+  },
+
+  /** Arma equipada de verdad: flag activo y no está en ningún slot de mochila. */
+  _armaRealmenteEquipada() {
+    this._sanearArmaEquipada();
+    const id = this.armaEquipadaId();
+    if (!id) return null;
+    const item = Items.seguro(id);
+    if (!Items.esArma(item)) {
+      Guardado.datos.armaEquipada = null;
+      return null;
+    }
+    return id;
+  },
+
+  _refrescarTrasGuardado() {
+    this.slots = Guardado.datos.mochila || this.slots;
+    this._notificarCambioArma();
+  },
+
+  _sincronizarArmaEquipada() {
+    const id = this.armaEquipadaId();
+    if (!id) return;
+    const idx = this._indiceEnMochila(id);
+    if (idx >= 0) this.slots[idx] = null;
+  },
+
+  puedeRecibirRecompensa(items) {
+    if (!items || !items.length) return true;
+    const sim = this.slots.map(s => (s ? { id: s.id, cantidad: s.cantidad } : null));
+    for (const it of items) {
+      const item = Items.obtener(it.id);
+      if (!item) return false;
+      let restante = it.cantidad || 1;
+      const maxPila = item.unico ? 1 : (CONFIG.maxPila || 10);
+      if (item.unico) {
+        for (let i = 0; i < sim.length && restante > 0; i++) {
+          if (!sim[i]) { sim[i] = { id: it.id, cantidad: 1 }; restante--; }
+        }
+      } else {
+        for (const sl of sim) {
+          if (restante <= 0) break;
+          if (sl && sl.id === it.id && sl.cantidad < maxPila) {
+            const cabe = Math.min(restante, maxPila - sl.cantidad);
+            sl.cantidad += cabe;
+            restante -= cabe;
+          }
+        }
+        for (let i = 0; i < sim.length && restante > 0; i++) {
+          if (!sim[i]) {
+            const poner = Math.min(restante, maxPila);
+            sim[i] = { id: it.id, cantidad: poner };
+            restante -= poner;
+          }
+        }
+      }
+      if (restante > 0) return false;
+    }
+    return true;
+  },
+
+  armaEquipadaId() { return Guardado.datos.armaEquipada || null; },
+
+  danoArmaEquipada() {
+    const id = this._armaRealmenteEquipada();
+    if (!id) return 0;
+    const item = Items.obtener(id);
+    if (!item || item.tipo !== 'arma') return 0;
+    if (!Items.armaAptaParaNivel(id, Vida.nivel)) return 0;
+    return item.dano || 0;
+  },
+
+  equiparArma(id, slotOrigen) {
+    const item = Items.obtener(id);
+    if (!item || item.tipo !== 'arma') return false;
+    if (!Items.armaAptaParaNivel(id, Vida.nivel)) {
+      this._toast('Nivel ' + (item.nivelMin || 1) + '–' + (item.nivelMax || 100) + ' para esta arma');
+      return false;
+    }
+
+    let idx = typeof slotOrigen === 'number' ? slotOrigen : this._indiceEnMochila(id);
+    if (idx < 0 || !this.slots[idx] || this.slots[idx].id !== id) return false;
+
+    const prev = this.armaEquipadaId();
+    if (prev && prev !== id) this.desequiparArma();
+
+    this.slots[idx] = null;
+    Guardado.datos.armaEquipada = id;
+    this.guardar();
+    this.pintar();
+    this._notificarCambioArma();
+    return true;
+  },
+
+  desequiparArma(slotDestino) {
+    const id = this.armaEquipadaId();
+    if (!id) return false;
+
+    let dest = typeof slotDestino === 'number' ? slotDestino : this._primerSlotLibre();
+    if (dest < 0) {
+      this._toast('🎒 No hay espacio para guardar el arma');
+      return false;
+    }
+
+    const anterior = this.slots[dest];
+    Guardado.datos.armaEquipada = null;
+
+    this.slots[dest] = { id, cantidad: 1 };
+
+    if (anterior) {
+      const libre = this._primerSlotLibre();
+      if (libre < 0 || libre === dest) {
+        this.slots[dest] = anterior;
+        Guardado.datos.armaEquipada = id;
+        this._toast('🎒 No hay espacio en la mochila');
+        return false;
+      }
+      this.slots[libre] = anterior;
+    }
+
+    this.guardar();
+    this.pintar();
+    this._notificarCambioArma();
+    return true;
+  },
+
+  equiparSeleccionado() {
+    if (!this.selected || this.selected.place !== 'bag') return;
+    const sl = this.slots[this.selected.key];
+    if (!sl) return;
+    if (this.armaEquipadaId() === sl.id) this.desequiparArma();
+    else this.equiparArma(sl.id, this.selected.key);
+  },
+
+  agregar(id, cantidad = 1, opciones = {}) {
+    const item = Items.obtener(id);
+    if (!item) return false;
+    const maxPila = item.unico ? 1 : (CONFIG.maxPila || 10);
+
+    let restante = cantidad;
+    if (item.unico) {
+      for (let i = 0; i < this.slots.length && restante > 0; i++) {
+        if (!this.slots[i]) {
+          this.slots[i] = { id, cantidad: 1 };
+          if (opciones.texto) this.slots[i].texto = opciones.texto;
+          restante--;
+        }
+      }
+    } else {
+      for (const sl of this.slots) {
+        if (restante <= 0) break;
+        if (sl && sl.id === id && sl.cantidad < maxPila) {
+          const cabe = Math.min(restante, maxPila - sl.cantidad);
+          sl.cantidad += cabe;
+          restante -= cabe;
+        }
+      }
+      for (let i = 0; i < this.slots.length && restante > 0; i++) {
+        if (!this.slots[i]) {
+          const poner = Math.min(restante, maxPila);
+          this.slots[i] = { id, cantidad: poner };
+          restante -= poner;
+        }
+      }
+    }
+    if (restante > 0) {
+      Notificaciones.mostrar('🎒 Mochila llena, no cabe: ' + item.nombre, 'error');
+      return false;
+    }
+
+    this.guardar();
+    this.pintar();
+    Historial.registrar('objetos', { detalle: 'Obtenido: ' + item.nombre, monto: cantidad });
+    if (!opciones.silencioso) {
+      Notificaciones.mostrar(item.icono + ' Obtuviste ' + item.nombre + ' x' + cantidad, 'exito');
+    }
+    return true;
+  },
+
+  /** Agrega hasta `cantidad`; devuelve cuántas entraron. */
+  agregarHasta(id, cantidad = 1, opciones = {}) {
+    const item = Items.obtener(id);
+    if (!item) return { agregado: 0, restante: cantidad };
+    const maxPila = item.unico ? 1 : (CONFIG.maxPila || 10);
+    let restante = cantidad;
+    let agregado = 0;
+
+    if (item.unico) {
+      for (let i = 0; i < this.slots.length && restante > 0; i++) {
+        if (!this.slots[i]) {
+          this.slots[i] = { id, cantidad: 1 };
+          if (opciones.texto) this.slots[i].texto = opciones.texto;
+          restante--;
+          agregado++;
+        }
+      }
+    } else {
+      for (const sl of this.slots) {
+        if (restante <= 0) break;
+        if (sl && sl.id === id && sl.cantidad < maxPila) {
+          const cabe = Math.min(restante, maxPila - sl.cantidad);
+          sl.cantidad += cabe;
+          restante -= cabe;
+          agregado += cabe;
+        }
+      }
+      for (let i = 0; i < this.slots.length && restante > 0; i++) {
+        if (!this.slots[i]) {
+          const poner = Math.min(restante, maxPila);
+          this.slots[i] = { id, cantidad: poner };
+          restante -= poner;
+          agregado += poner;
+        }
+      }
+    }
+
+    if (agregado > 0) {
+      Historial.registrar('objetos', { detalle: 'Obtenido: ' + item.nombre, monto: agregado });
+    }
+    return { agregado, restante };
+  },
+
+  quitar(id, cantidad = 1, motivo = 'Usado') {
+    if (this.contar(id) < cantidad) return false;
+    let restante = cantidad;
+    let quitoEquipada = false;
+    for (let i = 0; i < this.slots.length && restante > 0; i++) {
+      const sl = this.slots[i];
+      if (sl && sl.id === id) {
+        const q = Math.min(sl.cantidad, restante);
+        sl.cantidad -= q;
+        restante -= q;
+        if (sl.cantidad <= 0) this.slots[i] = null;
+      }
+    }
+    if (restante > 0 && this.armaEquipadaId() === id) {
+      Guardado.datos.armaEquipada = null;
+      quitoEquipada = true;
+      restante -= 1;
+    }
+    if (restante > 0) return false;
+    this.guardar();
+    this.pintar();
+    if (quitoEquipada) this._notificarCambioArma();
+    const item = Items.seguro(id);
+    Historial.registrar('objetos', { detalle: motivo + ': ' + item.nombre, monto: -cantidad });
+    return true;
+  },
+
+  _getItem(place, key) {
+    if (place === 'bag') return this.slots[key] || null;
+    if (place === 'equip' && key === 'weapon') {
+      const id = this.armaEquipadaId();
+      return id ? { id, cantidad: 1 } : null;
+    }
+    return null;
+  },
+
+  _setItem(place, key, item) {
+    if (place === 'bag') {
+      this.slots[key] = item;
+      return;
+    }
+    if (place === 'equip' && key === 'weapon') {
+      Guardado.datos.armaEquipada = item ? item.id : null;
+    }
+  },
+
+  _isSelected(place, key) {
+    return this.selected && this.selected.place === place && this.selected.key === key;
+  },
+
+  _htmlItem(icono, cantidad, conQty) {
+    let h = '<div class="inv-item-drag"><span>' + (icono || '📦') + '</span>';
+    if (conQty && cantidad > 1) h += '<span class="qty">' + cantidad + '</span>';
+    h += '</div>';
+    return h;
+  },
+
+  _notificarCambioArma() {
+    const aplicar = () => {
+      this._sanearArmaEquipada();
+      this.pintarArmaHud();
+      const ventana = document.getElementById('ventana-mochila');
+      if (ventana && !ventana.classList.contains('oculto')) {
+        this._pintarSlotEquip();
+      }
+    };
+    aplicar();
+    requestAnimationFrame(aplicar);
+  },
+
+  pintarArmaHud() {
+    const hud = document.getElementById('hud-arma-equipada');
+    if (!hud) return;
+
+    const id = this._armaRealmenteEquipada();
+    let icono = '✋';
+    let titulo = 'Sin arma equipada';
+    let equipada = false;
+
+    if (id) {
+      const item = Items.seguro(id);
+      icono = item.icono || '🗡️';
+      const dano = item.dano || 0;
+      titulo = dano > 0 ? item.nombre + ' (+' + dano + ' daño)' : item.nombre;
+      equipada = true;
+    }
+
+    hud.replaceChildren(document.createTextNode(icono));
+    hud.title = equipada ? ('Arma: ' + titulo) : titulo;
+    hud.setAttribute('aria-label', equipada ? ('Arma equipada: ' + titulo) : titulo);
+    hud.classList.toggle('equipada', equipada);
+    void hud.offsetHeight;
+
+    const status = document.getElementById('inv-weapon-status');
+    if (status) status.textContent = equipada ? ('⚔️ ' + Items.seguro(id).nombre) : '⚔️ Sin arma';
+  },
+
+  _pintarSlotEquip() {
+    const slot = document.getElementById('slot-arma-equipada');
+    if (!slot) return;
+    const id = this._armaRealmenteEquipada();
+    const item = id ? Items.seguro(id) : null;
+    slot.querySelectorAll('.inv-item-drag').forEach(x => x.remove());
+    slot.classList.toggle('filled', !!item);
+    slot.classList.toggle('equipada', !!item);
+    if (item) {
+      slot.insertAdjacentHTML('beforeend', this._htmlItem(item.icono, 1, false));
+      const dragEl = slot.querySelector('.inv-item-drag');
+      if (dragEl) this._enlazarSlot(dragEl, 'equip', 'weapon');
+    }
+    slot.title = item ? item.nombre : 'Arma';
+    if (!slot._invSlotOk) {
+      slot._invSlotOk = true;
+      slot.addEventListener('pointerdown', (e) => this._onSlotPointerDown(e, 'equip', 'weapon'));
+    }
+  },
+
+  pintar() {
+    const rejilla = document.getElementById('rejilla-mochila');
+    if (rejilla) {
+      const usados = this.slots.filter(Boolean).length;
+      const cap = document.getElementById('inv-capacidad');
+      if (cap) cap.textContent = usados + ' / ' + this.TOTAL_SLOTS;
+      const dinInv = document.getElementById('inv-dinero-cantidad');
+      if (dinInv && typeof Dinero !== 'undefined') dinInv.textContent = Dinero.saldo;
+
+      rejilla.innerHTML = '';
+      this.slots.forEach((sl, i) => {
+        const celda = document.createElement('div');
+        celda.className = 'slot';
+        celda.dataset.place = 'bag';
+        celda.dataset.index = i;
+        if (sl && sl.id !== this._armaRealmenteEquipada()) {
+          const item = Items.seguro(sl.id);
+          celda.innerHTML = this._htmlItem(item.icono, sl.cantidad, true);
+          const dragEl = celda.querySelector('.inv-item-drag');
+          if (dragEl) this._enlazarSlot(dragEl, 'bag', i);
+        }
+        celda.addEventListener('pointerdown', (e) => this._onSlotPointerDown(e, 'bag', i));
+        rejilla.appendChild(celda);
+      });
+    }
+
+    this._pintarSlotEquip();
+    this._actualizarNombreArrastre();
+  },
+
+  _puedeUsarItem(item, id) {
+    return Items.esUsableEnInventario(item, id);
+  },
+
+  _mostrarControlesArrastre(sl) {
+    const controls = document.getElementById('inv-controls');
+    const useBtn = document.getElementById('inv-use-btn');
+    const useAllBtn = document.getElementById('inv-use-all-btn');
+    if (!controls || !sl) return;
+    const item = Items.seguro(sl.id);
+    const puedeUsar = Items.esUsableEnInventario(item, sl.id);
+    const esConsumible = Items.esConsumible(item, sl.id);
+    controls.classList.add('show');
+    useBtn?.classList.toggle('on', puedeUsar);
+    const varios = puedeUsar && esConsumible && sl.cantidad > 1;
+    useAllBtn?.classList.toggle('on', varios);
+  },
+
+  _actualizarNombreArrastre() {
+    const el = document.getElementById('inv-selected-name');
+    if (!el) return;
+    if (this.isDragging && this.dragging) {
+      const item = Items.seguro(this.dragging.id);
+      el.textContent = Items.resumenInventario(item, this.dragging.id) +
+        ' · x' + this.dragging.cantidad;
+      return;
+    }
+    el.textContent = 'Arrastra un objeto';
+  },
+
+  _enlazarSlot(el, place, key) {
+    if (!el || el._invDragOk) return;
+    el._invDragOk = true;
+    el.addEventListener('pointerdown', (ev) => {
+      ev.stopPropagation();
+      this._onSlotPointerDown(ev, place, key);
+    });
+  },
+
+  _onSlotPointerDown(e, place, key) {
+    const item = this._getItem(place, key);
+    if (!item) return;
+
+    e.preventDefault();
+    const startX = e.clientX;
+    const startY = e.clientY;
+    let moved = false;
+
+    this.dragFrom = { place, key };
+    this.dragging = item;
+
+    const onMove = (ev) => {
+      const dx = ev.clientX - startX;
+      const dy = ev.clientY - startY;
+      if (!moved && Math.hypot(dx, dy) > 8) {
+        moved = true;
+        this.isDragging = true;
+        this._createGhost(item);
+        this._mostrarControlesArrastre(item);
+        this._actualizarNombreArrastre();
+      }
+      if (moved) this._moveGhost(ev);
+    };
+
+    const onUp = () => {
+      window.removeEventListener('pointermove', onMove);
+      if (moved) this._finishDrop();
+      this._cleanupDrag();
+    };
+
+    window.addEventListener('pointermove', onMove);
+    window.addEventListener('pointerup', onUp, { once: true });
+  },
+
+  _moveItem(fromPlace, fromKey, toPlace, toKey) {
+    const fromItem = this._getItem(fromPlace, fromKey);
+    const toItem = this._getItem(toPlace, toKey);
+    if (!fromItem) return;
+
+    if (toPlace === 'equip') {
+      if (toKey !== 'weapon') {
+        this._toast('Ese espacio aún no está disponible');
+        return;
+      }
+      const item = Items.seguro(fromItem.id);
+      if (!Items.esEquipable(item, fromItem.id)) {
+        this._toast('Eso no va ahí');
+        return;
+      }
+      if (fromPlace === 'bag') {
+        this.equiparArma(fromItem.id, fromKey);
+      }
+      return;
+    }
+
+    if (fromPlace === 'equip' && fromKey === 'weapon') {
+      if (toPlace === 'bag') {
+        const dest = typeof toKey === 'number' ? toKey : this._primerSlotLibre();
+        this.desequiparArma(dest);
+      }
+      return;
+    }
+
+    if (fromPlace === 'bag' && toPlace === 'bag') {
+      this.moverSlot(fromKey, toKey);
+    }
+  },
+
+  moverSlot(origen, destino) {
+    const o = this.slots[origen];
+    const d = this.slots[destino];
+    if (!o) return;
+    const maxPila = CONFIG.maxPila || 10;
+    if (d && d.id === o.id && !Items.seguro(o.id).unico) {
+      const espacio = maxPila - d.cantidad;
+      if (espacio <= 0) {
+        this.slots[destino] = o;
+        this.slots[origen] = d;
+      } else {
+        const mover = Math.min(o.cantidad, espacio);
+        d.cantidad += mover;
+        o.cantidad -= mover;
+        if (o.cantidad <= 0) this.slots[origen] = null;
+      }
+    } else {
+      this.slots[destino] = o;
+      this.slots[origen] = d || null;
+    }
+    this._sanearArmaEquipada();
+    this.guardar();
+  },
+
+  _createGhost(item) {
+    const icon = Items.seguro(item.id).icono;
+    this.ghost = document.createElement('div');
+    this.ghost.className = 'inv-ghost-item';
+    this.ghost.textContent = icon;
+    document.body.appendChild(this.ghost);
+  },
+
+  _moveGhost(e) {
+    if (!this.ghost) return;
+    this.ghost.style.left = e.clientX + 'px';
+    this.ghost.style.top = e.clientY + 'px';
+
+    document.querySelectorAll('.slot.over, .inv-equip-slot.over, .inv-ctrl-btn.over')
+      .forEach(s => s.classList.remove('over'));
+
+    const el = document.elementFromPoint(e.clientX, e.clientY);
+    const target = el ? el.closest('.slot, .inv-equip-slot, .inv-ctrl-btn') : null;
+    this.hoverTarget = target || null;
+    if (target) target.classList.add('over');
+  },
+
+  _finishDrop() {
+    const target = this.hoverTarget;
+    const from = this.dragFrom;
+    if (!target || !from) return;
+
+    if (target.id === 'inv-delete-btn') {
+      void this._eliminarDesde(from.place, from.key, true).then(() => this.pintar());
+      return;
+    }
+
+    if (target.id === 'inv-minus-btn') {
+      this._restarUno(from.place, from.key);
+      this.pintar();
+      return;
+    }
+
+    if (target.id === 'inv-use-btn') {
+      this._usarDesde(from.place, from.key, false);
+      this.pintar();
+      return;
+    }
+
+    if (target.id === 'inv-use-all-btn') {
+      this._usarDesde(from.place, from.key, true);
+      this.pintar();
+      return;
+    }
+
+    if (target.classList.contains('inv-equip-slot') && !target.classList.contains('inv-equip-future')) {
+      const eq = target.dataset.equip;
+      if (eq === 'weapon') this._moveItem(from.place, from.key, 'equip', 'weapon');
+    } else if (target.classList.contains('slot')) {
+      const idx = Number(target.dataset.index);
+      if (!isNaN(idx)) this._moveItem(from.place, from.key, 'bag', idx);
+    }
+
+    this.pintar();
+  },
+
+  _cleanupDrag() {
+    if (this.ghost) this.ghost.remove();
+    this.ghost = null;
+    this.dragging = null;
+    this.dragFrom = null;
+    this.isDragging = false;
+    this.hoverTarget = null;
+    const controls = document.getElementById('inv-controls');
+    if (controls) controls.classList.remove('show');
+    document.getElementById('inv-use-btn')?.classList.remove('on');
+    document.getElementById('inv-use-all-btn')?.classList.remove('on');
+    document.querySelectorAll('.slot.over, .inv-equip-slot.over, .inv-ctrl-btn.over')
+      .forEach(s => s.classList.remove('over'));
+    this._actualizarNombreArrastre();
+  },
+
+  _requiereConfirmEliminar(item, id, place) {
+    return Items.requiereConfirmBorrar(item, id, place === 'equip');
+  },
+
+  _confirmarEliminar(texto) {
+    return new Promise((resolve) => {
+      this._confirmResolve = resolve;
+      const txt = document.getElementById('inv-confirm-text');
+      const ov = document.getElementById('inv-confirm-overlay');
+      if (txt) txt.textContent = texto;
+      ov?.classList.remove('oculto');
+      ov?.setAttribute('aria-hidden', 'false');
+    });
+  },
+
+  _resolverConfirm(ok) {
+    const ov = document.getElementById('inv-confirm-overlay');
+    ov?.classList.add('oculto');
+    ov?.setAttribute('aria-hidden', 'true');
+    const r = this._confirmResolve;
+    this._confirmResolve = null;
+    if (r) r(!!ok);
+  },
+
+  async _eliminarDesde(place, key, confirmar) {
+    const sl = this._getItem(place, key);
+    if (!sl) return false;
+    const item = Items.seguro(sl.id);
+    if (confirmar && this._requiereConfirmEliminar(item, sl.id, place)) {
+      const msg = '¿Eliminar ' + item.nombre + (sl.cantidad > 1 ? ' x' + sl.cantidad : '') + '?';
+      const ok = await this._confirmarEliminar(msg);
+      if (!ok) return false;
+    }
+
+    const itemsSoltar = [{ id: sl.id, cantidad: sl.cantidad || 1 }];
+    if (typeof Bolsas !== 'undefined') {
+      const soltado = await Bolsas.soltar(itemsSoltar, 'Eliminado del inventario');
+      if (!soltado) {
+        this._toast('No se pudo dejar la bolsa en el mapa');
+        return false;
+      }
+    }
+
+    const eraArma = Items.esArma(item);
+    if (place === 'equip') {
+      Guardado.datos.armaEquipada = null;
+    } else {
+      this.slots[key] = null;
+      if (this.armaEquipadaId() === sl.id) Guardado.datos.armaEquipada = null;
+    }
+    if (this.selected && this.selected.place === place && this.selected.key === key) {
+      this.selected = null;
+      this.slotSeleccionado = -1;
+    }
+    this.guardar();
+    Historial.registrar('objetos', { detalle: 'Eliminado: ' + item.nombre, monto: -sl.cantidad });
+    this._toast('Objeto dejado en el suelo');
+    if (eraArma) this._notificarCambioArma();
+    return true;
+  },
+
+  _restarUno(place, key) {
+    const sl = this._getItem(place, key);
+    if (!sl) return;
+    const item = Items.seguro(sl.id);
+    if (sl.cantidad > 1) {
+      if (place === 'bag') {
+        sl.cantidad--;
+        this.guardar();
+        this._toast('-1 ' + item.nombre);
+      }
+    } else {
+      this._eliminarDesde(place, key, false);
+    }
+  },
+
+  _usarDesde(place, key, usarTodo) {
+    const sl = this._getItem(place, key);
+    if (!sl) return;
+    const item = Items.seguro(sl.id);
+
+    const uso = Items.usoEspecial(sl.id);
+    if (uso === 'cofre') {
+      document.getElementById('ventana-mochila').classList.add('oculto');
+      Cofres.usarCofreInventario();
+      return;
+    }
+    if (uso === 'llave') {
+      document.getElementById('ventana-mochila').classList.add('oculto');
+      Cofres.usarLlaveMaestra();
+      return;
+    }
+    if (uso === 'escribir') {
+      if (this.tieneItem('lapiz')) {
+        this.selected = { place, key };
+        this.slotSeleccionado = place === 'bag' ? key : -1;
+        this.escribirNota();
+      } else {
+        this._toast('Necesitas un lápiz');
+      }
+      return;
+    }
+
+    const tipo = Items.tipoConsumible(item, sl.id);
+    if (!tipo || tipo === 'especial') {
+      this._toast('Eso no se puede usar');
+      return;
+    }
+
+    if (Vida.estaMuerto()) {
+      this._toast('No puedes usar objetos estando muerto');
+      return;
+    }
+
+    const stats = this._statsConsumo();
+    const optimo = Items.cantidadOptimaConsumo(item, sl.id, sl.cantidad, stats);
+    const cantidad = usarTodo ? optimo : 1;
+
+    if (cantidad <= 0 || optimo <= 0) {
+      if (tipo === 'hambre') this._toast('No tienes hambre');
+      else this._toast('Ya tienes la vida al máximo');
+      return;
+    }
+
+    this._aplicarConsumo(item, sl.id, cantidad);
+    this._quitarCantidad(place, key, cantidad);
+    this._toast('Usaste ' + cantidad + 'x ' + item.nombre);
+  },
+
+  _aplicarConsumo(item, id, cantidad) {
+    const tipo = Items.tipoConsumible(item, id);
+    if (tipo === 'hambre') {
+      const total = (item.cura || 0) * cantidad;
+      Vida.alimentar(total, null);
+      Vida.ganarXp(5, 'Comer');
+    } else if (tipo === 'vida') {
+      const por = Items.valorPorUnidad(item, 'vida');
+      Vida.cambiar(por * cantidad, null);
+    }
+  },
+
+  _quitarCantidad(place, key, cantidad) {
+    if (place === 'equip') {
+      Guardado.datos.armaEquipada = null;
+      if (this.selected && this.selected.place === 'equip') {
+        this.selected = null;
+        this.slotSeleccionado = -1;
+      }
+      this.guardar();
+      this._notificarCambioArma();
+      return;
+    }
+    const sl = this.slots[key];
+    if (!sl) return;
+    sl.cantidad -= cantidad;
+    if (sl.cantidad <= 0) {
+      this.slots[key] = null;
+      if (this.selected && this.selected.place === 'bag' && this.selected.key === key) {
+        this.selected = null;
+        this.slotSeleccionado = -1;
+      }
+    }
+    this.guardar();
+  },
+
+  mostrarDetalle(indice) {
+    this.selected = { place: 'bag', key: indice };
+    this.slotSeleccionado = indice;
+    this.pintar();
+  },
+
+  ocultarDetalle() {
+    this.selected = null;
+    this.slotSeleccionado = -1;
+    this.pintar();
+  },
+
+  escribirNota() {
+    const key = this.selected?.place === 'bag' ? this.selected.key : this.slotSeleccionado;
+    const sl = key >= 0 ? this.slots[key] : null;
+    if (!sl || sl.id !== 'papel' || !this.tieneItem('lapiz')) return;
+    const texto = prompt('✏️ Escribe tu nota (máximo 200 letras):');
+    if (texto === null || !texto.trim()) return;
+    if (this.slotsLibres() === 0 && sl.cantidad > 1) {
+      Notificaciones.mostrar('🎒 Necesitas una casilla libre para la nota', 'error');
+      return;
+    }
+    this.quitar('papel', 1, 'Usado para escribir');
+    this.agregar('nota_escrita', 1, { texto: texto.trim().slice(0, 200), silencioso: true });
+    Notificaciones.mostrar('📝 Nota escrita y guardada en tu mochila', 'exito');
+    this.ocultarDetalle();
+  },
+
+  usarSeleccionado() {
+    if (!this.selected) return;
+    this._usarDesde(this.selected.place, this.selected.key, false);
+    this.pintar();
+  },
+
+  eliminarSeleccionado() {
+    if (this.selected) {
+      void this._eliminarDesde(this.selected.place, this.selected.key, true).then(() => this.pintar());
+    } else if (this.slotSeleccionado >= 0) {
+      void this._eliminarDesde('bag', this.slotSeleccionado, true).then(() => this.pintar());
+    }
+  },
+
+  _eliminarSlot(indice) {
+    this._eliminarDesde('bag', indice, true);
+    this.pintar();
+  }
+};

@@ -1,0 +1,1020 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <title>Mariel Explorer</title>
+  <meta name="theme-color" content="#10141f">
+  <link rel="manifest" href="manifest.json">
+  <link rel="icon" type="image/png" href="iconos/icono-192.png">
+  <link rel="apple-touch-icon" href="iconos/icono-192.png">
+  <link rel="stylesheet" href="lib/leaflet/leaflet.css">
+  <link rel="stylesheet" href="css/estilos.css?v=148">
+  <link rel="stylesheet" href="css/chat.css?v=137">
+  <link rel="stylesheet" href="css/amigos.css?v=158">
+  <link rel="stylesheet" href="css/opciones.css?v=158">
+  <link rel="stylesheet" href="css/notificaciones.css?v=117">
+  <script>
+    (function () {
+      var E = '179';
+      var CANON = 'https://raw.githubusercontent.com/randyraulbr1/github-pages/claude/web-rpg-gps-game-n3ybow/version.json';
+      try {
+        var fv = sessionStorage.getItem('mariel_force_version');
+        var t0 = parseInt(sessionStorage.getItem('mariel_actualizado_en') || '0', 10);
+        if (fv && t0 && Date.now() - t0 < 120000) E = fv;
+      } catch (e) { /* */ }
+      window.__MARIEL_EMBEDDED__ = E;
+      function revisar(j) {
+        if (!j || !j.version) return;
+        var rem = parseInt(j.version, 10);
+        var loc = parseInt(E, 10);
+        if (rem > loc) window.__MARIEL_UPDATE_PENDING = { local: E, remote: j.version };
+      }
+      try {
+        if (sessionStorage.getItem('mariel_actualizado_en')) return;
+      } catch (e2) { /* */ }
+      var ts = Date.now();
+      fetch(CANON + '?_=' + ts, { cache: 'no-store' })
+        .then(function (r) { return r.ok ? r.json() : null; })
+        .then(revisar)
+        .catch(function () {
+          fetch('version.json?_=' + ts, { cache: 'no-store' })
+            .then(function (r) { return r.ok ? r.json() : null; })
+            .then(revisar)
+            .catch(function () {});
+        });
+    })();
+  </script>
+</head>
+<body>
+
+  <!-- ACTUALIZACIÓN OBLIGATORIA (caché PWA desactualizada) -->
+  <div id="pantalla-actualizar" class="pantalla-actualizar oculto" role="dialog" aria-modal="true" aria-labelledby="actualizar-titulo">
+    <div class="actualizar-caja">
+      <div class="actualizar-icono">⬆️</div>
+      <div id="actualizar-titulo" class="actualizar-titulo">Hay una actualización</div>
+      <p id="actualizar-detalle" class="actualizar-detalle">Tu versión no está al día.</p>
+      <p class="actualizar-ayuda">Un solo toque: limpia la caché, descarga la versión nueva y entra al juego.</p>
+      <button type="button" id="btn-actualizar-app" class="btn-actualizar-app">Actualizar e entrar</button>
+    </div>
+  </div>
+
+  <script src="js/nucleo/version_app.js?v=180"></script>
+  <script>MarielVersion.iniciar('179');</script>
+
+  <!-- PANTALLA DE CARGA (visible desde el primer instante) -->
+  <div id="pantalla-carga">
+    <div class="carga-logo">🌴</div>
+    <div class="carga-titulo">Mariel Explorer</div>
+    <div class="carga-barra"><div class="carga-progreso"></div></div>
+    <div id="carga-texto" class="carga-texto">Cargando el mundo…</div>
+  </div>
+
+  <!-- PANTALLA: JUGADOR MUERTO (vida 0) -->
+  <div id="pantalla-muerte" class="pantalla-auth oculto">
+    <div class="auth-caja">
+      <div class="auth-titulo">💀 Has muerto</div>
+      <p class="auth-aviso auth-muerte-destacado">📱 Mantén el teléfono encendido y <b>no cierres esta pantalla</b> para que tus amigos puedan encontrarte en el mapa.</p>
+      <p class="auth-aviso">Pide ayuda a un amigo para que te reviva con un 🩹 botiquín ($300 en la farmacia).</p>
+      <p class="auth-aviso auth-muerte-expira" id="muerte-expira-texto"></p>
+      <p class="auth-aviso">Tu pin ⚰️ queda en el mapa donde caíste (aunque te desconectes).</p>
+    </div>
+  </div>
+
+  <!-- PANTALLA DE BLOQUEO (mantenimiento o jugador baneado) -->
+  <div id="pantalla-bloqueo" class="oculto">
+    <div class="bloqueo-caja">
+      <div id="bloqueo-icono">🚧</div>
+      <div id="bloqueo-titulo">Fuera de servicio</div>
+      <div id="bloqueo-mensaje"></div>
+      <button id="btn-bloqueo-admin" class="oculto">🛠️ Entrar como administrador</button>
+    </div>
+  </div>
+
+  <!-- PANTALLA: OTRO DISPOSITIVO INICIÓ SESIÓN -->
+  <div id="pantalla-sesion-remota" class="pantalla-auth oculto">
+    <div class="auth-caja">
+      <div class="auth-titulo">📱</div>
+      <div class="auth-sub">Otro dispositivo inició sesión en tu cuenta</div>
+      <p class="auth-aviso">Por seguridad solo puede haber una sesión activa. Cierra sesión aquí para entrar en el otro dispositivo.</p>
+      <button id="btn-sesion-remota-salir" class="btn-auth-principal">Cerrar sesión</button>
+    </div>
+  </div>
+
+  <!-- PANTALLA: CUENTA ELIMINADA POR EL ADMIN -->
+  <div id="pantalla-cuenta-eliminada" class="pantalla-auth oculto">
+    <div class="auth-caja">
+      <div class="auth-titulo">🗑️</div>
+      <div class="auth-sub">Cuenta eliminada</div>
+      <p class="auth-aviso">Tu cuenta fue eliminada por el administrador. Ya no puedes entrar al juego con este perfil.</p>
+      <button id="btn-cuenta-eliminada-ok" class="btn-auth-principal">Entendido</button>
+    </div>
+  </div>
+
+  <!-- MAPA -->
+  <div id="mapa"></div>
+
+  <!-- PANEL HUD IZQUIERDO: barras + botones + misiones debajo -->
+  <div id="panel-hud-izq">
+    <div id="grupo-barras">
+      <div class="fila-barra" title="Vida">
+        <div id="contenedor-vida">
+          <div id="vida-relleno"></div>
+          <span id="vida-texto" class="barra-texto-int">100/100</span>
+        </div>
+      </div>
+      <div class="fila-barra" title="Hambre">
+        <div id="contenedor-hambre">
+          <div id="hambre-relleno"></div>
+          <span id="hambre-texto" class="barra-texto-int">50/100</span>
+        </div>
+      </div>
+      <div class="fila-barra fila-barra-xp" title="Experiencia">
+        <span id="nivel-texto" class="barra-nivel">Nv 1</span>
+        <div id="contenedor-xp">
+          <div id="xp-relleno"></div>
+          <span id="xp-texto" class="barra-texto-int">0/80</span>
+        </div>
+      </div>
+    </div>
+    <div id="hud-acciones-mini">
+      <button id="btn-opciones" class="btn-hud-accion btn-hud-mini" type="button" title="Opciones"><span class="hud-mini-icono" aria-hidden="true">⚙️</span></button>
+      <button id="btn-amigos" class="btn-hud-accion btn-hud-mini" type="button" title="Amigos">
+        <span class="icono-amigos-blanco hud-mini-icono" aria-hidden="true">👤</span><span id="badge-amigos" class="badge-avisos oculto"></span>
+      </button>
+      <button id="btn-notific" class="btn-hud-accion btn-hud-mini" type="button" title="Avisos">
+        <span class="hud-mini-icono" aria-hidden="true">🔔</span><span id="badge-avisos" class="badge-avisos oculto"></span>
+      </button>
+    </div>
+    <div id="letrero-misiones" class="oculto"></div>
+    <div id="letrero-pin-chat" class="oculto"></div>
+  </div>
+
+  <!-- HUD combate (zona roja / huir) -->
+  <div id="hud-combate-flotante" class="hud-combate-flotante oculto">
+    <div id="banner-huida" class="banner-huida oculto"></div>
+    <div id="hud-ataque-cooldown" class="hud-ataque-cooldown oculto">
+      <div id="hud-ataque-cooldown-relleno"></div>
+    </div>
+    <button type="button" id="btn-hud-atacar" class="btn-hud-combate oculto">⚔️ Atacar</button>
+    <button type="button" id="btn-hud-huir" class="btn-hud-combate btn-hud-combate-huir oculto">🏃 Huir</button>
+  </div>
+
+  <!-- BANNER DEL BUSCADOR DE TESOROS -->
+  <div id="banner-tesoro" class="oculto">
+    <span class="parpadeo">📡</span> Tesoro cerca · <span id="tesoro-metros">--</span> m
+  </div>
+
+  <!-- CONTROLES FLOTANTES DEL MODO ADMIN -->
+  <div id="admin-controles" class="oculto">
+    <span id="admin-modo-texto"></span>
+    <button id="btn-admin-confirmar">Confirmar</button>
+    <button id="btn-admin-salir-modo">Salir</button>
+  </div>
+
+  <!-- COFRE: pin móvil al colocar -->
+  <div id="cofre-pin-controles" class="colocacion-controles oculto">
+    <span id="cofre-pin-texto">Arrastra el pin 🧰 y confirma</span>
+    <button type="button" id="btn-cofre-pin-confirmar">Confirmar</button>
+    <button type="button" id="btn-cofre-pin-cancelar">Cancelar</button>
+  </div>
+
+  <!-- CHAT: pin móvil al enviar ubicación -->
+  <div id="chat-pin-controles" class="colocacion-controles oculto">
+    <span id="chat-pin-texto">Arrastra el pin 📍 en el mapa y confirma</span>
+    <button type="button" id="btn-chat-pin-confirmar">Enviar pin</button>
+    <button type="button" id="btn-chat-pin-cancelar">Cancelar</button>
+  </div>
+
+  <!-- ADMIN: cesto legacy (oculto; borrar con ✕ en el pin) -->
+  <div id="admin-cesto-borrar" class="oculto" aria-hidden="true">🗑️</div>
+
+  <!-- BOTONES INFERIORES -->
+  <div id="barra-inferior-wrap">
+    <span id="indicador-conexion" class="indicador-conexion oculto" title="Conexión al servidor" aria-hidden="true"></span>
+    <div id="botones-inferiores">
+    <button type="button" id="hud-arma-equipada" class="btn-hud-accion btn-hud-principal hud-arma-equipada" tabindex="-1" aria-label="Sin arma equipada">✋</button>
+    <button id="btn-mochila" class="btn-hud-accion btn-hud-principal hud-btn-mochila" type="button" title="Mochila">🎒</button>
+    <button id="btn-gps" class="btn-hud-accion btn-hud-principal hud-btn-gps" type="button" title="GPS">📍</button>
+    <button id="btn-chat" class="btn-hud-accion btn-hud-principal hud-btn-chat oculto" type="button" title="Chat">💬<span id="badge-chat" class="badge-chat oculto">0</span></button>
+    <button id="btn-admin" class="btn-hud-accion btn-hud-principal hud-btn-admin oculto" type="button" title="Admin">🛠️</button>
+    </div>
+  </div>
+
+  <!-- NOTIFICACIONES -->
+  <div id="zona-notificaciones"></div>
+  <div id="zona-dano-flotante"></div>
+
+  <!-- CARTEL MISIÓN ACTIVA (centro pantalla) -->
+  <div id="overlay-mision-activa" class="overlay-mision oculto">
+    <div class="overlay-mision-caja">
+      <button type="button" class="overlay-mision-cerrar" id="overlay-mision-cerrar" aria-label="Cerrar">✕</button>
+      <div id="overlay-mision-titulo" class="overlay-mision-titulo"></div>
+      <div id="overlay-mision-texto" class="overlay-mision-texto"></div>
+      <div id="overlay-mision-extra" class="overlay-mision-extra"></div>
+      <div id="overlay-mision-botones" class="overlay-mision-botones"></div>
+    </div>
+  </div>
+
+  <!-- ============ LOGIN ============ -->
+  <div id="pantalla-login" class="pantalla-auth oculto">
+    <div class="auth-caja">
+      <div class="auth-titulo">🌴 Mariel Explorer</div>
+      <div class="auth-sub">Iniciar sesión</div>
+      <input id="login-usuario" maxlength="20" placeholder="Nombre o teléfono" autocomplete="username">
+      <div class="campo-clave">
+        <input id="login-clave" type="password" placeholder="Contraseña (mín. 8, 1 mayúscula, 1 especial)" autocomplete="current-password">
+        <button type="button" class="btn-ojo-clave" data-campo="login-clave">👁️</button>
+      </div>
+      <div id="login-aviso" class="auth-aviso-mensaje oculto" role="alert"></div>
+      <button id="btn-iniciar-sesion" class="btn-auth-principal">Entrar al juego</button>
+      <button type="button" id="btn-dev-login-randy" class="btn-auth-secundario btn-dev-login-randy">⚡ Randy (dev)</button>
+      <button type="button" id="btn-ir-registro" class="btn-auth-secundario">Crear cuenta nueva</button>
+      <p class="auth-sub" style="margin-top:.75rem;font-size:.85rem;opacity:.85">👥 Al entrar verás a otros jugadores en vivo en el mapa (activa 📍 GPS)</p>
+    </div>
+  </div>
+
+  <!-- ============ REGISTRO ============ -->
+  <div id="pantalla-registro" class="pantalla-auth oculto">
+    <div class="auth-caja">
+      <div class="auth-titulo">🌴 Mariel Explorer</div>
+      <div class="auth-sub">Crear cuenta</div>
+      <input id="registro-nombre" maxlength="20" placeholder="Tu nombre" autocomplete="off">
+      <input id="registro-telefono" inputmode="tel" maxlength="16" placeholder="📱 Teléfono (solo números)" autocomplete="off">
+      <div class="campo-clave">
+        <input id="registro-clave" type="password" placeholder="Contraseña (mín. 8, 1 mayúscula, 1 especial)" autocomplete="new-password">
+        <button type="button" class="btn-ojo-clave" data-campo="registro-clave">👁️</button>
+      </div>
+      <div class="campo-clave">
+        <input id="registro-clave2" type="password" placeholder="Repetir contraseña" autocomplete="new-password">
+        <button type="button" class="btn-ojo-clave" data-campo="registro-clave2">👁️</button>
+      </div>
+      <div id="registro-aviso" class="auth-aviso-mensaje oculto" role="alert"></div>
+      <button id="btn-crear-perfil" class="btn-auth-principal">Registrarme</button>
+      <button type="button" id="btn-ir-login" class="btn-auth-secundario">Ya tengo cuenta</button>
+    </div>
+  </div>
+
+  <!-- ============ VENTANA: AMIGOS ============ -->
+  <div id="ventana-amigos" class="ventana oculto">
+    <div class="friends-panel" role="dialog" aria-label="Panel de amigos">
+      <div class="panel-header">
+        <div class="panel-title">👥 Amigos</div>
+        <button type="button" class="amigos-close" id="cerrar-amigos" aria-label="Cerrar">✕</button>
+      </div>
+
+      <div class="panel-content">
+        <div class="section-title">➕ Agregar amigo</div>
+        <div class="add-box">
+          <div class="add-row">
+            <input id="amigos-buscar" type="text" maxlength="20" placeholder="Nombre del jugador..." autocomplete="off">
+            <button type="button" class="add-btn" id="btn-amigos-agregar" title="Agregar amigo" aria-label="Agregar amigo">+</button>
+          </div>
+        </div>
+
+        <div class="section-title">👥 Mis amigos</div>
+        <div class="count" id="amigos-count">0 amigos</div>
+
+        <div class="search-row">
+          <input id="amigos-buscar-filtro" type="text" placeholder="Buscar entre amigos..." autocomplete="off">
+        </div>
+
+        <div id="amigos-pendientes" class="amigos-pendientes oculto"></div>
+        <div id="amigos-lista" class="friends-list"></div>
+        <div id="amigos-bloqueados" class="amigos-bloqueados oculto"></div>
+      </div>
+    </div>
+  </div>
+
+  <div id="amigos-overlay" class="amigos-overlay oculto" aria-hidden="true">
+    <div class="amigos-confirm" role="dialog" aria-modal="true">
+      <h3 id="amigos-confirm-title">Confirmar</h3>
+      <p id="amigos-confirm-text">¿Seguro?</p>
+      <div class="confirm-row">
+        <button type="button" class="modal-btn cancel" id="amigos-confirm-cancel">Cancelar</button>
+        <button type="button" class="modal-btn ok" id="amigos-confirm-ok">Aceptar</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="amigos-toast" class="oculto" aria-live="polite"></div>
+
+  <!-- ============ CHAT JUGADORES ============ -->
+  <section class="chat-panel" id="chatPanel" aria-label="Chat de jugadores">
+    <div class="chat-inner-panel">
+      <div class="chat-header">
+        <div class="header-left">
+          <button type="button" class="back-btn" id="backBtnChat" aria-label="Volver">‹</button>
+          <div class="chat-title">
+            <strong id="headerTitleChat">💬 Chats</strong>
+            <small id="chatSub">Selecciona un jugador</small>
+          </div>
+        </div>
+        <button type="button" class="close-chat" id="closeChat" aria-label="Cerrar">✕</button>
+      </div>
+
+      <div class="chat-view chat-list show" id="chatList"></div>
+
+      <div class="chat-view" id="chatView">
+        <div class="messages" id="messagesChat"></div>
+        <div class="chat-status-line" id="chatStatusLine">Listo</div>
+
+        <div class="tools chat-tools">
+          <button type="button" class="chat-icon-btn" id="emojiBtnChat" title="Emojis">😀</button>
+          <button type="button" class="chat-icon-btn" id="locationBtnChat" title="Enviar ubicación">📍</button>
+          <button type="button" class="chat-icon-btn chat-friend-btn" id="friendBtnChat" title="Agregar amigo">👥</button>
+          <button type="button" class="chat-icon-btn chat-friend-btn chat-friend-accept oculto" id="friendAcceptBtnChat" title="Aceptar amistad">✅</button>
+          <button type="button" class="chat-icon-btn chat-friend-btn chat-friend-reject oculto" id="friendRejectBtnChat" title="Rechazar solicitud">❌</button>
+          <span class="chat-pending-label oculto" id="friendPendingChat">⏳ Enviada</span>
+        </div>
+
+        <div class="emoji-box emoji-panel" id="emojiPanelChat">
+          <button type="button" class="emoji">😀</button><button type="button" class="emoji">😂</button><button type="button" class="emoji">🔥</button><button type="button" class="emoji">❤️</button>
+          <button type="button" class="emoji">👍</button><button type="button" class="emoji">😎</button><button type="button" class="emoji">⚔️</button><button type="button" class="emoji">📍</button>
+          <button type="button" class="emoji">👎</button><button type="button" class="emoji">😡</button><button type="button" class="emoji">🛡️</button><button type="button" class="emoji">✅</button>
+        </div>
+
+        <div class="input-row chat-input-area">
+          <textarea class="chat-input" id="chatInput" rows="1" placeholder="Escribe mensaje..." autocomplete="off"></textarea>
+          <button type="button" class="send-btn" id="sendBtnChat" title="Enviar" aria-label="Enviar">➤</button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <div id="chat-overlay" class="chat-overlay oculto" aria-hidden="true">
+    <div class="chat-confirm" role="dialog" aria-modal="true">
+      <h3 id="chat-confirm-title">¿Borrar chat?</h3>
+      <p id="chat-confirm-text">¿Seguro?</p>
+      <div class="confirm-row">
+        <button type="button" class="modal-btn cancel" id="chat-confirm-cancel">Cancelar</button>
+        <button type="button" class="modal-btn ok danger" id="chat-confirm-ok">Borrar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ VENTANA: MOCHILA / INVENTARIO ============ -->
+  <div id="ventana-mochila" class="ventana oculto">
+    <div class="ventana-caja inventario-caja">
+      <div class="inv-header">
+        <div class="inv-titulo">🎒 INVENTARIO</div>
+        <button type="button" class="btn-cerrar inv-cerrar" data-cierra="ventana-mochila" aria-label="Cerrar">✕</button>
+      </div>
+      <div class="inv-content">
+        <div class="inv-top-row">
+          <div class="inv-dinero">💰 $<span id="inv-dinero-cantidad">100</span></div>
+          <div class="inv-selected-name" id="inv-selected-name">Arrastra un objeto</div>
+        </div>
+        <div class="inv-seccion-titulo">EQUIPAMIENTO</div>
+        <div class="inv-equip-row" id="inv-equip-row">
+          <div id="slot-arma-equipada" class="inv-equip-slot" data-equip="weapon" data-icon="⚔️" title="Arma">
+            <span class="inv-slot-label">Arma</span>
+          </div>
+          <div class="inv-equip-slot inv-equip-future" data-equip="shield" data-icon="🛡️" title="Próximamente">
+            <span class="inv-slot-label">Escudo</span>
+          </div>
+          <div class="inv-equip-slot inv-equip-future" data-equip="helmet" data-icon="⛑️" title="Próximamente">
+            <span class="inv-slot-label">Casco</span>
+          </div>
+          <div class="inv-equip-slot inv-equip-future" data-equip="armor" data-icon="🎽" title="Próximamente">
+            <span class="inv-slot-label">Chaleco</span>
+          </div>
+          <div class="inv-equip-slot inv-equip-future" data-equip="boots" data-icon="🥾" title="Próximamente">
+            <span class="inv-slot-label">Botas</span>
+          </div>
+        </div>
+        <div class="inv-bag-head">
+          <div class="inv-seccion-titulo">MOCHILA</div>
+          <div class="inv-count" id="inv-capacidad">0 / 25</div>
+        </div>
+        <div id="rejilla-mochila" class="inv-rejilla"></div>
+        <div class="inv-controls" id="inv-controls">
+          <div class="inv-ctrl-left">
+            <button type="button" class="inv-ctrl-btn" id="inv-minus-btn" title="Quitar 1">−</button>
+            <button type="button" class="inv-ctrl-btn inv-ctrl-delete" id="inv-delete-btn" title="Eliminar">🗑</button>
+          </div>
+          <div class="inv-ctrl-right">
+            <button type="button" class="inv-ctrl-btn inv-ctrl-use" id="inv-use-btn" title="Usar 1">1</button>
+            <button type="button" class="inv-ctrl-btn inv-ctrl-use-all" id="inv-use-all-btn" title="Usar todos los necesarios">TODOS</button>
+          </div>
+        </div>
+        <p class="inv-ayuda">Arrastra para mover · suelta en − o 🗑</p>
+      </div>
+      <div id="inv-weapon-status" class="oculto" aria-hidden="true"></div>
+      <div id="detalle-item" class="oculto" aria-hidden="true">
+        <button type="button" id="btn-usar-item"></button>
+        <button type="button" id="btn-equipar-item"></button>
+        <button type="button" id="btn-escribir-item"></button>
+        <button type="button" id="btn-eliminar-item"></button>
+      </div>
+      <div id="papelera" class="oculto" aria-hidden="true"></div>
+    </div>
+  </div>
+  <div id="inv-toast" class="inv-toast" aria-live="polite"></div>
+  <div id="inv-confirm-overlay" class="inv-confirm-overlay oculto" aria-hidden="true">
+    <div class="inv-confirm" role="dialog" aria-modal="true" aria-labelledby="inv-confirm-title">
+      <h3 id="inv-confirm-title">Eliminar objeto</h3>
+      <p id="inv-confirm-text">¿Seguro?</p>
+      <div class="inv-confirm-row">
+        <button type="button" class="inv-confirm-btn cancel" id="inv-confirm-cancel">Cancelar</button>
+        <button type="button" class="inv-confirm-btn ok" id="inv-confirm-ok">Eliminar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ VENTANA: TIENDA ============ -->
+  <div id="ventana-tienda" class="ventana oculto">
+    <div class="ventana-caja">
+      <div class="ventana-titulo"><span id="tienda-nombre">Tienda</span> <button class="btn-cerrar" data-cierra="ventana-tienda">✕</button></div>
+      <div class="pestanas">
+        <button id="pestana-comprar" class="pestana activa">Comprar</button>
+        <button id="pestana-vender" class="pestana">Vender</button>
+      </div>
+      <div id="tienda-lista"></div>
+    </div>
+  </div>
+
+  <!-- ============ VENTANA: COMBATE ============ -->
+  <div id="ventana-combate" class="ventana oculto">
+    <div class="ventana-caja ventana-combate-caja">
+      <div class="ventana-titulo"><span id="combate-nombre">Enemigo</span></div>
+      <div class="combate-cuerpo">
+        <div class="combate-barra-vida">
+          <div id="combate-vida-relleno" class="combate-vida-relleno"></div>
+        </div>
+        <div id="combate-vida-texto" class="combate-vida-texto">—</div>
+        <p id="combate-info" class="combate-info"></p>
+        <div class="combate-botones">
+          <button type="button" id="btn-combate-atacar" class="btn-combate-atacar">⚔️ Atacar</button>
+          <button type="button" id="btn-combate-huir" class="btn-combate-huir">🏃 Huir</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ VENTANA: PESCA ============ -->
+  <div id="ventana-pesca" class="ventana oculto">
+    <div class="ventana-caja">
+      <div class="ventana-titulo">🎣 Pesca <button class="btn-cerrar" data-cierra="ventana-pesca">✕</button></div>
+      <div id="pesca-zona">
+        <div id="pesca-agua">
+          <div id="pesca-barra">
+            <div id="pesca-zona-verde"></div>
+            <div id="pesca-indicador"></div>
+          </div>
+          <div id="pesca-mensaje">Toca LANZAR y detén el indicador en la zona verde</div>
+        </div>
+        <button id="btn-pescar">LANZAR</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ VENTANA: MISIONES ============ -->
+  <div id="ventana-misiones" class="ventana oculto">
+    <div class="ventana-caja">
+      <div class="ventana-titulo">📜 Misiones <button class="btn-cerrar" data-cierra="ventana-misiones">✕</button></div>
+      <div id="lista-misiones"></div>
+    </div>
+  </div>
+
+  <!-- ============ VENTANA: HISTORIAL ============ -->
+  <div id="ventana-historial" class="ventana oculto">
+    <div class="ventana-caja">
+      <div class="ventana-titulo">🧾 Historial <button class="btn-cerrar" data-cierra="ventana-historial">✕</button></div>
+      <div id="historial-jugador"></div>
+      <div class="pestanas">
+        <button id="pestana-hist-dinero" class="pestana activa">$ Dinero</button>
+        <button id="pestana-hist-objetos" class="pestana">📦 Objetos</button>
+      </div>
+      <div id="historial-integridad"></div>
+      <div id="historial-lista"></div>
+    </div>
+  </div>
+
+  <!-- ============ VENTANA: AVISOS (últimas notificaciones) ============ -->
+  <div id="ventana-notific" class="avisos-ventana oculto" aria-label="Últimos avisos">
+    <div class="avisos-panel">
+      <div class="avisos-header">
+        <div class="avisos-title">🔔 Últimos avisos</div>
+        <button type="button" class="avisos-close" id="cerrar-notific" aria-label="Cerrar">✕</button>
+      </div>
+      <div class="avisos-info">Misiones, alertas del admin y eventos importantes del juego.</div>
+      <div class="avisos-list" id="lista-notificaciones"></div>
+      <div class="avisos-footer">
+        <button type="button" class="avisos-clear-btn" id="avisos-marcar-leidos">Marcar leídos</button>
+        <button type="button" class="avisos-clear-btn blue" id="avisos-limpiar">Limpiar</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="avisos-toast" aria-live="polite"></div>
+
+  <!-- ============ VENTANA: CORREO ============ -->
+  <div id="ventana-correo" class="ventana oculto">
+    <div class="ventana-caja">
+      <div class="ventana-titulo">📮 Correo <button class="btn-cerrar" data-cierra="ventana-correo">✕</button></div>
+      <div class="pestanas">
+        <button id="pestana-correo-enviar" class="pestana activa">Enviar</button>
+        <button id="pestana-correo-recibir" class="pestana">Recibir</button>
+        <button id="pestana-correo-pendientes" class="pestana">Pendientes</button>
+        <button id="pestana-correo-tienda" class="pestana">Tienda</button>
+      </div>
+      <div id="correo-contenido"></div>
+    </div>
+  </div>
+
+  <!-- ============ VENTANA: RECLAMO CORREO (20 casillas) ============ -->
+  <div id="ventana-correo-reclamo" class="ventana oculto">
+    <div class="ventana-caja">
+      <div class="ventana-titulo">📬 Reclamar paquete <button class="btn-cerrar" data-cierra="ventana-correo-reclamo">✕</button></div>
+      <div id="correo-reclamo-info"></div>
+      <div id="rejilla-correo-reclamo"></div>
+      <div class="correo-nota" style="padding:10px 14px 14px;">Toca cada casilla para llevarlo a tu mochila. Lo que no quepa queda en el paquete.</div>
+    </div>
+  </div>
+
+  <!-- ============ VENTANA: OPCIONES ============ -->
+  <div id="ventana-opciones" class="opciones-ventana oculto" aria-label="Opciones del juego">
+    <div class="opciones-panel">
+      <div class="opciones-header">
+        <div class="opciones-title">⚙️ Opciones</div>
+        <button type="button" class="opciones-close" id="cerrar-opciones" aria-label="Cerrar">✕</button>
+      </div>
+
+      <div class="opciones-content">
+        <div class="opciones-profile">
+          <div class="opciones-avatar" id="opciones-avatar">?</div>
+          <div class="opciones-user">
+            <div class="opciones-name" id="opciones-nombre">—</div>
+            <div class="opciones-id" id="opciones-id">—</div>
+          </div>
+        </div>
+
+        <div class="opciones-stats" id="opciones-stats-grid"></div>
+
+        <div class="opciones-section">NOTIFICACIONES</div>
+
+        <div class="opciones-row">
+          <div class="opciones-icon">💬</div>
+          <div class="opciones-row-text">Aviso de mensajes de chat</div>
+          <button type="button" class="opciones-toggle" id="opcion-toggle-chat" data-pref="notifChat" aria-label="Notificaciones de chat">✓</button>
+        </div>
+
+        <div class="opciones-row">
+          <div class="opciones-icon">👥</div>
+          <div class="opciones-row-text">Aviso de solicitudes de amistad</div>
+          <button type="button" class="opciones-toggle" id="opcion-toggle-amigos" data-pref="notifAmigos" aria-label="Notificaciones de amigos">✓</button>
+        </div>
+
+        <div class="opciones-section">ACCIONES</div>
+
+        <button type="button" class="opciones-action" id="opcion-centrar">
+          <div class="opciones-icon">🎯</div>
+          <div class="opciones-row-text">Centrar mapa</div>
+        </button>
+
+        <button type="button" class="opciones-action" id="opcion-restablecer-pin">
+          <div class="opciones-icon">📍</div>
+          <div class="opciones-row-text-wrap">
+            <div class="opciones-row-text">Restablecer pin</div>
+            <div class="opciones-row-sub">Vuelve al centro de Mariel si quedaste fuera</div>
+          </div>
+        </button>
+
+        <button type="button" class="opciones-action" id="opcion-tarjeta">
+          <div class="opciones-icon">🎫</div>
+          <div class="opciones-row-text">Mi tarjeta</div>
+        </button>
+
+        <button type="button" class="opciones-action" id="opcion-reportar">
+          <div class="opciones-icon">🚩</div>
+          <div class="opciones-row-text">Reportar jugador</div>
+        </button>
+
+        <button type="button" class="opciones-action danger" id="opcion-salir">
+          <div class="opciones-icon">🚪</div>
+          <div class="opciones-row-text">Cerrar sesión</div>
+        </button>
+
+        <button type="button" class="opciones-action oculto" id="opcion-admin">
+          <div class="opciones-icon">🛠️</div>
+          <div class="opciones-row-text">Administrador</div>
+        </button>
+
+        <p class="opciones-version" id="opciones-version" aria-label="Versión del juego">Versión —</p>
+      </div>
+    </div>
+  </div>
+
+  <div id="opciones-overlay" class="oculto" aria-hidden="true">
+    <div class="opciones-confirm" role="dialog" aria-modal="true">
+      <h3 id="opciones-confirm-title">Confirmar</h3>
+      <p id="opciones-confirm-text">¿Seguro?</p>
+      <div class="opciones-confirm-row">
+        <button type="button" class="opciones-modal-btn cancel" id="opciones-confirm-cancel">Cancelar</button>
+        <button type="button" class="opciones-modal-btn ok" id="opciones-confirm-ok">Aceptar</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="opciones-toast" aria-live="polite"></div>
+
+  <!-- ============ VENTANA: PANEL ADMIN (menú izq + panel der) ============ -->
+  <div id="ventana-admin" class="ventana oculto">
+    <div class="ventana-caja ventana-admin-caja">
+      <div class="ventana-titulo">🛠️ Administrador <button class="btn-cerrar" data-cierra="ventana-admin">✕</button></div>
+      <div id="admin-aviso-inline" class="admin-aviso-inline oculto" role="alert"></div>
+      <div class="admin-layout">
+        <nav id="lista-admin">
+          <div class="admin-seccion-titulo">🗺️ Mapa</div>
+          <button class="fila-opcion admin-nav" id="admin-crear-mision"><span class="icono-opcion">📜</span> Misión</button>
+          <button class="fila-opcion admin-nav" id="admin-crear-tesoro"><span class="icono-opcion">🎁</span> Tesoro</button>
+          <button class="fila-opcion admin-nav" id="admin-dejar-objeto"><span class="icono-opcion">📦</span> Objeto</button>
+          <button class="fila-opcion admin-nav" id="admin-colocar-cofre"><span class="icono-opcion">🧰</span> Cofre</button>
+          <button class="fila-opcion admin-nav" id="admin-crear-enemigo"><span class="icono-opcion">👹</span> Enemigo</button>
+          <button class="fila-opcion admin-nav" id="admin-crear-tienda"><span class="icono-opcion">🏪</span> Tienda</button>
+          <button class="fila-opcion admin-nav" id="admin-organizar"><span class="icono-opcion">✋</span> Organizar pines</button>
+          <button class="fila-opcion admin-nav" id="admin-mover-pin"><span class="icono-opcion">🎯</span> <span id="admin-mover-pin-texto">Arrastrar pin (admin): OFF</span></button>
+          <button class="fila-opcion admin-nav" id="admin-opt-visibilidad"><span class="icono-opcion">👁️</span> <span id="admin-opt-visibilidad-texto">Optimización 500 m: ON</span></button>
+
+          <div class="admin-seccion-titulo">⚙️ Catálogo</div>
+          <button class="fila-opcion admin-nav" id="admin-precios"><span class="icono-opcion">💲</span> Precios</button>
+          <button class="fila-opcion admin-nav" id="admin-item-nuevo"><span class="icono-opcion">➕</span> Objeto nuevo</button>
+
+          <div class="admin-seccion-titulo">👥 Jugadores</div>
+          <button class="fila-opcion admin-nav" id="admin-jugadores"><span class="icono-opcion">👥</span> Lista</button>
+          <button class="fila-opcion admin-nav" id="admin-mensaje"><span class="icono-opcion">✉️</span> Mensaje</button>
+
+          <div class="admin-seccion-titulo">⚔️ Combate</div>
+          <button class="fila-opcion admin-nav" id="admin-combate-config"><span class="icono-opcion">⚔️</span> Reglas globales</button>
+          <button class="fila-opcion admin-nav" id="admin-combate-enemigos"><span class="icono-opcion">👹</span> Daño enemigos</button>
+
+          <div class="admin-seccion-titulo">🌍 Servidor</div>
+          <button class="fila-opcion admin-nav" id="admin-mantenimiento"><span class="icono-opcion">🚧</span> Mantenimiento: <span id="admin-mant-nav-texto">OFF</span></button>
+          <div class="admin-sync-wrap">
+            <button class="fila-opcion admin-nav" id="admin-publicar"><span class="icono-opcion">🔄</span> Sincronizar</button>
+            <div id="indicador-sincronizar" class="indicador-sincronizar oculto" aria-live="polite">
+              <span class="indicador-sincronizar-linea" aria-hidden="true"></span>
+              <span class="indicador-sincronizar-texto">Sincronizando…</span>
+            </div>
+          </div>
+          <button class="fila-opcion admin-nav" id="admin-sync-github"><span class="icono-opcion">☁️</span> Respaldo GitHub</button>
+        </nav>
+
+        <aside id="admin-panel-derecho" class="admin-panel-derecho oculto">
+          <div class="admin-panel-encabezado">
+            <button type="button" class="btn-admin-volver" data-volver-admin aria-label="Volver al menú">←</button>
+            <span id="admin-panel-titulo">—</span>
+          </div>
+
+          <div id="admin-vista-form" class="admin-vista oculto">
+            <div id="admin-form-campos"></div>
+            <div class="admin-form-pie">
+              <button type="button" id="btn-admin-guardar">Continuar → colocar en el mapa</button>
+            </div>
+          </div>
+
+          <div id="admin-vista-jugadores" class="admin-vista oculto">
+            <div class="admin-jugadores-toolbar">
+              <button type="button" id="admin-crear-jugador" class="btn-auth-principal admin-btn-toolbar">+ Crear jugador</button>
+              <button type="button" id="admin-limpiar-cuentas" class="fila-opcion admin-btn-toolbar" title="Borra todas las cuentas excepto randy">🗑️ Solo randy</button>
+            </div>
+            <input id="admin-buscar-jugador" type="search" placeholder="🔍 Buscar nombre, teléfono o ID…">
+            <div class="admin-jugadores-tabs">
+              <button type="button" id="admin-tab-vivos" class="admin-tab-jug activa">🟢 Vivos</button>
+              <button type="button" id="admin-tab-muertos" class="admin-tab-jug">💀 Muertos</button>
+            </div>
+            <div id="admin-lista-jugadores"></div>
+          </div>
+
+          <div id="admin-vista-crear-jugador" class="admin-vista oculto">
+            <div class="admin-clave-cuerpo admin-crear-form">
+              <p class="admin-clave-ayuda">Crea la cuenta aquí. El jugador inicia sesión con <b>nombre + contraseña</b> en su teléfono.</p>
+              <div class="admin-crear-campos">
+                <div class="campo-admin">
+                  <label for="admin-nuevo-nombre">Nombre de usuario</label>
+                  <input id="admin-nuevo-nombre" maxlength="24" placeholder="Ej: pedro">
+                </div>
+                <div class="campo-admin">
+                  <label for="admin-nuevo-telefono">Teléfono (opcional)</label>
+                  <input id="admin-nuevo-telefono" inputmode="tel" placeholder="Ej: 51234567">
+                </div>
+                <div class="campo-admin">
+                  <label for="admin-nuevo-clave">Contraseña</label>
+                  <input id="admin-nuevo-clave" type="text" placeholder="Mín. 4 caracteres (visible)" autocomplete="off" spellcheck="false">
+                </div>
+                <div class="campo-caja">
+                  <input type="checkbox" id="admin-nuevo-inventario-default" checked>
+                  <label for="admin-nuevo-inventario-default">Inventario inicial (agua x2, pan x1, $100)</label>
+                </div>
+              </div>
+              <div class="admin-editor-horizontal">
+                <div class="admin-editor-columna">
+                  <div class="admin-editor-seccion">Inventario inicial</div>
+                  <div id="admin-nuevo-rejilla" class="admin-rejilla-inventario admin-rejilla-fija"></div>
+                </div>
+                <div class="admin-editor-columna admin-editor-columna-adm">
+                  <div class="admin-editor-seccion">ADM ∞ — arrastra a la izquierda</div>
+                  <div id="admin-nuevo-infinito" class="admin-rejilla-infinito"></div>
+                </div>
+              </div>
+              <button type="button" id="btn-admin-crear-jugador-guardar" class="btn-auth-principal">Crear cuenta y publicar</button>
+            </div>
+          </div>
+
+          <div id="admin-vista-editor" class="admin-vista oculto">
+            <div class="admin-editor-cuenta">
+              <div class="campo-admin">
+                <label for="admin-editor-nombre">Nombre</label>
+                <input id="admin-editor-nombre" type="text" maxlength="20" autocomplete="off">
+              </div>
+              <div class="campo-admin">
+                <label for="admin-editor-telefono">Teléfono</label>
+                <input id="admin-editor-telefono" type="tel" inputmode="numeric" autocomplete="off">
+              </div>
+              <div class="campo-admin">
+                <label for="admin-editor-clave">Contraseña</label>
+                <input id="admin-editor-clave" type="text" placeholder="Contraseña del jugador (solo admin)" autocomplete="off" spellcheck="false">
+              </div>
+            </div>
+            <div class="admin-editor-stats">
+              <div class="admin-editor-oro">
+                <label for="admin-editor-oro">💰 Oro</label>
+                <input id="admin-editor-oro" type="number" min="0" inputmode="numeric">
+              </div>
+              <div class="admin-editor-oro">
+                <label for="admin-editor-vida">❤️ Vida (0 = muerto)</label>
+                <input id="admin-editor-vida" type="number" min="0" max="100" inputmode="numeric">
+              </div>
+            </div>
+            <div class="admin-editor-horizontal">
+              <div class="admin-editor-columna">
+                <div class="admin-editor-seccion">Inventario — arrastra o suelta fuera (máx. 10/pila)</div>
+                <div id="admin-rejilla-jugador" class="admin-rejilla-inventario admin-rejilla-fija"></div>
+              </div>
+              <div class="admin-editor-columna admin-editor-columna-adm">
+                <div class="admin-editor-seccion">ADM ∞ — arrastra a las casillas de la izquierda</div>
+                <div id="admin-rejilla-infinito" class="admin-rejilla-infinito"></div>
+              </div>
+            </div>
+            <div class="admin-editor-botones">
+              <button type="button" id="btn-admin-entrar-jugador" class="fila-opcion admin-btn-secundario">🎮 Entrar como este jugador</button>
+              <button id="btn-admin-editor-guardar" class="btn-auth-principal admin-editor-guardar">Guardar cambios</button>
+            </div>
+          </div>
+
+          <div id="admin-vista-ban" class="admin-vista oculto">
+            <div class="campo-admin admin-ban-campo">
+              <label for="admin-ban-motivo">Motivo — <span id="admin-ban-nombre">—</span></label>
+              <input id="admin-ban-motivo" placeholder="Incumplimiento de reglas">
+            </div>
+            <div class="admin-ban-botones">
+              <button id="admin-ban-30m" class="admin-ban-btn">30 min</button>
+              <button id="admin-ban-1h" class="admin-ban-btn">1 hora</button>
+              <button id="admin-ban-1d" class="admin-ban-btn">1 día</button>
+              <button id="admin-ban-1sem" class="admin-ban-btn">1 semana</button>
+              <button id="admin-ban-1mes" class="admin-ban-btn">1 mes</button>
+              <button id="admin-ban-perm" class="admin-ban-btn peligro">Permanente</button>
+              <button id="admin-ban-quitar" class="admin-ban-btn ok">Quitar ban</button>
+            </div>
+          </div>
+
+          <div id="admin-vista-mensaje" class="admin-vista oculto">
+            <div class="admin-mensaje-cuerpo">
+              <div class="admin-mensaje-bloque">
+                <div class="admin-editor-seccion">Destinatario</div>
+                <div id="admin-msg-chips" class="admin-msg-chips"></div>
+              </div>
+              <div class="admin-mensaje-bloque">
+                <div class="admin-editor-seccion">Vista previa en el juego</div>
+                <div class="admin-msg-preview">
+                  <div class="admin-msg-globo">
+                    <span class="admin-msg-globo-etiqueta">✉️ Administrador</span>
+                    <span id="admin-msg-preview-texto">Escribe tu mensaje abajo…</span>
+                  </div>
+                </div>
+              </div>
+              <div class="admin-mensaje-bloque">
+                <div class="admin-editor-seccion">Tu mensaje</div>
+                <div class="admin-msg-campo">
+                  <textarea id="admin-msg-texto" maxlength="300" rows="4" placeholder="Escribe el aviso para el jugador…"></textarea>
+                  <div class="admin-msg-contador"><span id="admin-msg-contador">0</span>/300</div>
+                </div>
+              </div>
+              <div id="admin-msg-aviso" class="auth-aviso-mensaje oculto" role="alert"></div>
+              <button type="button" id="btn-admin-msg-enviar" class="btn-auth-principal admin-mensaje-enviar">Enviar mensaje</button>
+            </div>
+          </div>
+
+          <div id="admin-vista-mantenimiento" class="admin-vista oculto">
+            <div class="admin-clave-cuerpo">
+              <p id="admin-mant-estado" class="admin-clave-estado">Estado: activo en el juego</p>
+              <div class="campo-admin">
+                <label for="admin-mant-mensaje">Mensaje para jugadores</label>
+                <textarea id="admin-mant-mensaje" placeholder="Estamos mejorando el juego…"></textarea>
+              </div>
+              <button type="button" id="btn-admin-mant-activar" class="btn-auth-principal">Activar mantenimiento</button>
+              <button type="button" id="btn-admin-mant-quitar" class="fila-opcion ok admin-clave-borrar">Quitar mantenimiento</button>
+            </div>
+          </div>
+
+          <div id="admin-vista-sync-github" class="admin-vista oculto">
+            <div class="admin-clave-cuerpo">
+              <p class="admin-clave-ayuda">Sube el mundo del servidor (SQLite) a GitHub como respaldo. El juego en vivo usa el servidor; GitHub es copia de seguridad.</p>
+              <p id="admin-sync-estado" class="admin-clave-estado">Cargando estado…</p>
+              <p id="admin-sync-detalle" class="admin-clave-ayuda" style="font-size:12px;word-break:break-all;"></p>
+              <button type="button" id="btn-admin-sync-github" class="btn-auth-principal">☁️ Sincronizar con GitHub ahora</button>
+            </div>
+          </div>
+
+          <div id="admin-vista-cofre" class="admin-vista oculto">
+            <div class="admin-clave-cuerpo">
+              <p class="admin-clave-ayuda">Arrastra objetos ADM ∞ al cofre (6 casillas). Luego coloca el pin en el mapa.</p>
+              <div class="admin-editor-horizontal admin-cofre-horizontal">
+                <div class="admin-editor-columna">
+                  <div class="admin-editor-seccion">Contenido del cofre (6 casillas)</div>
+                  <div id="admin-cofre-rejilla" class="admin-rejilla-inventario admin-rejilla-fija"></div>
+                </div>
+                <div class="admin-editor-columna admin-editor-columna-adm">
+                  <div class="admin-editor-seccion">ADM ∞</div>
+                  <div id="admin-cofre-infinito" class="admin-rejilla-infinito"></div>
+                </div>
+              </div>
+              <div class="campo-caja">
+                <input type="checkbox" id="admin-cofre-visible" checked>
+                <label for="admin-cofre-visible">Visible (cualquiera puede abrirlo)</label>
+              </div>
+              <button type="button" class="fila-opcion admin-nav admin-sub" id="admin-ver-cofres-ocultos" style="margin:0 0 10px;text-align:left;">
+                <span class="icono-opcion">👻</span> <span id="admin-ver-cofres-ocultos-texto">Ver ocultos: OFF</span>
+              </button>
+              <div class="campo-admin oculto" id="cofre-pin-panel">
+                <label for="admin-cofre-pin">PIN de 4 números (cofre oculto)</label>
+                <input id="admin-cofre-pin" type="password" inputmode="numeric" maxlength="4" placeholder="1234" autocomplete="off">
+              </div>
+              <button type="button" id="btn-admin-cofre-panel" class="btn-auth-principal">Continuar → colocar pin</button>
+            </div>
+          </div>
+
+          <div id="admin-vista-combate" class="admin-vista oculto">
+            <div class="admin-clave-cuerpo">
+              <p class="admin-clave-ayuda">Reglas de combate para todos los jugadores al publicar el mundo.</p>
+              <p class="admin-clave-ayuda">Daño de referencia en el nivel indicado (ej. nivel 4: entre mín y máx). Escala en todos los niveles.</p>
+              <div class="campo-doble">
+                <div class="campo-admin">
+                  <label for="admin-combate-dano-min">Daño mínimo (nivel de referencia)</label>
+                  <input id="admin-combate-dano-min" type="number" min="1" inputmode="numeric">
+                </div>
+                <div class="campo-admin">
+                  <label for="admin-combate-dano-max">Daño máximo (nivel de referencia)</label>
+                  <input id="admin-combate-dano-max" type="number" min="1" inputmode="numeric">
+                </div>
+              </div>
+              <div class="campo-admin">
+                <label for="admin-combate-nivel-ref">Nivel de referencia (ej. 4 → daño entre mín y máx en nv. 4)</label>
+                <input id="admin-combate-nivel-ref" type="number" min="1" max="100" inputmode="numeric">
+              </div>
+              <div class="campo-doble">
+                <div class="campo-admin">
+                  <label for="admin-combate-radio-zona">Radio zona (m)</label>
+                  <input id="admin-combate-radio-zona" type="number" min="10" inputmode="numeric">
+                </div>
+                <div class="campo-admin">
+                  <label for="admin-combate-radio-persec">Persecución (m)</label>
+                  <input id="admin-combate-radio-persec" type="number" min="5" inputmode="numeric">
+                </div>
+              </div>
+              <div class="campo-admin">
+                <label for="admin-combate-curacion">Curación sin golpes (segundos)</label>
+                <input id="admin-combate-curacion" type="number" min="30" inputmode="numeric">
+              </div>
+              <button type="button" id="btn-admin-combate-guardar" class="btn-auth-principal">Guardar reglas</button>
+              <div id="admin-combate-grafica"></div>
+            </div>
+          </div>
+          <div id="admin-vista-combate-enemigos" class="admin-vista oculto">
+            <div class="admin-clave-cuerpo">
+              <p class="admin-clave-ayuda">Daño que hacen los enemigos según su nivel y el tuyo.</p>
+              <div class="campo-doble">
+                <div class="campo-admin">
+                  <label for="admin-enemigo-dano-min">Daño mínimo (nivel referencia)</label>
+                  <input id="admin-enemigo-dano-min" type="number" min="1" inputmode="numeric">
+                </div>
+                <div class="campo-admin">
+                  <label for="admin-enemigo-dano-max">Daño máximo (nivel referencia)</label>
+                  <input id="admin-enemigo-dano-max" type="number" min="1" inputmode="numeric">
+                </div>
+              </div>
+              <div class="campo-doble">
+                <div class="campo-admin">
+                  <label for="admin-enemigo-nivel-ref">Nivel de referencia del enemigo</label>
+                  <input id="admin-enemigo-nivel-ref" type="number" min="1" max="100" inputmode="numeric">
+                </div>
+                <div class="campo-admin">
+                  <label for="admin-enemigo-factor">Extra daño por nivel (%)</label>
+                  <input id="admin-enemigo-factor" type="number" min="1" max="30" inputmode="numeric">
+                </div>
+              </div>
+              <button type="button" id="btn-admin-combate-enemigos-guardar" class="btn-auth-principal">Guardar reglas enemigos</button>
+              <div id="admin-enemigo-grafica"></div>
+            </div>
+          </div>
+        </aside>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ VENTANA: COFRE ============ -->
+  <div id="ventana-cofre" class="ventana oculto">
+    <div class="ventana-caja">
+      <div class="ventana-titulo">🧰 Cofre <button class="btn-cerrar" data-cierra="ventana-cofre">✕</button></div>
+      <div id="cofre-info"></div>
+      <div id="rejilla-cofre"></div>
+      <div id="cofre-mochila-titulo">Tu mochila</div>
+      <div id="rejilla-cofre-mochila"></div>
+      <div id="cofre-admin-titulo" class="admin-editor-seccion oculto">Inventario admin (∞) — arrastra al cofre</div>
+      <div id="rejilla-cofre-admin" class="admin-rejilla-infinito oculto"></div>
+    </div>
+  </div>
+
+  <!-- ============ VENTANA: COLOCAR COFRE ============ -->
+  <div id="ventana-cofre-colocar" class="ventana oculto">
+    <div class="ventana-caja">
+      <div class="ventana-titulo">🧰 Colocar cofre <button class="btn-cerrar" data-cierra="ventana-cofre-colocar">✕</button></div>
+      <div class="cofre-colocar-cuerpo">
+        <div class="pestanas cofre-tipo-pestanas">
+          <button type="button" class="pestana activa" id="cofre-tipo-visible">Visible</button>
+          <button type="button" class="pestana" id="cofre-tipo-oculto">Oculto (PIN)</button>
+        </div>
+        <p class="admin-clave-ayuda" id="cofre-colocar-desc">Cualquiera puede abrirlo y usar sus 6 casillas.</p>
+        <div class="campo-admin oculto" id="cofre-campo-pin">
+          <label for="cofre-pin-input">PIN de 4 números</label>
+          <input id="cofre-pin-input" type="password" inputmode="numeric" maxlength="4" placeholder="1234" autocomplete="off">
+        </div>
+        <button type="button" id="btn-cofre-colocar-continuar" class="btn-auth-principal">Continuar → tocar mapa</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ VENTANA: ABRIR COFRE OCULTO ============ -->
+  <div id="ventana-cofre-pin" class="ventana oculto">
+    <div class="ventana-caja">
+      <div class="ventana-titulo">🔒 Cofre oculto <button class="btn-cerrar" data-cierra="ventana-cofre-pin">✕</button></div>
+      <div class="cofre-colocar-cuerpo">
+        <p class="admin-clave-ayuda">Escribe el PIN de 4 números para abrir este cofre.</p>
+        <div class="campo-admin">
+          <label for="cofre-abrir-pin">PIN</label>
+          <input id="cofre-abrir-pin" type="password" inputmode="numeric" maxlength="4" placeholder="••••" autocomplete="off">
+        </div>
+        <button type="button" id="btn-cofre-abrir-pin" class="btn-auth-principal">Abrir cofre</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- LIBRERÍAS -->
+  <script src="lib/leaflet/leaflet.js?v=104"></script>
+
+  <!-- MÓDULOS DEL JUEGO (orden importante) -->
+  <script src="js/config/config.js?v=180"></script>
+  <script src="js/nucleo/utilidades.js?v=137"></script>
+  <script src="js/mundo/mundo_publico.js?v=104"></script>
+  <script src="js/notificaciones/notificaciones.js?v=137"></script>
+  <script src="js/usuarios/usuarios.js?v=180"></script>
+  <script src="js/guardado/guardado.js?v=149"></script>
+  <script src="js/historial/historial.js?v=104"></script>
+  <script src="js/dinero/dinero.js?v=104"></script>
+  <script src="js/vida/vida.js?v=137"></script>
+  <script src="js/items/items.js?v=140"></script>
+  <script src="js/mochila/mochila.js?v=151"></script>
+  <script src="js/bolsas/bolsas.js?v=149"></script>
+  <script src="js/mapa/mapa.js?v=104"></script>
+  <script src="js/gps/gps.js?v=150"></script>
+  <script src="js/tiendas/datos_tiendas.js?v=104"></script>
+  <script src="js/tiendas/tiendas.js?v=104"></script>
+  <script src="js/pesca/pesca.js?v=104"></script>
+  <script src="js/tesoros/datos_tesoros.js?v=104"></script>
+  <script src="js/tesoros/tesoros.js?v=104"></script>
+  <script src="js/misiones/datos_misiones.js?v=104"></script>
+  <script src="js/misiones/misiones.js?v=104"></script>
+  <script src="js/cofres/cofres.js?v=104"></script>
+  <script src="js/correo/correo.js?v=104"></script>
+  <script src="js/enemigos/enemigos.js?v=137"></script>
+  <script src="js/online/sync_servidor.js?v=104"></script>
+  <script src="js/admin/admin.js?v=180"></script>
+  <script src="js/opciones/opciones.js?v=152"></script>
+  <script src="js/online/mundo_online.js?v=104"></script>
+  <script src="js/online/amigos.js?v=107"></script>
+  <script src="js/chat/chat.js?v=137"></script>
+  <script src="js/online/multijugador.js?v=180"></script>
+  <script src="js/principal.js?v=180"></script>
+  <script>
+    // Registrar la app instalable (PWA)
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('sw.js?v=180', { updateViaCache: 'none' })
+        .then(function (reg) {
+          if (typeof MarielVersion !== 'undefined') MarielVersion.registrarServiceWorker(reg);
+        })
+        .catch(function () {});
+    }
+  </script>
+</body>
+</html>

@@ -25,6 +25,13 @@
 *.log
 *.sql
 *.sqlite
+server/data/
+server/node_modules/
+node_modules/
+
+# Tokens locales (nunca subir al repositorio)
+datos/clave_sync.json
+datos/clave_sync.local.json
 
 # OS generated files #
 ######################
