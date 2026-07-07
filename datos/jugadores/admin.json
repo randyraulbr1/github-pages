@@ -41,12 +41,12 @@
         null
       ],
       "dinero": {
-        "saldo": 114,
-        "control": "1d3f75b7d4a3ff50280c0cf83f9b01e1815e42f26ed989c3c512ebe482a7a2a5"
+        "saldo": 164,
+        "control": "f8501f428d5e1ad3e5ffda34178d20b4a0e50311ead26990aaedb473bba79698"
       },
       "vida": 104,
       "hambre": 50,
-      "xp": 175,
+      "xp": 200,
       "nivel": 2,
       "posicionJugador": [
         22.993583864035646,
@@ -61,7 +61,7 @@
           "orden": 1783437375034
         },
         "admx_m_mray2lpx": {
-          "estado": "lista",
+          "estado": "recolectada",
           "progreso": 0,
           "orden": 1783446672400
         }
@@ -118,6 +118,19 @@
           ],
           "hashAnterior": "1339a9833cafdb5a98f60281e3aba6c63e8eb9276ff97b21477914b9ea664fd6",
           "hash": "3abd89b5a9ecf4df4b39152fd428679b39590c0a032bf3034a00e1a9ad2757fa"
+        },
+        {
+          "t": 1783446675255,
+          "detalle": "Misión: hg",
+          "monto": 50,
+          "saldo": 164,
+          "lugar": "campo abierto",
+          "pos": [
+            22.993584,
+            -82.753759
+          ],
+          "hashAnterior": "3abd89b5a9ecf4df4b39152fd428679b39590c0a032bf3034a00e1a9ad2757fa",
+          "hash": "f7ef0ca64bf01da19ee3d6826b5799d951f0efcd1470d7da2634b5ad4b9533fa"
         }
       ],
       "historialObjetos": [
@@ -360,6 +373,6 @@
       "muerto": false,
       "armaEquipada": "arma_nv1"
     },
-    "t": 1783446674995
+    "t": 1783446686999
   }
 }
