@@ -2066,6 +2066,13 @@ const Admin = {
       ? Vida.vidaMaxima(nivel) : CONFIG.vidaMaxima;
   },
 
+  _revividoRecienteEnPartida(datos) {
+    const rev = datos?.revividoEn;
+    if (!rev || !Number.isFinite(rev)) return false;
+    const muertoAt = (typeof Guardado !== 'undefined' && Guardado.datos?.muertoAt) || 0;
+    return rev > muertoAt;
+  },
+
   _aplicarRevivirDesdeNube() {
     if (typeof Usuarios === 'undefined' || !Usuarios.perfilActivo) return;
     if (typeof Guardado === 'undefined' || !Guardado.datos) return;
@@ -2074,14 +2081,16 @@ const Admin = {
     if (!muertoLocal) return;
 
     const snap = (this.publicado.partidas || {})[Usuarios.perfilActivo.id];
-    if (!snap?.datos || snap.datos.muerto) return;
+    if (!snap?.datos) return;
+    if (snap.datos.muerto || (snap.datos.vida != null && snap.datos.vida <= 0)) return;
+    if (!this._revividoRecienteEnPartida(snap.datos)) return;
     if ((snap.t || 0) < (Guardado.datos.nubeT || 0)) return;
 
     Guardado._aplicarSnapshot(snap.datos);
     Guardado.datos.nubeT = snap.t;
     Guardado.guardarAhora();
     if (typeof Vida !== 'undefined' && typeof Vida.revivir === 'function') {
-      Vida.revivir(null, '❤️ El administrador te revivió. ¡Ya puedes seguir jugando!');
+      Vida.revivir(snap.datos.vida, '❤️ El administrador te revivió. ¡Ya puedes seguir jugando!');
     }
   },
 
@@ -3208,8 +3217,7 @@ const Admin = {
     if (debeVerse && !b._marcador) {
       this._liberarMarcadorBolsa(b.id);
       b._marcador = Mapa.crearMarcadorEmoji(b.pos, '🎒', 28);
-      const el = b._marcador.getElement?.();
-      if (el) el.classList.add('marcador-bolsa-drop');
+      this._claseIconoMapa(b._marcador, 'marcador-bolsa-drop');
       this._vincularMarcadorBolsa(b, b._marcador);
       b._marcador.on('click', () => {
         if (typeof Bolsas !== 'undefined') void Bolsas.recoger(b);
@@ -3259,6 +3267,11 @@ const Admin = {
     }
   },
 
+  _claseIconoMapa(marcador, clase) {
+    const inner = marcador?.getElement?.()?.querySelector('.icono-mapa');
+    if (inner) inner.classList.add(clase);
+  },
+
   _crearMarcadorBotin(b) {
     if (!b?.pos || typeof BotinEnemigo === 'undefined') return;
     if (!BotinEnemigo.visibleParaMi(b)) return;
@@ -3281,8 +3294,7 @@ const Admin = {
     if (debeVerse && !b._marcador) {
       this._liberarMarcadorBotin(b.id);
       b._marcador = Mapa.crearMarcadorEmoji(b.pos, '📦', 32);
-      const el = b._marcador.getElement?.();
-      if (el) el.classList.add('marcador-botin-enemigo');
+      this._claseIconoMapa(b._marcador, 'marcador-botin-enemigo');
       this._vincularMarcadorBotin(b, b._marcador);
       b._marcador.on('click', () => BotinEnemigo.abrirMenu(b.id));
     } else if (!debeVerse) {
@@ -4673,6 +4685,12 @@ const Admin = {
     localStorage.setItem(clave, JSON.stringify(paquete));
 
     if (!this.datos.partidasExtra) this.datos.partidasExtra = {};
+    const prevDatos = (this.publicado.partidas || {})[perfil.id]?.datos || {};
+    const estabaMuerto = this._jugadorEstaMuerto(prevDatos, prevDatos.vida);
+    let revividoEn = prevDatos.revividoEn || null;
+    if (partida.muerto) revividoEn = null;
+    else if (estabaMuerto) revividoEn = Date.now();
+
     const snap = {
       datos: {
         mochila: partida.mochila,
@@ -4680,6 +4698,7 @@ const Admin = {
         hambre: partida.hambre ?? CONFIG.hambreInicial,
         muerto: partida.muerto,
         muertePos: partida.muerto ? (partida.muertePos || null) : null,
+        revividoEn,
         xp: partida.xp,
         nivel: partida.nivel,
         armaEquipada: partida.armaEquipada || null

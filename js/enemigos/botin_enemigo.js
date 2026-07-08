@@ -505,8 +505,8 @@ const BotinEnemigo = {
 
     if (typeof Mapa === 'undefined') return;
     const marcador = Mapa.crearMarcadorEmoji(botin.pos, '📦', 32);
-    const el = marcador.getElement?.();
-    if (el) el.classList.add('marcador-botin-enemigo');
+    const inner = marcador.getElement?.()?.querySelector('.icono-mapa');
+    if (inner) inner.classList.add('marcador-botin-enemigo');
     this._marcadores[botin.id] = marcador;
     marcador.on('click', () => this.abrirMenu(botin.id));
   },

@@ -308,6 +308,10 @@ function actualizarPartidaEnSnapshot(perfilId, partidaSnap, io) {
   const tNew = partidaSnap.t || Date.now();
   const tOld = actual?.t || 0;
   if (actual && tOld > tNew) return false;
+  const datos = partidaSnap.datos || partidaSnap;
+  if (datos && (datos.muerto || (datos.vida != null && datos.vida <= 0))) {
+    datos.revividoEn = null;
+  }
   snapshot.partidas[perfilId] = partidaSnap;
   snapshot.actualizadoEn = Date.now();
   saveWorldSnapshot(snapshot);
@@ -385,6 +389,7 @@ function revivirPartidaEnSnapshot(perfilId, hp, io, inventarioRestante) {
     : (datos.muerteInventario || []);
   datos.vida = hp;
   datos.muerto = false;
+  datos.revividoEn = Date.now();
   datos.muerteInventario = null;
   datos.muertePos = null;
   datos.mochila = inventarioAMochilaSlots(inv);
