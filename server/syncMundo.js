@@ -1298,6 +1298,7 @@ module.exports = {
   fusionarMapaPublicacion,
   contarElementosMapa,
   mergeJugadoresPartidas,
+  fusionarSesionJugador,
   registrarCuentaEnSnapshot,
   getWorldSnapshot,
   registrarRecogidaObjeto,

@@ -1029,19 +1029,21 @@ const Admin = {
       for (const p of Usuarios.datos.lista) {
         if (!p || !p.id) continue;
         const prev = porId.get(p.id) || {};
-        porId.set(p.id, Object.assign({}, prev, {
+        porId.set(p.id, this._fusionarSesionJugador(prev, {
           id: p.id,
           nombre: p.nombre || prev.nombre,
           telefono: p.telefono || prev.telefono || '',
           creado: p.creado || prev.creado,
-          pinHash: p.pinHash || prev.pinHash
+          pinHash: p.pinHash || prev.pinHash,
+          sesionToken: p.sesionToken,
+          sesionT: p.sesionT
         }));
       }
     }
     this._inferirJugadoresDesdePartidasYCuerpos(porId);
-    return this._filtrarJugadoresBorrados(
-      this._deduplicarJugadoresPorNombre([...porId.values()]).jugadores
-    );
+    const dedupe = this._deduplicarJugadoresPorNombre([...porId.values()]);
+    this._aliasJugadoresIds = dedupe.aliasIds;
+    return this._filtrarJugadoresBorrados(dedupe.jugadores);
   },
 
   _inferirJugadoresDesdePartidasYCuerpos(porId) {
@@ -1202,6 +1204,25 @@ const Admin = {
     return s;
   },
 
+  _idCanonicoJugador(id) {
+    if (!id) return id;
+    const mapa = this._aliasJugadoresIds;
+    if (!mapa || !mapa.size) return id;
+    let cur = String(id);
+    const visto = new Set();
+    while (mapa.has(cur) && !visto.has(cur)) {
+      visto.add(cur);
+      cur = String(mapa.get(cur));
+    }
+    return cur;
+  },
+
+  _mismaCuentaJugador(idA, idB) {
+    if (!idA || !idB) return false;
+    if (String(idA) === String(idB)) return true;
+    return this._idCanonicoJugador(idA) === this._idCanonicoJugador(idB);
+  },
+
   /** Una cuenta por nombre; prioriza id PWA y teléfono sobre srv_N duplicados. */
   _deduplicarJugadoresPorNombre(lista) {
     if (!Array.isArray(lista)) return { jugadores: [], aliasIds: new Map() };
@@ -1217,9 +1238,10 @@ const Admin = {
     const aliasIds = new Map();
     for (const [, dupes] of grupos) {
       const ordenados = dupes.slice().sort((a, b) => this._prioridadJugador(b) - this._prioridadJugador(a));
-      const canon = Object.assign({}, ordenados[0]);
+      let canon = Object.assign({}, ordenados[0]);
       for (let i = 1; i < ordenados.length; i++) {
         const o = ordenados[i];
+        canon = this._fusionarSesionJugador(canon, o);
         if (!canon.telefono && o.telefono) canon.telefono = o.telefono;
         if (!canon.pinHash && o.pinHash) canon.pinHash = o.pinHash;
         if (!canon.creado && o.creado) canon.creado = o.creado;
@@ -1291,9 +1313,9 @@ const Admin = {
         this._deduplicarJugadoresPorNombre([...porId.values()]).jugadores
       );
       this._inferirJugadoresDesdePartidasYCuerpos(porId);
-      this.publicado.jugadores = this._filtrarJugadoresBorrados(
-        this._deduplicarJugadoresPorNombre([...porId.values()]).jugadores
-      );
+      const dedupeFinal = this._deduplicarJugadoresPorNombre([...porId.values()]);
+      this._aliasJugadoresIds = dedupeFinal.aliasIds;
+      this.publicado.jugadores = this._filtrarJugadoresBorrados(dedupeFinal.jugadores);
       this._jugadoresListaCache = this.publicado.jugadores.slice();
       this._jugadoresListaCacheTs = Date.now();
       return;
@@ -1444,14 +1466,15 @@ const Admin = {
     }
     if (Usuarios.datos && Usuarios.datos.lista) {
       for (const p of Usuarios.datos.lista) {
-        porId.set(p.id, Object.assign({}, porId.get(p.id) || {}, {
+        if (!p?.id) continue;
+        porId.set(p.id, this._fusionarSesionJugador(porId.get(p.id), {
           id: p.id,
           nombre: p.nombre,
           telefono: p.telefono || '',
           creado: p.creado || Date.now(),
           pinHash: p.pinHash || (porId.get(p.id) && porId.get(p.id).pinHash),
-          sesionToken: p.sesionToken || (porId.get(p.id) && porId.get(p.id).sesionToken),
-          sesionT: p.sesionT || (porId.get(p.id) && porId.get(p.id).sesionT)
+          sesionToken: p.sesionToken,
+          sesionT: p.sesionT
         }));
       }
     }

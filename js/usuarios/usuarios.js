@@ -237,7 +237,10 @@ const Usuarios = {
   },
 
   _publicarSesionEnFondo(perfil, token) {
+    const canonId = (typeof Admin !== 'undefined' && Admin._idCanonicoJugador)
+      ? Admin._idCanonicoJugador(perfil.id) : perfil.id;
     const datos = Object.assign({}, perfil, {
+      id: canonId,
       sesionToken: token,
       sesionT: perfil.sesionT
     });
@@ -485,6 +488,45 @@ const Usuarios = {
     setTimeout(() => this.verificarSesionRemota(), 800);
   },
 
+  _buscarSesionGlobal() {
+    if (!this.perfilActivo) return null;
+    if (typeof Admin !== 'undefined' && Admin.jugadoresGlobales) {
+      const lista = Admin.jugadoresGlobales();
+      const id = this.perfilActivo.id;
+      const canon = Admin._idCanonicoJugador ? Admin._idCanonicoJugador(id) : id;
+      let g = lista.find(j => j?.id === id);
+      if (!g && canon !== id) g = lista.find(j => j?.id === canon);
+      if (!g) {
+        const nom = String(this.perfilActivo.nombre || '').trim().toLowerCase();
+        if (nom) {
+          const coinciden = lista.filter(j =>
+            String(j?.nombre || '').trim().toLowerCase() === nom
+          );
+          if (coinciden.length === 1) g = coinciden[0];
+        }
+      }
+      if (g) return g;
+    }
+    return null;
+  },
+
+  _sesionMeAfecta(data) {
+    if (!this.perfilActivo || !data?.sesionToken) return false;
+    if (data.sesionToken === this.perfilActivo.sesionToken) return false;
+
+    const remId = data.perfilId;
+    const mioId = this.perfilActivo.id;
+    if (remId && typeof Admin !== 'undefined' && Admin._mismaCuentaJugador) {
+      if (Admin._mismaCuentaJugador(remId, mioId)) return true;
+    } else if (remId && remId === mioId) {
+      return true;
+    }
+
+    const mioNom = String(this.perfilActivo.nombre || '').trim().toLowerCase();
+    const remNom = String(data.nombre || '').trim().toLowerCase();
+    return !!(mioNom && remNom && mioNom === remNom);
+  },
+
   async verificarSesionRemota() {
     if (!this.perfilActivo || this._sesionCerrada) return;
     if (!this.perfilActivo.sesionToken) return;
@@ -492,9 +534,14 @@ const Usuarios = {
 
     try {
       if (typeof Admin !== 'undefined') await Admin.actualizarJugadoresGlobales();
-      const global = typeof Admin !== 'undefined'
-        ? Admin.jugadoresGlobales().find(j => j.id === this.perfilActivo.id)
-        : await MundoPublico.buscarJugadorPorLogin(this.perfilActivo.nombre);
+      let global = this._buscarSesionGlobal();
+      if (!global && typeof MundoPublico !== 'undefined') {
+        global = await MundoPublico.buscarJugadorPorLogin(this.perfilActivo.nombre);
+        if (global && typeof Admin !== 'undefined' && Admin._mismaCuentaJugador &&
+          !Admin._mismaCuentaJugador(global.id, this.perfilActivo.id)) {
+          global = null;
+        }
+      }
       if (!global || !global.sesionToken) return;
       if (global.sesionToken === this.perfilActivo.sesionToken) return;
       if ((global.sesionT || 0) <= (this.perfilActivo.sesionT || 0)) return;
@@ -509,12 +556,17 @@ const Usuarios = {
     document.querySelectorAll('.ventana').forEach(v => v.classList.add('oculto'));
     const pant = document.getElementById('pantalla-sesion-remota');
     if (pant) pant.classList.remove('oculto');
+    const cuenta = document.getElementById('sesion-remota-cuenta');
+    if (cuenta && this.perfilActivo) {
+      const nom = this.perfilActivo.nombre || 'Jugador';
+      const id = this.perfilActivo.id || '';
+      cuenta.textContent = 'Sesión de: ' + nom + (id ? ' (' + id + ')' : '');
+    }
   },
 
   aplicarSesionRemotaDesdeSocket(data) {
     if (!this.perfilActivo || this._sesionCerrada) return;
-    if (!data?.sesionToken || data.sesionToken === this.perfilActivo.sesionToken) return;
-    if (data.perfilId && data.perfilId !== this.perfilActivo.id) return;
+    if (!this._sesionMeAfecta(data)) return;
     if ((data.sesionT || 0) <= (this.perfilActivo.sesionT || 0)) return;
     this._mostrarSesionCerrada();
   },
@@ -529,6 +581,9 @@ const Usuarios = {
 
   _coincidePerfilJugador(j) {
     if (!this.perfilActivo || !j) return false;
+    if (typeof Admin !== 'undefined' && Admin._mismaCuentaJugador) {
+      return Admin._mismaCuentaJugador(j.id, this.perfilActivo.id);
+    }
     const id = this.perfilActivo.id;
     const nom = String(this.perfilActivo.nombre || '').trim().toLowerCase();
     return j.id === id || String(j.nombre || '').trim().toLowerCase() === nom;
