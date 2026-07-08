@@ -897,6 +897,20 @@ const Mochila = {
       return;
     }
 
+    const online = typeof Multijugador !== 'undefined' && Multijugador.activo &&
+      CONFIG.servidorOnline && (tipo === 'hambre' || tipo === 'vida');
+    if (online) {
+      void Multijugador.usarItemServidor(sl.id, cantidad).then((res) => {
+        if (!res?.ok) {
+          this._toast(res?.error || 'No se pudo usar el objeto');
+          return;
+        }
+        this._toast('Usaste ' + cantidad + 'x ' + item.nombre);
+        this.pintar();
+      });
+      return;
+    }
+
     this._aplicarConsumo(item, sl.id, cantidad);
     this._quitarCantidad(place, key, cantidad);
     this._toast('Usaste ' + cantidad + 'x ' + item.nombre);

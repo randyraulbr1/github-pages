@@ -3445,24 +3445,26 @@ const Admin = {
       return;
     }
     const items = this._itemsDeTesoro(t);
-    for (const it of items) {
-      if (!Mochila.agregar(it.id, it.cantidad || 1, { silencioso: true })) {
-        Notificaciones.mostrar('🎒 No tienes espacio para todo el tesoro', 'error');
-        return;
-      }
-    }
-    const est = this._tesorosEstadoGlobal();
-    const recogidoAt = Date.now();
-    est[t.id] = { recogidoAt };
+    const pos = typeof GPS !== 'undefined' ? GPS.posicion : null;
     if (typeof Multijugador !== 'undefined' && Multijugador.activo && CONFIG.servidorOnline) {
-      const ok = await Multijugador.recogerTesoroCompartido(t.id);
-      if (!ok) {
-        delete est[t.id];
+      const res = await Multijugador.recogerTesoroCompartido(t.id, pos);
+      if (!res?.ok) {
+        Notificaciones.mostrar(res?.error || '🎒 No se pudo recoger el tesoro', 'error', 4500);
         return;
       }
     } else {
-      this.aplicarRecogidaTesoro(t.id, recogidoAt);
+      for (const it of items) {
+        if (!Mochila.agregar(it.id, it.cantidad || 1, { silencioso: true })) {
+          Notificaciones.mostrar('🎒 No tienes espacio para todo el tesoro', 'error');
+          return;
+        }
+      }
+      const est = this._tesorosEstadoGlobal();
+      est[t.id] = { recogidoAt: Date.now() };
+      this.aplicarRecogidaTesoro(t.id, Date.now());
     }
+    const est = this._tesorosEstadoGlobal();
+    if (!est[t.id]) est[t.id] = { recogidoAt: Date.now() };
     if (!this._progreso().tesoros.includes(t.id)) this._progreso().tesoros.push(t.id);
     Guardado.guardar();
     this.guardar();
@@ -3474,7 +3476,8 @@ const Admin = {
 
     const nombres = items.map(it => Items.seguro(it.id).icono + ' x' + (it.cantidad || 1)).join(', ');
     setTimeout(async () => {
-      if (t.dinero) await Dinero.ganar(t.dinero, 'Tesoro encontrado');
+      const online = typeof Multijugador !== 'undefined' && Multijugador.activo && CONFIG.servidorOnline;
+      if (!online && t.dinero) await Dinero.ganar(t.dinero, 'Tesoro encontrado');
       Notificaciones.mostrar('🎁 ¡Tesoro! ' + nombres +
         (t.dinero ? ' + $' + t.dinero : '') +
         (t.respawnMin ? ' (vuelve en ' + t.respawnMin + ' min)' : ''), 'exito', 5000);

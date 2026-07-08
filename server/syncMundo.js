@@ -479,20 +479,9 @@ function registrarLootMuerto(playerId, perfilId, inv, io) {
   if (io) io.emit('player:lootUpdate', { playerId, deadInventory: inv });
 }
 
-function registrarRecogidaTesoro(tesoroId, playerId, io) {
-  const snapshot = getWorldSnapshot() || { actualizadoEn: Date.now() };
-  if (!snapshot.tesorosEstado) snapshot.tesorosEstado = {};
-
-  const recogidoAt = Date.now();
-  snapshot.tesorosEstado[tesoroId] = { recogidoAt, playerId };
-  snapshot.actualizadoEn = Date.now();
-  saveWorldSnapshot(snapshot);
-
-  if (io) {
-    io.emit('world:tesoroRecogido', { tesoroId, recogidoAt, playerId });
-  }
-
-  return { ok: true, recogidoAt };
+function registrarRecogidaTesoro(tesoroId, playerId, io, opts) {
+  const { registrarTesoroConRecompensa } = require('./playerEconomy');
+  return registrarTesoroConRecompensa(tesoroId, playerId, io, opts);
 }
 
 const BOLSA_DROP_TTL_MS = 5 * 60 * 1000;

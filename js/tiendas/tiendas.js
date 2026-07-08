@@ -205,6 +205,18 @@ const Tiendas = {
       Notificaciones.mostrar('Agotado en esta tienda', 'alerta');
       return;
     }
+    if (typeof Multijugador !== 'undefined' && Multijugador.activo && CONFIG.servidorOnline) {
+      const pos = typeof GPS !== 'undefined' ? GPS.posicion : null;
+      const res = await Multijugador.comprarEnTienda(t.id, entry.id, pos);
+      if (!res?.ok) {
+        Notificaciones.mostrar(res?.error || 'No se pudo comprar', 'error', 4000);
+        return;
+      }
+      Notificaciones.mostrar(item.icono + ' Compraste ' + item.nombre, 'exito');
+      Misiones.evento('compra', entry.id);
+      this.pintar();
+      return;
+    }
     if (Mochila.slotsLibres() === 0 && !Mochila.tieneItem(entry.id)) {
       Notificaciones.mostrar('🎒 No tienes espacio en la mochila', 'error');
       return;

@@ -748,7 +748,39 @@ function setupSockets(io) {
     socket.on('world:tesoroRecogido', (payload, ack) => {
       const tesoroId = (payload?.tesoroId || '').trim();
       if (!tesoroId) return ack?.({ ok: false, error: 'tesoroId requerido' });
-      const result = registrarRecogidaTesoro(tesoroId, socket.playerId, io);
+      const result = registrarRecogidaTesoro(tesoroId, socket.playerId, io, {
+        lat: payload?.lat ?? payload?.pos?.[0],
+        lng: payload?.lng ?? payload?.pos?.[1]
+      });
+      ack?.(result);
+    });
+
+    socket.on('player:shopBuy', (payload, ack) => {
+      const tiendaId = (payload?.tiendaId || '').trim();
+      const itemId = (payload?.itemId || '').trim();
+      if (!tiendaId || !itemId) return ack?.({ ok: false, error: 'tiendaId e itemId requeridos' });
+      const { comprarEnTienda } = require('../playerEconomy');
+      const result = comprarEnTienda(
+        socket.playerId,
+        tiendaId,
+        itemId,
+        Number(payload?.lat ?? payload?.pos?.[0]),
+        Number(payload?.lng ?? payload?.pos?.[1]),
+        io
+      );
+      ack?.(result);
+    });
+
+    socket.on('player:useItem', (payload, ack) => {
+      const itemId = (payload?.itemId || '').trim();
+      if (!itemId) return ack?.({ ok: false, error: 'itemId requerido' });
+      const { usarConsumible } = require('../playerEconomy');
+      const result = usarConsumible(
+        socket.playerId,
+        itemId,
+        payload?.cantidad || 1,
+        io
+      );
       ack?.(result);
     });
 

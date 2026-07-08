@@ -520,6 +520,16 @@ const Multijugador = {
       }
     });
 
+    this.socket.on('world:shopStock', (data) => {
+      if (!data?.tiendaId || !data?.itemId || typeof Admin === 'undefined') return;
+      if (!Admin.publicado.tiendasStock) Admin.publicado.tiendasStock = {};
+      const key = data.tiendaId + '|' + data.itemId;
+      Admin.publicado.tiendasStock[key] = data.stock;
+      if (typeof Tiendas !== 'undefined' && Tiendas.tiendaAbierta?.id === data.tiendaId) {
+        Tiendas.pintar();
+      }
+    });
+
     this.socket.on('world:tesoroRecogido', (data) => {
       if (!data?.tesoroId || typeof Admin === 'undefined') return;
       Admin.aplicarRecogidaTesoro(data.tesoroId, data.recogidoAt);
@@ -1004,14 +1014,22 @@ const Multijugador = {
     await this.obtenerMundoServidor();
   },
 
-  recogerTesoroCompartido(tesoroId) {
+  recogerTesoroCompartido(tesoroId, pos) {
     return new Promise((resolve) => {
-      if (!this.socket || !this.activo || !tesoroId) return resolve(false);
-      this.socket.emit('world:tesoroRecogido', { tesoroId }, (res) => {
-        if (res?.ok && typeof Admin !== 'undefined') {
-          Admin.aplicarRecogidaTesoro(tesoroId, res.recogidoAt);
+      if (!this.socket || !this.activo || !tesoroId) return resolve({ ok: false });
+      this.socket.emit('world:tesoroRecogido', {
+        tesoroId,
+        lat: pos?.[0],
+        lng: pos?.[1],
+        pos
+      }, (res) => {
+        if (res?.ok) {
+          this._aplicarRespuestaEconomia(res);
+          if (typeof Admin !== 'undefined') {
+            Admin.aplicarRecogidaTesoro(tesoroId, res.recogidoAt);
+          }
         }
-        resolve(!!res?.ok);
+        resolve(res || { ok: false });
       });
     });
   },
@@ -1598,6 +1616,62 @@ const Multijugador = {
       Mochila.pintar();
     }
     Guardado.guardar();
+  },
+
+  _aplicarRespuestaEconomia(res) {
+    if (!res?.ok || typeof Guardado === 'undefined' || !Guardado.datos) return;
+    if (res.mochila) this._aplicarMochilaServidor(res.mochila);
+    else if (res.partida?.datos?.mochila) this._aplicarMochilaServidor(res.partida.datos.mochila);
+    const d = res.partida?.datos || {};
+    if (res.saldo != null || d.dinero?.saldo != null) {
+      const saldo = res.saldo != null ? res.saldo : d.dinero.saldo;
+      if (!Guardado.datos.dinero) Guardado.datos.dinero = { saldo: 0, control: '' };
+      Guardado.datos.dinero.saldo = saldo;
+      if (typeof Dinero !== 'undefined') {
+        Dinero.saldo = saldo;
+        Dinero.pintar();
+      }
+    }
+    if (res.vida != null && typeof Vida !== 'undefined') {
+      Vida.actual = res.vida;
+      Vida.pintar();
+    }
+    if (res.hambre != null && typeof Vida !== 'undefined') {
+      Vida.hambre = res.hambre;
+      Vida.pintar();
+    }
+    if (res.xp != null && typeof Vida !== 'undefined') {
+      Vida.xp = res.xp;
+    }
+    Guardado.datos.statsT = Date.now();
+    Guardado.datos.nubeT = Date.now();
+    Guardado.guardar();
+  },
+
+  comprarEnTienda(tiendaId, itemId, pos) {
+    return new Promise((resolve) => {
+      if (!this.socket || !this.activo || !tiendaId || !itemId) return resolve({ ok: false });
+      this.socket.emit('player:shopBuy', {
+        tiendaId,
+        itemId,
+        lat: pos?.[0],
+        lng: pos?.[1],
+        pos
+      }, (res) => {
+        if (res?.ok) this._aplicarRespuestaEconomia(res);
+        resolve(res || { ok: false });
+      });
+    });
+  },
+
+  usarItemServidor(itemId, cantidad) {
+    return new Promise((resolve) => {
+      if (!this.socket || !this.activo || !itemId) return resolve({ ok: false });
+      this.socket.emit('player:useItem', { itemId, cantidad: cantidad || 1 }, (res) => {
+        if (res?.ok) this._aplicarRespuestaEconomia(res);
+        resolve(res || { ok: false });
+      });
+    });
   },
 
   recogerObjetoCompartido(origenId, pos) {
