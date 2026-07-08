@@ -1,6 +1,6 @@
 # FASE 13 - Catalogo fuerte de objetos en panel ADM
 
-Estado: 🚧 En progreso (v293, pasos 1–5)
+Estado: 🚧 En progreso (v294, pasos 1–8)
 
 ## Objetivo
 

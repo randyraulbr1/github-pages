@@ -340,13 +340,22 @@ const Mochila = {
 
   armaEquipadaId() { return Guardado.datos.armaEquipada || null; },
 
+  rangoArmaEquipada() {
+    const id = this._armaRealmenteEquipada();
+    if (!id) return { lo: 0, hi: 0 };
+    const item = Items.obtener(id);
+    if (!item || item.tipo !== 'arma') return { lo: 0, hi: 0 };
+    if (!Items.armaAptaParaNivel(id, Vida.nivel)) return { lo: 0, hi: 0 };
+    return Items.rangoDanoArma(item);
+  },
+
   danoArmaEquipada() {
     const id = this._armaRealmenteEquipada();
     if (!id) return 0;
     const item = Items.obtener(id);
     if (!item || item.tipo !== 'arma') return 0;
     if (!Items.armaAptaParaNivel(id, Vida.nivel)) return 0;
-    return item.dano || 0;
+    return Items.tirarDanoArma(item);
   },
 
   equiparArma(id, slotOrigen) {
@@ -602,8 +611,8 @@ const Mochila = {
     if (id) {
       const item = Items.seguro(id);
       icono = item.icono || '🗡️';
-      const dano = item.dano || 0;
-      titulo = dano > 0 ? item.nombre + ' (+' + dano + ' daño)' : item.nombre;
+      const r = Items.rangoDanoArma(item);
+      titulo = r.hi > 0 ? item.nombre + ' (' + r.lo + '–' + r.hi + ' daño)' : item.nombre;
       equipada = true;
     }
 

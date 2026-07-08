@@ -476,7 +476,11 @@ function construirSnapshotDesdeBD(base) {
   snap.eliminados = [...new Set(snap.eliminados)].sort();
 
   for (const key of CONFIG_KEYS) {
-    const val = getWorldConfig(key);
+    let val = getWorldConfig(key);
+    if (key === 'itemsNuevos' && Array.isArray(val)) {
+      const { sanitizarItemsNuevos } = require('./itemCatalog');
+      val = sanitizarItemsNuevos(val);
+    }
     if (val !== undefined) snap[key] = val;
   }
 

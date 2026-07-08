@@ -2705,9 +2705,14 @@ const Admin = {
           '<div class="campo-caja">Los peces se pueden comer crudos con riesgo de perder vida</div>' +
         '</div>' +
         '<div class="campo-doble" id="af-arma-campos" style="display:none">' +
-          this._campoNumero('af-dano', 'Daño arma', d.dano || 5) +
-          this._campoNumero('af-nivel-min', 'Nivel mín', d.nivelMin || 1) +
+          this._campoNumero('af-dano-min', 'Daño mín', d.danoMin || d.dano || 3) +
+          this._campoNumero('af-dano-max', 'Daño máx', d.danoMax || ((d.dano || 5) + 2)) +
         '</div>' +
+        '<div class="campo-doble" id="af-arma-campos2" style="display:none">' +
+          this._campoNumero('af-nivel-min', 'Nivel mín', d.nivelMin || 1) +
+          this._campoNumero('af-nivel-max', 'Nivel máx', d.nivelMax || ((d.nivelMin || 1) + 9)) +
+        '</div>' +
+        this._campoTexto('af-cocinado-de', 'Cocinado de (id crudo, opcional)', d.cocinadoDe || '') +
         '<div class="campo-doble" id="af-equipo-campos" style="display:none">' +
           this._campoNumero('af-defensa', 'Defensa', d.defensa || 0) +
           this._campoNumero('af-bonus-vida', 'Bonus vida', d.bonusVida || 0) +
@@ -2741,12 +2746,25 @@ const Admin = {
           const em = document.getElementById('af-efecto-modo');
           if (em) em.value = d.efectoModo;
         }
-        if (d.efectoValor != null) {
-          const ev = document.getElementById('af-efecto-valor');
-          if (ev) ev.value = d.efectoValor;
+        if (d.cocinadoDe) {
+          const cd = document.getElementById('af-cocinado-de');
+          if (cd) cd.value = d.cocinadoDe;
+        }
+        if (d.danoMin != null) {
+          const dm = document.getElementById('af-dano-min');
+          if (dm) dm.value = d.danoMin;
+        }
+        if (d.danoMax != null) {
+          const dx = document.getElementById('af-dano-max');
+          if (dx) dx.value = d.danoMax;
+        }
+        if (d.nivelMax != null && d.tipo === 'arma') {
+          const nmx = document.getElementById('af-nivel-max');
+          if (nmx) nmx.value = d.nivelMax;
         }
         this._enlazarEmojisObjeto();
         const armaBox = document.getElementById('af-arma-campos');
+        const armaBox2 = document.getElementById('af-arma-campos2');
         const pezBox = document.getElementById('af-pez-crudo');
         const eqBoxes = ['af-equipo-campos', 'af-equipo-campos2', 'af-equipo-campos3'].map((id) => document.getElementById(id));
         const tiposEq = ['casco', 'chaleco', 'botas', 'ropa'];
@@ -2781,6 +2799,7 @@ const Admin = {
         const toggleTipo = () => {
           const t = selTipo?.value || '';
           if (armaBox) armaBox.style.display = t === 'arma' ? '' : 'none';
+          if (armaBox2) armaBox2.style.display = t === 'arma' ? '' : 'none';
           if (pezBox) pezBox.style.display = t === 'pez' ? '' : 'none';
           const esEq = tiposEq.includes(t);
           eqBoxes.forEach((box) => { if (box) box.style.display = esEq ? '' : 'none'; });
@@ -3071,14 +3090,20 @@ const Admin = {
         nuevo.efectoValor = efectoValor;
         nuevo.efectoModo = efectoModo === 'fijo' ? 'fijo' : 'porcentaje';
       }
-      if (tipoItem === 'pez') {
+      if (tipoItem === 'pez' || (tipoItem === 'comida' && this._numero('af-prob-crudo') > 0)) {
         nuevo.crudo = true;
         nuevo.probCrudoNegativo = Math.min(100, Math.max(0, this._numero('af-prob-crudo') ?? 60));
       }
+      const cocinadoDe = this._valor('af-cocinado-de').trim();
+      if (cocinadoDe) nuevo.cocinadoDe = cocinadoDe;
       if (tipoItem === 'arma') {
-        nuevo.dano = Math.max(1, this._numero('af-dano') || 5);
+        const dMin = Math.max(1, this._numero('af-dano-min') || 1);
+        const dMax = Math.max(dMin, this._numero('af-dano-max') || dMin);
+        nuevo.danoMin = dMin;
+        nuevo.danoMax = dMax;
+        nuevo.dano = Math.round((dMin + dMax) / 2);
         nuevo.nivelMin = Math.max(1, this._numero('af-nivel-min') || 1);
-        nuevo.nivelMax = Math.min(100, (nuevo.nivelMin || 1) + 9);
+        nuevo.nivelMax = Math.min(100, this._numero('af-nivel-max') || ((nuevo.nivelMin || 1) + 9));
       }
       if (['casco', 'chaleco', 'botas', 'ropa'].includes(tipoItem)) {
         nuevo.defensa = Math.max(0, this._numero('af-defensa') || 0);

@@ -70,18 +70,21 @@ const CATALOGO_ITEMS = {
   coco:           { nombre: 'Coco',              icono: '🥥', tipo: 'comida', precio: 35,  cura: 18, desc: 'Agua de coco directa de la palma.' },
   botiquin:       { nombre: 'Botiquín',          icono: '🩹', tipo: 'comida', precio: 300, curaVida: 55, desc: 'Vendas y medicinas: recupera vida o revive a un amigo.' },
   pocion_vida:    { nombre: 'Medicina fuerte',   icono: '🧪', tipo: 'comida', precio: 320, curaVida: 100, desc: 'Recupera toda la vida.' },
+  carne_cruda:    { nombre: 'Carne cruda',       icono: '🥩', tipo: 'comida', precio: 12,  crudo: true, probCrudoNegativo: 55, efectoValor: 12, desc: 'Comer cruda puede hacerte daño.' },
+  carne_cocinada: { nombre: 'Carne cocinada',    icono: '🍖', tipo: 'comida', precio: 28,  efecto: 'hambre', efectoValor: 25, efectoModo: 'porcentaje', cocinadoDe: 'carne_cruda', desc: 'Segura y nutritiva.' },
+  pescado_cocinado:{ nombre: 'Pescado cocinado', icono: '🍣', tipo: 'comida', precio: 22,  efecto: 'hambre', efectoValor: 20, efectoModo: 'porcentaje', cocinadoDe: 'sardina', desc: 'A la plancha, sin riesgo.' },
 
-  // ---------- ARMAS (10) — una por tramo de nivel, daño suma al combate global ----------
-  arma_nv1:   { nombre: 'Cuchillo de combate', icono: '🔪', tipo: 'arma', precio: 120,  dano: 5,  nivelMin: 1,  nivelMax: 10,  desc: 'Para novatos (nivel 1–10). +5 de daño.' },
-  arma_nv2:   { nombre: 'Machete',             icono: '🗡️', tipo: 'arma', precio: 350,  dano: 10, nivelMin: 11, nivelMax: 20, desc: 'Nivel 11–20. +10 de daño.' },
-  arma_nv3:   { nombre: 'Lanza corta',         icono: '🔱', tipo: 'arma', precio: 620,  dano: 15, nivelMin: 21, nivelMax: 30, desc: 'Nivel 21–30. +15 de daño.' },
-  arma_nv4:   { nombre: 'Espada corta',        icono: '⚔️', tipo: 'arma', precio: 980,  dano: 20, nivelMin: 31, nivelMax: 40, desc: 'Nivel 31–40. +20 de daño.' },
-  arma_nv5:   { nombre: 'Espada larga',        icono: '🗡️', tipo: 'arma', precio: 1450, dano: 25, nivelMin: 41, nivelMax: 50, desc: 'Nivel 41–50. +25 de daño.' },
-  arma_nv6:   { nombre: 'Hacha de guerra',     icono: '🪓', tipo: 'arma', precio: 2100, dano: 32, nivelMin: 51, nivelMax: 60, desc: 'Nivel 51–60. +32 de daño.' },
-  arma_nv7:   { nombre: 'Martillo pesado',     icono: '🔨', tipo: 'arma', precio: 2900, dano: 38, nivelMin: 61, nivelMax: 70, desc: 'Nivel 61–70. +38 de daño.' },
-  arma_nv8:   { nombre: 'Alabarda',            icono: '⚔️', tipo: 'arma', precio: 3800, dano: 45, nivelMin: 71, nivelMax: 80, desc: 'Nivel 71–80. +45 de daño.' },
-  arma_nv9:   { nombre: 'Katana',              icono: '🗡️', tipo: 'arma', precio: 4500, dano: 52, nivelMin: 81, nivelMax: 90, desc: 'Nivel 81–90. +52 de daño.' },
-  arma_nv10:  { nombre: 'Tridente legendario', icono: '🔱', tipo: 'arma', precio: 5000, dano: 60, nivelMin: 91, nivelMax: 100, desc: 'Nivel 91–100. +60 de daño.' },
+  // ---------- ARMAS (10) — rango de daño por tramo de nivel ----------
+  arma_nv1:   { nombre: 'Cuchillo de combate', icono: '🔪', tipo: 'arma', precio: 120,  dano: 5,  danoMin: 3,  danoMax: 7,  nivelMin: 1,  nivelMax: 10,  desc: 'Nv 1–10. Daño 3–7.' },
+  arma_nv2:   { nombre: 'Machete',             icono: '🗡️', tipo: 'arma', precio: 350,  dano: 10, danoMin: 8,  danoMax: 12, nivelMin: 11, nivelMax: 20, desc: 'Nv 11–20. Daño 8–12.' },
+  arma_nv3:   { nombre: 'Lanza corta',         icono: '🔱', tipo: 'arma', precio: 620,  dano: 15, danoMin: 12, danoMax: 18, nivelMin: 21, nivelMax: 30, desc: 'Nv 21–30. Daño 12–18.' },
+  arma_nv4:   { nombre: 'Espada corta',        icono: '⚔️', tipo: 'arma', precio: 980,  dano: 20, danoMin: 17, danoMax: 23, nivelMin: 31, nivelMax: 40, desc: 'Nv 31–40. Daño 17–23.' },
+  arma_nv5:   { nombre: 'Espada larga',        icono: '🗡️', tipo: 'arma', precio: 1450, dano: 25, danoMin: 22, danoMax: 28, nivelMin: 41, nivelMax: 50, desc: 'Nv 41–50. Daño 22–28.' },
+  arma_nv6:   { nombre: 'Hacha de guerra',     icono: '🪓', tipo: 'arma', precio: 2100, dano: 32, danoMin: 28, danoMax: 36, nivelMin: 51, nivelMax: 60, desc: 'Nv 51–60. Daño 28–36.' },
+  arma_nv7:   { nombre: 'Martillo pesado',     icono: '🔨', tipo: 'arma', precio: 2900, dano: 38, danoMin: 34, danoMax: 42, nivelMin: 61, nivelMax: 70, desc: 'Nv 61–70. Daño 34–42.' },
+  arma_nv8:   { nombre: 'Alabarda',            icono: '⚔️', tipo: 'arma', precio: 3800, dano: 45, danoMin: 40, danoMax: 50, nivelMin: 71, nivelMax: 80, desc: 'Nv 71–80. Daño 40–50.' },
+  arma_nv9:   { nombre: 'Katana',              icono: '🗡️', tipo: 'arma', precio: 4500, dano: 52, danoMin: 47, danoMax: 57, nivelMin: 81, nivelMax: 90, desc: 'Nv 81–90. Daño 47–57.' },
+  arma_nv10:  { nombre: 'Tridente legendario', icono: '🔱', tipo: 'arma', precio: 5000, dano: 60, danoMin: 54, danoMax: 66, nivelMin: 91, nivelMax: 100, desc: 'Nv 91–100. Daño 54–66.' },
 
   // ---------- EQUIPO (bonus solo equipado) ----------
   casco_nv1:    { nombre: 'Casco de cuero',     icono: '⛑️', tipo: 'casco',   precio: 90,  nivelMin: 1,  nivelMax: 10,  defensa: 2,  bonusVida: 5,  bonusVidaModo: 'porcentaje', desc: 'Nv 1–10. +5% vida máx.' },
@@ -199,7 +202,11 @@ const Items = {
     if (item.crudo !== false && item.tipo === 'pez') {
       filas.push(['Crudo', 'Sí · prob. negativo ' + (item.probCrudoNegativo ?? 60) + '%']);
     }
-    if (item.dano) filas.push(['Daño', '+' + item.dano]);
+    if (item.cocinadoDe) filas.push(['Cocinado de', item.cocinadoDe]);
+    if (item.dano) {
+      const r = this.rangoDanoArma(item);
+      filas.push(['Daño', r.lo + '–' + r.hi]);
+    }
     if (item.defensa) filas.push(['Defensa', '+' + item.defensa]);
     if (item.bonusVida) {
       const u = item.bonusVidaModo === 'porcentaje' ? item.bonusVida + '%' : '+' + item.bonusVida;
@@ -245,6 +252,9 @@ const Items = {
         bonusDano: o.bonusDano,
         bonusVelocidad: o.bonusVelocidad,
         resistencia: o.resistencia,
+        cocinadoDe: o.cocinadoDe,
+        danoMin: o.danoMin,
+        danoMax: o.danoMax,
         dano: o.dano,
         nivelMin: o.nivelMin,
         nivelMax: o.nivelMax,
@@ -393,7 +403,10 @@ const Items = {
       const bonus = this.resumenBonusEquipo(item);
       if (bonus) partes.push(bonus);
     }
-    if (item.dano) partes.push('+' + item.dano + ' daño');
+    if (item.dano) {
+      const r = this.rangoDanoArma(item);
+      partes.push('⚔️ ' + r.lo + '–' + r.hi + ' daño');
+    }
     if (this.usoEspecial(id) === 'cofre') partes.push('colocar en mapa');
     if (this.usoEspecial(id) === 'llave') partes.push('abrir cofre');
     if (this.usoEspecial(id) === 'escribir') partes.push('escribir nota');
@@ -435,8 +448,11 @@ const Items = {
         bonusDano: it.bonusDano,
         bonusVelocidad: it.bonusVelocidad,
         resistencia: it.resistencia,
-        ranura: it.ranura,
+        cocinadoDe: it.cocinadoDe,
         dano: it.dano || undefined,
+        danoMin: it.danoMin,
+        danoMax: it.danoMax,
+        ranura: it.ranura,
         nivelMin: it.nivelMin || undefined,
         nivelMax: it.nivelMax || undefined,
         rareza: it.rareza || undefined,
@@ -501,6 +517,28 @@ const Items = {
     return nivel >= min && nivel <= max;
   },
 
+  rangoDanoArma(item) {
+    if (!item || item.tipo !== 'arma') return { lo: 0, hi: 0 };
+    let lo = Number(item.danoMin);
+    let hi = Number(item.danoMax);
+    if (!Number.isFinite(lo) && !Number.isFinite(hi)) {
+      const d = Number(item.dano) || 0;
+      lo = Math.max(1, d - 2);
+      hi = d + 2;
+    }
+    if (!Number.isFinite(lo)) lo = hi;
+    if (!Number.isFinite(hi)) hi = lo;
+    lo = Math.max(0, Math.round(lo));
+    hi = Math.max(lo, Math.round(hi));
+    return { lo, hi };
+  },
+
+  tirarDanoArma(item) {
+    const r = this.rangoDanoArma(item);
+    if (r.hi <= r.lo) return r.lo;
+    return r.lo + Math.floor(Math.random() * (r.hi - r.lo + 1));
+  },
+
   /** Definición de efecto consumible (Fase 13): porcentaje o valor fijo. */
   defEfecto(item) {
     if (!item || typeof item !== 'object') return null;
@@ -517,6 +555,9 @@ const Items = {
     }
     if (item.cura != null && item.cura > 0) {
       return { efecto: 'hambre', valor: item.cura, modo: 'fijo' };
+    }
+    if (item.crudo === true && item.tipo === 'comida') {
+      return { efecto: 'crudo', valor: item.efectoValor || 12, modo: 'porcentaje' };
     }
     if (item.tipo === 'pez' && item.crudo !== false) {
       return { efecto: 'crudo', valor: item.efectoValor || 10, modo: 'porcentaje' };

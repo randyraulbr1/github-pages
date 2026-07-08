@@ -163,22 +163,22 @@ const Enemigos = {
     this.aplicarLayoutCombate();
   },
 
-  /** Daño total del jugador vs enemigos (base por nivel + arma equipada). */
+  /** Daño total del jugador vs enemigos (base por nivel + arma equipada + equipo). */
   rangoAtaqueJugador() {
     const r = this._rangoDanoNivel();
-    const arma = typeof Mochila !== 'undefined' ? Mochila.danoArmaEquipada() : 0;
+    const armaR = typeof Mochila !== 'undefined' ? Mochila.rangoArmaEquipada() : { lo: 0, hi: 0 };
     const bonusEq = typeof Mochila !== 'undefined' && Mochila.bonusesEquipoActivos
       ? Mochila.bonusesEquipoActivos().dano : 0;
     const armaId = typeof Mochila !== 'undefined' ? Mochila.armaEquipadaId() : null;
     const itemArma = armaId && typeof Items !== 'undefined' ? Items.seguro(armaId) : null;
-    const extra = arma + bonusEq;
     return {
       baseLo: r.lo,
       baseHi: r.hi,
-      arma,
+      armaLo: armaR.lo,
+      armaHi: armaR.hi,
       bonusEq,
-      totalLo: r.lo + extra,
-      totalHi: r.hi + extra,
+      totalLo: r.lo + armaR.lo + bonusEq,
+      totalHi: r.hi + armaR.hi + bonusEq,
       armaNombre: itemArma?.nombre || null,
       armaIcono: itemArma?.icono || null
     };
@@ -187,10 +187,11 @@ const Enemigos = {
   textoAtaqueJugador() {
     const d = this.rangoAtaqueJugador();
     const nv = typeof Vida !== 'undefined' ? Vida.nivel : 1;
-    if (d.arma > 0 || d.bonusEq > 0) {
-      const extra = (d.arma || 0) + (d.bonusEq || 0);
+    if (d.armaLo > 0 || d.armaHi > 0 || d.bonusEq > 0) {
+      const extra = (d.armaLo === d.armaHi ? String(d.armaLo) : (d.armaLo + '–' + d.armaHi));
+      const eq = d.bonusEq > 0 ? (' +' + d.bonusEq + ' eq') : '';
       return '⚔️ ' + d.totalLo + '–' + d.totalHi + ' (Nv ' + nv + ' · ' +
-        (d.armaIcono || '⚔️') + ' +' + extra + ' + base ' + d.baseLo + '–' + d.baseHi + ')';
+        (d.armaIcono || '⚔️') + ' ' + extra + eq + ' + base ' + d.baseLo + '–' + d.baseHi + ')';
     }
     return '⚔️ ' + d.totalLo + '–' + d.totalHi + ' (Nv ' + nv + ' · sin arma)';
   },
@@ -1341,20 +1342,19 @@ const Enemigos = {
   },
 
   danoJugador() {
-    const r = this._rangoDanoNivel();
-    const arma = typeof Mochila !== 'undefined' ? Mochila.danoArmaEquipada() : 0;
-    const lo = r.lo + arma;
-    const hi = r.hi + arma;
+    const d = this.rangoAtaqueJugador();
+    const lo = d.totalLo;
+    const hi = d.totalHi;
     if (hi <= lo) return lo;
     return lo + Math.floor(Math.random() * (hi - lo + 1));
   },
 
   _textoDanoJugador() {
-    const r = this._rangoDanoNivel();
-    const arma = typeof Mochila !== 'undefined' ? Mochila.danoArmaEquipada() : 0;
+    const d = this.rangoAtaqueJugador();
     const infoArma = typeof Mochila !== 'undefined' && Mochila.armaEquipadaId()
-      ? (' · Arma ' + (Items.seguro(Mochila.armaEquipadaId()).icono || '') + ' +' + arma) : '';
-    return (arma ? (arma + ' + ') : '') + r.lo + '–' + r.hi + ' aleatorio' + infoArma;
+      ? (' · Arma ' + (Items.seguro(Mochila.armaEquipadaId()).icono || '') + ' ' +
+        d.armaLo + '–' + d.armaHi) : '';
+    return d.totalLo + '–' + d.totalHi + ' aleatorio' + infoArma;
   },
 
   _abrirCombate(e) {
@@ -1373,10 +1373,9 @@ const Enemigos = {
       (letal ? '💀 ' : '') + (e.icono || '👹') + ' ' + (e.nombre || 'Enemigo') + ' · Nv ' + rEn.nv;
     document.getElementById('combate-vida-texto').textContent = actual + '/' + max;
     document.getElementById('combate-vida-relleno').style.width = (actual / max * 100) + '%';
-    const r = this._rangoDanoNivel();
-    const arma = typeof Mochila !== 'undefined' ? Mochila.danoArmaEquipada() : 0;
+    const rangoAtk = this.rangoAtaqueJugador();
     document.getElementById('combate-info').textContent =
-      'Tu daño: ' + (r.lo + arma) + '–' + (r.hi + arma) + ' · Tu Nv ' + Vida.nivel +
+      'Tu daño: ' + rangoAtk.totalLo + '–' + rangoAtk.totalHi + ' · Tu Nv ' + Vida.nivel +
       ' · Vida ' + Vida.actual + '/' + Vida.vidaMaxima() +
       (letal ? ' · 💀 Enemigo 10× más fuerte' : '') +
       ' · Daño enemigo: ' + rEn.lo + '–' + rEn.hi + ' aleatorio';
