@@ -112,5 +112,27 @@ const Utilidades = {
     if (n <= 0) return '';
     if (n > 10) return '+10';
     return String(n);
+  },
+
+  /** Fase 7 faces.md — nunca mostrar 404/500/undefined al jugador */
+  mensajeAmigable(err, fallback) {
+    const fb = fallback || 'No se pudo completar la acción. Inténtalo de nuevo.';
+    if (err == null) return fb;
+    const raw = typeof err === 'string'
+      ? err
+      : (err.message || err.error || err.mensaje || String(err));
+    const msg = String(raw || '').trim();
+    if (!msg || msg === 'undefined' || msg === 'null') return fb;
+    const low = msg.toLowerCase();
+    if (/failed to fetch|network|fetch|abort|timeout|econnrefused|socket/i.test(low)) {
+      return 'No se pudo conectar. Reintentando…';
+    }
+    if (/\b404\b|not found/i.test(low)) return 'No se encontró esta información.';
+    if (/\b500\b|internal server/i.test(low)) return 'El servidor tuvo un problema. Inténtalo de nuevo.';
+    if (/forbidden|403|no puedes/i.test(low)) return 'No tienes permiso para esta acción.';
+    if (/unauthorized|401|token/i.test(low)) return 'Sesión expirada. Vuelve a entrar.';
+    if (/too far|demasiado lejos/i.test(low)) return msg;
+    if (msg.length > 120 || /stack|at \w+\./i.test(msg)) return fb;
+    return msg;
   }
 };

@@ -40,7 +40,7 @@ Nota: Se implemento y se probo en PC/Android. Queda pendiente revisar rendimient
 
 # FASE 1 - Seguridad critica del servidor
 
-Estado: ⏳ Pendiente de confirmar deploy/pruebas
+Estado: ✅ Completada (codigo v274+)
 
 Objetivo: cerrar huecos donde un jugador pueda volverse admin, modificar datos ajenos o romper el servidor.
 
@@ -51,6 +51,8 @@ Incluye:
 - Validar que un jugador solo edite su propia partida.
 - Rechazar cambios de inventario enviados directamente desde cliente.
 - Proteger contra borrado accidental de cuentas.
+
+Nota: `partidaAuthMiddleware`, `player:updateInventory` rechazado, `assertProductionSecrets`, nombre admin reservado en registro. Pendiente checklist post-deploy en Render.
 
 Pruebas:
 
@@ -63,7 +65,7 @@ Pruebas:
 
 # FASE 2 - Estabilidad del servidor
 
-Estado: ⏳ Pendiente
+Estado: 🚧 En progreso
 
 Objetivo: hacer el servidor mas estable antes de agregar funciones nuevas.
 
@@ -75,6 +77,8 @@ Incluye:
 - Validar HP, hambre, XP y otros stats en servidor.
 - Log de auditoria cuando el admin edita partida ajena.
 - Evitar sincronizaciones repetidas si no hay cambios reales.
+
+Nota: Stats validados (`playerStats.js`), audit log parcial, `statsT` estable. Falta roles DB completos y permisos por rol.
 
 Como hacerlo:
 
@@ -94,7 +98,7 @@ Pruebas:
 
 # FASE 3 - Fuente unica del mundo
 
-Estado: ⏳ Pendiente
+Estado: 🚧 En progreso
 
 Objetivo: evitar que algunos jugadores vean objetos y otros no.
 
@@ -108,6 +112,8 @@ Regla:
 
 Base de datos = mundo oficial.
 Snapshot = backup/recuperacion.
+
+Nota: Tabla `world_content`, migracion, deltas admin (v276–279), inventario autoritativo v282–283. Falta cerrar confianza en sync-partida para economia.
 
 Incluye:
 
@@ -127,9 +133,11 @@ Pruebas:
 
 # FASE 4 - Rendimiento GPS para Cuba
 
-Estado: ⏳ Pendiente
+Estado: ✅ Completada (v280)
 
 Objetivo: que el juego sea ligero y funcione con internet lento.
+
+Nota: `interest.js` 500 m, `emitirACercanos`, rate-limit chat/amigos/register, coalesce movimientos.
 
 Incluye:
 
@@ -154,13 +162,15 @@ Pruebas:
 
 # FASE 5 - Estandar de interfaz UI/UX
 
-Estado: ⏳ Pendiente
+Estado: 🚧 En progreso (v286)
 
 Objetivo: que toda la interfaz se vea igual, sea facil de tocar y no tenga bugs visuales.
 
 Referencia visual:
 
 Usar el inventario actual como base porque esta bien logrado.
+
+Nota v286: `user-select: none` en HUD/botones/ventanas; toasts 2 s y contador +N; `Utilidades.mensajeAmigable` para errores de red.
 
 Reglas:
 
@@ -195,7 +205,7 @@ Mensajes/carteles:
 
 # FASE 5.1 - Bugs de capas y ventanas
 
-Estado: ⏳ Pendiente
+Estado: 🚧 En progreso (v286)
 
 Bug detectado:
 
@@ -207,6 +217,8 @@ Solucion esperada:
 - Ninguna capa invisible debe bloquear los toques.
 - Si hay dialogo abierto, el resto de la UI queda bloqueada detras.
 - Revisar z-index / orden de render / pointer-events.
+
+Nota v286: `--z-confirmaciones: 16000` en `#admin-controles`, `.colocacion-controles`, overlays de confirm; clase `body.ui-mapa-confirm`.
 
 Prioridad de capas recomendada:
 
@@ -256,9 +268,11 @@ Ninguna pantalla debe abrir otra directamente sin pasar por el UI Manager.
 
 # FASE 7 - Sistema de errores amigables
 
-Estado: ⏳ Pendiente
+Estado: 🚧 En progreso (v286 parcial)
 
 Objetivo: nunca mostrar errores feos al jugador.
+
+Nota v286: `Utilidades.mensajeAmigable()` en multijugador (saqueo, revivir, mover pin). Falta extender a sync/tiendas.
 
 No mostrar:
 
@@ -403,7 +417,7 @@ Componentes recomendados:
 
 ## Bug UI - Confirmacion de mover PIN queda detras
 
-Estado: ⏳ Pendiente
+Estado: 🚧 En progreso (v286)
 
 Descripcion:
 
@@ -416,9 +430,11 @@ Solucion sugerida:
 - usar UI Manager
 - confirmaciones siempre arriba
 
+Nota v286: capa `--z-confirmaciones` y `body.ui-mapa-confirm`.
+
 ## Bug UI - Carteles repetidos
 
-Estado: ⏳ Pendiente
+Estado: 🚧 En progreso (v286)
 
 Descripcion:
 
@@ -430,9 +446,11 @@ Solucion sugerida:
 - agrupar mensajes iguales
 - cooldown por mensaje
 
+Nota v286: contador +N en toast activo; duracion 2 s por defecto.
+
 ## Mejora PC - No seleccionar texto
 
-Estado: ⏳ Pendiente
+Estado: ✅ Completada (v286)
 
 Descripcion:
 

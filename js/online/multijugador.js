@@ -1095,7 +1095,7 @@ const Multijugador = {
         Notificaciones.mostrar('🎒 Saqueaste del cuerpo', 'exito', 3000);
         this._refrescarPopupsMuertos(playerId);
       } else {
-        Notificaciones.mostrar('❌ ' + (res?.error || 'No se pudo saquear'), 'alerta', 3500);
+        Notificaciones.mostrar('❌ ' + Utilidades.mensajeAmigable(res?.error, 'No se pudo saquear'), 'alerta', 3500);
         this._refrescarPopupsMuertos(playerId);
       }
     });
@@ -2029,7 +2029,7 @@ const Multijugador = {
         const marcador = this.marcadores[datos.playerId] || this.cuerposMarcadores[String(datos.playerId)];
         if (marcador?.getPopup()?.isOpen()) marcador.closePopup();
       } else {
-        Notificaciones.mostrar('❌ ' + (res?.error || 'No se pudo revivir'), 'error', 4000);
+        Notificaciones.mostrar('❌ ' + Utilidades.mensajeAmigable(res?.error, 'No se pudo revivir'), 'error', 4000);
       }
     });
   },
@@ -2056,7 +2056,7 @@ const Multijugador = {
       perfilId: perfilId || null
     }, (res) => {
       if (!res?.ok && typeof Notificaciones !== 'undefined') {
-        Notificaciones.mostrar('❌ ' + (res.error || 'No se pudo mover al jugador'), 'error', 4000);
+        Notificaciones.mostrar('❌ ' + Utilidades.mensajeAmigable(res.error, 'No se pudo mover al jugador'), 'error', 4000);
       }
     });
   },
