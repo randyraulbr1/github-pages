@@ -2255,6 +2255,7 @@ const Admin = {
     if (!this.esAdminJugador()) return;
     if (this._adminAbierto()) return;
     this._marcarPanelDesbloqueado();
+    document.body.classList.add('admin-panel-abierto');
     document.getElementById('ventana-admin').classList.remove('oculto');
     this._actualizarEtiquetaMantenimientoNav();
   },
@@ -2266,6 +2267,26 @@ const Admin = {
 
   cerrarPanel() {
     document.getElementById('ventana-admin')?.classList.add('oculto');
+    document.body.classList.remove('admin-panel-abierto');
+  },
+
+  _bindAdminBtn(btn, fn) {
+    if (!btn || btn._adminBindOk) return;
+    btn._adminBindOk = true;
+    const run = (ev) => {
+      ev.preventDefault();
+      ev.stopPropagation();
+      if (ev.type === 'pointerup' && ev.pointerType === 'touch') {
+        setTimeout(fn, 40);
+      } else {
+        fn();
+      }
+    };
+    btn.addEventListener('pointerup', run);
+    btn.addEventListener('click', (ev) => {
+      if (ev.pointerType === 'touch') return;
+      run(ev);
+    });
   },
 
   _refrescarListaJugadoresSiAbierta() {
@@ -3306,8 +3327,13 @@ const Admin = {
 
     if (debeVerse && !b._marcador) {
       this._liberarMarcadorBotin(b.id);
-      b._marcador = Mapa.crearMarcadorEmoji(b.pos, '📦', 32);
-      this._claseIconoMapa(b._marcador, 'marcador-botin-enemigo');
+      const pos = Mapa._normalizarLatLng ? Mapa._normalizarLatLng(b.pos) : b.pos;
+      if (!pos) return;
+      b.pos = pos;
+      b._marcador = typeof Mapa.crearMarcadorBotin === 'function'
+        ? Mapa.crearMarcadorBotin(pos)
+        : Mapa.crearMarcadorEmoji(pos, '📦', 36, { wrapClass: 'marcador-botin-wrap' });
+      if (!b._marcador) return;
       this._vincularMarcadorBotin(b, b._marcador);
       b._marcador.on('click', () => BotinEnemigo.abrirMenu(b.id));
     } else if (!debeVerse) {
@@ -4165,13 +4191,21 @@ const Admin = {
     const para = this._msgPara || 'todos';
     const texto = (document.getElementById('admin-msg-texto').value || '').trim();
     if (!texto) { this._adminAvisoMensaje('Escribe un mensaje'); return; }
-    this.datos.mensajes.push({
+    const msg = {
       id: 'msg_' + Date.now().toString(36),
       para, texto, t: Date.now()
-    });
+    };
+    if (!this.publicado.mensajes) this.publicado.mensajes = [];
+    if (!this.datos.mensajes) this.datos.mensajes = [];
+    this.publicado.mensajes.push(msg);
+    this.datos.mensajes.push(msg);
     this.guardar();
-    this._adminAvisoMensaje('✉️ Mensaje enviado', 'exito');
-    setTimeout(() => this._volverAlPanel(), 1200);
+    void this._publicarParaTodos(true).then(() => {
+      this._adminAvisoMensaje('✉️ Mensaje enviado a los jugadores', 'exito');
+      setTimeout(() => this._volverAlPanel(), 1200);
+    }).catch(() => {
+      this._adminAvisoMensaje('Mensaje guardado localmente; publica el mapa para que lo vean todos', 'alerta');
+    });
   },
 
   mostrarMensajes() {
@@ -4282,53 +4316,42 @@ const Admin = {
       const fila = document.createElement('div');
       fila.className = 'fila-jugador-admin' + (muerto ? ' jugador-muerto-admin' : '');
       const inicial = (j.nombre || '?').trim()[0].toUpperCase();
+      const telTxt = j.telefono || 'sin tel.';
       let chips = '';
-      if (ban && this._banActivo(ban)) chips += '<span class="stat-chip ban">🚫 Baneado</span>';
-      if (muerto) chips += '<span class="stat-chip muerto">💀 Muerto · ❤️ 0/' + maxVida + '</span>';
-      if (oro != null) chips += '<span class="stat-chip">💰 ' + oro + '</span>';
+      if (ban && this._banActivo(ban)) chips += '<span class="stat-chip ban">🚫</span>';
+      if (muerto) chips += '<span class="stat-chip muerto">💀</span>';
+      if (oro != null) chips += '<span class="stat-chip">💰' + oro + '</span>';
       fila.innerHTML =
+        '<div class="jugador-card-cabecera">' +
         '<div class="avatar">' + inicial + '</div>' +
-        '<div class="datos"><div class="nombre">' + j.nombre + '</div>' +
-        '<div class="meta">📱 ' + (j.telefono || 'sin teléfono') + '</div>' +
-        '<div class="meta">ID: ' + j.id + '</div>' +
+        '<div class="jugador-card-titulo">' +
+        '<div class="nombre">' + j.nombre + '</div>' +
+        '<div class="meta">📱 ' + telTxt + '</div>' +
+        (chips ? '<div class="stats">' + chips + '</div>' : '') +
+        '</div></div>' +
         '<div class="jugador-barra-vida ' + claseV + '" title="Vida ' + (muerto ? 0 : vida) + '/' + maxVida + '">' +
         '<div class="jugador-barra-relleno" style="width:' + pctV + '%"></div>' +
-        '<span class="jugador-barra-texto">❤️ ' + (muerto ? '0' : vida) + '/' + maxVida + '</span></div>' +
-        (chips ? '<div class="stats">' + chips + '</div>' : '') + '</div>';
+        '<span class="jugador-barra-texto">❤️ ' + (muerto ? '0' : vida) + '/' + maxVida + '</span></div>';
       const acciones = document.createElement('div');
-      acciones.className = 'acciones';
+      acciones.className = 'acciones acciones-grid';
       const mk = (t, fn, title, cls) => {
         const b = document.createElement('button');
         b.type = 'button';
         b.textContent = t;
         if (title) b.title = title;
         if (cls) b.className = cls;
-        b.addEventListener('click', (ev) => {
-          ev.preventDefault();
-          ev.stopPropagation();
-          fn();
-        });
+        this._bindAdminBtn(b, fn);
         acciones.appendChild(b);
       };
+      mk('✏️', () => abrirEditor(local || j, !local), 'Editar', 'btn-editar-jugador');
+      mk('✉️', () => this.abrirMensaje(j.id), 'Mensaje');
+      mk('🚫', () => this._abrirBanJugador(j), 'Banear', 'btn-ban-jugador');
       if (muerto) {
-        mk('❤️', () => this._revivirJugador(j), 'Revivir jugador', 'btn-revivir-jugador');
+        mk('❤️', () => this._revivirJugador(j), 'Revivir', 'btn-revivir-jugador');
+      } else if (!this._esCuentaProtegida(j)) {
+        mk('🗑️', () => this._eliminarJugadorCuenta(j), 'Eliminar', 'btn-eliminar-jugador');
       }
-      if (!this._esCuentaProtegida(j)) {
-        mk('🗑️', () => this._eliminarJugadorCuenta(j), 'Eliminar jugador', 'btn-eliminar-jugador');
-      }
-      mk('✏️', () => abrirEditor(local || j, !local), 'Editar cuenta e inventario', 'btn-editar-jugador');
-      mk('✉️', () => this.abrirMensaje(j.id), 'Enviar mensaje');
-      mk('🚫', () => this._abrirBanJugador(j), 'Banear');
       fila.appendChild(acciones);
-      const datosEl = fila.querySelector('.datos');
-      if (datosEl) {
-        datosEl.classList.add('fila-jugador-datos-tocable');
-        datosEl.title = 'Toca para editar inventario y cuenta';
-        datosEl.addEventListener('click', (ev) => {
-          if (ev.target.closest('.acciones')) return;
-          abrirEditor(local || j, !local);
-        });
-      }
       destino.appendChild(fila);
     };
 

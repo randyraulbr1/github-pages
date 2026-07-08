@@ -254,12 +254,17 @@ const BotinEnemigo = {
     if (!tieneAlgo) return null;
 
     const now = Date.now();
+    let posNorm = [+pos[0], +pos[1]];
+    if (typeof Mapa !== 'undefined' && Mapa._normalizarLatLng) {
+      const n = Mapa._normalizarLatLng(posNorm);
+      if (n) posNorm = n;
+    }
     const botin = {
       id: 'botin_' + enemy.id + '_' + now.toString(36),
       enemyId: enemy.id,
       enemyNombre: enemy.nombre || 'Enemigo',
       enemyIcono: enemy.icono || '💀',
-      pos: [+pos[0], +pos[1]],
+      pos: posNorm,
       creadoEn: now,
       expiraEn: now + this.ttlMs(),
       danoTotal: calc.danoTotal,
@@ -504,9 +509,15 @@ const BotinEnemigo = {
     }
 
     if (typeof Mapa === 'undefined') return;
-    const marcador = Mapa.crearMarcadorEmoji(botin.pos, '📦', 32);
-    const inner = marcador.getElement?.()?.querySelector('.icono-mapa');
-    if (inner) inner.classList.add('marcador-botin-enemigo');
+    let marcador;
+    if (typeof Mapa.crearMarcadorBotin === 'function') {
+      marcador = Mapa.crearMarcadorBotin(botin.pos);
+    } else {
+      const pos = Mapa._normalizarLatLng ? Mapa._normalizarLatLng(botin.pos) : botin.pos;
+      if (!pos) return;
+      marcador = Mapa.crearMarcadorEmoji(pos, '📦', 36, { wrapClass: 'marcador-botin-wrap' });
+    }
+    if (!marcador) return;
     this._marcadores[botin.id] = marcador;
     marcador.on('click', () => this.abrirMenu(botin.id));
   },

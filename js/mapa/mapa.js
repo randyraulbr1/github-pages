@@ -211,15 +211,49 @@ const Mapa = {
   },
 
   // Crea un marcador con un emoji
-  crearMarcadorEmoji(posicion, emoji, tamano = 30) {
-    return L.marker(posicion, {
+  _normalizarLatLng(posicion) {
+    if (!posicion || !Array.isArray(posicion) || posicion.length < 2) return null;
+    let lat = +posicion[0];
+    let lng = +posicion[1];
+    if (!Number.isFinite(lat) || !Number.isFinite(lng)) return null;
+    if (Math.abs(lat) > 90 && Math.abs(lng) <= 90) {
+      const tmp = lat;
+      lat = lng;
+      lng = tmp;
+    }
+    if (Math.abs(lat) > 90 || Math.abs(lng) > 180) return null;
+    return [lat, lng];
+  },
+
+  crearMarcadorEmoji(posicion, emoji, tamano = 30, opts) {
+    const pos = this._normalizarLatLng(posicion);
+    if (!pos || !this.mapa) return null;
+    const o = opts || {};
+    const html = o.wrapClass
+      ? '<div class="' + o.wrapClass + '"><div class="icono-mapa">' + emoji + '</div></div>'
+      : '<div class="icono-mapa">' + emoji + '</div>';
+    const marcador = L.marker(pos, {
       icon: L.divIcon({
-        className: '',
-        html: '<div class="icono-mapa">' + emoji + '</div>',
+        className: 'marcador-emoji-leaflet',
+        html,
         iconSize: [tamano, tamano],
         iconAnchor: [tamano / 2, tamano / 2]
-      })
+      }),
+      interactive: o.interactive !== false
     }).addTo(this.mapa);
+    marcador.on('add', () => {
+      requestAnimationFrame(() => {
+        try { marcador.setLatLng(pos); } catch (e) { /* */ }
+      });
+    });
+    return marcador;
+  },
+
+  crearMarcadorBotin(posicion) {
+    return this.crearMarcadorEmoji(posicion, '📦', 36, {
+      wrapClass: 'marcador-botin-wrap',
+      interactive: true
+    });
   },
 
   // Registra un punto que reacciona a la cercanía del jugador.
