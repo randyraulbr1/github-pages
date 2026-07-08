@@ -300,25 +300,41 @@ function quitarCuerpoMuerto(playerId, io) {
 }
 
 /** Guarda partida de un jugador (vida/muerto) en el snapshot del mundo. */
-function actualizarPartidaEnSnapshot(perfilId, partidaSnap, io) {
+function actualizarPartidaEnSnapshot(perfilId, partidaSnap, io, opts) {
   if (!perfilId || !partidaSnap) return false;
+  const { validarPartidaMin } = require('./playerStats');
+
   const snapshot = getWorldSnapshot() || { actualizadoEn: Date.now(), partidas: {}, jugadores: [] };
   if (!snapshot.partidas) snapshot.partidas = {};
   const actual = snapshot.partidas[perfilId];
-  const tNew = partidaSnap.statsT || partidaSnap.t || Date.now();
+
+  let snap = Object.assign({}, partidaSnap);
+  if (snap.datos) {
+    snap.datos = validarPartidaMin(snap.datos);
+  } else {
+    const t = snap.t || snap.statsT || Date.now();
+    snap = { datos: validarPartidaMin(snap), t, statsT: snap.statsT || t };
+  }
+
+  const tNew = snap.statsT || snap.t || Date.now();
   const tOld = actual?.statsT || actual?.t || 0;
-  if (actual && tOld > tNew) return false;
-  const datos = partidaSnap.datos || partidaSnap;
+  if (actual && tOld > tNew && !opts?.forzar) return false;
+
+  const fp = (p) => JSON.stringify(p?.datos || p || {});
+  if (actual && fp(actual) === fp(snap) && !opts?.forzar) return false;
+
+  const datos = snap.datos || snap;
   if (datos && (datos.muerto || (datos.vida != null && datos.vida <= 0))) {
     datos.revividoEn = null;
   }
-  snapshot.partidas[perfilId] = partidaSnap;
+  if (!snap.statsT && snap.t) snap.statsT = snap.t;
+  snapshot.partidas[perfilId] = snap;
   snapshot.actualizadoEn = Date.now();
   saveWorldSnapshot(snapshot);
-  if (io) {
+  if (io && !opts?.sinEmit) {
     io.emit('partida:sync', {
       perfilId,
-      partida: partidaSnap,
+      partida: snap,
       actualizadoEn: snapshot.actualizadoEn
     });
   }

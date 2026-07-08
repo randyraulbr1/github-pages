@@ -14,6 +14,7 @@ const {
 } = require('../db');
 const { authMiddleware, gameAdminMiddleware, hashPassword, partidaAuthMiddleware } = require('../auth');
 const { syncMundoFromJson, actualizarPartidaEnSnapshot, registrarCuentaEnSnapshot } = require('../syncMundo');
+const { auditarSiAdminEditaAjeno } = require('../auditLog');
 const { respaldarCuentasEnGitHub, respaldarCuentasEnGitHubInmediato, dejarSoloAdminEnSnapshot } = require('../syncCuentas');
 const { restaurarJugadorSiExiste } = require('../recoveryCuentas');
 const { forcePushMundoActual } = require('../githubMundo');
@@ -68,6 +69,7 @@ router.post('/sync-partida', authMiddleware, partidaAuthMiddleware, (req, res) =
     return res.status(400).json({ ok: false, error: 'perfilId y partida requeridos' });
   }
   const io = req.app.get('io');
+  auditarSiAdminEditaAjeno(req.auth.playerId, perfilId, 'REST sync-partida');
   const ok = actualizarPartidaEnSnapshot(perfilId, partida, io);
   if (ok) {
     try {

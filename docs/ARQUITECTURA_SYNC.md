@@ -1,7 +1,7 @@
-# Arquitectura de sincronización — Mariel Explorer (v105)
+# Arquitectura de sincronización — Mariel Explorer (v275)
 
 Referencia para depurar errores de cuentas, mapa y respaldo.  
-**Última revisión:** julio 2026 — plan Render gratis (sin disco persistente).
+**Última revisión:** 8 julio 2026 — rama `main`, Fases 1–2 seguridad/estabilidad.
 
 ---
 
@@ -18,7 +18,7 @@ Referencia para depurar errores de cuentas, mapa y respaldo.
          ▼                                        ▼
 ┌─────────────────────────────────────────────────────────────┐
 │  GitHub: randyraulbr1/github-pages                          │
-│  Rama: claude/web-rpg-gps-game-n3ybow                       │
+│  Rama: main                                                 │
 │  Archivo maestro: datos/mundo.json                          │
 └─────────────────────────────────────────────────────────────┘
 ```
@@ -29,7 +29,9 @@ Referencia para depurar errores de cuentas, mapa y respaldo.
 | **Servidor Render** | Fuente en vivo (sockets + REST), SQLite en memoria/disco efímero |
 | **GitHub `mundo.json`** | Respaldo persistente gratis; se restaura tras cada redeploy |
 
-**Regla de oro:** el admin debe tener **sesión JWT** en el servidor (`SyncServidor.puedePublicar()`) para que crear/borrar llegue a Render y GitHub.
+**Regla de oro:** el servidor es la autoridad. El cliente envía intención; el servidor valida y empuja cambios (`mundo:sync`, `partida:sync`).
+
+**Admin (v275):** permisos por `users.role = 'admin'` en SQLite + JWT con `role: 'admin'`. Los nombres reservados (`randy`, `SoyCaos`) siguen bloqueados en registro pero ya no son la única fuente de permisos.
 
 ---
 
@@ -43,27 +45,58 @@ Referencia para depurar errores de cuentas, mapa y respaldo.
 | `admin/admin.js` | Panel admin, pins del mapa, `_jsonMundo()`, `publicarMundo()`, `_eliminarPin()` |
 | `mundo/mundo_publico.js` | Descarga mundo (`descargar()`), `mundoEsValido()`, cuentas |
 | `online/sync_servidor.js` | `publicar()` → POST `/api/player/sync-mundo`, `obtenerMundo()` |
-| `online/multijugador.js` | Socket.io, evento `mundo:sync` |
+| `online/multijugador.js` | Socket.io, evento `mundo:sync`, merge `statsT` |
+| `guardado/guardado.js` | Partida local, `statsT`, sync stats al servidor |
 | `usuarios/usuarios.js` | Login/registro, `cerrarSesion()` → `location.reload()` |
 
 ### Servidor (`server/`)
 
 | Archivo | Responsabilidad |
 |---------|-----------------|
-| `server.js` | Arranque → `restaurarMundoAlArranque()` |
-| `importSnapshot.js` | Descarga `mundo.json` de GitHub al iniciar |
-| `githubMundo.js` | `fetchMundoFromGitHub()`, `pushMundoToGitHub()` |
-| `syncMundo.js` | `syncMundoFromJson()` — aplica mundo del admin a SQLite |
-| `syncCuentas.js` | Reconciliación jugadores, `purgarCuentasFueraDeSnapshot()` |
-| `db.js` | SQLite: `users`, `players`, `world_snapshot`, `world_objects`, chat |
-| `routes/playerRoutes.js` | `POST /sync-mundo`, `POST /registrar-cuenta` |
-| `routes/authRoutes.js` | `POST /login-game`, `GET /public/mundo`, `GET /public/cuentas` |
+| `server.js` | Arranque, `assertProductionSecrets()`, purga blindada |
+| `auth.js` | JWT, `users.role`, `canEditPartida`, `gameAdminMiddleware` |
+| `db.js` | SQLite: `users` (con `role`), `players`, `world_snapshot`, chat |
+| `playerStats.js` | Topes HP/hambre/XP autoritativos (Fase 2.3) |
+| `auditLog.js` | Auditoría ediciones admin sobre partidas ajenas (Fase 2.4) |
+| `syncMundo.js` | `actualizarPartidaEnSnapshot()` — no emite si datos iguales |
+| `syncCuentas.js` | Reconciliación jugadores, purga con guardas |
+| `routes/playerRoutes.js` | `POST /sync-partida` (auth dueño o admin) |
+| `routes/authRoutes.js` | `POST /register` (bloquea nombres admin), login |
+| `sockets.js` | Multijugador, `player:updateStats`, admin sockets |
 
 ### Datos
 
 | Ruta | Contenido |
 |------|-----------|
 | `datos/mundo.json` | Snapshot global: mapa + jugadores + partidas + config |
+
+---
+
+## Roles y seguridad (v274–v275)
+
+| Mecanismo | Qué hace |
+|-----------|----------|
+| `users.role` | `'player'` o `'admin'`; migración automática al arrancar |
+| JWT `role` | Incluido en token al login/registro |
+| `POST /register` | Rechaza nombres reservados de admin |
+| `POST /sync-partida` | Solo dueño del `perfilId` o admin (`partidaAuthMiddleware`) |
+| `player:updateInventory` | **Rechazado** — cliente no manda inventario crudo |
+| `player:updateStats` | Servidor acota HP/hambre/XP; `partidaMin` validado |
+| `actualizarPartidaEnSnapshot` | No guarda ni emite `partida:sync` si datos JSON iguales (fix parpadeo v236) |
+| Purga cuentas | Omitida si snapshot &lt; SQLite; `soloAdmin` solo con `ALLOW_SOLO_ADMIN_PURGE=1` |
+| Auditoría | `eventLog` tipo `admin_partida_edit` cuando admin edita partida ajena |
+
+---
+
+## Timestamps de partida
+
+| Campo | Uso |
+|-------|-----|
+| `t` | Timestamp general de la partida en snapshot |
+| `statsT` | Vida/hambre/XP/nivel — merge en cliente prioriza el más reciente |
+| `nubeT` | Sync de inventario/mochila |
+
+**v275:** si `statsT` sube pero los `datos` no cambian, el servidor **no** re-emite `partida:sync` (evita revertir curas en el cliente).
 
 ---
 
@@ -80,7 +113,7 @@ Referencia para depurar errores de cuentas, mapa y respaldo.
   "posiciones": { "id_pin": [lat, lng] },
   "eliminados": ["id_borrado"],
   "jugadores": [{ "id", "nombre", "telefono", "pinHash", "creado" }],
-  "partidas": { "perfilId": { "datos": {...}, "t": timestamp } },
+  "partidas": { "perfilId": { "datos": {...}, "t": timestamp, "statsT": timestamp } },
   "cofres": [],
   "precios": {},
   "itemsNuevos": [],
@@ -95,10 +128,6 @@ Referencia para depurar errores de cuentas, mapa y respaldo.
 }
 ```
 
-- **`eliminados`**: IDs de pins que el admin borró pero que existían en versiones anteriores.
-- **`actualizadoEn`**: timestamp de la última publicación; el cliente usa el más reciente.
-- Los pins nuevos del admin suelen tener id `admx_*` (borrador local hasta publicar).
-
 ---
 
 ## Flujos principales
@@ -107,68 +136,44 @@ Referencia para depurar errores de cuentas, mapa y respaldo.
 
 ```
 server.js
+  → assertProductionSecrets()
+  → initDb() + migrate users.role
   → restaurarMundoAlArranque()
-      → fetchMundoFromGitHub()     # lectura pública, sin token
-      → merge jugadores + partidas
-      → saveWorldSnapshot()        # SQLite
-  → reconciliarCuentasEnSnapshot()
+  → reconciliarCuentasEnSnapshot() (con guardas anti-purga)
 ```
 
-SQLite se vacía en cada redeploy; **GitHub es la memoria a largo plazo**.
-
-### 2. Registro / login de jugador
+### 2. Registro / login
 
 ```
-Cliente: POST /api/login-game o /api/register
-  → authRoutes: bcrypt o pinHash legacy en snapshot
-  → respaldarCuentasEnGitHub()   # requiere GITHUB_TOKEN en Render
+POST /api/register → role 'player' (nombres admin bloqueados)
+POST /api/login-game → JWT con role desde users.role
 ```
 
-### 3. Admin publica el mundo (mapa o cuentas)
+Admin existente (`randy`/`SoyCaos`): migración asigna `role='admin'` al arrancar.
+
+### 3. Admin publica el mundo
 
 ```
-Admin.guardar() / _eliminarPin() / _guardarCrearJugador()
-  → _publicarParaTodos()
-      → publicarMundo()
-          → _jsonMundo()           # filtra eliminados, junta listas
-          → SyncServidor.publicar()
-              → POST /api/player/sync-mundo  (JWT admin)
-                  → syncMundoFromJson()
-                      → actualiza world_snapshot + world_objects
-                      → pushMundoToGitHub()
-                      → io.emit('mundo:sync')
+SyncServidor.publicar() → POST /api/player/sync-mundo (JWT role=admin)
+  → syncMundoFromJson() → push GitHub → io.emit('mundo:sync')
 ```
 
-**Requisito:** token en `localStorage` (`Multijugador.TOKEN_KEY`) = admin logueado en servidor.
-
-### 4. Jugador entra / cambia de cuenta
+### 4. Sync stats jugador
 
 ```
-Usuarios.cerrarSesion() → location.reload()
-  → Admin.cargar() / MundoPublico.descargar()
-      → GET /api/public/mundo  (o /api/player/mundo con token)
-      → si falla servidor → fallback GitHub raw
-  → Admin._aplicarMundoRemoto() → pinta pins en mapa
+Cliente: player:updateStats + partidaMin + statsT
+  → servidor valida HP/hambre/XP
+  → actualizarPartidaEnSnapshot (solo si datos cambiaron)
+  → partida:sync a todos (si hubo cambio)
 ```
 
-### 5. Borrar pin del mapa
+### 5. Admin edita jugador
 
 ```
-Admin._eliminarPin()
-  → quita de datos.misiones/tesoros/objetos/enemigos/tiendasAdmin
-  → añade id a datos.eliminados (si ya estaba publicado)
-  → borra posiciones[id]
-  → _publicarParaTodos(true)
+admin:updatePlayerPartida o POST /sync-partida
+  → canEditPartida (admin OK)
+  → auditLog admin_partida_edit si perfil ajeno
 ```
-
-Al publicar, `_jsonMundo()` **no incluye** items en `eliminados` y limpia `posiciones` huérfanas.
-
-### 6. Crear / eliminar jugador (panel admin)
-
-| Acción | Cliente | Servidor |
-|--------|---------|----------|
-| Crear | `MundoPublico.guardarCuenta()` + `_publicarParaTodos()` | `registrarCuentaEnSnapshot` + `sync-mundo` + GitHub |
-| Eliminar | `_eliminarJugadorCuenta()` + `_publicarParaTodos({ confiarLocal: true })` | Lista `jugadores[]` manda; `purgarCuentasFueraDeSnapshot()` borra SQLite |
 
 ---
 
@@ -176,54 +181,13 @@ Al publicar, `_jsonMundo()` **no incluye** items en `eliminados` y limpia `posic
 
 | Variable | Uso |
 |----------|-----|
-| `GITHUB_TOKEN` | Subir `mundo.json` tras cambios (obligatorio para respaldo) |
+| `JWT_SECRET` | **Obligatorio** en producción (no usar default dev) |
+| `GITHUB_TOKEN` | Subir `mundo.json` tras cambios |
 | `GITHUB_REPO` | `randyraulbr1/github-pages` |
-| `GITHUB_BRANCH` | `claude/web-rpg-gps-game-n3ybow` |
-| `JWT_SECRET` | Tokens de sesión |
-| `CORS_ORIGINS` | `https://tcodm.com`, GitHub Pages, etc. |
-
-Sin `GITHUB_TOKEN`: el servidor funciona en vivo, pero **nuevas cuentas/cambios no persisten** tras redeploy.
-
----
-
-## localStorage del cliente
-
-| Clave | Contenido |
-|-------|-----------|
-| `mariel_admin_v1` | Borradores admin: `misiones`, `tesoros`, `objetos`, `eliminados`, `posiciones` |
-| `mariel_explorer_v1` | Lista de perfiles locales |
-| `mariel_explorer_v1::{id}` | Partida guardada por jugador |
-| Token JWT | `Multijugador.TOKEN_KEY` — sesión servidor |
-
-El admin combina `publicado` (servidor/GitHub) + `datos` (local). Tras publicar, `_sincronizarEstadoTrasPublicar()` alinea ambos.
-
----
-
-## Errores frecuentes y dónde mirar
-
-| Síntoma | Causa probable | Qué revisar |
-|---------|----------------|-------------|
-| Cambios no persisten tras redeploy | Sin `GITHUB_TOKEN` o push fallido | Logs Render `[mundo] Respaldo GitHub`, env vars |
-| "Inicia sesión para publicar" | Admin sin JWT | Login como admin en el juego |
-| Jugador borrado reaparece | Merge antiguo de jugadores | `syncMundo.js` línea `jugadores[]` autoritativa; PR v105 |
-| Pins borrados reaparecen al entrar | Cliente ignoraba mapa vacío | `mundo_publico.js` → `mundoEsValido()`; PR v105 |
-| Cuentas desaparecen tras deploy | SQLite vacío y GitHub viejo | `datos/mundo.json` en GitHub, `restaurarMundoAlArranque` |
-| Mapa desincronizado en vivo | Socket caído | `mundo:sync` en consola, `/health` del servidor |
-
-### Comprobaciones rápidas
-
-```bash
-# Servidor vivo
-curl https://mariel-online.onrender.com/health
-
-# Cuentas en snapshot
-curl https://mariel-online.onrender.com/api/public/cuentas
-
-# Mundo público
-curl https://mariel-online.onrender.com/api/public/mundo
-```
-
-En GitHub: revisar `datos/mundo.json` en la rama `claude/web-rpg-gps-game-n3ybow`.
+| `GITHUB_BRANCH` | `main` |
+| `GAME_ADMIN_NAME` / `GAME_ADMIN_ALIASES` | Nombres para migración role=admin |
+| `ALLOW_SOLO_ADMIN_PURGE` | `1` para habilitar purga solo-admin (peligroso) |
+| `CORS_ORIGINS` | `https://tcodm.com`, GitHub Pages |
 
 ---
 
@@ -234,54 +198,28 @@ En GitHub: revisar `datos/mundo.json` en la rama `claude/web-rpg-gps-game-n3ybow
 | GET | `/health` | No | Estado del servidor |
 | GET | `/api/public/mundo` | No | Snapshot completo |
 | GET | `/api/public/cuentas` | No | Lista jugadores para login |
-| POST | `/api/login-game` | No | Login (devuelve JWT) |
-| POST | `/api/register` | No | Registro nuevo jugador |
-| POST | `/api/player/sync-mundo` | Admin JWT | Publicar mundo desde panel |
+| POST | `/api/login-game` | No | Login (JWT con role) |
+| POST | `/api/register` | No | Registro (sin nombres admin) |
+| POST | `/api/player/sync-mundo` | Admin JWT | Publicar mundo |
+| POST | `/api/player/sync-partida` | JWT dueño/admin | Sync vida/partida PWA |
 | POST | `/api/player/registrar-cuenta` | JWT | Actualizar cuenta en snapshot |
-| GET | `/api/player/mundo` | JWT | Mundo con auth |
 
 ---
 
-## Diagrama: quién manda en cada dato
+## Roadmap arquitectura (IA_TEAM_REVIEW.md)
 
-```
-                    ┌─────────────────────────────────────┐
-                    │         datos/mundo.json            │
-                    │    (persistencia entre redeploys)   │
-                    └─────────────────┬───────────────────┘
-                                      │
-              push al publicar ◄──────┼──────► pull al arrancar
-                                      │
-                    ┌─────────────────▼───────────────────┐
-                    │     world_snapshot (SQLite)         │
-                    │     fuente en vivo + sockets        │
-                    └─────────────────┬───────────────────┘
-                                      │
-              mundo:sync / GET mundo ◄┘
-                                      │
-                    ┌─────────────────▼───────────────────┐
-                    │     Cliente (todos los jugadores)   │
-                    └───────────────────────────────────┘
-```
-
-**En partida normal:** el servidor manda.  
-**Tras redeploy:** GitHub manda al arrancar; luego el servidor vuelve a ser la fuente en vivo.
+| Fase | Estado | Objetivo |
+|------|--------|----------|
+| 1 Seguridad v274 | ✅ | sync-partida, JWT, purga, updateInventory |
+| 2 Estabilidad v275 | ✅ | roles, stats estables, tope HP, auditoría |
+| 3 Mundo fuente única v276+ | 📋 | BD = mundo real; snapshot = solo backup |
+| 4 Rendimiento GPS v277+ | 📋 | Interest management, deltas |
 
 ---
 
 ## Versión y despliegue
 
-- Versión actual: `js/config/config.js` → `version: '105'`
-- Frontend: GitHub Pages (`tcodm.com`) — rama `claude/web-rpg-gps-game-n3ybow`
-- Backend: Render auto-deploy desde la misma rama (carpeta `server/`)
-- Ver también: `docs/RENDER_GRATIS.md`, `docs/ACTUALIZAR_RENDER.md`
-
----
-
-## Cambios importantes v105
-
-1. **`syncMundoFromJson`**: si el JSON trae `jugadores[]`, esa lista es la verdad (no re-fusionar del snapshot previo).
-2. **`purgarCuentasFueraDeSnapshot`**: elimina de SQLite usuarios que el admin ya quitó.
-3. **`confiarLocal`** al borrar jugador: no re-descargar cuentas antes de publicar.
-4. **`mundoEsValido`**: acepta mundo con mapa vacío si tiene `actualizadoEn`, `jugadores` o `eliminados`.
-5. **Posiciones**: se limpian al borrar pin y al publicar.
+- Versión actual: **v275** (`js/config/config.js`, `version.json`)
+- Frontend: GitHub Pages — rama **`main`** (`tcodm.com`)
+- Backend: Render auto-deploy desde `main` (carpeta `server/`)
+- Ver también: `docs/RENDER_GRATIS.md`, `IA_TEAM_REVIEW.md`

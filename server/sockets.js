@@ -26,7 +26,9 @@ const {
   markChatRead,
   canChatBetween
 } = require('./db');
-const { verifyToken, isGameAdminName, canEditPartida } = require('./auth');
+const { verifyToken, isGameAdminPlayer, canEditPartida } = require('./auth');
+const { validarStatsJugador } = require('./playerStats');
+const { auditarSiAdminEditaAjeno } = require('./auditLog');
 const { startEnemyAI } = require('./enemyAI');
 const { registrarRecogidaObjeto, registrarRecogidaTesoro, registrarCuerpoMuerto, quitarCuerpoMuerto, getCuerpoMuerto, sincronizarCuerposExpirados, sincronizarBolsasExpiradas, sincronizarBotinesExpirados, actualizarInventarioCuerpo, registrarLootMuerto, actualizarPartidaEnSnapshot, revivirPartidaEnSnapshot, buscarPerfilIdPorNombre, limpiarBolsasExpiradas, crearBolsaDrop, recogerBolsaDrop, registrarAtaqueEnemigo, reclamarBotinEnemigo } = require('./syncMundo');
 
@@ -143,10 +145,13 @@ function setupSockets(io) {
     const token = socket.handshake.auth?.token || socket.handshake.query?.token;
     if (!token) return next(new Error('Token requerido'));
     const payload = verifyToken(token);
-    if (!payload || payload.role !== 'player') return next(new Error('Token inválido'));
+    if (!payload || (payload.role !== 'player' && payload.role !== 'admin')) {
+      return next(new Error('Token inválido'));
+    }
     socket.playerId = payload.playerId;
     socket.userId = payload.sub;
     socket.username = payload.username;
+    socket.role = payload.role || 'player';
     next();
   });
 
@@ -249,24 +254,27 @@ function setupSockets(io) {
     });
 
     socket.on('player:updateStats', (payload, ack) => {
-      const fields = {};
-      if (payload?.hp !== undefined) fields.hp = Math.max(0, Math.round(payload.hp));
-      if (payload?.hunger !== undefined) fields.hunger = Math.max(0, Math.min(100, Math.round(payload.hunger)));
-      if (payload?.xp !== undefined) fields.xp = Math.max(0, Math.round(payload.xp));
-      if (payload?.level !== undefined) fields.level = Math.max(1, Math.min(100, Math.round(payload.level)));
+      const { fields, hpMax: hpMaxCalc } = validarStatsJugador({
+        hp: payload?.hp,
+        hunger: payload?.hunger,
+        xp: payload?.xp,
+        level: payload?.level
+      });
 
       const updated = updatePlayer(socket.playerId, fields);
       const data = formatPlayer(updated);
       const online = onlinePlayers.get(socket.playerId);
+      const hpMax = Math.min(
+        hpMaxCalc,
+        payload?.hpMax != null ? Math.max(1, Math.round(payload.hpMax)) : hpMaxCalc
+      );
       if (online) {
         online.hp = data.hp;
         online.level = data.level;
         if (payload?.invisibleUntil !== undefined) {
           online.invisibleUntil = payload.invisibleUntil > 0 ? payload.invisibleUntil : 0;
         }
-        if (payload?.hpMax !== undefined) {
-          online.hpMax = Math.max(1, Math.round(payload.hpMax));
-        }
+        online.hpMax = hpMax;
         const dead = data.hp <= 0;
         online.dead = dead;
         if (dead && payload?.deathX != null && payload?.deathY != null) {
@@ -317,19 +325,21 @@ function setupSockets(io) {
       }
 
       if (payload?.perfilId && payload?.partida) {
-        if (!canEditPartida({ playerId: socket.playerId }, payload.perfilId)) {
+        if (!canEditPartida({ playerId: socket.playerId, role: socket.role }, payload.perfilId)) {
           return ack?.({ ok: false, error: 'No puedes modificar la partida de otro jugador' });
         }
+        auditarSiAdminEditaAjeno(socket.playerId, payload.perfilId, 'socket partida');
         actualizarPartidaEnSnapshot(payload.perfilId, payload.partida, io);
       } else if (payload?.perfilId && payload?.partidaMin) {
-        if (!canEditPartida({ playerId: socket.playerId }, payload.perfilId)) {
+        if (!canEditPartida({ playerId: socket.playerId, role: socket.role }, payload.perfilId)) {
           return ack?.({ ok: false, error: 'No puedes modificar la partida de otro jugador' });
         }
         const snap = getWorldSnapshot();
         const prevDatos = snap?.partidas?.[payload.perfilId]?.datos || {};
+        const { validarPartidaMin } = require('./playerStats');
         const statsT = payload.statsT || Date.now();
         actualizarPartidaEnSnapshot(payload.perfilId, {
-          datos: Object.assign({}, prevDatos, payload.partidaMin),
+          datos: Object.assign({}, prevDatos, validarPartidaMin(payload.partidaMin)),
           t: statsT,
           statsT
         }, io);
@@ -339,8 +349,7 @@ function setupSockets(io) {
     });
 
     socket.on('admin:revivePlayer', (payload, ack) => {
-      const adminPl = findPlayerById(socket.playerId);
-      if (!adminPl || !isGameAdminName(adminPl.name)) {
+      if (!isGameAdminPlayer(socket.playerId)) {
         return ack?.({ ok: false, error: 'Solo el administrador del juego' });
       }
 
@@ -410,8 +419,7 @@ function setupSockets(io) {
     });
 
     socket.on('admin:updatePlayerPartida', (payload, ack) => {
-      const adminPl = findPlayerById(socket.playerId);
-      if (!adminPl || !isGameAdminName(adminPl.name)) {
+      if (!isGameAdminPlayer(socket.playerId)) {
         return ack?.({ ok: false, error: 'Solo el administrador del juego' });
       }
 
@@ -442,6 +450,7 @@ function setupSockets(io) {
 
       const perfilId = payload?.perfilId || buscarPerfilIdPorNombre(targetDb.name, targetId);
       if (perfilId && payload?.partidaSnap) {
+        auditarSiAdminEditaAjeno(socket.playerId, perfilId, 'socket admin:updatePlayerPartida');
         actualizarPartidaEnSnapshot(perfilId, payload.partidaSnap, io);
       }
 
@@ -463,8 +472,7 @@ function setupSockets(io) {
     });
 
     socket.on('admin:movePlayerPin', (payload, ack) => {
-      const adminPl = findPlayerById(socket.playerId);
-      if (!adminPl || !isGameAdminName(adminPl.name)) {
+      if (!isGameAdminPlayer(socket.playerId)) {
         return ack?.({ ok: false, error: 'Solo el administrador del juego' });
       }
 

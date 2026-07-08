@@ -37,8 +37,9 @@ function comparePassword(plain, hash) {
 }
 
 function signPlayerToken(user, player) {
+  const role = user.role === 'admin' ? 'admin' : 'player';
   return jwt.sign(
-    { sub: user.id, playerId: player.id, role: 'player', username: user.username },
+    { sub: user.id, playerId: player.id, role, username: user.username },
     JWT_SECRET,
     { expiresIn: JWT_EXPIRES }
   );
@@ -58,7 +59,7 @@ function authMiddleware(req, res, next) {
   if (!token) return res.status(401).json({ ok: false, error: 'Token requerido' });
 
   const payload = verifyToken(token);
-  if (!payload || payload.role !== 'player') {
+  if (!payload || (payload.role !== 'player' && payload.role !== 'admin')) {
     return res.status(401).json({ ok: false, error: 'Token inválido' });
   }
 
@@ -80,25 +81,39 @@ function isGameAdminName(name) {
   return getGameAdminNames().has(String(name).trim().toLowerCase());
 }
 
+function isGameAdminPlayer(playerId) {
+  if (!playerId) return false;
+  const { findPlayerById, findUserById } = require('./db');
+  const player = findPlayerById(playerId);
+  if (!player) return false;
+  const user = findUserById(player.user_id);
+  if (user?.role === 'admin') return true;
+  return isGameAdminName(player.name);
+}
+
+function isGameAdminAuth(auth) {
+  if (!auth) return false;
+  if (auth.role === 'admin') return true;
+  if (auth.playerId) return isGameAdminPlayer(auth.playerId);
+  return false;
+}
+
 function gameAdminMiddleware(req, res, next) {
-  if (!req.auth || req.auth.role !== 'player') {
+  if (!req.auth || (req.auth.role !== 'player' && req.auth.role !== 'admin')) {
     return res.status(401).json({ ok: false, error: 'Token de jugador requerido' });
   }
-  const { findPlayerById } = require('./db');
-  const player = findPlayerById(req.auth.playerId);
-  if (!player || !isGameAdminName(player.name)) {
+  if (!isGameAdminAuth(req.auth)) {
     return res.status(403).json({ ok: false, error: 'Solo el administrador del juego puede publicar el mundo' });
   }
   next();
 }
 
 /** Jugador solo puede editar su propia partida PWA; admin del juego cualquiera. */
-function canEditPartida(auth, perfilId) {
-  if (!auth?.playerId || !perfilId) return false;
+function isOwnPerfil(playerId, perfilId) {
+  if (!playerId || !perfilId) return false;
   const { findPlayerById, getWorldSnapshot } = require('./db');
-  const player = findPlayerById(auth.playerId);
+  const player = findPlayerById(playerId);
   if (!player) return false;
-  if (isGameAdminName(player.name)) return true;
 
   const pid = String(perfilId);
   if (pid === 'srv_' + player.id) return true;
@@ -110,6 +125,13 @@ function canEditPartida(auth, perfilId) {
     j?.id === pid && String(j.nombre || '').trim().toLowerCase() === nombre
   );
   return !!jug;
+}
+
+/** Jugador solo puede editar su propia partida PWA; admin del juego cualquiera. */
+function canEditPartida(auth, perfilId) {
+  if (!auth?.playerId || !perfilId) return false;
+  if (isGameAdminAuth(auth)) return true;
+  return isOwnPerfil(auth.playerId, perfilId);
 }
 
 function partidaAuthMiddleware(req, res, next) {
@@ -133,6 +155,9 @@ module.exports = {
   partidaAuthMiddleware,
   canEditPartida,
   isGameAdminName,
+  isGameAdminAuth,
+  isGameAdminPlayer,
+  isOwnPerfil,
   getGameAdminNames,
   assertProductionSecrets,
   warnProductionConfig,

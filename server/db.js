@@ -21,6 +21,7 @@ function initDb() {
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       username TEXT NOT NULL UNIQUE COLLATE NOCASE,
       password_hash TEXT NOT NULL,
+      role TEXT NOT NULL DEFAULT 'player',
       created_at TEXT NOT NULL DEFAULT (datetime('now')),
       last_login TEXT
     );
@@ -125,6 +126,9 @@ function initDb() {
     );
   `);
 
+  migrateUserRoleColumn();
+  migrateAdminUserRoles();
+
   // Solo si la BD está vacía: semilla mínima; importMundo trae datos reales de mundo.json
   // seedWorldIfEmpty(); — desactivado, usa importMundo.js
   try {
@@ -151,6 +155,33 @@ function initDb() {
     }
   } catch (e) {
     console.warn('   syncCuentas:', e.message);
+  }
+}
+
+/** Fase 2.1: columna role en users (migración en caliente). */
+function migrateUserRoleColumn() {
+  const cols = db.prepare('PRAGMA table_info(users)').all();
+  if (!cols.some(c => c.name === 'role')) {
+    db.exec("ALTER TABLE users ADD COLUMN role TEXT NOT NULL DEFAULT 'player'");
+    console.log('   Migración users.role: columna añadida');
+  }
+}
+
+/** Asigna role=admin a cuentas cuyo username coincide con nombres reservados. */
+function migrateAdminUserRoles() {
+  try {
+    const { esNombreAdmin } = require('./adminCuenta');
+    const users = db.prepare('SELECT id, username, role FROM users').all();
+    let n = 0;
+    for (const u of users) {
+      if (esNombreAdmin(u.username) && u.role !== 'admin') {
+        db.prepare("UPDATE users SET role = 'admin' WHERE id = ?").run(u.id);
+        n++;
+      }
+    }
+    if (n > 0) console.log('   Migración users.role:', n, 'admin(s) asignados');
+  } catch (e) {
+    console.warn('   migrateAdminUserRoles:', e.message);
   }
 }
 
@@ -185,12 +216,19 @@ function findUserById(id) {
   return db.prepare('SELECT * FROM users WHERE id = ?').get(id);
 }
 
-function createUser(username, passwordHash) {
+function createUser(username, passwordHash, role) {
+  const r = role === 'admin' ? 'admin' : 'player';
   const stmt = db.prepare(`
-    INSERT INTO users (username, password_hash) VALUES (?, ?)
+    INSERT INTO users (username, password_hash, role) VALUES (?, ?, ?)
   `);
-  const info = stmt.run(username, passwordHash);
+  const info = stmt.run(username, passwordHash, r);
   return findUserById(info.lastInsertRowid);
+}
+
+function setUserRole(userId, role) {
+  const r = role === 'admin' ? 'admin' : 'player';
+  db.prepare(`UPDATE users SET role = ? WHERE id = ?`).run(r, userId);
+  return findUserById(userId);
 }
 
 function updateLastLogin(userId) {
@@ -774,6 +812,7 @@ module.exports = {
   findUserByUsername,
   findUserById,
   createUser,
+  setUserRole,
   updateLastLogin,
   findPlayerByUserId,
   findPlayerById,
