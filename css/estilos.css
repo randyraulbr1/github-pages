@@ -753,6 +753,138 @@ button { font-family: inherit; }
   text-align: left;
   border-radius: 12px;
 }
+
+/* Fase 13 — catálogo de objetos ADM */
+.admin-catalogo-layout {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 0 4px 12px;
+  min-height: 360px;
+}
+.admin-catalogo-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+.admin-catalogo-toolbar input[type="search"],
+.admin-catalogo-toolbar select {
+  flex: 1;
+  min-width: 120px;
+  padding: 8px 10px;
+  border-radius: 10px;
+  border: 1px solid rgba(255,255,255,.12);
+  background: rgba(0,0,0,.25);
+  color: #e8eef8;
+  font-size: 13px;
+}
+.admin-catalogo-contador {
+  font-size: 12px;
+  color: #9aa5bd;
+  white-space: nowrap;
+}
+.admin-catalogo-cuerpo {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  min-height: 280px;
+}
+@media (max-width: 720px) {
+  .admin-catalogo-cuerpo { grid-template-columns: 1fr; }
+}
+.admin-catalogo-rejilla {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(72px, 1fr));
+  gap: 6px;
+  align-content: start;
+  max-height: 320px;
+  overflow-y: auto;
+  padding: 6px;
+  border-radius: 12px;
+  background: rgba(0,0,0,.2);
+  border: 1px solid rgba(255,255,255,.08);
+}
+.admin-catalogo-slot {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  min-height: 72px;
+  padding: 6px 4px;
+  cursor: pointer;
+  border-radius: 10px;
+  border: 2px solid transparent;
+  background: rgba(255,255,255,.06);
+  color: #e8eef8;
+  font-size: 11px;
+}
+.admin-catalogo-slot.sel {
+  border-color: #2f7ae5;
+  background: rgba(47,122,229,.18);
+}
+.admin-catalogo-slot.oculto { opacity: .45; }
+.admin-catalogo-ico { font-size: 26px; line-height: 1; }
+.admin-catalogo-nom {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  text-align: center;
+}
+.admin-catalogo-detalle {
+  padding: 12px 14px;
+  border-radius: 12px;
+  background: rgba(0,0,0,.22);
+  border: 1px solid rgba(255,255,255,.1);
+  overflow-y: auto;
+  max-height: 320px;
+}
+.admin-catalogo-det-titulo {
+  font-size: 18px;
+  font-weight: 800;
+  margin-bottom: 8px;
+}
+.admin-catalogo-det-desc,
+.admin-catalogo-det-desc-larga {
+  font-size: 13px;
+  color: #b8c4dc;
+  line-height: 1.45;
+  margin: 0 0 10px;
+}
+.admin-catalogo-det-dl {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 4px 12px;
+  font-size: 12px;
+  margin: 0;
+}
+.admin-catalogo-det-dl dt { color: #9aa5bd; margin: 0; }
+.admin-catalogo-det-dl dd { margin: 0; color: #e8eef8; }
+.admin-catalogo-det-nota {
+  font-size: 12px;
+  color: #ffd08a;
+  margin-top: 12px;
+}
+.admin-catalogo-vacio {
+  grid-column: 1 / -1;
+  text-align: center;
+  color: #9aa5bd;
+  padding: 24px;
+  font-size: 13px;
+}
+.admin-catalogo-acciones {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.admin-catalogo-acciones .btn-auth-principal,
+.admin-catalogo-acciones .btn-kingdom-secundario {
+  flex: 1;
+  min-width: 120px;
+}
+
 .admin-hint-max {
   font-size: 11px;
   font-weight: 600;

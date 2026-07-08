@@ -99,6 +99,8 @@ const CATALOGO_ITEMS = {
   llave_maestra:  { nombre: 'Llave maestra',   icono: '🗝️', tipo: 'herramienta', precio: 180, desc: '15% de abrir un cofre oculto cercano (se gasta).' }
 };
 
+const IDS_BASE_INICIAL = new Set(Object.keys(CATALOGO_ITEMS));
+
 const Items = {
   PRECIO_MINIMO: 5,
   PRECIO_MAXIMO: 5000,
@@ -114,7 +116,117 @@ const Items = {
     else if (out.curaVida) out.tipo = 'comida';
     else if (out.cura && !out.curaVida) out.tipo = 'comida';
     else if (!out.tipo || !TIPOS_ITEM[out.tipo]) out.tipo = 'especial';
+    if (!out.estado) out.estado = 'activo';
+    if (out.rareza == null) out.rareza = 1;
+    if (out.puedeUsar == null) out.puedeUsar = true;
+    if (out.puedeEquipar == null) out.puedeEquipar = out.tipo === 'arma';
+    if (out.puedeVender == null) out.puedeVender = true;
+    if (out.puedeTirar == null) out.puedeTirar = true;
+    if (out.puedeComerciar == null) out.puedeComerciar = true;
+    if (out.pierdeAlMorir == null) out.pierdeAlMorir = false;
     return out;
+  },
+
+  esBase(id) {
+    return IDS_BASE_INICIAL.has(id);
+  },
+
+  metaDe(itemsNuevos, id) {
+    return (itemsNuevos || []).find(x => x && x.id === id) || null;
+  },
+
+  estadoDe(itemsNuevos, id) {
+    return this.metaDe(itemsNuevos, id)?.estado || 'activo';
+  },
+
+  idsTodos() {
+    return Object.keys(CATALOGO_ITEMS).sort((a, b) =>
+      this.seguro(a).nombre.localeCompare(this.seguro(b).nombre, 'es'));
+  },
+
+  listarParaAdmin(itemsNuevos, opts) {
+    const q = (opts?.q || '').trim().toLowerCase();
+    const tipoF = opts?.tipo || '';
+    const rarezaF = opts?.rareza !== '' && opts?.rareza != null ? parseInt(opts.rareza, 10) : null;
+    const lista = [];
+    for (const id of this.idsTodos()) {
+      const meta = this.metaDe(itemsNuevos, id);
+      const estado = meta?.estado || 'activo';
+      if (!opts?.incluirOcultos && (estado === 'oculto' || estado === 'eliminado')) continue;
+      const item = Object.assign({}, CATALOGO_ITEMS[id], meta, {
+        id,
+        esBase: this.esBase(id) && !meta
+      });
+      if (tipoF && item.tipo !== tipoF) continue;
+      if (rarezaF != null && !Number.isNaN(rarezaF) && (item.rareza || 1) !== rarezaF) continue;
+      if (q) {
+        const blob = [item.nombre, id, item.desc, item.descLarga].join(' ').toLowerCase();
+        if (!blob.includes(q)) continue;
+      }
+      lista.push(item);
+    }
+    return lista;
+  },
+
+  resumenDetalle(item) {
+    const filas = [];
+    filas.push(['ID', item.id]);
+    filas.push(['Tipo', this.etiquetaTipo(item)]);
+    filas.push(['Precio', '$' + (item.precio || this.PRECIO_MINIMO)]);
+    if (item.rareza) filas.push(['Rareza', String(item.rareza)]);
+    if (item.cura) filas.push(['Hambre', '+' + item.cura]);
+    if (item.curaVida) filas.push(['Vida', '+' + item.curaVida]);
+    if (item.dano) filas.push(['Daño', '+' + item.dano]);
+    if (item.nivelMin) filas.push(['Nivel', (item.nivelMin || 1) + '–' + (item.nivelMax || 100)]);
+    filas.push(['Estado', item.estado || 'activo']);
+    if (item.creadoPor) filas.push(['Creado por', item.creadoPor]);
+    if (item.creadoEn) filas.push(['Creado', Utilidades.fechaLegible(item.creadoEn)]);
+    if (item.modificadoEn) filas.push(['Modificado', Utilidades.fechaLegible(item.modificadoEn)]);
+    return filas;
+  },
+
+  exportarCatalogo(itemsNuevos, formato) {
+    const lista = this.listarParaAdmin(itemsNuevos, { incluirOcultos: false });
+    const payload = {
+      version: CONFIG.version,
+      exportadoEn: new Date().toISOString(),
+      total: lista.length,
+      objetos: lista.map(o => ({
+        id: o.id,
+        nombre: o.nombre,
+        icono: o.icono,
+        tipo: o.tipo,
+        rareza: o.rareza || 1,
+        precio: o.precio,
+        desc: o.desc || '',
+        descLarga: o.descLarga || '',
+        cura: o.cura,
+        curaVida: o.curaVida,
+        dano: o.dano,
+        nivelMin: o.nivelMin,
+        nivelMax: o.nivelMax,
+        estado: o.estado || 'activo',
+        esBase: !!o.esBase
+      }))
+    };
+    const v = CONFIG.version || '?';
+    if (formato === 'txt') {
+      let txt = 'Catálogo Kingdom Map v' + v + '\nExportado: ' + payload.exportadoEn +
+        '\nTotal objetos activos: ' + payload.total + '\n\n';
+      for (const o of payload.objetos) {
+        txt += o.icono + ' ' + o.nombre + ' [' + o.id + ']\n';
+        txt += '  Tipo: ' + o.tipo + ' · Precio: $' + o.precio + ' · Rareza: ' + o.rareza + '\n';
+        if (o.desc) txt += '  ' + o.desc + '\n';
+        if (o.descLarga) txt += '  ' + o.descLarga + '\n';
+        txt += '\n';
+      }
+      return { mime: 'text/plain;charset=utf-8', nombre: 'catalogo-objetos-v' + v + '.txt', contenido: txt };
+    }
+    return {
+      mime: 'application/json;charset=utf-8',
+      nombre: 'catalogo-objetos-v' + v + '.json',
+      contenido: JSON.stringify(payload, null, 2)
+    };
   },
 
   metaTipo(item) {
@@ -180,6 +292,11 @@ const Items = {
   aplicarMundo(itemsNuevos, precios) {
     for (const it of (itemsNuevos || [])) {
       if (!it.id) continue;
+      const estado = it.estado || 'activo';
+      if (estado === 'oculto' || estado === 'eliminado') {
+        if (!this.esBase(it.id)) delete CATALOGO_ITEMS[it.id];
+        continue;
+      }
       const norm = this._normalizarDef({
         nombre: it.nombre || it.id,
         icono: it.icono || '📦',
@@ -190,8 +307,20 @@ const Items = {
         dano: it.dano || undefined,
         nivelMin: it.nivelMin || undefined,
         nivelMax: it.nivelMax || undefined,
+        rareza: it.rareza || undefined,
         desc: it.desc || 'Objeto creado por el administrador.',
-        unico: it.unico || undefined
+        descLarga: it.descLarga || undefined,
+        unico: it.unico || undefined,
+        estado: it.estado || 'activo',
+        creadoEn: it.creadoEn,
+        modificadoEn: it.modificadoEn,
+        creadoPor: it.creadoPor,
+        puedeUsar: it.puedeUsar,
+        puedeEquipar: it.puedeEquipar,
+        puedeVender: it.puedeVender,
+        puedeTirar: it.puedeTirar,
+        puedeComerciar: it.puedeComerciar,
+        pierdeAlMorir: it.pierdeAlMorir
       });
       CATALOGO_ITEMS[it.id] = norm;
     }

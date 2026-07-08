@@ -4,20 +4,20 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
   <title>Kingdom Map</title>
-  <meta name="mariel-version" content="290">
+  <meta name="mariel-version" content="291">
   <link rel="manifest" href="manifest.json">
   <link rel="icon" type="image/png" href="iconos/icono-192.png">
   <link rel="apple-touch-icon" href="iconos/icono-192.png">
   <link rel="stylesheet" href="lib/leaflet/leaflet.css">
-  <link rel="stylesheet" href="css/estilos.css?v=290">
-  <link rel="stylesheet" href="css/chat.css?v=290">
-  <link rel="stylesheet" href="css/amigos.css?v=290">
-  <link rel="stylesheet" href="css/opciones.css?v=290">
+  <link rel="stylesheet" href="css/estilos.css?v=291">
+  <link rel="stylesheet" href="css/chat.css?v=291">
+  <link rel="stylesheet" href="css/amigos.css?v=291">
+  <link rel="stylesheet" href="css/opciones.css?v=291">
   <link rel="stylesheet" href="css/notificaciones.css?v=117">
   <script>
     (function () {
       var metaV = document.querySelector('meta[name="mariel-version"]');
-      var E = (metaV && metaV.getAttribute('content')) || '290';
+      var E = (metaV && metaV.getAttribute('content')) || '291';
       var CANON = 'https://raw.githubusercontent.com/randyraulbr1/github-pages/main/version.json';
       try {
         var fv = sessionStorage.getItem('mariel_force_version');
@@ -81,7 +81,7 @@
     </div>
   </div>
 
-  <script src="js/nucleo/version_app.js?v=290"></script>
+  <script src="js/nucleo/version_app.js?v=291"></script>
   <script>MarielVersion.iniciar(window.__MARIEL_EMBEDDED__);</script>
 
   <!-- PANTALLA DE CARGA (visible desde el primer instante) -->
@@ -1018,8 +1018,49 @@
           <div id="admin-vista-catalogo" class="admin-vista oculto">
             <div class="admin-hub-cuerpo">
               <p class="admin-clave-ayuda">Catálogo del juego: precios de tienda y objetos personalizados.</p>
+              <button type="button" class="fila-opcion admin-nav admin-hub-btn" id="admin-cat-bdd"><span class="icono-opcion">📦</span> Catálogo de objetos</button>
               <button type="button" class="fila-opcion admin-nav admin-hub-btn" id="admin-cat-precios"><span class="icono-opcion">💲</span> Precios</button>
               <button type="button" class="fila-opcion admin-nav admin-hub-btn" id="admin-cat-item"><span class="icono-opcion">➕</span> Objeto nuevo</button>
+            </div>
+          </div>
+
+          <div id="admin-vista-catalogo-bdd" class="admin-vista oculto">
+            <div class="admin-catalogo-layout">
+              <div class="admin-catalogo-toolbar">
+                <input type="search" id="admin-catalogo-buscar" placeholder="Buscar por nombre o id…" autocomplete="off">
+                <select id="admin-catalogo-filtro-tipo" aria-label="Filtrar por tipo">
+                  <option value="">Todos los tipos</option>
+                  <option value="comida">🍽️ Consumible</option>
+                  <option value="arma">⚔️ Arma</option>
+                  <option value="pez">🐟 Animal</option>
+                  <option value="herramienta">🔧 Herramienta</option>
+                  <option value="tesoro">💎 Tesoro</option>
+                  <option value="material">📦 Material</option>
+                  <option value="especial">✨ Especial</option>
+                </select>
+                <select id="admin-catalogo-filtro-rareza" aria-label="Filtrar por rareza">
+                  <option value="">Todas las rarezas</option>
+                  <option value="1">★ 1</option>
+                  <option value="2">★★ 2</option>
+                  <option value="3">★★★ 3</option>
+                  <option value="4">★★★★ 4</option>
+                </select>
+                <span id="admin-catalogo-contador" class="admin-catalogo-contador">0 objetos</span>
+              </div>
+              <div class="admin-catalogo-cuerpo">
+                <div id="admin-catalogo-rejilla" class="admin-catalogo-rejilla"></div>
+                <div id="admin-catalogo-detalle" class="admin-catalogo-detalle">
+                  <p class="admin-clave-ayuda">Toca una casilla para ver la descripción y los datos del objeto.</p>
+                </div>
+              </div>
+              <div class="admin-catalogo-acciones">
+                <button type="button" id="btn-catalogo-crear" class="btn-auth-principal">➕ Crear objeto</button>
+                <button type="button" id="btn-catalogo-editar" class="btn-kingdom-secundario" disabled>Editar</button>
+                <button type="button" id="btn-catalogo-duplicar" class="btn-kingdom-secundario" disabled>Duplicar</button>
+                <button type="button" id="btn-catalogo-desactivar" class="btn-kingdom-secundario" disabled>Ocultar</button>
+                <button type="button" id="btn-catalogo-exportar-json" class="btn-kingdom-secundario">💾 JSON</button>
+                <button type="button" id="btn-catalogo-exportar-txt" class="btn-kingdom-secundario">📄 TXT</button>
+              </div>
             </div>
           </div>
 
@@ -1179,19 +1220,20 @@
   <script src="lib/leaflet/leaflet.js?v=104"></script>
 
   <!-- MÓDULOS DEL JUEGO (orden importante) -->
-  <script src="js/config/config.js?v=290"></script>
-  <script src="js/nucleo/utilidades.js?v=290"></script>
-  <script src="js/nucleo/ui_manager.js?v=290"></script>
+  <script src="js/config/config.js?v=291"></script>
+  <script src="js/nucleo/utilidades.js?v=291"></script>
+  <script src="js/nucleo/ui_manager.js?v=291"></script>
   <script src="js/mundo/mundo_publico.js?v=104"></script>
-  <script src="js/notificaciones/notificaciones.js?v=290"></script>
-  <script src="js/usuarios/usuarios.js?v=290"></script>
+  <script src="js/notificaciones/notificaciones.js?v=291"></script>
+  <script src="js/usuarios/usuarios.js?v=291"></script>
   <script src="js/guardado/guardado.js?v=149"></script>
   <script src="js/historial/historial.js?v=104"></script>
   <script src="js/dinero/dinero.js?v=104"></script>
-  <script src="js/vida/vida.js?v=290"></script>
-  <script src="js/items/items.js?v=140"></script>
-  <script src="js/mochila/mochila.js?v=290"></script>
-  <script src="js/bolsas/bolsas.js?v=290"></script>
+  <script src="js/vida/vida.js?v=291"></script>
+  <script src="js/items/items.js?v=291"></script>
+  <script src="js/admin/catalogo_objetos.js?v=291"></script>
+  <script src="js/mochila/mochila.js?v=291"></script>
+  <script src="js/bolsas/bolsas.js?v=291"></script>
   <script src="js/mapa/mapa.js?v=104"></script>
   <script src="js/gps/gps.js?v=150"></script>
   <script src="js/tiendas/datos_tiendas.js?v=104"></script>
@@ -1203,21 +1245,21 @@
   <script src="js/misiones/misiones.js?v=104"></script>
   <script src="js/cofres/cofres.js?v=104"></script>
   <script src="js/correo/correo.js?v=104"></script>
-  <script src="js/enemigos/botin_enemigo.js?v=290"></script>
-  <script src="js/enemigos/enemigos.js?v=290"></script>
-  <script src="js/online/sync_servidor.js?v=290"></script>
-  <script src="js/admin/admin.js?v=290"></script>
-  <script src="js/opciones/opciones.js?v=290"></script>
-  <script src="js/online/mundo_online.js?v=290"></script>
-  <script src="js/online/contenido_mundo.js?v=290"></script>
-  <script src="js/online/amigos.js?v=290"></script>
-  <script src="js/chat/chat.js?v=290"></script>
-  <script src="js/online/multijugador.js?v=290"></script>
-  <script src="js/principal.js?v=290"></script>
+  <script src="js/enemigos/botin_enemigo.js?v=291"></script>
+  <script src="js/enemigos/enemigos.js?v=291"></script>
+  <script src="js/online/sync_servidor.js?v=291"></script>
+  <script src="js/admin/admin.js?v=291"></script>
+  <script src="js/opciones/opciones.js?v=291"></script>
+  <script src="js/online/mundo_online.js?v=291"></script>
+  <script src="js/online/contenido_mundo.js?v=291"></script>
+  <script src="js/online/amigos.js?v=291"></script>
+  <script src="js/chat/chat.js?v=291"></script>
+  <script src="js/online/multijugador.js?v=291"></script>
+  <script src="js/principal.js?v=291"></script>
   <script>
     // Registrar la app instalable (PWA)
     if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.register('sw.js?v=290', { updateViaCache: 'none' })
+      navigator.serviceWorker.register('sw.js?v=291', { updateViaCache: 'none' })
         .then(function (reg) {
           if (typeof MarielVersion !== 'undefined') MarielVersion.registrarServiceWorker(reg);
         })

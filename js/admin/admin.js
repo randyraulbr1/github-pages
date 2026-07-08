@@ -1758,6 +1758,7 @@ const Admin = {
       Cofres._pintarTodos();
     }
     if (typeof GPS !== 'undefined') GPS._actualizarArrastre();
+    if (typeof AdminCatalogo !== 'undefined') AdminCatalogo.iniciar(this);
   },
 
   puedeMoverPinJugador() {
@@ -2495,10 +2496,10 @@ const Admin = {
     });
   },
 
-  abrirFormulario(tipo) {
+  abrirFormulario(tipo, datosPrefill) {
     const campos = document.getElementById('admin-form-campos');
     let titulo = 'Crear';
-    this._colocacion = { tipo, valores: null, marcador: null };
+    this._colocacion = { tipo, valores: datosPrefill || null, marcador: null };
 
     if (tipo === 'mision') {
       titulo = '📜 Crear misión';
@@ -2659,38 +2660,45 @@ const Admin = {
         this._campoNumero('af-precio', 'Precio nuevo (entre 5 y 5000)', 100) +
         '<div class="campo-caja">El precio cambia para TODOS al publicar el mundo</div>';
       document.getElementById('btn-admin-guardar').textContent = 'Guardar precio';
-    } else {
-      titulo = '➕ Crear objeto nuevo';
+    } else if (tipo === 'item_nuevo' || tipo === 'item_editar') {
+      const editando = tipo === 'item_editar';
+      const d = datosPrefill || this._colocacion.valores || {};
+      titulo = editando ? '✏️ Editar objeto' : '➕ Crear objeto nuevo';
       campos.innerHTML =
         this._campoTexto('af-nombre', 'Nombre del objeto', 'Ej: Ron añejo') +
         '<div class="campo-admin"><label>Icono — elige un emoji</label>' +
         '<input id="af-icono" maxlength="4" placeholder="Ej: 🍹" readonly>' +
         this._rejillaEmojisHtml() + '</div>' +
         '<div class="campo-doble">' +
-          this._campoNumero('af-precio', 'Precio (5 a 5000)', 50) +
-          this._campoSelect('af-tipo-item', 'Tipo', [
-            { v: 'comida', t: '🍽️ Consumible (comer/beber)' },
-            { v: 'arma', t: '⚔️ Arma' },
-            { v: 'herramienta', t: '🔧 Herramienta' },
-            { v: 'pez', t: '🐟 Animal / pez' },
-            { v: 'tesoro', t: '💎 Tesoro' },
-            { v: 'material', t: '📦 Material' },
-            { v: 'especial', t: '✨ Especial' }
-          ]) +
+          this._campoNumero('af-precio', 'Precio (5 a 5000)', d.precio || 50) +
+          this._campoSelect('af-tipo-item', 'Tipo',
+            '<option value="comida">🍽️ Consumible (comer/beber)</option>' +
+            '<option value="arma">⚔️ Arma</option>' +
+            '<option value="herramienta">🔧 Herramienta</option>' +
+            '<option value="pez">🐟 Animal / pez</option>' +
+            '<option value="tesoro">💎 Tesoro</option>' +
+            '<option value="material">📦 Material</option>' +
+            '<option value="especial">✨ Especial</option>') +
         '</div>' +
         '<div class="campo-doble">' +
-          this._campoNumero('af-cura-hambre', 'Cura hambre (consumible)', 0) +
-          this._campoNumero('af-cura-vida', 'Cura vida (medicina)', 0) +
+          this._campoNumero('af-cura-hambre', 'Cura hambre (consumible)', d.cura || 0) +
+          this._campoNumero('af-cura-vida', 'Cura vida (medicina)', d.curaVida || 0) +
         '</div>' +
         '<div class="campo-doble" id="af-arma-campos" style="display:none">' +
-          this._campoNumero('af-dano', 'Daño arma', 5) +
-          this._campoNumero('af-nivel-min', 'Nivel mín', 1) +
+          this._campoNumero('af-dano', 'Daño arma', d.dano || 5) +
+          this._campoNumero('af-nivel-min', 'Nivel mín', d.nivelMin || 1) +
         '</div>' +
-        this._campoTexto('af-desc', 'Descripción', 'Ej: Reserva especial del puerto');
-      document.getElementById('btn-admin-guardar').textContent = 'Crear objeto';
+        this._campoTexto('af-desc', 'Descripción', 'Ej: Reserva especial del puerto') +
+        this._campoArea('af-desc-larga', 'Descripción larga (opcional)', 'Texto extra para el catálogo…');
+      document.getElementById('btn-admin-guardar').textContent = editando ? 'Guardar cambios' : 'Crear objeto';
       setTimeout(() => {
-        this._enlazarEmojisObjeto();
+        if (d.nombre) document.getElementById('af-nombre').value = d.nombre;
+        if (d.icono) document.getElementById('af-icono').value = d.icono;
+        if (d.desc) document.getElementById('af-desc').value = d.desc;
+        if (d.descLarga) document.getElementById('af-desc-larga').value = d.descLarga;
         const selTipo = document.getElementById('af-tipo-item');
+        if (d.tipo && selTipo) selTipo.value = d.tipo;
+        this._enlazarEmojisObjeto();
         const armaBox = document.getElementById('af-arma-campos');
         const toggleArma = () => {
           if (armaBox) armaBox.style.display = selTipo?.value === 'arma' ? '' : 'none';
@@ -2951,21 +2959,25 @@ const Admin = {
       this._publicarParaTodos();
       return;
     }
-    if (tipo === 'item_nuevo') {
+    if (tipo === 'item_nuevo' || tipo === 'item_editar') {
+      const editando = tipo === 'item_editar';
+      const idExistente = editando ? this._colocacion.valores?.id : null;
       const nombre = this._valor('af-nombre').trim();
       const icono = this._valor('af-icono').trim() || '📦';
       if (nombre.length < 2) { alert('Ponle un nombre al objeto'); return; }
       if (!icono) { alert('Elige un emoji para el objeto'); return; }
-      const id = 'obj_' + nombre.toLowerCase().normalize('NFD').replace(/[^a-z0-9]/g, '').slice(0, 16) +
-        '_' + Date.now().toString(36).slice(-4);
       const tipoItem = this._valor('af-tipo-item') || 'especial';
       const curaH = this._numero('af-cura-hambre') || 0;
       const curaV = this._numero('af-cura-vida') || 0;
       const nuevo = {
-        id, nombre, icono,
+        id: idExistente || ('obj_' + nombre.toLowerCase().normalize('NFD').replace(/[^a-z0-9]/g, '').slice(0, 16) +
+          '_' + Date.now().toString(36).slice(-4)),
+        nombre, icono,
         precio: Items._limitarPrecio(this._numero('af-precio')),
         tipo: tipoItem,
-        desc: this._valor('af-desc').trim()
+        desc: this._valor('af-desc').trim(),
+        descLarga: this._valor('af-desc-larga').trim(),
+        estado: 'activo'
       };
       if (curaH > 0) nuevo.cura = curaH;
       if (curaV > 0) nuevo.curaVida = curaV;
@@ -2976,14 +2988,29 @@ const Admin = {
       }
       const norm = Items._normalizarDef(nuevo);
       Object.assign(nuevo, norm);
-      this.datos.itemsNuevos.push(nuevo);
-      Items.aplicarMundo([nuevo], {});
+      if (editando) {
+        const idx = this.datos.itemsNuevos.findIndex(x => x.id === idExistente);
+        if (idx < 0) { alert('Objeto no encontrado'); return; }
+        const prev = this.datos.itemsNuevos[idx];
+        nuevo.creadoEn = prev.creadoEn;
+        nuevo.creadoPor = prev.creadoPor;
+        nuevo.modificadoEn = Date.now();
+        this.datos.itemsNuevos[idx] = nuevo;
+      } else {
+        nuevo.creadoEn = Date.now();
+        nuevo.modificadoEn = Date.now();
+        nuevo.creadoPor = (typeof Usuarios !== 'undefined' && Usuarios.perfilActivo)
+          ? Usuarios.perfilActivo.nombre : 'admin';
+        this.datos.itemsNuevos.push(nuevo);
+      }
+      this._reaplicarCatalogoItems();
       this.guardar();
       this._colocacion = null;
       this._ocultarPanelDerecho();
-      Notificaciones.mostrar('➕ Objeto creado: ' + icono + ' ' + nombre + ' ($' + nuevo.precio +
-        '). Ya puedes dejarlo en el mapa o darlo de recompensa', 'exito', 6000);
+      Notificaciones.mostrar((editando ? '✏️ Objeto actualizado: ' : '➕ Objeto creado: ') +
+        icono + ' ' + nombre, 'exito', 6000);
       this._publicarParaTodos(true);
+      if (typeof AdminCatalogo !== 'undefined') AdminCatalogo.refrescarSiAbierto();
       return;
     }
 
@@ -5015,7 +5042,39 @@ const Admin = {
     const ids = new Set(Object.keys(CATALOGO_ITEMS));
     for (const it of (this.datos.itemsNuevos || [])) if (it?.id) ids.add(it.id);
     for (const it of (this.publicado.itemsNuevos || [])) if (it?.id) ids.add(it.id);
-    return [...ids].sort((a, b) => Items.seguro(a).nombre.localeCompare(Items.seguro(b).nombre));
+    return [...ids]
+      .filter(id => Items.estadoDe(this.datos.itemsNuevos, id) !== 'oculto')
+      .sort((a, b) => Items.seguro(a).nombre.localeCompare(Items.seguro(b).nombre));
+  },
+
+  _reaplicarCatalogoItems() {
+    for (const id of Object.keys(CATALOGO_ITEMS)) {
+      if (!Items.esBase(id)) delete CATALOGO_ITEMS[id];
+    }
+    const nuevosPorId = new Map();
+    for (const it of (this.publicado.itemsNuevos || [])) if (it?.id) nuevosPorId.set(it.id, it);
+    for (const it of (this.datos.itemsNuevos || [])) if (it?.id) nuevosPorId.set(it.id, it);
+    Items.aplicarMundo([...nuevosPorId.values()], this.datos.precios || {});
+  },
+
+  abrirFormularioItemEditar(id) {
+    const meta = Items.metaDe(this.datos.itemsNuevos, id);
+    if (!meta) {
+      Notificaciones.mostrar('Solo puedes editar objetos personalizados del ADM', 'alerta', 4000);
+      return;
+    }
+    this.abrirFormulario('item_editar', Object.assign({}, meta));
+  },
+
+  duplicarCatalogoItem(id) {
+    const src = Object.assign({}, Items.seguro(id), Items.metaDe(this.datos.itemsNuevos, id) || {});
+    const borrador = Object.assign({}, src);
+    delete borrador.id;
+    delete borrador.creadoEn;
+    delete borrador.modificadoEn;
+    delete borrador.creadoPor;
+    borrador.nombre = (borrador.nombre || 'Copia') + ' (copia)';
+    this.abrirFormulario('item_nuevo', borrador);
   },
 
   _pintarInventarioInfinito(contenedor, enlazar) {
