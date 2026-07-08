@@ -279,7 +279,7 @@
   background: rgba(0,0,0,.45);
   display: none;
   place-items: center;
-  z-index: 2200;
+  z-index: var(--z-confirmaciones);
   padding: 16px;
   box-sizing: border-box;
 }

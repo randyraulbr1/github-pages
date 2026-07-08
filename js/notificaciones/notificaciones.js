@@ -8,6 +8,8 @@ const Notificaciones = {
   _toastOcultarTimer: null,
   _toastEl: null,
   _toastPila: 0,
+  _toastContadorMismo: 0,
+  _toastTextoBase: '',
 
   // ---- ESCUDO ANTI-REPETICIÓN ----
   // La misma notificación no se muestra otra vez en pantalla si salió hace
@@ -161,7 +163,7 @@ const Notificaciones = {
     this._actualizarBadge();
   },
 
-  mostrar(texto, tipo = 'info', duracionMs = 3200) {
+  mostrar(texto, tipo = 'info', duracionMs = 2000) {
     this._guardarHistorial(texto, tipo);
     if (!this._puedeMostrarToast()) return;
     if (!this._esImportante(texto, tipo)) return;
@@ -186,11 +188,19 @@ const Notificaciones = {
       const txt = this._toastEl.querySelector('.notif-texto');
       const mismaClave = txt && this._claveAviso(txt.textContent, tipo) === this._claveAviso(texto, tipo);
       if (mismaClave) {
+        this._toastContadorMismo = (this._toastContadorMismo || 1) + 1;
+        const pila = this._toastEl.querySelector('.notif-pila');
+        if (pila && this._toastContadorMismo > 1) {
+          pila.textContent = this._contadorGlobo(this._toastContadorMismo);
+          pila.classList.remove('oculto');
+        }
         this._toastEl.className = 'notificacion visible ' + tipo;
         clearTimeout(this._toastOcultarTimer);
         this._toastOcultarTimer = setTimeout(() => this._ocultarToast(), duracionMs);
         return;
       }
+      this._toastContadorMismo = 1;
+      this._toastTextoBase = texto;
       this._toastPila++;
       const pila = this._toastEl.querySelector('.notif-pila');
       if (txt) txt.textContent = texto;
@@ -202,6 +212,8 @@ const Notificaciones = {
     } else {
       zona.querySelectorAll('.notificacion').forEach(n => n.remove());
       this._toastPila = 1;
+      this._toastContadorMismo = 1;
+      this._toastTextoBase = texto;
       const n = document.createElement('div');
       n.className = 'notificacion ' + tipo;
       n.innerHTML =
@@ -223,6 +235,8 @@ const Notificaciones = {
     el.classList.add('saliendo');
     this._toastEl = null;
     this._toastPila = 0;
+    this._toastContadorMismo = 0;
+    this._toastTextoBase = '';
     setTimeout(() => el.remove(), 400);
   },
 

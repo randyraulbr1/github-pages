@@ -3,11 +3,47 @@
    Botones cuadrados con puntas redondeadas, paneles con
    desenfoque, tema nocturno azul.
    ============================================================ */
+:root {
+  --z-mapa: 1;
+  --z-hud: 1000;
+  --z-ventanas: 1500;
+  --z-admin-panel: 4000;
+  --z-overlays-juego: 2600;
+  --z-confirmaciones: 16000;
+  --z-critico: 200000;
+}
 * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
 html, body { height: 100%; overflow: hidden; }
 body {
   font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Segoe UI', Roboto, sans-serif;
   background: #10141f; color: #eef2f8;
+}
+/* Fase 5 faces.md — sin selección de texto en UI (PC); inputs/chat excluidos */
+body button,
+body .ventana,
+body .ventana-caja,
+body #panel-hud-izq,
+body #barra-inferior-wrap,
+body #botones-inferiores,
+body .slot,
+body .admin-nav,
+body .opciones-panel,
+body .inv-panel,
+body .fila-opcion,
+body #admin-controles,
+body .colocacion-controles {
+  -webkit-user-select: none;
+  user-select: none;
+}
+body input,
+body textarea,
+body select,
+body [contenteditable="true"],
+body .chat-mensajes,
+body .chat-input,
+body #chat-input {
+  -webkit-user-select: text;
+  user-select: text;
 }
 .oculto { display: none !important; }
 button { font-family: inherit; }
@@ -1197,7 +1233,7 @@ button { font-family: inherit; }
 .inv-confirm-overlay {
   position: fixed;
   inset: 0;
-  z-index: 4000;
+  z-index: var(--z-confirmaciones);
   background: rgba(0,0,0,.55);
   display: grid;
   place-items: center;
@@ -1863,7 +1899,8 @@ body.admin-colocando #panel-hud-izq {
   top: calc(8px + env(safe-area-inset-top));
   left: 50%;
   transform: translateX(-50%);
-  z-index: 2500;
+  z-index: var(--z-confirmaciones);
+  pointer-events: auto;
   display: flex;
   gap: 6px;
   align-items: center;
@@ -3073,7 +3110,8 @@ body.jugador-muerto #admin-controles { pointer-events: none; opacity: .35; }
   top: calc(48px + env(safe-area-inset-top));
   left: 50%;
   transform: translateX(-50%);
-  z-index: 2490;
+  z-index: var(--z-confirmaciones);
+  pointer-events: auto;
   display: flex;
   align-items: center;
   gap: 8px;
@@ -3094,6 +3132,15 @@ body.jugador-muerto #admin-controles { pointer-events: none; opacity: .35; }
 #btn-cofre-pin-cancelar, #btn-admin-salir-modo { background: rgba(255,255,255,.12); color: #fff; }
 #admin-cesto-borrar {
   display: none !important;
+}
+body.ui-mapa-confirm #admin-controles,
+body.ui-mapa-confirm .colocacion-controles {
+  z-index: var(--z-confirmaciones) !important;
+  pointer-events: auto !important;
+}
+body.ui-mapa-confirm .overlay-mision,
+body.ui-mapa-confirm .overlay-botin {
+  pointer-events: none !important;
 }
 body.admin-organizar .admin-pin-organizar {
   cursor: grab;
