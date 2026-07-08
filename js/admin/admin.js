@@ -3596,16 +3596,19 @@ const Admin = {
       return;
     }
     const items = this._itemsDeObjeto(o);
-    for (const it of items) {
-      if (!Mochila.agregar(it.id, it.cantidad || 1, { silencioso: true })) {
-        Notificaciones.mostrar('🎒 No tienes espacio para todo', 'error');
+    if (typeof Multijugador !== 'undefined' && Multijugador.activo && CONFIG.servidorOnline) {
+      const res = await Multijugador.recogerObjetoCompartido(o.id, GPS.posicion);
+      if (!res?.ok) {
+        Notificaciones.mostrar(res?.error || '🎒 No se pudo recoger (servidor)', 'error', 4500);
         return;
       }
-    }
-    if (typeof Multijugador !== 'undefined' && Multijugador.activo && CONFIG.servidorOnline) {
-      const ok = await Multijugador.recogerObjetoCompartido(o.id);
-      if (!ok) this._objetosRecogidos()[o.id] = Date.now();
     } else {
+      for (const it of items) {
+        if (!Mochila.agregar(it.id, it.cantidad || 1, { silencioso: true })) {
+          Notificaciones.mostrar('🎒 No tienes espacio para todo', 'error');
+          return;
+        }
+      }
       this.aplicarRecogidaCompartida(o.id, Date.now(), null);
     }
     Guardado.guardar();

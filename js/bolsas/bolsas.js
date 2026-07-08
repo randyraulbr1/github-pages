@@ -178,35 +178,46 @@ const Bolsas = {
     }
 
     const recogidos = [];
-    for (const it of (bolsa.items || [])) {
-      const r = Mochila.agregarHasta(it.id, it.cantidad || 1, { silencioso: true });
-      if (r.agregado > 0) recogidos.push({ id: it.id, cantidad: r.agregado });
-    }
-    if (!recogidos.length) {
-      Notificaciones.mostrar('🎒 No cabe nada más en tu mochila', 'error', 3000);
-      return false;
+    const online = typeof Multijugador !== 'undefined' && Multijugador.activo && CONFIG.servidorOnline;
+
+    if (!online) {
+      for (const it of (bolsa.items || [])) {
+        const r = Mochila.agregarHasta(it.id, it.cantidad || 1, { silencioso: true });
+        if (r.agregado > 0) recogidos.push({ id: it.id, cantidad: r.agregado });
+      }
+      if (!recogidos.length) {
+        Notificaciones.mostrar('🎒 No cabe nada más en tu mochila', 'error', 3000);
+        return false;
+      }
     }
 
-    if (typeof Multijugador !== 'undefined' && Multijugador.activo && CONFIG.servidorOnline) {
-      const res = await Multijugador.recogerBolsa(bolsa.id, recogidos, bolsa.pos);
+    if (online) {
+      const res = await Multijugador.recogerBolsa(bolsa.id, null, bolsa.pos);
       if (!res?.ok) {
-        for (const r of recogidos) Mochila.quitar(r.id, r.cantidad, 'Revertir recogida');
+        Notificaciones.mostrar(res?.error || '🎒 No se pudo recoger', 'error', 3000);
         return false;
       }
       if (res.vacia) this.aplicarBolsaEliminada(bolsa.id);
       else if (res.bolsa) this.aplicarBolsaRemota(res.bolsa);
-    } else {
-      for (const r of recogidos) {
-        const idx = bolsa.items.findIndex((it) => it.id === r.id);
-        if (idx < 0) continue;
-        bolsa.items[idx].cantidad -= r.cantidad;
-        if (bolsa.items[idx].cantidad <= 0) bolsa.items.splice(idx, 1);
+      const nombres = (res.tomados || []).map((r) => Items.seguro(r.id).nombre + ' x' + r.cantidad).join(', ');
+      if (nombres) Notificaciones.mostrar('🎒 Recogiste: ' + nombres, 'exito', 3000);
+      const punto = Mapa.mapa?.latLngToContainerPoint(bolsa.pos);
+      if (punto && res.tomados?.[0]) {
+        Utilidades.volarHaciaMochila(Items.seguro(res.tomados[0].id).icono, punto.x, punto.y);
       }
-      bolsa.ultimoRecogidoEn = Date.now();
-      if (!bolsa.items.length) this.aplicarBolsaEliminada(bolsa.id);
-      else if (typeof Admin !== 'undefined') Admin._revisarBolsa(bolsa);
-      Guardado.guardar();
+      return true;
     }
+
+    for (const r of recogidos) {
+      const idx = bolsa.items.findIndex((it) => it.id === r.id);
+      if (idx < 0) continue;
+      bolsa.items[idx].cantidad -= r.cantidad;
+      if (bolsa.items[idx].cantidad <= 0) bolsa.items.splice(idx, 1);
+    }
+    bolsa.ultimoRecogidoEn = Date.now();
+    if (!bolsa.items.length) this.aplicarBolsaEliminada(bolsa.id);
+    else if (typeof Admin !== 'undefined') Admin._revisarBolsa(bolsa);
+    Guardado.guardar();
 
     Mochila.guardar();
     const nombres = recogidos.map((r) => Items.seguro(r.id).nombre + ' x' + r.cantidad).join(', ');

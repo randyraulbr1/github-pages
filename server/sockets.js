@@ -665,7 +665,10 @@ function setupSockets(io) {
     socket.on('world:pickupShared', (payload, ack) => {
       const origenId = (payload?.origenId || '').trim();
       if (!origenId) return ack?.({ ok: false, error: 'origenId requerido' });
-      const result = registrarRecogidaObjeto(origenId, socket.playerId, io);
+      const result = registrarRecogidaObjeto(origenId, socket.playerId, io, {
+        lat: payload?.lat ?? payload?.pos?.[0],
+        lng: payload?.lng ?? payload?.pos?.[1]
+      });
       ack?.(result);
     });
 
@@ -736,7 +739,9 @@ function setupSockets(io) {
           distanciaMetros(pl.x, pl.y, bx, by) > REVIVE_DISTANCE_METERS) {
         return ack?.({ ok: false, error: 'Demasiado lejos' });
       }
-      const result = recogerBolsaDrop(bolsaId, socket.playerId, payload?.recogidos, io);
+      const result = recogerBolsaDrop(bolsaId, socket.playerId, payload?.recogidos, io, {
+        autoritativo: true
+      });
       ack?.(result);
     });
 

@@ -466,11 +466,13 @@ Con una **cuenta normal** (no admin), todo debe **fallar correctamente**:
 
 **Fase 3:** Diseño **cerrado por consenso** — ver `FASE3_DISENO_MUNDO.md` + sección «DECISIÓN CURSOR — consenso Fase 3» arriba.
 
-**Pendiente operativo:** Deploy Render con **v281** (fix arranque «Descargando el mundo…») + **checklist post-deploy v280** (sección abajo). Checklists Fase 1 (7) y Fase 2 (9) si no se hicieron aún.
+**Pendiente operativo:** Deploy Render con **v282** (v281 arranque + v282 inventario 3b) + checklist post-deploy v280.
 
-**v281 (fix arranque):** `obtenerMundo` con timeout 12 s; no borrar mundo ya descargado en `Admin.cargar`; una sola descarga en boot; límite 25 s en paso «mundo»; `/api/public/mundo` con try/catch.
+**v281:** fix arranque «Descargando el mundo…» (PR #111).
 
-**Para decir a Cursor:** Fases 3–4 mergeadas (v280). v281 corrige cuelgue en pantalla de carga. Siguiente: deploy + checklists.
+**v282 Fase 3b (parcial):** inventario autoritativo en servidor para `world:pickupShared`, `world:dropBag`, `world:pickupBag` — el servidor valida mochila, distancia y actualiza `partidas` antes de confirmar. Pendiente: tiendas, dinero, uso de ítems (3b siguiente paso).
+
+**Para decir a Cursor:** Fases 3–4 mergeadas. v281+v282 en ramas agente. Siguiente 3b: economía/tiendas o deploy + pruebas.
 
 #### FASE 4 — Rendimiento (v280) ✅ mergeado en main
 

@@ -1588,14 +1588,34 @@ const Multijugador = {
     }
   },
 
-  recogerObjetoCompartido(origenId) {
+  _aplicarMochilaServidor(mochila) {
+    if (!mochila || !Array.isArray(mochila) || typeof Guardado === 'undefined' || !Guardado.datos) return;
+    Guardado.datos.mochila = mochila;
+    Guardado.datos.statsT = Date.now();
+    Guardado.datos.nubeT = Date.now();
+    if (typeof Mochila !== 'undefined') {
+      Mochila.slots = Guardado.datos.mochila;
+      Mochila.pintar();
+    }
+    Guardado.guardar();
+  },
+
+  recogerObjetoCompartido(origenId, pos) {
     return new Promise((resolve) => {
-      if (!this.socket || !this.activo || !origenId) return resolve(false);
-      this.socket.emit('world:pickupShared', { origenId }, (res) => {
-        if (res?.ok && typeof Admin !== 'undefined') {
-          Admin.aplicarRecogidaCompartida(origenId, res.recogidoAt, this._miPlayerId());
+      if (!this.socket || !this.activo || !origenId) return resolve({ ok: false });
+      this.socket.emit('world:pickupShared', {
+        origenId,
+        lat: pos?.[0],
+        lng: pos?.[1],
+        pos
+      }, (res) => {
+        if (res?.ok) {
+          if (res.mochila) this._aplicarMochilaServidor(res.mochila);
+          if (typeof Admin !== 'undefined') {
+            Admin.aplicarRecogidaCompartida(origenId, res.recogidoAt, this._miPlayerId());
+          }
         }
-        resolve(!!res?.ok);
+        resolve(res || { ok: false });
       });
     });
   },
@@ -1636,7 +1656,10 @@ const Multijugador = {
         recogidos: recogidos || [],
         x: pos?.[0],
         y: pos?.[1]
-      }, (res) => resolve(res || { ok: false }));
+      }, (res) => {
+        if (res?.ok && res.mochila) this._aplicarMochilaServidor(res.mochila);
+        resolve(res || { ok: false });
+      });
     });
   },
 

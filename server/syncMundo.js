@@ -498,6 +498,66 @@ function registrarRecogidaTesoro(tesoroId, playerId, io) {
 const BOLSA_DROP_TTL_MS = 5 * 60 * 1000;
 const MOCHILA_SLOTS = 25;
 const MAX_PILA = 10;
+const PICKUP_DISTANCE_METERS = 25;
+
+const {
+  agregarAMochila,
+  agregarHastaAMochila,
+  quitarDeMochila,
+  itemsDeObjetoData,
+  normalizarMochila
+} = require('./playerInventory');
+
+function findObjetoEnSnapshot(snapshot, origenId) {
+  if (!snapshot?.objetos?.length || !origenId) return null;
+  return snapshot.objetos.find((o) => o && o.id === origenId) || null;
+}
+
+function obtenerItemsObjeto(snapshot, origenId, row) {
+  const o = findObjetoEnSnapshot(snapshot, origenId);
+  if (o) {
+    const fromO = itemsDeObjetoData(o);
+    if (fromO.length) return fromO;
+  }
+  if (row) return itemsDeObjetoData(parseData(row));
+  return [];
+}
+
+function obtenerPosObjeto(snapshot, origenId, row) {
+  const o = findObjetoEnSnapshot(snapshot, origenId);
+  if (o?.pos?.length >= 2) return o.pos;
+  if (row && Number.isFinite(row.x) && Number.isFinite(row.y)) return [row.x, row.y];
+  const p = snapshot?.posiciones?.[origenId];
+  return p && p.length >= 2 ? p : null;
+}
+
+function objetoDisponible(snapshot, origenId, objetoData) {
+  const st = snapshot?.objetosEstado?.[origenId];
+  if (!st?.recogidoAt) return true;
+  const reap = objetoData?.reaparece || 0;
+  if (!reap) return false;
+  return Date.now() - st.recogidoAt > reap * 60000;
+}
+
+function guardarPartidaMochila(snapshot, perfilId, mochila, io) {
+  if (!perfilId) return false;
+  if (!snapshot.partidas) snapshot.partidas = {};
+  const prev = snapshot.partidas[perfilId] || { t: Date.now(), datos: {} };
+  const datos = Object.assign({}, prev.datos || prev);
+  datos.mochila = normalizarMochila(mochila);
+  const snap = { ...prev, datos, t: Date.now(), statsT: Date.now() };
+  snapshot.partidas[perfilId] = snap;
+  snapshot.actualizadoEn = Date.now();
+  saveWorldSnapshot(snapshot);
+  if (io) {
+    io.emit('partida:sync', {
+      perfilId,
+      partida: snap,
+      actualizadoEn: snapshot.actualizadoEn
+    });
+  }
+  return snap;
+}
 
 /** Quita bolsas vacías o sin recoger tras 5 minutos. */
 function limpiarBolsasExpiradas(mundo) {
@@ -525,6 +585,16 @@ function crearBolsaDrop(playerId, x, y, items, io, opts) {
     .map((it) => ({ id: it.id, cantidad: Math.max(1, parseInt(it.cantidad, 10) || 1) }));
   if (!lista.length) return { ok: false, error: 'Sin objetos' };
   if (!Number.isFinite(x) || !Number.isFinite(y)) return { ok: false, error: 'Posición inválida' };
+
+  const pl = findPlayerById(playerId);
+  const perfilId = pl ? buscarPerfilIdPorNombre(pl.name, playerId) : null;
+  if (perfilId && snapshot.partidas?.[perfilId]) {
+    const partida = snapshot.partidas[perfilId];
+    const datos = partida.datos || partida;
+    const quitar = quitarDeMochila(datos.mochila, lista);
+    if (!quitar.ok) return quitar;
+    guardarPartidaMochila(snapshot, perfilId, quitar.mochila, io);
+  }
 
   const bolsa = {
     id: 'bolsa_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2, 7),
@@ -562,7 +632,7 @@ function aplicarRecogidaBolsa(bolsa, recogidos) {
   return tomados;
 }
 
-function recogerBolsaDrop(bolsaId, playerId, recogidos, io) {
+function recogerBolsaDrop(bolsaId, playerId, recogidos, io, opts) {
   const snapshot = getWorldSnapshot() || { actualizadoEn: Date.now(), bolsasDrop: [] };
   if (!snapshot.bolsasDrop) snapshot.bolsasDrop = [];
   limpiarBolsasExpiradas(snapshot);
@@ -577,8 +647,38 @@ function recogerBolsaDrop(bolsaId, playerId, recogidos, io) {
     return { ok: false, error: 'Solo quien huyó puede recoger estos objetos' };
   }
 
-  const tomados = aplicarRecogidaBolsa(bolsa, recogidos);
-  if (!tomados.length) return { ok: false, error: 'Nada que recoger' };
+  const pl = findPlayerById(playerId);
+  const perfilId = pl ? buscarPerfilIdPorNombre(pl.name, playerId) : null;
+  let mochila = perfilId && snapshot.partidas?.[perfilId]
+    ? (snapshot.partidas[perfilId].datos || snapshot.partidas[perfilId]).mochila
+    : null;
+
+  const tomados = [];
+  const usarCliente = Array.isArray(recogidos) && recogidos.length && !opts?.autoritativo;
+  if (usarCliente) {
+    const t = aplicarRecogidaBolsa(bolsa, recogidos);
+    tomados.push(...t);
+  } else {
+    for (const it of [...(bolsa.items || [])]) {
+      if (!it?.id) continue;
+      const r = agregarHastaAMochila(mochila, it.id, it.cantidad || 1);
+      if (r.agregado > 0) {
+        tomados.push({ id: it.id, cantidad: r.agregado });
+        mochila = r.mochila;
+        const idx = bolsa.items.findIndex((x) => x.id === it.id);
+        if (idx >= 0) {
+          bolsa.items[idx].cantidad -= r.agregado;
+          if (bolsa.items[idx].cantidad <= 0) bolsa.items.splice(idx, 1);
+        }
+      }
+    }
+  }
+
+  if (!tomados.length) return { ok: false, error: 'Mochila llena' };
+
+  if (perfilId && mochila) {
+    guardarPartidaMochila(snapshot, perfilId, mochila, io);
+  }
 
   bolsa.ultimoRecogidoEn = Date.now();
   if (!bolsa.items.length) {
@@ -586,13 +686,13 @@ function recogerBolsaDrop(bolsaId, playerId, recogidos, io) {
     snapshot.actualizadoEn = Date.now();
     saveWorldSnapshot(snapshot);
     if (io) io.emit('world:bagRemove', { bolsaId });
-    return { ok: true, tomados, vacia: true };
+    return { ok: true, tomados, vacia: true, mochila: mochila || null, perfilId };
   }
 
   snapshot.actualizadoEn = Date.now();
   saveWorldSnapshot(snapshot);
   if (io) io.emit('world:bagUpdate', { bolsa });
-  return { ok: true, tomados, bolsa, vacia: false };
+  return { ok: true, tomados, bolsa, vacia: false, mochila: mochila || null, perfilId };
 }
 
 /** Borra bolsas expiradas o vacías y avisa a los clientes. */
@@ -611,19 +711,51 @@ function sincronizarBolsasExpiradas(io) {
   }
 }
 
-function registrarRecogidaObjeto(origenId, playerId, io) {
+function registrarRecogidaObjeto(origenId, playerId, io, opts) {
   const snapshot = getWorldSnapshot() || { actualizadoEn: Date.now() };
   if (!snapshot.objetosEstado) snapshot.objetosEstado = {};
+
+  const row = findObjectByOrigenId(origenId);
+  const objetoSnap = findObjetoEnSnapshot(snapshot, origenId);
+  const objetoData = objetoSnap || (row ? parseData(row) : {});
+  if (!objetoDisponible(snapshot, origenId, objetoData)) {
+    return { ok: false, error: 'Objeto no disponible' };
+  }
+
+  const items = obtenerItemsObjeto(snapshot, origenId, row);
+  if (!items.length) return { ok: false, error: 'Objeto sin ítems' };
+
+  const pl = findPlayerById(playerId);
+  const perfilId = pl ? buscarPerfilIdPorNombre(pl.name, playerId) : null;
+
+  const pos = obtenerPosObjeto(snapshot, origenId, row);
+  const lat = Number(opts?.lat ?? opts?.pos?.[0]);
+  const lng = Number(opts?.lng ?? opts?.pos?.[1]);
+  if (pl && pos && Number.isFinite(lat) && Number.isFinite(lng)) {
+    if (distanciaMetros(lat, lng, pos[0], pos[1]) > PICKUP_DISTANCE_METERS) {
+      return { ok: false, error: 'Demasiado lejos' };
+    }
+  }
+
+  let mochilaResult = null;
+  if (perfilId) {
+    if (!snapshot.partidas) snapshot.partidas = {};
+    const partida = snapshot.partidas[perfilId] || { t: Date.now(), datos: {} };
+    const datos = partida.datos || partida;
+    const agregar = agregarAMochila(datos.mochila, items);
+    if (!agregar.ok) return agregar;
+    mochilaResult = agregar.mochila;
+    guardarPartidaMochila(snapshot, perfilId, mochilaResult, io);
+  }
 
   const recogidoAt = Date.now();
   snapshot.objetosEstado[origenId] = { recogidoAt, playerId };
   snapshot.actualizadoEn = Date.now();
 
-  const row = findObjectByOrigenId(origenId);
-  let reaparece = 0;
+  let reaparece = objetoData.reaparece || 0;
   if (row) {
     const d = parseData(row);
-    reaparece = d.reaparece || 0;
+    reaparece = d.reaparece || reaparece;
     if (!reaparece) {
       deleteWorldObject(row.id);
       if (io) io.emit('world:removeObject', { id: row.id, origenId });
@@ -633,10 +765,17 @@ function registrarRecogidaObjeto(origenId, playerId, io) {
   saveWorldSnapshot(snapshot);
 
   if (io) {
-    io.emit('world:objetoRecogido', { origenId, recogidoAt, reaparece });
+    io.emit('world:objetoRecogido', { origenId, recogidoAt, reaparece, playerId });
   }
 
-  return { ok: true, recogidoAt, reaparece };
+  return {
+    ok: true,
+    recogidoAt,
+    reaparece,
+    items,
+    mochila: mochilaResult,
+    perfilId
+  };
 }
 
 function findMissionByOrigenId(origenId) {
