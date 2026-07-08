@@ -3476,7 +3476,7 @@ const Admin = {
     if (typeof Multijugador !== 'undefined' && Multijugador.activo && CONFIG.servidorOnline) {
       const res = await Multijugador.recogerTesoroCompartido(t.id, pos);
       if (!res?.ok) {
-        Notificaciones.mostrar(res?.error || '🎒 No se pudo recoger el tesoro', 'error', 4500);
+        Notificaciones.mostrar('❌ ' + Utilidades.mensajeAmigable(res?.error, 'No se pudo recoger el tesoro'), 'error', 4500);
         return;
       }
     } else {
@@ -3629,7 +3629,7 @@ const Admin = {
     if (typeof Multijugador !== 'undefined' && Multijugador.activo && CONFIG.servidorOnline) {
       const res = await Multijugador.recogerObjetoCompartido(o.id, GPS.posicion);
       if (!res?.ok) {
-        Notificaciones.mostrar(res?.error || '🎒 No se pudo recoger (servidor)', 'error', 4500);
+        Notificaciones.mostrar('❌ ' + Utilidades.mensajeAmigable(res?.error, 'No se pudo recoger'), 'error', 4500);
         return;
       }
     } else {

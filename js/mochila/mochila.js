@@ -917,7 +917,7 @@ const Mochila = {
     if (online) {
       void Multijugador.usarItemServidor(sl.id, cantidad).then((res) => {
         if (!res?.ok) {
-          this._toast(res?.error || 'No se pudo usar el objeto');
+          this._toast(Utilidades.mensajeAmigable(res?.error, 'No se pudo usar el objeto'));
           return;
         }
         this._toast('Usaste ' + cantidad + 'x ' + item.nombre);

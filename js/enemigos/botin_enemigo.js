@@ -452,7 +452,7 @@ const BotinEnemigo = {
       const pos = b.pos || (typeof GPS !== 'undefined' ? GPS.posicion : null);
       const res = await Multijugador.reclamarBotinEnemigo(b.id, pos);
       if (!res?.ok) {
-        Notificaciones.mostrar(res?.error || 'No se pudo reclamar', 'alerta', 4000);
+        Notificaciones.mostrar(Utilidades.mensajeAmigable(res?.error, 'No se pudo reclamar'), 'alerta', 4000);
         return false;
       }
       await this._aplicarRecompensa(res.recompensa, b.enemyNombre);

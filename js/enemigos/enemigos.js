@@ -1427,7 +1427,7 @@ const Enemigos = {
     if (this._online()) {
       const res = await Multijugador.attackEnemy(e.id, GPS.posicion);
       if (!res?.ok) {
-        Notificaciones.mostrar(res?.error || 'No se pudo atacar', 'alerta', 2500);
+        Notificaciones.mostrar(Utilidades.mensajeAmigable(res?.error, 'No se pudo atacar'), 'alerta', 2500);
         this._actualizarHudCombate();
         return;
       }

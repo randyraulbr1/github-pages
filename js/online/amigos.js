@@ -546,7 +546,7 @@ const Amigos = {
       });
       const data = await r.json();
       if (!data.ok) {
-        Notificaciones.mostrar(data.error || 'No se pudo enviar', 'alerta', 3000);
+        Notificaciones.mostrar(Utilidades.mensajeAmigable(data.error, 'No se pudo enviar la solicitud'), 'alerta', 3000);
         return;
       }
       this._toast('📨 Solicitud enviada');
@@ -644,7 +644,7 @@ const Amigos = {
         if (okMsg) Notificaciones.mostrar(okMsg, 'exito', 2500);
         await this.refrescar();
       } else {
-        Notificaciones.mostrar(data.error || 'Error', 'alerta', 3000);
+        Notificaciones.mostrar(Utilidades.mensajeAmigable(data.error, 'No se pudo completar la acción'), 'alerta', 3000);
       }
     } catch (e) {
       Notificaciones.mostrar('Sin conexión', 'alerta', 3000);

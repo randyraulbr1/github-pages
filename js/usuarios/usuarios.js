@@ -339,7 +339,7 @@ const Usuarios = {
 
       const srv = await this._loginServidor(usuario, clave, 0);
       if (srv?.error) {
-        let msg = srv.error;
+        let msg = Utilidades.mensajeAmigable(srv.error, 'No se pudo entrar');
         if (srv.codigo === 'no_registrado') {
           msg = 'No estás registrado. Si te borraron la cuenta, créala de nuevo o pide al admin que te restaure.';
         } else if (srv.codigo === 'cuenta_eliminada') {
@@ -424,7 +424,7 @@ const Usuarios = {
 
     const srv = await this._registrarServidor(nombre, telefono, clave, perfil.id);
     if (srv?.error) {
-      this._mostrarAvisoAuth('registro', srv.error);
+      this._mostrarAvisoAuth('registro', Utilidades.mensajeAmigable(srv.error, 'No se pudo crear la cuenta'));
       return;
     }
     if (srv?.perfil?.id) perfil.id = srv.perfil.id;

@@ -284,11 +284,13 @@ Ninguna pantalla debe abrir otra directamente sin pasar por el UI Manager.
 
 # FASE 7 - Sistema de errores amigables
 
-Estado: 🚧 En progreso (v288 parcial)
+Estado: 🚧 En progreso (v289)
 
 Objetivo: nunca mostrar errores feos al jugador.
 
-Nota v288: `mensajeAmigable` en compras de tienda online. v286: multijugador. v287: sync login servidor.
+Nota v289: `mensajeAmigable` en login/registro, GPS, amigos, chat, mochila online, bolsas, combate, botín, tesoros. Pendiente: estados cargando/error/reintentar por pantalla.
+
+Nota v288: compras de tienda online. v286: multijugador. v287: sync login servidor.
 
 No mostrar:
 
