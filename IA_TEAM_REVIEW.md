@@ -404,7 +404,8 @@ Cursor **reordena** para no mezclar un refactor enorme con parches pequeños en 
 | v276 Fase 3.1+3.2 | #106 | `world_content`, proyector BD→blob, doble lectura |
 | v277 Fase 3.3+3.4 | #107 | Admin por objeto (sockets+REST), sync-mundo→BD |
 | v278 Fase 3.5 | #108 | Panel admin delta sync |
-| v279 Fase 3.6 | — | Cliente: ContenidoMundo + deltas render |
+| v279 Fase 3.6 | #109 | Cliente: ContenidoMundo + deltas render |
+| v280 Fase 4.1–4.4 | — | Interest 500 m, coalesce move, rate limits |
 
 ### Cómo probar Fase 1 (checklist)
 
@@ -468,13 +469,18 @@ Con una **cuenta normal** (no admin), todo debe **fallar correctamente**:
 
 **Pendiente operativo:** Deploy Render + checklists Fase 1 (7) y Fase 2 (9, incluye extras Claude). Admin **re-login** para JWT `role: admin`.
 
-**Para decir a Cursor:** Fase 3 **cerrada** (3.1–3.6). Siguiente bloque: **Fase 4** (rendimiento GPS).
+**Para decir a Cursor:** Fase 4 **en curso** — v280 interest management + rate limits.
 
-**Fase 3.1+3.2 (v276):** ✅ `world_content`, proyector BD→blob, doble lectura.
+**Fase 3.6 (v279):** ✅ `ContenidoMundo` — render online desde deltas.
 
-**Fase 3.3–3.5 (v277–v278):** ✅ Admin por objeto (servidor + panel delta sync).
+#### FASE 4 — Rendimiento (v280, en progreso)
 
-**Fase 3.6 (v279):** ✅ `ContenidoMundo` — render online desde `world:updateObject` / `mission:*`.
+| # | Cambio | Estado |
+|---|--------|--------|
+| **4.1** | `player:move` / `player:online` / `player:offline` solo a jugadores cercanos (500 m) | ✅ v280 |
+| **4.2** | `players:sync` (8 s) filtrado por distancia + coalesce micro-movimientos | ✅ v280 |
+| **4.3** | Sync mundo por deltas | ✅ Fase 3 |
+| **4.4** | Rate-limit chat / amigos / register | ✅ v280 |
 
 **Visibilidad equipo:** opiniones de Claude viven en **`main`** (`IA_TEAM_REVIEW.md`, `FASE3_DISENO_MUNDO.md`), no solo en rama `claude/web-rpg-gps-game-n3ybow`.
 

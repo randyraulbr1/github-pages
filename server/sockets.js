@@ -14,8 +14,6 @@ const {
   upsertPlayerMission,
   getPlayerMissions,
   getSocialData,
-  getBlockedIds,
-  getBlockedByIds,
   getWorldSnapshot,
   getWorldSnapshotPublic,
   formatPlayer,
@@ -37,6 +35,14 @@ const {
   adminConfigContent,
   refreshMundoPublicadoDesdeBD
 } = require('./worldContent');
+const {
+  snapshotCercanos,
+  emitirACercanos,
+  debeOmitirBroadcastMovimiento,
+  marcarBroadcastMovimiento,
+  limpiarJugador
+} = require('./interest');
+const { limiteChat, limiteAmigos } = require('./rateLimit');
 
 /** Vida al revivir: valor enviado o 40 % de hpMax. */
 function vidaReviveDesdeMax(hpMax, reviveHp) {
@@ -113,20 +119,15 @@ function playerSnapshot(p) {
 }
 
 function snapshotOnline(excludeId, viewerId) {
-  const blockedByMe = viewerId ? new Set(getBlockedIds(viewerId)) : new Set();
-  const blockedMe = viewerId ? new Set(getBlockedByIds(viewerId)) : new Set();
-  return [...onlinePlayers.values()]
-    .filter(p => {
-      const pid = p.playerId;
-      if (pid === excludeId) return false;
-      if (blockedByMe.has(pid) || blockedMe.has(pid)) return false;
-      return true;
-    })
-    .map(playerSnapshot);
+  return snapshotCercanos(excludeId, viewerId, onlinePlayers).map(playerSnapshot);
 }
 
-function broadcastMove(io, playerId, online) {
-  io.emit('player:move', {
+function broadcastMove(io, playerId, online, opts) {
+  if (!opts?.forzar && debeOmitirBroadcastMovimiento(playerId, online)) {
+    return;
+  }
+  marcarBroadcastMovimiento(playerId, online);
+  emitirACercanos(io, onlinePlayers, playerId, 'player:move', {
     playerId,
     x: online.x,
     y: online.y,
@@ -223,7 +224,13 @@ function setupSockets(io) {
       cuerposMuertos: mundoSnapshot?.cuerposMuertos || {}
     });
 
-    socket.broadcast.emit('player:online', playerSnapshot(onlinePlayers.get(socket.playerId)));
+    emitirACercanos(
+      io,
+      onlinePlayers,
+      socket.playerId,
+      'player:online',
+      playerSnapshot(onlinePlayers.get(socket.playerId))
+    );
 
     function applyMove(targetX, targetY, maxDelta, forzar) {
       const current = findPlayerById(socket.playerId);
@@ -244,7 +251,7 @@ function setupSockets(io) {
         online.y = data.y;
       }
 
-      broadcastMove(io, socket.playerId, online);
+      broadcastMove(io, socket.playerId, online, { forzar });
       return { ok: true, x: data.x, y: data.y };
     }
 
@@ -826,6 +833,9 @@ function setupSockets(io) {
     });
 
     socket.on('friends:refresh', (ack) => {
+      if (!limiteAmigos('friends:' + socket.playerId)) {
+        return ack?.({ ok: false, error: 'Demasiadas solicitudes — espera un momento' });
+      }
       const onlineIds = [...onlinePlayers.keys()];
       const social = getSocialData(socket.playerId, onlineIds);
       socket.emit('friends:data', social);
@@ -845,6 +855,9 @@ function setupSockets(io) {
     });
 
     socket.on('chat:send', (payload, ack) => {
+      if (!limiteChat('chat:' + socket.playerId)) {
+        return ack?.({ ok: false, error: 'Demasiados mensajes — espera un momento' });
+      }
       const toId = parseInt(payload?.toPlayerId, 10);
       const type = String(payload?.type || 'text');
       const text = String(payload?.text || '').trim().slice(0, 500);
@@ -893,8 +906,11 @@ function setupSockets(io) {
       socketToPlayer.delete(socket.id);
       const cur = onlinePlayers.get(socket.playerId);
       if (cur && cur.socketId === socket.id) {
+        emitirACercanos(io, onlinePlayers, socket.playerId, 'player:offline', {
+          playerId: socket.playerId
+        });
+        limpiarJugador(socket.playerId);
         onlinePlayers.delete(socket.playerId);
-        io.emit('player:offline', { playerId: socket.playerId });
       }
     });
   });

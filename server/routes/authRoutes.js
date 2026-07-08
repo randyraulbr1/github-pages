@@ -4,6 +4,7 @@
  */
 const express = require('express');
 const crypto = require('crypto');
+const { limiteRegistro, ipCliente } = require('../rateLimit');
 const {
   findUserByUsername,
   createUser,
@@ -331,6 +332,9 @@ router.post('/login-game', (req, res) => {
 });
 
 router.post('/register', (req, res) => {
+  if (!limiteRegistro('reg:' + ipCliente(req))) {
+    return res.status(429).json({ ok: false, error: 'Demasiados registros — intenta más tarde' });
+  }
   const username = (req.body.username || req.body.usuario || '').trim();
   const password = req.body.password || req.body.clave || '';
   const telefono = (req.body.telefono || '').trim().replace(/[\s-]/g, '');
