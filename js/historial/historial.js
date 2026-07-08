@@ -108,7 +108,8 @@ const Historial = {
     document.getElementById('historial-jugador').textContent =
       (typeof Usuarios !== 'undefined' && Usuarios.perfilActivo)
         ? '👤 Jugador: ' + Usuarios.perfilActivo.nombre : '';
-    document.getElementById('ventana-historial').classList.remove('oculto');
+    if (typeof UIManager !== 'undefined') UIManager.abrir('ventana-historial');
+    else document.getElementById('ventana-historial').classList.remove('oculto');
     this.pintar();
   },
 

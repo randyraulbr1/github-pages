@@ -243,9 +243,11 @@ Pruebas:
 
 # FASE 6 - Administrador de ventanas UI Manager
 
-Estado: 🚧 En progreso (v287)
+Estado: ✅ Completada (v288)
 
 Objetivo: evitar bugs de ventanas, capas, foco y botones bloqueados.
+
+Nota v288: Todas las ventanas y overlays pasan por `UIManager` — tienda, misiones, historial, avisos, correo, pesca, cofres, admin, botín enemigo, overlay misión activa. ESC cierra la ventana superior; mapa bloqueado con `ui-bloquea-mapa`.
 
 Nota v287: `UIManager` central — abrir/cerrar ventanas, ESC, bloqueo mapa, confirmaciones. Conectado: mochila, opciones, amigos, chat, inventario confirm.
 
@@ -270,11 +272,11 @@ Ninguna pantalla debe abrir otra directamente sin pasar por el UI Manager.
 
 # FASE 7 - Sistema de errores amigables
 
-Estado: 🚧 En progreso (v286 parcial)
+Estado: 🚧 En progreso (v288 parcial)
 
 Objetivo: nunca mostrar errores feos al jugador.
 
-Nota v286: `Utilidades.mensajeAmigable()` en multijugador (saqueo, revivir, mover pin). v287: sync login servidor.
+Nota v288: `mensajeAmigable` en compras de tienda online. v286: multijugador. v287: sync login servidor.
 
 No mostrar:
 

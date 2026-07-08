@@ -120,7 +120,8 @@ const Tiendas = {
     this.pestana = 'comprar';
     const nombre = (tienda.icono ? tienda.icono + ' ' : '') + (tienda.nombre || 'Tienda');
     document.getElementById('tienda-nombre').textContent = nombre;
-    document.getElementById('ventana-tienda').classList.remove('oculto');
+    if (typeof UIManager !== 'undefined') UIManager.abrir('ventana-tienda');
+    else document.getElementById('ventana-tienda').classList.remove('oculto');
     this.cambiarPestana('comprar');
   },
 
@@ -209,7 +210,7 @@ const Tiendas = {
       const pos = typeof GPS !== 'undefined' ? GPS.posicion : null;
       const res = await Multijugador.comprarEnTienda(t.id, entry.id, pos);
       if (!res?.ok) {
-        Notificaciones.mostrar(res?.error || 'No se pudo comprar', 'error', 4000);
+        Notificaciones.mostrar('❌ ' + Utilidades.mensajeAmigable(res?.error, 'No se pudo comprar'), 'error', 4000);
         return;
       }
       Notificaciones.mostrar(item.icono + ' Compraste ' + item.nombre, 'exito');

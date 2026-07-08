@@ -3157,7 +3157,9 @@ body.ui-bloquea-mapa #opciones-overlay.show,
 body.ui-bloquea-mapa .amigos-overlay:not(.oculto),
 body.ui-bloquea-mapa .chat-overlay:not(.oculto),
 body.ui-bloquea-mapa #admin-controles:not(.oculto),
-body.ui-bloquea-mapa .colocacion-controles:not(.oculto) {
+body.ui-bloquea-mapa .colocacion-controles:not(.oculto),
+body.ui-bloquea-mapa .overlay-mision:not(.oculto),
+body.ui-bloquea-mapa .overlay-botin:not(.oculto) {
   pointer-events: auto !important;
 }
 body.admin-organizar .admin-pin-organizar {

@@ -109,7 +109,10 @@ const Cofres = {
   iniciarColocacionAdmin(datos) {
     if (!datos) return;
     const adm = document.getElementById('ventana-admin');
-    if (adm) adm.classList.add('oculto');
+    if (adm) {
+      if (typeof UIManager !== 'undefined') UIManager.cerrar('ventana-admin');
+      else adm.classList.add('oculto');
+    }
     this._modoAdminSinItem = true;
     this._iniciarPinColocar({
       visible: !!datos.visible,
@@ -130,7 +133,8 @@ const Cofres = {
     this._elegirTipoCofre(true);
     const pinInput = document.getElementById('cofre-pin-input');
     if (pinInput) pinInput.value = '';
-    document.getElementById('ventana-cofre-colocar').classList.remove('oculto');
+    if (typeof UIManager !== 'undefined') UIManager.abrir('ventana-cofre-colocar');
+    else document.getElementById('ventana-cofre-colocar').classList.remove('oculto');
   },
 
   _continuarColocacion() {
@@ -145,7 +149,8 @@ const Cofres = {
         return;
       }
     }
-    document.getElementById('ventana-cofre-colocar').classList.add('oculto');
+    if (typeof UIManager !== 'undefined') UIManager.cerrar('ventana-cofre-colocar');
+    else document.getElementById('ventana-cofre-colocar').classList.add('oculto');
     this._iniciarPinColocar({
       visible,
       pin,
@@ -347,7 +352,8 @@ const Cofres = {
     this._cofrePinPendiente = cofre;
     const pinInput = document.getElementById('cofre-abrir-pin');
     if (pinInput) pinInput.value = '';
-    document.getElementById('ventana-cofre-pin').classList.remove('oculto');
+    if (typeof UIManager !== 'undefined') UIManager.abrir('ventana-cofre-pin');
+    else document.getElementById('ventana-cofre-pin').classList.remove('oculto');
     setTimeout(() => { if (pinInput) pinInput.focus(); }, 200);
   },
 
@@ -359,7 +365,8 @@ const Cofres = {
     if (!Utilidades.pinCofreValido(pin)) { alert('PIN de 4 números'); return; }
     const hash = await Utilidades.sha256('cofre-pin|' + pin);
     if (hash !== cofre.pinHash) { alert('PIN incorrecto'); return; }
-    document.getElementById('ventana-cofre-pin').classList.add('oculto');
+    if (typeof UIManager !== 'undefined') UIManager.cerrar('ventana-cofre-pin');
+    else document.getElementById('ventana-cofre-pin').classList.add('oculto');
     this._cofrePinPendiente = null;
     Guardado.datos.cofresAbiertos.push(cofre.id);
     Guardado.guardar();
@@ -429,7 +436,8 @@ const Cofres = {
     document.getElementById('cofre-admin-titulo').classList.toggle('oculto', !esAdm);
     document.getElementById('rejilla-cofre-admin').classList.toggle('oculto', !esAdm);
     this._pintarRejillas();
-    document.getElementById('ventana-cofre').classList.remove('oculto');
+    if (typeof UIManager !== 'undefined') UIManager.abrir('ventana-cofre');
+    else document.getElementById('ventana-cofre').classList.remove('oculto');
   },
 
   _pintarRejillas() {

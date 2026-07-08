@@ -2356,7 +2356,8 @@ const Admin = {
     if (this._adminAbierto()) return;
     this._marcarPanelDesbloqueado();
     document.body.classList.add('admin-panel-abierto');
-    document.getElementById('ventana-admin').classList.remove('oculto');
+    if (typeof UIManager !== 'undefined') UIManager.abrir('ventana-admin', { cerrarPares: false });
+    else document.getElementById('ventana-admin').classList.remove('oculto');
     this._actualizarEtiquetaMantenimientoNav();
   },
 
@@ -2366,7 +2367,8 @@ const Admin = {
   },
 
   cerrarPanel() {
-    document.getElementById('ventana-admin')?.classList.add('oculto');
+    if (typeof UIManager !== 'undefined') UIManager.cerrar('ventana-admin');
+    else document.getElementById('ventana-admin')?.classList.add('oculto');
     document.body.classList.remove('admin-panel-abierto');
   },
 
@@ -2419,7 +2421,8 @@ const Admin = {
       layout.classList.toggle('admin-panel-editor-abierto', editorAbierto);
     }
     if (!opts.sinAbrirVentana) {
-      document.getElementById('ventana-admin')?.classList.remove('oculto');
+      if (typeof UIManager !== 'undefined') UIManager.abrir('ventana-admin', { cerrarPares: false });
+      else document.getElementById('ventana-admin')?.classList.remove('oculto');
     }
   },
 
@@ -2447,7 +2450,8 @@ const Admin = {
       return;
     }
     this._ocultarPanelDerecho();
-    document.getElementById('ventana-admin').classList.remove('oculto');
+    if (typeof UIManager !== 'undefined') UIManager.abrir('ventana-admin', { cerrarPares: false });
+    else document.getElementById('ventana-admin').classList.remove('oculto');
     this._actualizarEtiquetaMantenimientoNav();
   },
 
@@ -3069,7 +3073,8 @@ const Admin = {
     document.body.classList.remove('admin-organizar');
     document.body.classList.remove('admin-panel-abierto');
     document.body.classList.add('admin-colocando');
-    document.getElementById('ventana-admin').classList.add('oculto');
+    if (typeof UIManager !== 'undefined') UIManager.cerrar('ventana-admin');
+    else document.getElementById('ventana-admin').classList.add('oculto');
     this.modo = 'colocar';
     const centro = Mapa.mapa.getCenter();
     const icono = (this._colocacion?.tipo === 'tienda_admin')
@@ -3871,7 +3876,8 @@ const Admin = {
   // ---------- MODOS ORGANIZAR / ELIMINAR ----------
   entrarModo(modo) {
     this._ocultarPanelDerecho();
-    document.getElementById('ventana-admin').classList.add('oculto');
+    if (typeof UIManager !== 'undefined') UIManager.cerrar('ventana-admin');
+    else document.getElementById('ventana-admin').classList.add('oculto');
     this.modo = modo;
     document.body.classList.add('admin-organizar');
     const cesto = document.getElementById('admin-cesto-borrar');
@@ -5430,7 +5436,8 @@ const Admin = {
     this.registrarJugador(entrada, true);
     Usuarios._publicarSesionEnFondo(entrada, entrada.sesionToken);
     this._editorJugador = null;
-    document.getElementById('ventana-admin')?.classList.add('oculto');
+    if (typeof UIManager !== 'undefined') UIManager.cerrar('ventana-admin');
+    else document.getElementById('ventana-admin')?.classList.add('oculto');
     sessionStorage.setItem('mariel_cambio_sesion', entrada.id);
     sessionStorage.setItem('mariel_forzar_mundo', '1');
     sessionStorage.setItem('mariel_forzar_relogin', entrada.id);
