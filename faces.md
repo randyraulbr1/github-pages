@@ -319,9 +319,21 @@ Cada pantalla debe tener:
 
 # FASE 8 - Pruebas antes de publicar
 
-Estado: 🚧 En progreso (v299 en main y tcodm.com — smoke automático OK)
+Estado: 🚧 En progreso (v299 — smoke automático OK; **validación real móvil pendiente**)
 
 Objetivo: no publicar si una prueba crítica falla.
+
+**Guía detallada:** `faces/fase-8-validacion-movil-v299.md`
+
+### Pendiente bloqueante (antes de nuevas funciones)
+
+| Item | Responsable | Estado |
+|------|-------------|--------|
+| Cerrar PRs obsoletos #113, #114, #88, #19, #17, #16, #10 | Randy (`bash scripts/cerrar-prs-obsoletos.sh`) | ☐ |
+| Prueba Android caminando con GPS | Randy | ☐ |
+| 2 jugadores reales en mapa | Randy | ☐ |
+| Inventario, admin, chat, amigos, tienda, misiones en móvil | Randy | ☐ |
+| No empezar funciones grandes nuevas | Equipo | ⏳ hasta validar v299 |
 
 Cómo usar: marcar cada ítem con ☐ pendiente, ✅ ok o ❌ falló (fecha + nota breve).
 
@@ -331,11 +343,14 @@ Checklist mínimo:
 |--------|--------|
 | Crear cuenta | ☐ manual |
 | Iniciar sesión | ☐ manual |
-| GPS propio | ☐ manual |
-| Ver otro jugador | ☐ manual |
-| Inventario | ☐ manual |
-| Amigos | ☐ manual |
-| Chat | ☐ manual |
+| GPS propio | ☐ manual (Android caminando) |
+| Ver otro jugador | ☐ manual (2 jugadores reales) |
+| Inventario | ☐ manual (abrir/cerrar móvil) |
+| Amigos | ☐ manual (menú ⋮ carpeta) |
+| Chat | ☐ manual (lista + conversación) |
+| Tienda | ☐ manual (NPC + panel) |
+| Misiones | ☐ manual (panel) |
+| Admin panel | ☐ manual (solo Randy) |
 | Bloquear jugador | ☐ manual |
 | Admin crea objeto | ☐ manual |
 | Admin mueve PIN | ☐ manual (fix v299 en código) |
@@ -364,6 +379,8 @@ Nota v290: checklist con tabla de seguimiento. Pendiente: ejecutar y marcar resu
 Regla:
 
 No publicar version si una prueba critica falla.
+
+**No empezar funciones grandes nuevas hasta validar v299 en uso real** (ver guía Fase 8).
 
 ---
 
