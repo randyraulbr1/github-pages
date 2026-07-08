@@ -12,7 +12,7 @@ const {
   createPlayer,
   findPlayerByUserId
 } = require('../db');
-const { authMiddleware, gameAdminMiddleware, hashPassword } = require('../auth');
+const { authMiddleware, gameAdminMiddleware, hashPassword, partidaAuthMiddleware } = require('../auth');
 const { syncMundoFromJson, actualizarPartidaEnSnapshot, registrarCuentaEnSnapshot } = require('../syncMundo');
 const { respaldarCuentasEnGitHub, respaldarCuentasEnGitHubInmediato, dejarSoloAdminEnSnapshot } = require('../syncCuentas');
 const { restaurarJugadorSiExiste } = require('../recoveryCuentas');
@@ -62,7 +62,7 @@ router.get('/mundo', authMiddleware, (req, res) => {
 });
 
 /** Sincroniza vida/muerto de la partida del jugador al snapshot del servidor */
-router.post('/sync-partida', authMiddleware, (req, res) => {
+router.post('/sync-partida', authMiddleware, partidaAuthMiddleware, (req, res) => {
   const { perfilId, partida } = req.body;
   if (!perfilId || !partida) {
     return res.status(400).json({ ok: false, error: 'perfilId y partida requeridos' });

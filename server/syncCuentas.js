@@ -388,6 +388,15 @@ function purgarCuentasFueraDeSnapshot(mundo) {
     console.warn('[mundo] purgar omitido: lista de jugadores vacía');
     return { ok: true, removed: 0, skipped: true, removedAccounts: [] };
   }
+  const sqliteCount = countUsers();
+  const snapCount = mundo.jugadores.length;
+  if (snapCount < sqliteCount) {
+    console.warn(
+      '[mundo] purgar omitido: snapshot tiene', snapCount,
+      'jugadores, SQLite tiene', sqliteCount, '— se conservan cuentas'
+    );
+    return { ok: true, removed: 0, skipped: true, reason: 'snapshot_incompleto', removedAccounts: [] };
+  }
   const nombres = new Set(
     mundo.jugadores.map(j => String(j.nombre || '').toLowerCase()).filter(Boolean)
   );

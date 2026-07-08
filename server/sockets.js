@@ -26,7 +26,7 @@ const {
   markChatRead,
   canChatBetween
 } = require('./db');
-const { verifyToken, isGameAdminName } = require('./auth');
+const { verifyToken, isGameAdminName, canEditPartida } = require('./auth');
 const { startEnemyAI } = require('./enemyAI');
 const { registrarRecogidaObjeto, registrarRecogidaTesoro, registrarCuerpoMuerto, quitarCuerpoMuerto, getCuerpoMuerto, sincronizarCuerposExpirados, sincronizarBolsasExpiradas, sincronizarBotinesExpirados, actualizarInventarioCuerpo, registrarLootMuerto, actualizarPartidaEnSnapshot, revivirPartidaEnSnapshot, buscarPerfilIdPorNombre, limpiarBolsasExpiradas, crearBolsaDrop, recogerBolsaDrop, registrarAtaqueEnemigo, reclamarBotinEnemigo } = require('./syncMundo');
 
@@ -317,8 +317,14 @@ function setupSockets(io) {
       }
 
       if (payload?.perfilId && payload?.partida) {
+        if (!canEditPartida({ playerId: socket.playerId }, payload.perfilId)) {
+          return ack?.({ ok: false, error: 'No puedes modificar la partida de otro jugador' });
+        }
         actualizarPartidaEnSnapshot(payload.perfilId, payload.partida, io);
       } else if (payload?.perfilId && payload?.partidaMin) {
+        if (!canEditPartida({ playerId: socket.playerId }, payload.perfilId)) {
+          return ack?.({ ok: false, error: 'No puedes modificar la partida de otro jugador' });
+        }
         const snap = getWorldSnapshot();
         const prevDatos = snap?.partidas?.[payload.perfilId]?.datos || {};
         const statsT = payload.statsT || Date.now();
@@ -551,15 +557,10 @@ function setupSockets(io) {
     });
 
     socket.on('player:updateInventory', (payload, ack) => {
-      if (!Array.isArray(payload?.inventory)) {
-        return ack?.({ ok: false, error: 'inventory debe ser un array' });
-      }
-      const updated = updatePlayer(socket.playerId, {
-        inventory_json: JSON.stringify(payload.inventory)
+      return ack?.({
+        ok: false,
+        error: 'Inventario solo lo actualiza el servidor (acción no permitida desde el cliente)'
       });
-      const data = formatPlayer(updated);
-      socket.emit('player:updateInventory', { inventory: data.inventory });
-      ack?.({ ok: true, inventory: data.inventory });
     });
 
     socket.on('world:cutTree', (payload, ack) => {

@@ -41,15 +41,20 @@ Cada IA debe:
 
 | IA | Estado | Responsabilidad |
 |----|--------|-----------------|
-| **ChatGPT** | Activo | Arquitectura, seguridad, sistemas online, riesgos |
-| **Claude** | Activo | Revisión de código, errores, mejoras técnicas |
-| ~~**Gemini**~~ | **Fuera del equipo** | *(ya no participa — ver aviso abajo)* |
-| **Cursor** | Activo | Leer opiniones activas, revisar código, preparar implementación final |
+| **ChatGPT** | Activo — **solo opiniones** | Arquitectura, seguridad, riesgos. Escribir en `CHATGPT_REVIEW.md` o su sección aquí. |
+| **Claude** | Activo — **solo opiniones** | Auditoría de código, bugs, mejoras. Escribir en su sección aquí (rama `claude/...`). |
+| ~~**Gemini**~~ | **Fuera del equipo** | No participa. |
+| **Cursor** | Activo — **único que implementa** | Lee opiniones, escribe decisión final, **programa** tras OK del creador. |
 
-> **AVISO — 8 julio 2026 (creador del proyecto):** **Gemini está fuera del equipo.**
-> No esperar nuevas opiniones ni segunda revisión de Gemini.
-> Las decisiones se toman entre **ChatGPT, Claude y Cursor**.
-> La sección «Opinión — Gemini» se conserva solo como archivo histórico (v1.0).
+> ### ⚠️ REGLA PARA CHATGPT Y CLAUDE (8 jul 2026 — creador)
+>
+> **Solo den opiniones. No modifiquen código del juego.**
+>
+> - ✅ Permitido: leer repo, escribir/actualizar `IA_TEAM_REVIEW.md`, `CHATGPT_REVIEW.md`, comentarios en PR, propuestas con archivos y pruebas.
+> - ❌ Prohibido: commits con cambios en `js/`, `server/`, `css/`, `index.html`, `version.json`, despliegue, merge sin Cursor/creador.
+> - Cursor implementa la **Fase 1** aprobada (ver «Decisión final»). ChatGPT y Claude revisan el PR y opinan; no parchean en paralelo.
+>
+> Si encuentran un bug crítico, documentarlo en su sección con prioridad **CRÍTICA** y avisar al creador. Cursor lo incluirá en el siguiente sprint.
 
 **Cursor NO** debe elegir la solución más fácil. Debe buscar: menos bugs, mejor rendimiento, más estabilidad.
 
@@ -292,6 +297,8 @@ Para mapa y cuentas, mantener el mismo patrón mental: **escribir en servidor �
 
 ### Lista exacta de cambios — ORDEN DE IMPLEMENTACIÓN
 
+**Estado:** ✅ **Fase 1 en implementación** (PR `cursor/security-phase1-7abe`, v274) — aprobada por el creador el 8 jul 2026.
+
 #### FASE 1 — Crítico (hacer primero, un PR: `cursor/security-phase1-7abe`)
 
 | # | Cambio | Motivo | Archivos | Prueba | Rollback |
@@ -371,7 +378,7 @@ Para mapa y cuentas, mantener el mismo patrón mental: **escribir en servidor �
 |-------|-------------|---------------|-------|
 | 2026-07-08 | 1.0 | ChatGPT, Claude, Gemini, Cursor | Documento inicial; estado post v273 |
 | 2026-07-08 | 1.1 | ChatGPT, Claude, Cursor | Gemini fuera del equipo (aviso del creador) |
-| 2026-07-08 | 1.2 | ChatGPT, Claude, Cursor | `CHATGPT_REVIEW.md` + consenso Claude; **Decisión final Cursor** (Fases 1–3) |
+| 2026-07-08 | 1.3 | ChatGPT, Claude, Cursor | Fase 1 seguridad aprobada e implementada (v274) |
 
 ---
 

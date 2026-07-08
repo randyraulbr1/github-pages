@@ -20,7 +20,7 @@ const { hashPassword, comparePassword, signPlayerToken } = require('../auth');
 const { mergeJugadoresPartidas } = require('../syncMundo');
 const { forzarImportJugadores, leerMundoJson } = require('../importSnapshot');
 const { getJugadoresPublicos, respaldarCuentasEnGitHub, respaldarCuentasEnGitHubInmediato, buscarJugadorPublico } = require('../syncCuentas');
-const { leerAdminDesdeArchivo } = require('../adminCuenta');
+const { leerAdminDesdeArchivo, esNombreAdmin } = require('../adminCuenta');
 const { intentarRecuperarPorLogin, buscarEnEliminadosRecuperables } = require('../recoveryCuentas');
 const { registrar } = require('../eventLog');
 const { hashContenido } = require('../utils/githubPush');
@@ -341,6 +341,10 @@ router.post('/register', (req, res) => {
   }
   if (password.length < 4) {
     return res.status(400).json({ ok: false, error: 'Contraseña mínimo 4 caracteres' });
+  }
+
+  if (esNombreAdmin(username)) {
+    return res.status(403).json({ ok: false, error: 'Ese nombre está reservado para el administrador' });
   }
 
   if (findUserByUsername(username)) {

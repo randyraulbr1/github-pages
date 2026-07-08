@@ -2,6 +2,9 @@
 
 Fecha: 2026-07-08
 
+> **Nota del equipo (creador):** ChatGPT solo opina. **No modificar código del juego.**
+> Cursor implementa. Escribir aquí o en este archivo; revisar PRs de Cursor.
+
 ## Revisión de la auditoría de Claude
 
 He revisado la auditoría realizada por Claude sobre el proyecto.

@@ -91,6 +91,10 @@ app.get('/health', (req, res) => {
 setupSockets(io);
 
 async function arrancar() {
+  const { assertProductionSecrets, warnProductionConfig } = require('./auth');
+  assertProductionSecrets();
+  warnProductionConfig();
+
   try {
     const { validarGithubToken } = require('./syncStatus');
     const tok = await validarGithubToken();
@@ -115,10 +119,11 @@ async function arrancar() {
 
   try {
     const { restaurarMundoAlArranque, recuperarJugadoresPerdidos, leerMundoJson } = require('./importSnapshot');
+    const { countUsers, reconciliarCuentasEnSnapshot, purgarCuentasFueraDeSnapshot } = require('./syncCuentas');
     await restaurarMundoAlArranque();
     await recuperarJugadoresPerdidos(io);
     const archivo = leerMundoJson();
-    if (archivo?.soloAdmin) {
+    if (archivo?.soloAdmin && process.env.ALLOW_SOLO_ADMIN_PURGE === '1') {
       const { dejarSoloAdminEnSnapshot } = require('./syncCuentas');
       const { getWorldSnapshot } = require('./db');
       const { pushMundoToGitHub } = require('./githubMundo');
@@ -131,13 +136,9 @@ async function arrancar() {
         await pushMundoToGitHub(snap, { mensaje: 'solo admin tras purge' }).catch(() => {});
         await respaldarJugadoresEnGitHub(snap).catch(() => {});
       }
+    } else if (archivo?.soloAdmin) {
+      console.warn('[mundo] soloAdmin en mundo.json ignorado (falta ALLOW_SOLO_ADMIN_PURGE=1)');
     }
-  } catch (e) {
-    console.warn('   restaurarMundoAlArranque:', e.message);
-  }
-
-  try {
-    const { countUsers, reconciliarCuentasEnSnapshot, purgarCuentasFueraDeSnapshot } = require('./syncCuentas');
     const { getWorldSnapshot } = require('./db');
     const snap = getWorldSnapshot();
     if (snap?.jugadores?.length) {

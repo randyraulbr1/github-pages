@@ -4,8 +4,29 @@
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
 
-const JWT_SECRET = process.env.JWT_SECRET || 'mariel-dev-secret-cambiar-en-produccion';
+const JWT_DEV_DEFAULT = 'mariel-dev-secret-cambiar-en-produccion';
+const JWT_SECRET = process.env.JWT_SECRET || JWT_DEV_DEFAULT;
 const JWT_EXPIRES = '7d';
+
+function isProductionEnv() {
+  return process.env.NODE_ENV === 'production' || !!process.env.RENDER;
+}
+
+function assertProductionSecrets() {
+  if (!isProductionEnv()) return;
+  if (!process.env.JWT_SECRET || process.env.JWT_SECRET === JWT_DEV_DEFAULT) {
+    throw new Error(
+      'JWT_SECRET debe configurarse en Render (no usar el valor de desarrollo)'
+    );
+  }
+}
+
+function warnProductionConfig() {
+  if (!isProductionEnv()) return;
+  if (!process.env.GITHUB_TOKEN) {
+    console.warn('⚠️ GITHUB_TOKEN no configurado — respaldo a GitHub limitado');
+  }
+}
 
 function hashPassword(plain) {
   return bcrypt.hashSync(plain, 10);
@@ -71,6 +92,37 @@ function gameAdminMiddleware(req, res, next) {
   next();
 }
 
+/** Jugador solo puede editar su propia partida PWA; admin del juego cualquiera. */
+function canEditPartida(auth, perfilId) {
+  if (!auth?.playerId || !perfilId) return false;
+  const { findPlayerById, getWorldSnapshot } = require('./db');
+  const player = findPlayerById(auth.playerId);
+  if (!player) return false;
+  if (isGameAdminName(player.name)) return true;
+
+  const pid = String(perfilId);
+  if (pid === 'srv_' + player.id) return true;
+
+  const snap = getWorldSnapshot();
+  const nombre = String(player.name || '').trim().toLowerCase();
+  if (!nombre) return false;
+  const jug = (snap?.jugadores || []).find(j =>
+    j?.id === pid && String(j.nombre || '').trim().toLowerCase() === nombre
+  );
+  return !!jug;
+}
+
+function partidaAuthMiddleware(req, res, next) {
+  const perfilId = req.body?.perfilId;
+  if (!perfilId) {
+    return res.status(400).json({ ok: false, error: 'perfilId requerido' });
+  }
+  if (!canEditPartida(req.auth, perfilId)) {
+    return res.status(403).json({ ok: false, error: 'No puedes modificar la partida de otro jugador' });
+  }
+  next();
+}
+
 module.exports = {
   hashPassword,
   comparePassword,
@@ -78,6 +130,11 @@ module.exports = {
   verifyToken,
   authMiddleware,
   gameAdminMiddleware,
+  partidaAuthMiddleware,
+  canEditPartida,
   isGameAdminName,
-  getGameAdminNames
+  getGameAdminNames,
+  assertProductionSecrets,
+  warnProductionConfig,
+  isProductionEnv
 };
