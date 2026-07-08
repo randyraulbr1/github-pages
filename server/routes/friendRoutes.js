@@ -15,6 +15,7 @@ const {
 } = require('../db');
 const { authMiddleware } = require('../auth');
 const { resolverPlayerIdPorNombre } = require('../syncCuentas');
+const { limiteSolicitudAmistad, responderRateLimitHttp } = require('../rateLimit');
 
 const router = express.Router();
 
@@ -24,6 +25,9 @@ router.get('/', authMiddleware, (req, res) => {
 });
 
 router.post('/request', authMiddleware, (req, res) => {
+  if (!limiteSolicitudAmistad('friendReq:' + req.auth.playerId)) {
+    return responderRateLimitHttp(res, 'amigos');
+  }
   const me = req.auth.playerId;
   let targetId = parseInt(req.body.playerId, 10);
   if (!Number.isFinite(targetId) && req.body.username) {

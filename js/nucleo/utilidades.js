@@ -130,6 +130,7 @@ const Utilidades = {
     if (/\b404\b|not found/i.test(low)) return 'No se encontró esta información.';
     if (/\b500\b|internal server/i.test(low)) return 'El servidor tuvo un problema. Inténtalo de nuevo.';
     if (/forbidden|403|no puedes/i.test(low)) return 'No tienes permiso para esta acción.';
+    if (/\b429\b|demasiad[oa]s/i.test(low)) return msg;
     if (/unauthorized|401|token/i.test(low)) return 'Sesión expirada. Vuelve a entrar.';
     if (/too far|demasiado lejos/i.test(low)) return msg;
     if (msg.length > 120 || /stack|at \w+\./i.test(msg)) return fb;

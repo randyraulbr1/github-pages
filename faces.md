@@ -402,18 +402,23 @@ Nota v296: panel `admin-depuracion` en menú Servidor, vista `admin-vista-depura
 
 # FASE 11 - Anti spam y limites
 
-Estado: ⏳ Pendiente
+Estado: ✅ Completada (v297)
 
 Objetivo: evitar abuso y bugs por exceso de acciones.
 
-Agregar limites a:
+Limites en `server/rateLimit.js`:
 
-- chat
-- solicitudes de amistad
-- registro
-- mover posicion
-- crear objetos admin
-- publicar mundo
+| Acción | Límite | Dónde |
+|--------|--------|-------|
+| Chat | 30/min | socket `chat:send` |
+| Amigos (refresh) | 15/min | socket `friends:refresh` |
+| Solicitud amistad | 12/min | REST `/api/friends/request` |
+| Registro | 8/h por IP | REST `/api/register` |
+| Mover posición | 100/min | socket `player:move` (sin `force`) |
+| Crear/editar objetos admin | 250/min | REST `world/*` + socket `world:admin*` |
+| Publicar mundo | 15/min | REST `/api/player/sync-mundo` |
+
+Cliente: errores 429 con mensajes amigables en `sync_servidor.js` y `utilidades.js`.
 
 ---
 
