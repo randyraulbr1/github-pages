@@ -16,6 +16,7 @@ const {
 } = require('./db');
 const {
   mergeJugadoresPartidas,
+  fusionarSesionJugador,
   quitarCuerpoMuerto,
   revivirPartidaEnSnapshot,
   registrarCuerpoMuerto,
@@ -67,9 +68,10 @@ function deduplicarJugadoresPorNombre(lista) {
   const aliasIds = new Map();
   for (const [, dupes] of grupos) {
     const ordenados = dupes.slice().sort((a, b) => prioridadJugador(b) - prioridadJugador(a));
-    const canon = Object.assign({}, ordenados[0]);
+    let canon = Object.assign({}, ordenados[0]);
     for (let i = 1; i < ordenados.length; i++) {
       const o = ordenados[i];
+      canon = fusionarSesionJugador(canon, o);
       if (!canon.telefono && o.telefono) canon.telefono = o.telefono;
       if (!canon.pinHash && o.pinHash) canon.pinHash = o.pinHash;
       if (!canon.creado && o.creado) canon.creado = o.creado;
