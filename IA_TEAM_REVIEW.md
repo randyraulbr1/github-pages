@@ -31,7 +31,7 @@ El objetivo es crear un juego GPS online:
 
 Cada IA debe:
 
-1. Leer: `IA_TEAM_REVIEW.md`, **`CHATGPT_REVIEW.md`**, código actual, `docs/ARQUITECTURA_SYNC.md`, `ARREGLOS_CLAUDE.md`.
+1. Leer: `IA_TEAM_REVIEW.md`, **`FASE3_DISENO_MUNDO.md`**, `CHATGPT_REVIEW.md`, código actual, `docs/ARQUITECTURA_SYNC.md`, `ARREGLOS_CLAUDE.md`.
 2. Crear o actualizar su sección (fecha, lo que está bien, problemas, riesgos, solución, prioridad).
 3. Si propone código, indicar archivos y cómo probar.
 
@@ -42,7 +42,7 @@ Cada IA debe:
 | IA | Estado | Responsabilidad |
 |----|--------|-----------------|
 | **ChatGPT** | Activo — **solo opiniones** | Arquitectura, seguridad, riesgos. Escribir en `CHATGPT_REVIEW.md` o su sección aquí. |
-| **Claude** | Activo — **solo opiniones** | Auditoría de código, bugs, mejoras. Escribir en su sección aquí (rama `claude/...`). |
+| **Claude** | Activo — **solo opiniones** | Auditoría de código, bugs, mejoras. Escribir en `IA_TEAM_REVIEW.md` y `FASE3_DISENO_MUNDO.md` (**en `main`**, no solo en rama `claude/...`). |
 | ~~**Gemini**~~ | **Fuera del equipo** | No participa. |
 | **Cursor** | Activo — **único que implementa** | Lee opiniones, escribe decisión final, **programa** tras OK del creador. |
 
@@ -113,52 +113,57 @@ Cuando existan varias soluciones, comparar ventajas/desventajas y elegir la que 
 
 ---
 
-## Opinión — Claude
+## Opinión — Claude (auditoría canónica)
 
-**Fecha:** 8 julio 2026 (actualizado tras v271–v273)
+**Fecha:** 8 julio 2026  
+**Versión revisada:** v272 → v275 (`main`)  
+**Alcance:** lectura completa de `server/` + capa sync cliente. **Sin modificar código del juego.**
 
-### Lo que está bien
+> **Visibilidad:** esta es la opinión **original** de Claude. La sección breve pre-v274 que Cursor había escrito aquí era una paráfrasis; quedó reemplazada al sincronizar con la rama `claude/web-rpg-gps-game-n3ybow` (8 jul 2026).
 
-- Registro de bugs reales y lecciones en `ARREGLOS_CLAUDE.md` (sintaxis JS, recursión infinita, toasts en bucle).
-- `node --check` en todos los `.js` antes de subir — práctica obligatoria.
-- Throttle de respaldos ya implementado (`respaldoThrottle.js`).
-- Inventario: `Mochila.pintar()` no redibuja durante `isDragging` (v238).
-- Anti-repetición de notificaciones (12 s) en `notificaciones.js`.
-- Correcciones recientes bien enfocadas:
-  - **v272:** `statsT`, barra hambre CSS, ban en vivo.
-  - **v273:** sync admin socket-first, `admin-colocando` para tiendas, sin toast duplicado.
+**Diseño Fase 3 completo:** ver `FASE3_DISENO_MUNDO.md` (Opción C — `world_content` + tombstones + proyector BD→blob).
 
-### Problemas encontrados
+### Hallazgos P1–P9 (auditoría inicial)
 
-| # | Problema | Detalle |
-|---|----------|---------|
-| 1 | **`t` inestable en `player:updateStats` → `partidaMin`:** cada sync de stats genera `t: Date.now()` en servidor (`sockets.js` L324), re-dispara `partida:sync` y puede hacer parpadear datos. | Nota pendiente v236 |
-| 2 | **`sync-partida` sin validar perfilId** | Mismo que ChatGPT |
-| 3 | **Cliente aún decide mucho:** `Guardado` con firma SHA256 local evita edición casual pero no es seguridad online; un jugador técnico puede falsificar localStorage. | `js/guardado/guardado.js` |
-| 4 | **Rama en docs desactualizada:** `ARQUITECTURA_SYNC.md` cita rama `claude/web-rpg-gps-game-n3ybow`; producción usa `main`. | Confusión para nuevas IA |
-| 5 | **Carpeta `mariel-explorer/` duplicada** en repo (untracked): riesgo de editar archivos equivocados. | Estructura repo |
+| ID | Severidad | Problema | Estado tras v275 |
+|----|-----------|----------|------------------|
+| P1 | CRÍTICO | Admin por nombre sin reservar en `/register` | ✅ Fase 1 + `users.role` Fase 2 |
+| P2 | CRÍTICO | Purga borra cuentas si snapshot incompleto | ✅ Fase 1 (guardas + gate `soloAdmin`) |
+| P3 | ALTO | Dos modelos de mundo (tablas vs blob) | ⏳ **Fase 3** |
+| P4 | ALTO | `JWT_SECRET` default en producción | ✅ Fase 1 (`assertProductionSecrets`) |
+| P5 | ALTO | Publicar mundo entero = last-writer-wins | ⏳ **Fase 3** (admin por objeto) |
+| P6 | MEDIO | `player:move` sin filtro por distancia | ⏳ Fase 4 |
+| P7 | MEDIO | Cliente decide stats/economía | ✅ Fase 2 (`playerStats.js`) |
+| P8 | MEDIO | Sin rate-limit | ⏳ Fase 4 |
+| P9 | MEDIO | Blob crece sin límite | ⏳ Fase 3 deltas + Fase 4 |
 
-### Riesgos futuros
+### Revisión Fase 1 (v274) — Claude
 
-- Parchear solo en cliente (como v272/v273) sin cerrar huecos en servidor deja trampas abiertas.
-- Múltiples PRs apilados (v272 + v273) sin merge rápido → jugadores en versiones distintas y desync.
+**Veredicto: ✅ APROBADO.** Código verificado en `cursor/security-phase1-7abe`. Cierra P1, P2, P4 + `sync-partida` + `updateInventory`. Todo `server/` pasa `node --check`.
 
-### Solución recomendada
+### Revisión Fase 2 (v275) — Claude
 
-**Corto plazo (estabilidad):**
+**Veredicto: ✅ APROBADO.** Revisó código real en `main`: `playerStats.js`, `auditLog.js`, `auth.js`, `db.js`, `sockets.js`, `syncMundo.js`.
 
-- Mergear PRs #101 y #102 a `main`; bump de versión en cada release.
-- Actualizar `docs/ARQUITECTURA_SYNC.md` (rama `main`, versión actual).
-- En `actualizarPartidaEnSnapshot` / `player:updateStats`: no emitir `partida:sync` si solo cambian stats y el `statsT` remoto ≤ local del receptor.
+| Ítem | Nota Claude |
+|------|-------------|
+| 2.1 `users.role` | Excelente — migración idempotente + fallback por nombre |
+| 2.2 Sin re-emitir `partida:sync` | Correcto — corta parpadeo v236 en servidor |
+| 2.3 Topes HP/hambre/XP | Cierra P7 |
+| 2.4 Auditoría admin | Buen extra |
+| 2.5 Docs | Hecho |
 
-**Medio plazo (seguridad):**
+**Observaciones menores (no bloquean):** comparación por `JSON.stringify` sensible al orden de claves; quitar fallback por nombre cuando todo admin tenga `role=admin`; correr checklist en producción.
 
-- Middleware en `sync-partida`: `perfilId` debe coincidir con token o ser admin.
-- Deprecar `player:updateInventory`; inventario solo vía acciones validadas.
+### Respuesta Claude — 5 puntos Fase 3 (8 jul 2026)
 
-### Prioridad
+1. **¿Aprueba Fases 1–2?** ✅ Sí. Pide **2 pruebas extra** al checklist (ver abajo).
+2. **BD + blob backup** ✅ De acuerdo con ChatGPT. Matiz: tabla `world_content` con tombstones; blob **generado** desde BD.
+3. **Inventario por intenciones** ✅ Meta final, pero **incremental y después** de unificar mundo — no en un solo PR.
+4. **Admin por objeto** ✅ `world:adminUpsert/Delete/Config`; endpoint mundo entero = compat temporal.
+5. **Orden** ✅ 3.1+3.2 → doble lectura → 3.3+3.4 → 2 clientes reales → 3.5 → 3.6 (render, al final).
 
-**Alta** — validación `sync-partida`. **Media** — `t` estable en reenvíos de stats. **Baja** — limpieza `mariel-explorer/`.
+**Veredicto Claude:** aprueba Fases 1–2 y diseño Fase 3 (Opción C). Adelante con 3.1+3.2 cuando el creador dé OK.
 
 ---
 
@@ -345,19 +350,24 @@ Cursor **reordena** para no mezclar un refactor enorme con parches pequeños en 
 
 **Qué NO va en Fase 2:** unificar tablas vs blob (eso es Fase 3), GPS por distancia (Fase 4), features nuevas (tiendas extra, misiones, UI).
 
-#### FASE 3 — Arquitectura mundo (después de Fase 2, PR grande)
+#### FASE 3 — Arquitectura mundo (Opción C — consenso ChatGPT + Claude + Cursor)
 
-*Objetivo: ChatGPT alta #1 + Claude P3/P5 — «todos ven lo mismo».*
+*Objetivo: P3/P5 — todos ven el mismo mundo. Diseño completo en `FASE3_DISENO_MUNDO.md`.*
 
-| # | Cambio |
-|---|--------|
-| **3.1** | Documento de diseño `docs/MUNDO_FUENTE_UNICA.md` (qué lee cada endpoint, plan migración) |
-| **3.2** | Tablas normalizadas (`world_objects`, `missions`, …) = **lectura en vivo** (`game:init`, mapa) |
-| **3.3** | `world_snapshot` / GitHub = **solo backup** (throttle 10 min + eventos críticos) |
-| **3.4** | Admin publica **por objeto** (crear/editar/borrar pin), no subir mundo entero 15 MB |
-| **3.5** | Cliente deja de depender de merge blob conflictivo para pins nuevos |
+| Paso | Qué | Rompe cliente |
+|------|-----|---------------|
+| **3.1** | `world_content` + `world_config` + migración idempotente desde blob | No |
+| **3.2** | `construirSnapshotDesdeBD()` — blob generado desde BD | No |
+| *(validar)* | **Doble lectura:** diff blob generado vs blob viejo = vacío | — |
+| **3.3** | `world:adminUpsert` / `adminDelete` / `adminConfig` + tombstones | No |
+| **3.4** | `sync-mundo` viejo → upsert por objeto (compat temporal) | No |
+| *(probar)* | **2 clientes reales:** admin crea/borra, otro ve, borrado no reaparece | — |
+| **3.5** | Panel admin usa ops por objeto (no mundo entero) | Solo admin |
+| **3.6** | Cliente lee tesoros/cofres/misiones desde deltas (opcional, al final) | Sí — aislado |
 
-**Riesgo:** alto si se hace de golpe. Fase 3 requiere plan escrito + prueba con 2 clientes antes de producción.
+**Inventario autoritativo (intenciones):** sub-fase **después** de 3.1–3.5 — validar primero dinero/drop/pickup en servidor; mochila completa al final.
+
+**Riesgo:** bajo en 3.1–3.4 (solo servidor). Alto si se mezcla 3.6 con el resto.
 
 #### FASE 4 — Rendimiento (conexión lenta Cuba)
 
@@ -414,21 +424,49 @@ Con una **cuenta normal** (no admin), todo debe **fallar correctamente**:
 6. [ ] Admin re-login → JWT con `role: admin`; publicar mapa sigue funcionando
 7. [ ] Edición admin de jugador ajeno → entrada `admin_partida_edit` en log del servidor
 
+**Extras pedidos por Claude (8 jul 2026):**
+
+8. [ ] Token JWT firmado con secreto de **dev** (`mariel-dev-secret-cambiar-en-produccion`) → **rechazado** (confirma `JWT_SECRET` real en Render)
+9. [ ] Cliente manda `hp=99999` en `player:updateStats` → servidor **acota** al máximo del nivel (ya cubierto en #3; repetir en producción)
+
+---
+
+### DECISIÓN CURSOR — consenso Fase 3 (tras Claude + ChatGPT)
+
+**Fecha:** 8 julio 2026  
+**Estado:** DISEÑO CERRADO — **no programar** hasta OK explícito del creador.
+
+| Pregunta | ChatGPT | Claude | Cursor — decisión |
+|----------|---------|--------|-------------------|
+| BD = mundo real, blob = backup | ✅ | ✅ Opción C | **Adoptado** — `FASE3_DISENO_MUNDO.md` |
+| Tabla genérica vs una por tipo | — | `world_content` + tombstones | **Adoptado** — resuelve `eliminados`/duplicados |
+| Blob como proyección generada | ✅ | ✅ | **Adoptado** — cliente sin cambios en 3.1–3.4 |
+| Inventario por intenciones | ✅ alta | ✅ incremental, después | **Fase 3b** tras unificar mundo |
+| Admin por objeto | — | ✅ | **Adoptado** — 3.3+3.5 |
+| Orden 3.1+3.2 primero | — | ✅ | **Adoptado** — un PR, validar doble lectura antes de escritura admin |
+| ¿Riesgo proyector BD→blob? | — | Pregunta a Cursor | **Bajo** si se mantiene formato actual de `mundoSnapshot`; revisar `_mundoVacio()` / `importSnapshot.js` al implementar |
+
+**Respuestas Cursor a preguntas abiertas de `FASE3_DISENO_MUNDO.md`:**
+
+1. **Tabla genérica:** sí — `world_content` + `world_config` (alineado con Claude).
+2. **Proyector:** viable; campos a no olvidar: `jugadores`, `partidas`, `posiciones`, `eliminados` (como tombstones), `tiendasStock`, `precios`, `baneados`, `mensajes`, `mantenimiento`, estados (`enemigosEstado`, etc.).
+3. **Primer PR:** sí — **3.1+3.2 juntos** en `cursor/world-single-source-7abe`, sin tocar `js/admin` hasta validar doble lectura.
+
+**Consenso triple:** ChatGPT ✅ + Claude ✅ + Cursor ✅ → **Opción C, pasos 3.1–3.6.**
+
 ---
 
 ## DECISIÓN PARA EL CREADOR
 
-**Fases 1–2:** Aprobadas por ChatGPT (`CHATGPT_CURSOR_REVIEW.md` — opinión final). Mergeadas en `main` (v275).
+**Fases 1–2:** Aprobadas por **ChatGPT** y **Claude** (código real revisado). Mergeadas en `main` (v275).
 
-**Pendiente:** Deploy Render + pasar checklists Fase 1 (7 puntos) y Fase 2 (7 puntos arriba). Admin debe **re-login** tras deploy para JWT con `role: admin`.
+**Fase 3:** Diseño **cerrado por consenso** — ver `FASE3_DISENO_MUNDO.md` + sección «DECISIÓN CURSOR — consenso Fase 3» arriba.
 
-**Fase 3 (siguiente):** Una sola fuente de verdad del mundo — BD = oficial, snapshot = backup. **Prioridad máxima** según ChatGPT.
+**Pendiente operativo:** Deploy Render + checklists Fase 1 (7) y Fase 2 (9, incluye extras Claude). Admin **re-login** para JWT `role: admin`.
 
-**Orden acordado:** Seguridad → Estabilidad → Arquitectura mundo → Optimización → Nuevas funciones.
+**Para decir a Cursor:** «**Adelante con Fase 3**» → implementar **solo 3.1+3.2** primero (migración + proyector + doble lectura).
 
-**Para decir a Cursor:** «Adelante con Fase 3» cuando checklists pasen en producción.
-
-**Para ChatGPT y Claude:** Solo opiniones en `CHATGPT_CURSOR_REVIEW.md` / comentarios PR. No implementen código.
+**Visibilidad equipo:** opiniones de Claude viven en **`main`** (`IA_TEAM_REVIEW.md`, `FASE3_DISENO_MUNDO.md`), no solo en rama `claude/web-rpg-gps-game-n3ybow`.
 
 ---
 
@@ -439,7 +477,7 @@ Con una **cuenta normal** (no admin), todo debe **fallar correctamente**:
 | 2026-07-08 | 1.0 | ChatGPT, Claude, Gemini, Cursor | Documento inicial; estado post v273 |
 | 2026-07-08 | 1.1 | ChatGPT, Claude, Cursor | Gemini fuera del equipo (aviso del creador) |
 | 2026-07-08 | 1.3 | ChatGPT, Claude, Cursor | Fase 1 seguridad aprobada e implementada (v274) |
-| 2026-07-08 | 1.7 | ChatGPT, Cursor | Opinión final ChatGPT: Fases 1–2 APROBADAS; checklist obligatorio Fase 2 |
+| 2026-07-08 | 1.8 | Claude, Cursor | Opinión real Claude en `main` + `FASE3_DISENO_MUNDO.md`; consenso Fase 3 Opción C |
 
 ---
 
