@@ -402,10 +402,9 @@ Cursor **reordena** para no mezclar un refactor enorme con parches pequeños en 
 | v274 Fase 1 | #104 | Seguridad servidor |
 | v275 Fase 2 | #105 | Roles, stats, HP, auditoría, docs |
 | v276 Fase 3.1+3.2 | #106 | `world_content`, proyector BD→blob, doble lectura |
-| v277 Fase 3.3+3.4 | #107 | Admin por objeto (sockets+REST), sync-mundo→BD |
-| v278 Fase 3.5 | #108 | Panel admin delta sync |
-| v279 Fase 3.6 | #109 | Cliente: ContenidoMundo + deltas render |
-| v280 Fase 4.1–4.4 | — | Interest 500 m, coalesce move, rate limits |
+| v279 Fase 3.6 | #109 | Cliente: ContenidoMundo + deltas render — **mergeado en main** |
+| v278 Fase 3.5 | #108 | Panel admin delta sync — **mergeado en main** |
+| v277 Fase 3.3+3.4 | #107 | Admin por objeto — **mergeado en main** |
 
 ### Cómo probar Fase 1 (checklist)
 
@@ -469,11 +468,9 @@ Con una **cuenta normal** (no admin), todo debe **fallar correctamente**:
 
 **Pendiente operativo:** Deploy Render + checklists Fase 1 (7) y Fase 2 (9, incluye extras Claude). Admin **re-login** para JWT `role: admin`.
 
-**Para decir a Cursor:** Fase 4 **en curso** — v280 interest management + rate limits.
+**Para decir a Cursor:** Fases 3–4 **mergeadas en main** (v280). Siguiente: validar en Render + checklists.
 
-**Fase 3.6 (v279):** ✅ `ContenidoMundo` — render online desde deltas.
-
-#### FASE 4 — Rendimiento (v280, en progreso)
+#### FASE 4 — Rendimiento (v280) ✅ mergeado en main
 
 | # | Cambio | Estado |
 |---|--------|--------|
