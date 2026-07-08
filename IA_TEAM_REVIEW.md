@@ -479,6 +479,46 @@ Con una **cuenta normal** (no admin), todo debe **fallar correctamente**:
 | **4.3** | Sync mundo por deltas | ✅ Fase 3 |
 | **4.4** | Rate-limit chat / amigos / register | ✅ v280 |
 
+### Checklist post-deploy (v280 — tras merge en Render)
+
+Marcar cada ítem después del deploy. Orden sugerido: servidor → admin → dos clientes.
+
+#### A. Servidor y versión
+
+1. [ ] Render terminó deploy sin crash (servicio **Live**).
+2. [ ] En logs al arrancar: `world_content: doble lectura OK` (o migración inicial sin error).
+3. [ ] `GET /version.json` o meta del juego muestra versión **280** (o la que corresponda al deploy).
+4. [ ] Jugadores con caché antigua: cartel «Actualiza el juego» o recarga forzada hasta v280.
+
+#### B. Seguridad (Fases 1–2 — regresión rápida)
+
+5. [ ] Cuenta **normal** no puede `POST /api/player/sync-mundo` → **403**.
+6. [ ] Cuenta normal no puede `sync-partida` con `perfilId` ajeno → **403**.
+7. [ ] Admin (Randy) **re-login** tras deploy → JWT con `role: admin`; publicar mapa funciona.
+
+#### C. Fase 3 — mundo unificado
+
+8. [ ] Admin crea o mueve un pin (tesoro/objeto/misión) → otro jugador **online** lo ve sin recargar la página.
+9. [ ] Admin borra un pin → desaparece en todos; **no reaparece** al volver a sincronizar (tombstone).
+10. [ ] Jugador que **entra después** del cambio ve el mapa correcto en `game:init` (mismos pins que el admin).
+11. [ ] En DevTools (admin con delta): al editar mapa, preferir `world/upsert` o sockets `world:admin*` frente a subir mundo entero (si aplica).
+
+#### D. Fase 4 — rendimiento GPS
+
+12. [ ] Dos jugadores a **> 500 m**: en Network **no** llegan `player:move` constantes del otro (solo `players:sync` ocasional si están en lista).
+13. [ ] Al **acercarse** (< 500 m): aparecen en mapa (`player:online` o `players:sync` cada ~8 s).
+14. [ ] Cerca uno del otro: movimiento del compañero se ve fluido (no «congelado» más de unos segundos).
+15. [ ] Spam de chat (>30/min) → error «Demasiados mensajes» (rate limit).
+
+#### E. Juego básico (no romper lo existente)
+
+16. [ ] Login PWA + mapa cargan.
+17. [ ] Multijugador: ver al menos un jugador cercano con pin y vida.
+18. [ ] Recoger objeto / tesoro compartido online (si hay en mapa).
+19. [ ] `node --check` en `server/` sin errores (opcional en CI/local).
+
+**Si falla algo:** anotar versión cliente, hora UTC, y si era admin o jugador normal; revisar logs Render con `[mundo]` o `world_content`.
+
 **Visibilidad equipo:** opiniones de Claude viven en **`main`** (`IA_TEAM_REVIEW.md`, `FASE3_DISENO_MUNDO.md`), no solo en rama `claude/web-rpg-gps-game-n3ybow`.
 
 ---
