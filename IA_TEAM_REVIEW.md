@@ -497,8 +497,8 @@ Marcar cada ítem después del deploy. Orden sugerido: servidor → admin → do
 
 1. [ ] Render terminó deploy sin crash (servicio **Live**).
 2. [ ] En logs al arrancar: `world_content: doble lectura OK` (o migración inicial sin error).
-3. [ ] `GET /version.json` o meta del juego muestra versión **280** (o la que corresponda al deploy).
-4. [ ] Jugadores con caché antigua: cartel «Actualiza el juego» o recarga forzada hasta v280.
+3. [ ] `GET /version.json` o meta del juego muestra versión **284** (o la que corresponda al deploy).
+4. [ ] Jugadores con caché antigua: cartel «Actualiza el juego» o recarga forzada hasta v284.
 
 #### B. Seguridad (Fases 1–2 — regresión rápida)
 
