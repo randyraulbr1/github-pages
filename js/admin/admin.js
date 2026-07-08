@@ -4073,6 +4073,7 @@ const Admin = {
     this.modo = null;
     document.getElementById('admin-controles').classList.add('oculto');
     document.body.classList.remove('ui-mapa-confirm');
+    if (typeof UIManager !== 'undefined') UIManager.refrescar();
     if (typeof Enemigos !== 'undefined' && Enemigos._recargar) Enemigos._recargar();
     if (typeof GPS !== 'undefined') GPS._actualizarArrastre();
     if (typeof Multijugador !== 'undefined' && Multijugador._redibujarCuerpos) {
@@ -4088,6 +4089,7 @@ const Admin = {
     document.getElementById('btn-admin-confirmar').style.display = conConfirmar ? '' : 'none';
     document.getElementById('admin-controles').classList.remove('oculto');
     document.body.classList.add('ui-mapa-confirm');
+    if (typeof UIManager !== 'undefined') UIManager.refrescar();
   },
 
   // ---------- BLOQUEO DEL JUEGO (mantenimiento y baneos) ----------

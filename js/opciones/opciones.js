@@ -150,16 +150,23 @@ const Opciones = {
     const txt = document.getElementById('opciones-confirm-text');
     if (tit) tit.textContent = titulo;
     if (txt) txt.textContent = texto;
-    const ov = document.getElementById('opciones-overlay');
-    ov?.classList.remove('oculto');
-    ov?.classList.add('show');
+    if (typeof UIManager !== 'undefined') {
+      UIManager.abrirConfirm('opciones-overlay', { onCancel: () => this._cerrarConfirm() });
+    } else {
+      const ov = document.getElementById('opciones-overlay');
+      ov?.classList.remove('oculto');
+      ov?.classList.add('show');
+    }
   },
 
   _cerrarConfirm() {
     this._pending = null;
-    const ov = document.getElementById('opciones-overlay');
-    ov?.classList.add('oculto');
-    ov?.classList.remove('show');
+    if (typeof UIManager !== 'undefined') UIManager.cerrarConfirm('opciones-overlay');
+    else {
+      const ov = document.getElementById('opciones-overlay');
+      ov?.classList.add('oculto');
+      ov?.classList.remove('show');
+    }
   },
 
   _aceptarConfirm() {
@@ -247,9 +254,12 @@ const Opciones = {
         .catch(() => {});
     }
     this._cerrarConfirm();
-    const v = document.getElementById('ventana-opciones');
-    v?.classList.remove('oculto');
-    v?.classList.add('show');
+    if (typeof UIManager !== 'undefined') UIManager.abrir('ventana-opciones');
+    else {
+      const v = document.getElementById('ventana-opciones');
+      v?.classList.remove('oculto');
+      v?.classList.add('show');
+    }
   },
 
   _pintarPreferencias() {
@@ -299,9 +309,12 @@ const Opciones = {
   },
 
   cerrar() {
-    const v = document.getElementById('ventana-opciones');
-    v?.classList.add('oculto');
-    v?.classList.remove('show');
+    if (typeof UIManager !== 'undefined') UIManager.cerrar('ventana-opciones');
+    else {
+      const v = document.getElementById('ventana-opciones');
+      v?.classList.add('oculto');
+      v?.classList.remove('show');
+    }
     this._cerrarConfirm();
   },
 

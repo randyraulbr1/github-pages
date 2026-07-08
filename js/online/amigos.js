@@ -357,16 +357,19 @@ const Amigos = {
   },
 
   abrir() {
-    const ventana = document.getElementById('ventana-amigos');
-    if (!ventana) return;
-    ventana.classList.remove('oculto');
-    ventana.style.zIndex = '5600';
+    if (typeof UIManager !== 'undefined') UIManager.abrir('ventana-amigos');
+    else {
+      const ventana = document.getElementById('ventana-amigos');
+      if (!ventana) return;
+      ventana.classList.remove('oculto');
+    }
     this.refrescar();
   },
 
   cerrar() {
     this._cerrarMenus();
-    document.getElementById('ventana-amigos')?.classList.add('oculto');
+    if (typeof UIManager !== 'undefined') UIManager.cerrar('ventana-amigos');
+    else document.getElementById('ventana-amigos')?.classList.add('oculto');
   },
 
   iniciarUI() {
@@ -453,17 +456,19 @@ const Amigos = {
 
   _pedirConfirm(titulo, texto, accion) {
     this._confirmPending = accion;
-    const ov = document.getElementById('amigos-overlay');
     const t = document.getElementById('amigos-confirm-title');
     const p = document.getElementById('amigos-confirm-text');
     if (t) t.textContent = titulo;
     if (p) p.textContent = texto;
-    ov?.classList.remove('oculto');
+    if (typeof UIManager !== 'undefined') {
+      UIManager.abrirConfirm('amigos-overlay', { onCancel: () => this._cerrarConfirm() });
+    } else document.getElementById('amigos-overlay')?.classList.remove('oculto');
   },
 
   _cerrarConfirm() {
     this._confirmPending = null;
-    document.getElementById('amigos-overlay')?.classList.add('oculto');
+    if (typeof UIManager !== 'undefined') UIManager.cerrarConfirm('amigos-overlay');
+    else document.getElementById('amigos-overlay')?.classList.add('oculto');
   },
 
   async _aceptarConfirm() {

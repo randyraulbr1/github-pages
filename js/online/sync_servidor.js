@@ -347,7 +347,10 @@ const SyncServidor = {
         return true;
       }
       if (typeof Notificaciones !== 'undefined') {
-        Notificaciones.mostrar('❌ Contraseña incorrecta o servidor no responde', 'error', 6000);
+        Notificaciones.mostrar(
+          '❌ ' + Utilidades.mensajeAmigable('Contraseña incorrecta o servidor no responde', 'No se pudo conectar. Reintenta.'),
+          'error', 6000
+        );
       }
       return false;
     }

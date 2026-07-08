@@ -243,9 +243,11 @@ Pruebas:
 
 # FASE 6 - Administrador de ventanas UI Manager
 
-Estado: ⏳ Pendiente
+Estado: 🚧 En progreso (v287)
 
 Objetivo: evitar bugs de ventanas, capas, foco y botones bloqueados.
+
+Nota v287: `UIManager` central — abrir/cerrar ventanas, ESC, bloqueo mapa, confirmaciones. Conectado: mochila, opciones, amigos, chat, inventario confirm.
 
 Idea:
 
@@ -272,7 +274,7 @@ Estado: 🚧 En progreso (v286 parcial)
 
 Objetivo: nunca mostrar errores feos al jugador.
 
-Nota v286: `Utilidades.mensajeAmigable()` en multijugador (saqueo, revivir, mover pin). Falta extender a sync/tiendas.
+Nota v286: `Utilidades.mensajeAmigable()` en multijugador (saqueo, revivir, mover pin). v287: sync login servidor.
 
 No mostrar:
 

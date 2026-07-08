@@ -229,18 +229,22 @@ const Chat = {
       Notificaciones.mostrar('📡 Conéctate al servidor para usar el chat', 'alerta', 3500);
       return;
     }
-    panel.classList.toggle('show');
-    const abierto = panel.classList.contains('show');
-    this._syncChatAbiertoBody(abierto);
-    document.getElementById('btn-chat')?.classList.toggle('activo', abierto);
+    const abierto = !panel.classList.contains('show');
     if (abierto) {
+      if (typeof UIManager !== 'undefined') UIManager.abrir('chatPanel');
+      else panel.classList.add('show');
+      this._syncChatAbiertoBody(true);
+      document.getElementById('btn-chat')?.classList.add('activo');
       this.showList();
       this.refrescarConversaciones();
+    } else {
+      this.cerrarPanel();
     }
   },
 
   cerrarPanel() {
-    document.getElementById('chatPanel')?.classList.remove('show');
+    if (typeof UIManager !== 'undefined') UIManager.cerrar('chatPanel');
+    else document.getElementById('chatPanel')?.classList.remove('show');
     this._syncChatAbiertoBody(false);
     document.getElementById('btn-chat')?.classList.remove('activo');
     document.getElementById('emojiPanelChat')?.classList.remove('show');
@@ -593,7 +597,13 @@ const Chat = {
     }
     this._confirmModo = 'borrar';
     this._borrarChatPendiente = id;
-    document.getElementById('chat-overlay')?.classList.remove('oculto');
+    this._abrirConfirmChat();
+  },
+
+  _abrirConfirmChat() {
+    if (typeof UIManager !== 'undefined') {
+      UIManager.abrirConfirm('chat-overlay', { onCancel: () => this._cerrarConfirmBorrar() });
+    } else document.getElementById('chat-overlay')?.classList.remove('oculto');
   },
 
   _pedirDejarSeguirPin() {
@@ -613,7 +623,7 @@ const Chat = {
       okBtn.classList.remove('danger');
     }
     this._confirmModo = 'pin';
-    document.getElementById('chat-overlay')?.classList.remove('oculto');
+    this._abrirConfirmChat();
   },
 
   _cerrarConfirmBorrar() {
@@ -626,7 +636,8 @@ const Chat = {
       okBtn.textContent = 'Borrar';
       okBtn.classList.add('danger');
     }
-    document.getElementById('chat-overlay')?.classList.add('oculto');
+    if (typeof UIManager !== 'undefined') UIManager.cerrarConfirm('chat-overlay');
+    else document.getElementById('chat-overlay')?.classList.add('oculto');
   },
 
   _confirmarBorrarChat() {

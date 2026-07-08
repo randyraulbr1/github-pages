@@ -3142,6 +3142,24 @@ body.ui-mapa-confirm .overlay-mision,
 body.ui-mapa-confirm .overlay-botin {
   pointer-events: none !important;
 }
+/* Fase 6 — UI Manager: bloquear mapa con menú abierto */
+body.ui-bloquea-mapa #mapa,
+body.ui-bloquea-mapa #mapa .leaflet-pane,
+body.ui-bloquea-mapa #mapa .leaflet-control-container {
+  pointer-events: none !important;
+}
+body.ui-bloquea-mapa .ventana:not(.oculto),
+body.ui-bloquea-mapa #chatPanel.show,
+body.ui-bloquea-mapa .opciones-ventana.show,
+body.ui-bloquea-mapa .avisos-ventana.show,
+body.ui-bloquea-mapa .inv-confirm-overlay:not(.oculto),
+body.ui-bloquea-mapa #opciones-overlay.show,
+body.ui-bloquea-mapa .amigos-overlay:not(.oculto),
+body.ui-bloquea-mapa .chat-overlay:not(.oculto),
+body.ui-bloquea-mapa #admin-controles:not(.oculto),
+body.ui-bloquea-mapa .colocacion-controles:not(.oculto) {
+  pointer-events: auto !important;
+}
 body.admin-organizar .admin-pin-organizar {
   cursor: grab;
   touch-action: none;

@@ -51,8 +51,14 @@ const Mochila = {
     this._notificarCambioArma();
   },
 
+  _cerrarVentana() {
+    if (typeof UIManager !== 'undefined') UIManager.cerrar('ventana-mochila');
+    else document.getElementById('ventana-mochila')?.classList.add('oculto');
+  },
+
   abrir() {
-    document.getElementById('ventana-mochila').classList.remove('oculto');
+    if (typeof UIManager !== 'undefined') UIManager.abrir('ventana-mochila');
+    else document.getElementById('ventana-mochila').classList.remove('oculto');
     this.selected = null;
     this.slotSeleccionado = -1;
     this._cleanupDrag();
@@ -781,17 +787,26 @@ const Mochila = {
     return new Promise((resolve) => {
       this._confirmResolve = resolve;
       const txt = document.getElementById('inv-confirm-text');
-      const ov = document.getElementById('inv-confirm-overlay');
       if (txt) txt.textContent = texto;
-      ov?.classList.remove('oculto');
-      ov?.setAttribute('aria-hidden', 'false');
+      if (typeof UIManager !== 'undefined') {
+        UIManager.abrirConfirm('inv-confirm-overlay', {
+          onCancel: () => this._resolverConfirm(false)
+        });
+      } else {
+        const ov = document.getElementById('inv-confirm-overlay');
+        ov?.classList.remove('oculto');
+        ov?.setAttribute('aria-hidden', 'false');
+      }
     });
   },
 
   _resolverConfirm(ok) {
-    const ov = document.getElementById('inv-confirm-overlay');
-    ov?.classList.add('oculto');
-    ov?.setAttribute('aria-hidden', 'true');
+    if (typeof UIManager !== 'undefined') UIManager.cerrarConfirm('inv-confirm-overlay');
+    else {
+      const ov = document.getElementById('inv-confirm-overlay');
+      ov?.classList.add('oculto');
+      ov?.setAttribute('aria-hidden', 'true');
+    }
     const r = this._confirmResolve;
     this._confirmResolve = null;
     if (r) r(!!ok);
@@ -856,12 +871,12 @@ const Mochila = {
 
     const uso = Items.usoEspecial(sl.id);
     if (uso === 'cofre') {
-      document.getElementById('ventana-mochila').classList.add('oculto');
+      this._cerrarVentana();
       Cofres.usarCofreInventario();
       return;
     }
     if (uso === 'llave') {
-      document.getElementById('ventana-mochila').classList.add('oculto');
+      this._cerrarVentana();
       Cofres.usarLlaveMaestra();
       return;
     }

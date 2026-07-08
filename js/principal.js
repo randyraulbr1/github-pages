@@ -273,6 +273,7 @@ async function asegurarMapaVisible() {
     Cofres.iniciar();
     await pasoSeguro('admin', () => { Admin.iniciar(); });
     await pasoSeguro('opciones', () => { Opciones.iniciar(); });
+    if (typeof UIManager !== 'undefined') UIManager.iniciar();
     if (typeof Amigos !== 'undefined') Amigos.iniciarUI();
     Mapa.restaurarVista();
 
@@ -284,13 +285,16 @@ async function asegurarMapaVisible() {
           Admin.cerrarPanel();
           return;
         }
-        document.getElementById(id).classList.add('oculto');
+        if (typeof UIManager !== 'undefined' && UIManager.VENTANAS[id]) UIManager.cerrar(id);
+        else document.getElementById(id)?.classList.add('oculto');
       });
     });
     document.querySelectorAll('.ventana').forEach(v => {
       if (v.id === 'ventana-combate') return;
       v.addEventListener('click', ev => {
-        if (ev.target === v) v.classList.add('oculto');
+        if (ev.target !== v) return;
+        if (typeof UIManager !== 'undefined' && UIManager.VENTANAS[v.id]) UIManager.cerrar(v.id);
+        else v.classList.add('oculto');
       });
     });
 
