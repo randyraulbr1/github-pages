@@ -1759,6 +1759,7 @@ const Admin = {
     }
     if (typeof GPS !== 'undefined') GPS._actualizarArrastre();
     if (typeof AdminCatalogo !== 'undefined') AdminCatalogo.iniciar(this);
+    if (typeof AdminDepuracion !== 'undefined') AdminDepuracion.iniciar(this);
   },
 
   puedeMoverPinJugador() {
