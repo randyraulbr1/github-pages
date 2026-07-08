@@ -115,13 +115,6 @@ const Vida = {
           !Items.armaAptaParaNivel(Mochila.armaEquipadaId(), this.nivel)) {
         Mochila.desequiparArma();
       }
-      if (this._muerto) {
-        this._muerto = false;
-        Guardado.datos.muerto = false;
-        const pantalla = document.getElementById('pantalla-muerte');
-        if (pantalla) pantalla.classList.add('oculto');
-        document.body.classList.remove('jugador-muerto');
-      }
       Notificaciones.mostrar(
         '⭐ ¡Subiste al nivel ' + this.nivel + '! Vida restaurada a ' + this.vidaMaxima(),
         'exito', 5000
@@ -228,6 +221,7 @@ const Vida = {
     if (this._muerto) return;
     this._muerto = true;
     Guardado.datos.muerto = true;
+    Guardado.datos.revividoEn = null;
     Guardado.datos.vida = 0;
     if (typeof GPS !== 'undefined' && GPS.posicion) {
       Guardado.datos.muertePos = GPS.posicion.slice();
@@ -280,6 +274,7 @@ const Vida = {
   revivir(vida, motivo) {
     this._muerto = false;
     Guardado.datos.muerto = false;
+    Guardado.datos.revividoEn = Date.now();
     Guardado.datos.muertePos = null;
     Guardado.datos.muerteInventario = null;
     Guardado.datos.muertoAt = null;

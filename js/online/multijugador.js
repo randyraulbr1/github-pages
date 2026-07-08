@@ -390,11 +390,6 @@ const Multijugador = {
     });
 
     this.socket.on('player:updateStats', (p) => {
-      const pidSelf = Number(p?.playerId);
-      if (pidSelf === this._miPlayerId() && p.dead === false && typeof Vida !== 'undefined' && Vida.estaMuerto()) {
-        Vida.revivir(p.hp, '❤️ El administrador te revivió. ¡Ya puedes seguir jugando!');
-        return;
-      }
       if (!this._visible(p.playerId)) return;
       const i = this.online.findIndex(x => Number(x.playerId) === Number(p.playerId));
       if (i >= 0) {
@@ -685,12 +680,14 @@ const Multijugador = {
     if (typeof Vida !== 'undefined') {
       if (d.nivel != null) Vida.nivel = d.nivel;
       if (d.xp != null) Vida.xp = d.xp;
-      if (d.muerto) {
+      const muertoRemoto = !!(d.muerto || (d.vida != null && d.vida <= 0));
+      const muertoLocal = Vida.estaMuerto() || Guardado.datos.muerto;
+      if (muertoRemoto) {
         Vida._activarMuerte();
-      } else if (Vida.estaMuerto() || Guardado.datos.muerto) {
+      } else if (muertoLocal && typeof Admin !== 'undefined' && Admin._revividoRecienteEnPartida(d)) {
         Vida.revivir(d.vida, '❤️ El administrador te revivió. ¡Ya puedes seguir jugando!');
         revivido = true;
-      } else {
+      } else if (!muertoLocal) {
         if (d.vida != null) Vida.actual = d.vida;
         if (d.hambre != null) Vida.hambre = d.hambre;
         Vida.pintar();

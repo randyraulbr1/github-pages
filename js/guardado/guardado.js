@@ -96,7 +96,7 @@ const Guardado = {
       'mochila', 'dinero', 'vida', 'hambre', 'xp', 'nivel', 'posicionJugador',
       'tesorosRecogidos', 'misiones', 'misionesEstado',
       'correoEnviados', 'correoRecibidos', 'correoTiendaLocal',
-      'historialDinero', 'historialObjetos', 'mensajesVistos', 'muerto', 'muertePos', 'armaEquipada'
+      'historialDinero', 'historialObjetos', 'mensajesVistos', 'muerto', 'muertePos', 'revividoEn', 'armaEquipada'
     ];
   },
 
