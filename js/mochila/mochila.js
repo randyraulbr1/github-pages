@@ -21,8 +21,11 @@ const Mochila = {
       Guardado.datos.mochila[1] = { id: 'pan', cantidad: 1 };
     }
     this.slots = Guardado.datos.mochila;
+    this._asegurarEquipoEquipado();
     this._sanearArmaEquipada();
+    this._sanearEquipoEquipado();
     this._sincronizarArmaEquipada();
+    this._sincronizarEquipoEquipado();
 
     document.getElementById('btn-mochila').addEventListener('click', () => this.abrir());
     const btnUsar = document.getElementById('btn-usar-item');
@@ -83,7 +86,7 @@ const Mochila = {
   _statsConsumo() {
     return {
       hambre: Vida.hambre,
-      hambreMax: CONFIG.hambreMaxima,
+      hambreMax: Vida.hambreMaxima(),
       vida: Vida.actual,
       vidaMax: Vida.vidaMaxima()
     };
@@ -104,6 +107,7 @@ const Mochila = {
   contar(id) {
     let total = this.slots.reduce((s, sl) => s + (sl && sl.id === id ? sl.cantidad : 0), 0);
     if (this.armaEquipadaId() === id) total += 1;
+    if (this._idsEquipoRealmenteEquipado().includes(id)) total += 1;
     return total;
   },
   tieneItem(id) { return this.contar(id) > 0; },
@@ -143,7 +147,154 @@ const Mochila = {
 
   _refrescarTrasGuardado() {
     this.slots = Guardado.datos.mochila || this.slots;
-    this._notificarCambioArma();
+    this._notificarCambioEquipo();
+  },
+
+  _asegurarEquipoEquipado() {
+    if (!Guardado.datos.equipoEquipado || typeof Guardado.datos.equipoEquipado !== 'object') {
+      Guardado.datos.equipoEquipado = { casco: null, chaleco: null, botas: null, ropa: null };
+    }
+    for (const r of Items.RANURAS_EQUIPO) {
+      if (Guardado.datos.equipoEquipado[r] === undefined) Guardado.datos.equipoEquipado[r] = null;
+    }
+  },
+
+  _ranuraDesdeSlot(slotKey) {
+    return Items.SLOT_A_RANURA[slotKey] || null;
+  },
+
+  equipoEnRanura(ranura) {
+    this._asegurarEquipoEquipado();
+    return Guardado.datos.equipoEquipado[ranura] || null;
+  },
+
+  _idsEquipoRealmenteEquipado() {
+    this._sanearEquipoEquipado();
+    return Items.RANURAS_EQUIPO.map((r) => this.equipoEnRanura(r)).filter(Boolean);
+  },
+
+  _sanearEquipoEquipado() {
+    this._asegurarEquipoEquipado();
+    const eq = Guardado.datos.equipoEquipado;
+    let cambio = false;
+    for (const ranura of Items.RANURAS_EQUIPO) {
+      const id = eq[ranura];
+      if (!id) continue;
+      if (this._indiceEnMochila(id) >= 0) {
+        eq[ranura] = null;
+        cambio = true;
+        continue;
+      }
+      const item = Items.obtener(id);
+      if (!item || Items.ranuraDeItem(item) !== ranura) {
+        eq[ranura] = null;
+        cambio = true;
+      }
+    }
+    return cambio;
+  },
+
+  _sincronizarEquipoEquipado() {
+    this._asegurarEquipoEquipado();
+    for (const ranura of Items.RANURAS_EQUIPO) {
+      const id = this.equipoEnRanura(ranura);
+      if (!id) continue;
+      const idx = this._indiceEnMochila(id);
+      if (idx >= 0) this.slots[idx] = null;
+    }
+  },
+
+  bonusesEquipoActivos() {
+    this._sanearEquipoEquipado();
+    const ids = [];
+    const nv = typeof Vida !== 'undefined' ? Vida.nivel : 1;
+    for (const ranura of Items.RANURAS_EQUIPO) {
+      const id = this.equipoEnRanura(ranura);
+      if (!id) continue;
+      const item = Items.obtener(id);
+      if (!item || !Items.equipoAptoParaNivel(item, nv)) continue;
+      ids.push(id);
+    }
+    return Items.calcularBonusesEquipo(ids);
+  },
+
+  equiparPieza(id, ranura, slotOrigen) {
+    const item = Items.obtener(id);
+    if (!item || Items.ranuraDeItem(item) !== ranura) return false;
+    if (!Items.equipoAptoParaNivel(item, Vida.nivel)) {
+      this._toast('Nivel ' + (item.nivelMin || 1) + '–' + (item.nivelMax || 100) + ' para este equipo');
+      return false;
+    }
+
+    let idx = typeof slotOrigen === 'number' ? slotOrigen : this._indiceEnMochila(id);
+    if (idx < 0 || !this.slots[idx] || this.slots[idx].id !== id) return false;
+
+    const prev = this.equipoEnRanura(ranura);
+    if (prev && prev !== id) this.desequiparPieza(ranura);
+
+    this.slots[idx] = null;
+    Guardado.datos.equipoEquipado[ranura] = id;
+    this.guardar();
+    this._notificarCambioEquipo();
+    return true;
+  },
+
+  desequiparPieza(ranura, slotDestino) {
+    const id = this.equipoEnRanura(ranura);
+    if (!id) return false;
+
+    let dest = typeof slotDestino === 'number' ? slotDestino : this._primerSlotLibre();
+    if (dest < 0) {
+      this._toast('🎒 No hay espacio para guardar el equipo');
+      return false;
+    }
+
+    const anterior = this.slots[dest];
+    Guardado.datos.equipoEquipado[ranura] = null;
+    this.slots[dest] = { id, cantidad: 1 };
+
+    if (anterior) {
+      const libre = this._primerSlotLibre();
+      if (libre < 0 || libre === dest) {
+        this.slots[dest] = anterior;
+        Guardado.datos.equipoEquipado[ranura] = id;
+        this._toast('🎒 No hay espacio en la mochila');
+        return false;
+      }
+      this.slots[libre] = anterior;
+    }
+
+    this.guardar();
+    this._notificarCambioEquipo();
+    return true;
+  },
+
+  desequiparEquipoFueraDeNivel() {
+    const nv = typeof Vida !== 'undefined' ? Vida.nivel : 1;
+    for (const ranura of Items.RANURAS_EQUIPO) {
+      const id = this.equipoEnRanura(ranura);
+      if (!id) continue;
+      const item = Items.obtener(id);
+      if (!item || Items.equipoAptoParaNivel(item, nv)) continue;
+      this.desequiparPieza(ranura);
+    }
+  },
+
+  _notificarCambioEquipo() {
+    const aplicar = () => {
+      this._sanearArmaEquipada();
+      this._sanearEquipoEquipado();
+      if (typeof Vida !== 'undefined') Vida._clampStatsAlMax();
+      this.pintarArmaHud();
+      const ventana = document.getElementById('ventana-mochila');
+      if (ventana && !ventana.classList.contains('oculto')) {
+        this._pintarSlotsEquipamiento();
+        this._pintarDanoAtaque();
+      }
+      if (typeof Vida !== 'undefined') Vida.pintar();
+    };
+    aplicar();
+    requestAnimationFrame(aplicar);
   },
 
   _sincronizarArmaEquipada() {
@@ -256,8 +407,16 @@ const Mochila = {
     if (!this.selected || this.selected.place !== 'bag') return;
     const sl = this.slots[this.selected.key];
     if (!sl) return;
-    if (this.armaEquipadaId() === sl.id) this.desequiparArma();
-    else this.equiparArma(sl.id, this.selected.key);
+    const item = Items.seguro(sl.id);
+    if (Items.esArma(item)) {
+      if (this.armaEquipadaId() === sl.id) this.desequiparArma();
+      else this.equiparArma(sl.id, this.selected.key);
+      return;
+    }
+    const ranura = Items.ranuraDeItem(item);
+    if (!ranura) return;
+    if (this.equipoEnRanura(ranura) === sl.id) this.desequiparPieza(ranura);
+    else this.equiparPieza(sl.id, ranura, this.selected.key);
   },
 
   agregar(id, cantidad = 1, opciones = {}) {
@@ -366,10 +525,20 @@ const Mochila = {
       quitoEquipada = true;
       restante -= 1;
     }
+    if (restante > 0) {
+      for (const ranura of Items.RANURAS_EQUIPO) {
+        if (restante <= 0) break;
+        if (this.equipoEnRanura(ranura) === id) {
+          Guardado.datos.equipoEquipado[ranura] = null;
+          quitoEquipada = true;
+          restante -= 1;
+        }
+      }
+    }
     if (restante > 0) return false;
     this.guardar();
     this.pintar();
-    if (quitoEquipada) this._notificarCambioArma();
+    if (quitoEquipada) this._notificarCambioEquipo();
     const item = Items.seguro(id);
     Historial.registrar('objetos', { detalle: motivo + ': ' + item.nombre, monto: -cantidad });
     return true;
@@ -377,9 +546,16 @@ const Mochila = {
 
   _getItem(place, key) {
     if (place === 'bag') return this.slots[key] || null;
-    if (place === 'equip' && key === 'weapon') {
-      const id = this.armaEquipadaId();
-      return id ? { id, cantidad: 1 } : null;
+    if (place === 'equip') {
+      if (key === 'weapon') {
+        const id = this._armaRealmenteEquipada();
+        return id ? { id, cantidad: 1 } : null;
+      }
+      const ranura = this._ranuraDesdeSlot(key);
+      if (ranura) {
+        const id = this.equipoEnRanura(ranura);
+        return id ? { id, cantidad: 1 } : null;
+      }
     }
     return null;
   },
@@ -391,6 +567,11 @@ const Mochila = {
     }
     if (place === 'equip' && key === 'weapon') {
       Guardado.datos.armaEquipada = item ? item.id : null;
+      return;
+    }
+    const ranura = this._ranuraDesdeSlot(key);
+    if (place === 'equip' && ranura) {
+      Guardado.datos.equipoEquipado[ranura] = item ? item.id : null;
     }
   },
 
@@ -406,17 +587,7 @@ const Mochila = {
   },
 
   _notificarCambioArma() {
-    const aplicar = () => {
-      this._sanearArmaEquipada();
-      this.pintarArmaHud();
-      const ventana = document.getElementById('ventana-mochila');
-      if (ventana && !ventana.classList.contains('oculto')) {
-        this._pintarSlotEquip();
-        this._pintarDanoAtaque();
-      }
-    };
-    aplicar();
-    requestAnimationFrame(aplicar);
+    this._notificarCambioEquipo();
   },
 
   pintarArmaHud() {
@@ -446,24 +617,49 @@ const Mochila = {
     if (status) status.textContent = equipada ? ('⚔️ ' + Items.seguro(id).nombre) : '⚔️ Sin arma';
   },
 
-  _pintarSlotEquip() {
-    const slot = document.getElementById('slot-arma-equipada');
+  _pintarSlotEquip(slotKey, slotId, tituloDefecto) {
+    const slot = document.getElementById(slotId);
     if (!slot) return;
-    const id = this._armaRealmenteEquipada();
-    const item = id ? Items.seguro(id) : null;
+    const item = this._getItem('equip', slotKey);
     slot.querySelectorAll('.inv-item-drag').forEach(x => x.remove());
     slot.classList.toggle('filled', !!item);
     slot.classList.toggle('equipada', !!item);
     if (item) {
-      slot.insertAdjacentHTML('beforeend', this._htmlItem(item.icono, 1, false));
+      const def = Items.seguro(item.id);
+      slot.insertAdjacentHTML('beforeend', this._htmlItem(def.icono, 1, false));
       const dragEl = slot.querySelector('.inv-item-drag');
-      if (dragEl) this._enlazarSlot(dragEl, 'equip', 'weapon');
+      if (dragEl) this._enlazarSlot(dragEl, 'equip', slotKey);
+      slot.title = def.nombre;
+    } else {
+      slot.title = tituloDefecto;
     }
-    slot.title = item ? item.nombre : 'Arma';
     if (!slot._invSlotOk) {
       slot._invSlotOk = true;
-      slot.addEventListener('pointerdown', (e) => this._onSlotPointerDown(e, 'equip', 'weapon'));
+      slot.addEventListener('pointerdown', (e) => this._onSlotPointerDown(e, 'equip', slotKey));
     }
+  },
+
+  _pintarSlotsEquipamiento() {
+    this._pintarSlotEquip('weapon', 'slot-arma-equipada', 'Arma');
+    document.querySelectorAll('#inv-equip-row .inv-equip-slot').forEach((slot) => {
+      const key = slot.dataset.equip;
+      if (!key || key === 'weapon') return;
+      const item = this._getItem('equip', key);
+      slot.querySelectorAll('.inv-item-drag').forEach(x => x.remove());
+      slot.classList.toggle('filled', !!item);
+      slot.classList.toggle('equipada', !!item);
+      if (item) {
+        const def = Items.seguro(item.id);
+        slot.insertAdjacentHTML('beforeend', this._htmlItem(def.icono, 1, false));
+        const dragEl = slot.querySelector('.inv-item-drag');
+        if (dragEl) this._enlazarSlot(dragEl, 'equip', key);
+        slot.title = def.nombre;
+      }
+      if (!slot._invSlotOk) {
+        slot._invSlotOk = true;
+        slot.addEventListener('pointerdown', (e) => this._onSlotPointerDown(e, 'equip', key));
+      }
+    });
   },
 
   pintar() {
@@ -481,12 +677,14 @@ const Mochila = {
       if (dinInv && typeof Dinero !== 'undefined') dinInv.textContent = Dinero.saldo;
 
       rejilla.innerHTML = '';
+      const ocultos = new Set(this._idsEquipoRealmenteEquipado());
+      if (this._armaRealmenteEquipada()) ocultos.add(this._armaRealmenteEquipada());
       this.slots.forEach((sl, i) => {
         const celda = document.createElement('div');
         celda.className = 'slot';
         celda.dataset.place = 'bag';
         celda.dataset.index = i;
-        if (sl && sl.id !== this._armaRealmenteEquipada()) {
+        if (sl && !ocultos.has(sl.id)) {
           const item = Items.seguro(sl.id);
           celda.innerHTML = this._htmlItem(item.icono, sl.cantidad, true);
           const dragEl = celda.querySelector('.inv-item-drag');
@@ -497,7 +695,7 @@ const Mochila = {
       });
     }
 
-    this._pintarSlotEquip();
+    this._pintarSlotsEquipamiento();
     this._pintarDanoAtaque();
     this._actualizarNombreArrastre();
   },
@@ -629,25 +827,40 @@ const Mochila = {
     if (!fromItem) return;
 
     if (toPlace === 'equip') {
-      if (toKey !== 'weapon') {
-        this._toast('Ese espacio aún no está disponible');
+      const item = Items.seguro(fromItem.id);
+      if (toKey === 'weapon') {
+        if (!Items.esEquipable(item, fromItem.id, 'weapon')) {
+          this._toast('Eso no va ahí');
+          return;
+        }
+        if (fromPlace === 'bag') this.equiparArma(fromItem.id, fromKey);
         return;
       }
-      const item = Items.seguro(fromItem.id);
-      if (!Items.esEquipable(item, fromItem.id)) {
+      const ranura = this._ranuraDesdeSlot(toKey);
+      if (!ranura) {
+        this._toast('Ese espacio no está disponible');
+        return;
+      }
+      if (!Items.esEquipable(item, fromItem.id, toKey)) {
         this._toast('Eso no va ahí');
         return;
       }
-      if (fromPlace === 'bag') {
-        this.equiparArma(fromItem.id, fromKey);
-      }
+      if (fromPlace === 'bag') this.equiparPieza(fromItem.id, ranura, fromKey);
       return;
     }
 
-    if (fromPlace === 'equip' && fromKey === 'weapon') {
-      if (toPlace === 'bag') {
+    if (fromPlace === 'equip') {
+      if (fromKey === 'weapon') {
+        if (toPlace === 'bag') {
+          const dest = typeof toKey === 'number' ? toKey : this._primerSlotLibre();
+          this.desequiparArma(dest);
+        }
+        return;
+      }
+      const ranura = this._ranuraDesdeSlot(fromKey);
+      if (ranura && toPlace === 'bag') {
         const dest = typeof toKey === 'number' ? toKey : this._primerSlotLibre();
-        this.desequiparArma(dest);
+        this.desequiparPieza(ranura, dest);
       }
       return;
     }
@@ -740,7 +953,7 @@ const Mochila = {
 
     if (target.classList.contains('inv-equip-slot') && !target.classList.contains('inv-equip-future')) {
       const eq = target.dataset.equip;
-      if (eq === 'weapon') this._moveItem(from.place, from.key, 'equip', 'weapon');
+      if (eq) this._moveItem(from.place, from.key, 'equip', eq);
     } else if (target.classList.contains('slot')) {
       const idx = Number(target.dataset.index);
       if (!isNaN(idx)) {
@@ -832,8 +1045,13 @@ const Mochila = {
     }
 
     const eraArma = Items.esArma(item);
+    const eraEquipo = Items.esPiezaEquipo(item);
     if (place === 'equip') {
-      Guardado.datos.armaEquipada = null;
+      if (key === 'weapon') Guardado.datos.armaEquipada = null;
+      else {
+        const ranura = this._ranuraDesdeSlot(key);
+        if (ranura) Guardado.datos.equipoEquipado[ranura] = null;
+      }
     } else {
       this.slots[key] = null;
       if (this.armaEquipadaId() === sl.id) Guardado.datos.armaEquipada = null;
@@ -845,7 +1063,7 @@ const Mochila = {
     this.guardar();
     Historial.registrar('objetos', { detalle: 'Eliminado: ' + item.nombre, monto: -sl.cantidad });
     this._toast('Objeto dejado en el suelo');
-    if (eraArma) this._notificarCambioArma();
+    if (eraArma || eraEquipo) this._notificarCambioEquipo();
     return true;
   },
 
@@ -908,12 +1126,13 @@ const Mochila = {
 
     if (cantidad <= 0 || optimo <= 0) {
       if (tipo === 'hambre') this._toast('No tienes hambre');
+      else if (tipo === 'crudo') this._toast('No puedes comer eso ahora');
       else this._toast('Ya tienes la vida al máximo');
       return;
     }
 
     const online = typeof Multijugador !== 'undefined' && Multijugador.activo &&
-      CONFIG.servidorOnline && (tipo === 'hambre' || tipo === 'vida');
+      CONFIG.servidorOnline && (tipo === 'hambre' || tipo === 'vida' || tipo === 'crudo');
     if (online) {
       void Multijugador.usarItemServidor(sl.id, cantidad).then((res) => {
         if (!res?.ok) {
@@ -928,7 +1147,9 @@ const Mochila = {
 
     this._aplicarConsumo(item, sl.id, cantidad);
     this._quitarCantidad(place, key, cantidad);
-    this._toast('Usaste ' + cantidad + 'x ' + item.nombre);
+    const tipoPost = Items.tipoConsumible(item, sl.id);
+    if (tipoPost === 'crudo') this._toast('Comiste ' + cantidad + 'x ' + item.nombre + ' crudo');
+    else this._toast('Usaste ' + cantidad + 'x ' + item.nombre);
   },
 
   _aplicarConsumo(item, id, cantidad) {
@@ -956,18 +1177,24 @@ const Mochila = {
         }
       }
       if (!negativo) Vida.ganarXp(2 * cantidad, 'Comer crudo');
+      else this._toast('¡Te hizo daño comer crudo!');
     }
   },
 
   _quitarCantidad(place, key, cantidad) {
     if (place === 'equip') {
-      Guardado.datos.armaEquipada = null;
+      if (key === 'weapon') {
+        Guardado.datos.armaEquipada = null;
+      } else {
+        const ranura = this._ranuraDesdeSlot(key);
+        if (ranura) Guardado.datos.equipoEquipado[ranura] = null;
+      }
       if (this.selected && this.selected.place === 'equip') {
         this.selected = null;
         this.slotSeleccionado = -1;
       }
       this.guardar();
-      this._notificarCambioArma();
+      this._notificarCambioEquipo();
       return;
     }
     const sl = this.slots[key];

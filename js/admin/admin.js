@@ -2674,6 +2674,10 @@ const Admin = {
           this._campoSelect('af-tipo-item', 'Tipo',
             '<option value="comida">🍽️ Consumible (comer/beber)</option>' +
             '<option value="arma">⚔️ Arma</option>' +
+            '<option value="casco">⛑️ Casco</option>' +
+            '<option value="chaleco">🎽 Chaleco</option>' +
+            '<option value="botas">🥾 Botas</option>' +
+            '<option value="ropa">👕 Ropa</option>' +
             '<option value="herramienta">🔧 Herramienta</option>' +
             '<option value="pez">🐟 Animal / pez</option>' +
             '<option value="tesoro">💎 Tesoro</option>' +
@@ -2704,6 +2708,21 @@ const Admin = {
           this._campoNumero('af-dano', 'Daño arma', d.dano || 5) +
           this._campoNumero('af-nivel-min', 'Nivel mín', d.nivelMin || 1) +
         '</div>' +
+        '<div class="campo-doble" id="af-equipo-campos" style="display:none">' +
+          this._campoNumero('af-defensa', 'Defensa', d.defensa || 0) +
+          this._campoNumero('af-bonus-vida', 'Bonus vida', d.bonusVida || 0) +
+        '</div>' +
+        '<div class="campo-doble" id="af-equipo-campos2" style="display:none">' +
+          this._campoSelect('af-bonus-vida-modo', 'Modo bonus vida',
+            '<option value="porcentaje">Porcentaje (%)</option>' +
+            '<option value="fijo">Valor fijo</option>') +
+          this._campoNumero('af-bonus-dano', 'Bonus daño', d.bonusDano || 0) +
+        '</div>' +
+        '<div class="campo-doble" id="af-equipo-campos3" style="display:none">' +
+          this._campoNumero('af-nivel-min-eq', 'Nivel mín', d.nivelMin || 1) +
+          this._campoNumero('af-nivel-max-eq', 'Nivel máx', d.nivelMax || ((d.nivelMin || 1) + 9)) +
+        '</div>' +
+        this._campoTexto('af-resistencia', 'Resistencia especial (opcional)', d.resistencia || '') +
         this._campoTexto('af-desc', 'Descripción', 'Ej: Reserva especial del puerto') +
         this._campoArea('af-desc-larga', 'Descripción larga (opcional)', 'Texto extra para el catálogo…');
       document.getElementById('btn-admin-guardar').textContent = editando ? 'Guardar cambios' : 'Crear objeto';
@@ -2729,9 +2748,42 @@ const Admin = {
         this._enlazarEmojisObjeto();
         const armaBox = document.getElementById('af-arma-campos');
         const pezBox = document.getElementById('af-pez-crudo');
+        const eqBoxes = ['af-equipo-campos', 'af-equipo-campos2', 'af-equipo-campos3'].map((id) => document.getElementById(id));
+        const tiposEq = ['casco', 'chaleco', 'botas', 'ropa'];
+        if (d.bonusVidaModo) {
+          const bvm = document.getElementById('af-bonus-vida-modo');
+          if (bvm) bvm.value = d.bonusVidaModo;
+        }
+        if (d.defensa != null) {
+          const df = document.getElementById('af-defensa');
+          if (df) df.value = d.defensa;
+        }
+        if (d.bonusVida != null) {
+          const bv = document.getElementById('af-bonus-vida');
+          if (bv) bv.value = d.bonusVida;
+        }
+        if (d.bonusDano != null) {
+          const bd = document.getElementById('af-bonus-dano');
+          if (bd) bd.value = d.bonusDano;
+        }
+        if (d.nivelMin != null && tiposEq.includes(d.tipo)) {
+          const nmi = document.getElementById('af-nivel-min-eq');
+          if (nmi) nmi.value = d.nivelMin;
+        }
+        if (d.nivelMax != null && tiposEq.includes(d.tipo)) {
+          const nma = document.getElementById('af-nivel-max-eq');
+          if (nma) nma.value = d.nivelMax;
+        }
+        if (d.resistencia) {
+          const rs = document.getElementById('af-resistencia');
+          if (rs) rs.value = d.resistencia;
+        }
         const toggleTipo = () => {
-          if (armaBox) armaBox.style.display = selTipo?.value === 'arma' ? '' : 'none';
-          if (pezBox) pezBox.style.display = selTipo?.value === 'pez' ? '' : 'none';
+          const t = selTipo?.value || '';
+          if (armaBox) armaBox.style.display = t === 'arma' ? '' : 'none';
+          if (pezBox) pezBox.style.display = t === 'pez' ? '' : 'none';
+          const esEq = tiposEq.includes(t);
+          eqBoxes.forEach((box) => { if (box) box.style.display = esEq ? '' : 'none'; });
         };
         selTipo?.addEventListener('change', toggleTipo);
         toggleTipo();
@@ -3027,6 +3079,21 @@ const Admin = {
         nuevo.dano = Math.max(1, this._numero('af-dano') || 5);
         nuevo.nivelMin = Math.max(1, this._numero('af-nivel-min') || 1);
         nuevo.nivelMax = Math.min(100, (nuevo.nivelMin || 1) + 9);
+      }
+      if (['casco', 'chaleco', 'botas', 'ropa'].includes(tipoItem)) {
+        nuevo.defensa = Math.max(0, this._numero('af-defensa') || 0);
+        nuevo.nivelMin = Math.max(1, this._numero('af-nivel-min-eq') || 1);
+        nuevo.nivelMax = Math.min(100, this._numero('af-nivel-max-eq') || ((nuevo.nivelMin || 1) + 9));
+        const bonusVida = this._numero('af-bonus-vida') || 0;
+        if (bonusVida > 0) {
+          nuevo.bonusVida = bonusVida;
+          nuevo.bonusVidaModo = this._valor('af-bonus-vida-modo') === 'fijo' ? 'fijo' : 'porcentaje';
+        }
+        const bonusDano = this._numero('af-bonus-dano') || 0;
+        if (bonusDano > 0) nuevo.bonusDano = bonusDano;
+        const resistencia = this._valor('af-resistencia').trim();
+        if (resistencia) nuevo.resistencia = resistencia;
+        nuevo.puedeEquipar = true;
       }
       const norm = Items._normalizarDef(nuevo);
       Object.assign(nuevo, norm);
@@ -4839,6 +4906,7 @@ const Admin = {
       hambre: d.hambre ?? CONFIG.hambreInicial,
       muerto: d.vida === 0 || !!d.muerto,
       armaEquipada: d.armaEquipada || null,
+      equipoEquipado: d.equipoEquipado || { casco: null, chaleco: null, botas: null, ropa: null },
       posicionJugador: d.posicionJugador || null,
       xp: d.xp ?? 0,
       nivel: d.nivel ?? 1
@@ -4914,6 +4982,7 @@ const Admin = {
         if (typeof Vida !== 'undefined') Vida.hambre = partida.hambre;
       }
       if (partida.armaEquipada !== undefined) Guardado.datos.armaEquipada = partida.armaEquipada;
+      if (partida.equipoEquipado) Guardado.datos.equipoEquipado = partida.equipoEquipado;
       await Guardado.guardarAhora();
       Mochila.slots = Guardado.datos.mochila;
       Mochila.pintar();
@@ -4940,6 +5009,7 @@ const Admin = {
       paquete.datos.vida = partida.vida;
       paquete.datos.muerto = partida.muerto;
       if (partida.armaEquipada !== undefined) paquete.datos.armaEquipada = partida.armaEquipada;
+      if (partida.equipoEquipado) paquete.datos.equipoEquipado = partida.equipoEquipado;
       if (partida.hambre != null) paquete.datos.hambre = partida.hambre;
       if (partida.posicionJugador && partida.posicionJugador.length >= 2) {
         paquete.datos.posicionJugador = partida.posicionJugador.slice();
@@ -4968,7 +5038,8 @@ const Admin = {
         revividoEn,
         xp: partida.xp,
         nivel: partida.nivel,
-        armaEquipada: partida.armaEquipada || null
+        armaEquipada: partida.armaEquipada || null,
+        equipoEquipado: partida.equipoEquipado || { casco: null, chaleco: null, botas: null, ropa: null }
       },
       t: ahora,
       statsT: ahora

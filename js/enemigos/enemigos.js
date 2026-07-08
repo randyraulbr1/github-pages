@@ -167,14 +167,18 @@ const Enemigos = {
   rangoAtaqueJugador() {
     const r = this._rangoDanoNivel();
     const arma = typeof Mochila !== 'undefined' ? Mochila.danoArmaEquipada() : 0;
+    const bonusEq = typeof Mochila !== 'undefined' && Mochila.bonusesEquipoActivos
+      ? Mochila.bonusesEquipoActivos().dano : 0;
     const armaId = typeof Mochila !== 'undefined' ? Mochila.armaEquipadaId() : null;
     const itemArma = armaId && typeof Items !== 'undefined' ? Items.seguro(armaId) : null;
+    const extra = arma + bonusEq;
     return {
       baseLo: r.lo,
       baseHi: r.hi,
       arma,
-      totalLo: r.lo + arma,
-      totalHi: r.hi + arma,
+      bonusEq,
+      totalLo: r.lo + extra,
+      totalHi: r.hi + extra,
       armaNombre: itemArma?.nombre || null,
       armaIcono: itemArma?.icono || null
     };
@@ -183,9 +187,10 @@ const Enemigos = {
   textoAtaqueJugador() {
     const d = this.rangoAtaqueJugador();
     const nv = typeof Vida !== 'undefined' ? Vida.nivel : 1;
-    if (d.arma > 0) {
+    if (d.arma > 0 || d.bonusEq > 0) {
+      const extra = (d.arma || 0) + (d.bonusEq || 0);
       return '⚔️ ' + d.totalLo + '–' + d.totalHi + ' (Nv ' + nv + ' · ' +
-        (d.armaIcono || '⚔️') + ' +' + d.arma + ' + base ' + d.baseLo + '–' + d.baseHi + ')';
+        (d.armaIcono || '⚔️') + ' +' + extra + ' + base ' + d.baseLo + '–' + d.baseHi + ')';
     }
     return '⚔️ ' + d.totalLo + '–' + d.totalHi + ' (Nv ' + nv + ' · sin arma)';
   },

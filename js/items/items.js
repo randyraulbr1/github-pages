@@ -7,6 +7,10 @@
 const TIPOS_ITEM = {
   comida:      { etiqueta: 'Consumible', categoria: 'consumibles', icono: '🍽️' },
   arma:        { etiqueta: 'Arma',       categoria: 'armas',       icono: '⚔️' },
+  casco:       { etiqueta: 'Casco',      categoria: 'objetos',     icono: '⛑️' },
+  chaleco:     { etiqueta: 'Chaleco',    categoria: 'objetos',     icono: '🎽' },
+  botas:       { etiqueta: 'Botas',      categoria: 'objetos',     icono: '🥾' },
+  ropa:        { etiqueta: 'Ropa',       categoria: 'objetos',     icono: '👕' },
   pez:         { etiqueta: 'Animal',     categoria: 'animales',    icono: '🐟' },
   herramienta: { etiqueta: 'Herramienta',categoria: 'objetos',     icono: '🔧' },
   tesoro:      { etiqueta: 'Tesoro',     categoria: 'objetos',     icono: '💎' },
@@ -79,6 +83,13 @@ const CATALOGO_ITEMS = {
   arma_nv9:   { nombre: 'Katana',              icono: '🗡️', tipo: 'arma', precio: 4500, dano: 52, nivelMin: 81, nivelMax: 90, desc: 'Nivel 81–90. +52 de daño.' },
   arma_nv10:  { nombre: 'Tridente legendario', icono: '🔱', tipo: 'arma', precio: 5000, dano: 60, nivelMin: 91, nivelMax: 100, desc: 'Nivel 91–100. +60 de daño.' },
 
+  // ---------- EQUIPO (bonus solo equipado) ----------
+  casco_nv1:    { nombre: 'Casco de cuero',     icono: '⛑️', tipo: 'casco',   precio: 90,  nivelMin: 1,  nivelMax: 10,  defensa: 2,  bonusVida: 5,  bonusVidaModo: 'porcentaje', desc: 'Nv 1–10. +5% vida máx.' },
+  chaleco_nv1:  { nombre: 'Chaleco ligero',     icono: '🎽', tipo: 'chaleco', precio: 120, nivelMin: 1,  nivelMax: 10,  defensa: 4,  bonusVida: 8,  bonusVidaModo: 'porcentaje', desc: 'Nv 1–10. +8% vida máx.' },
+  botas_nv1:    { nombre: 'Botas de cuero',     icono: '🥾', tipo: 'botas',   precio: 70,  nivelMin: 1,  nivelMax: 10,  defensa: 1,  bonusVelocidad: 2, desc: 'Nv 1–10. Ligeras.' },
+  ropa_nv1:     { nombre: 'Ropa sencilla',      icono: '👕', tipo: 'ropa',    precio: 60,  nivelMin: 1,  nivelMax: 10,  defensa: 1,  bonusHambre: 5, bonusHambreModo: 'porcentaje', desc: 'Nv 1–10. +5% hambre máx.' },
+  chaleco_nv20: { nombre: 'Chaleco reforzado',  icono: '🦺', tipo: 'chaleco', precio: 450, nivelMin: 11, nivelMax: 20, defensa: 15, bonusVida: 25, bonusVidaModo: 'porcentaje', resistencia: 'golpes +10%', desc: 'Nv 11–20. +25% vida máx.' },
+
   // ---------- TESOROS Y VALIOSOS (9) ----------
   moneda_antigua: { nombre: 'Moneda antigua',    icono: '🥉', tipo: 'tesoro', precio: 100, desc: 'Una moneda colonial oxidada.' },
   doblon:         { nombre: 'Doblón español',    icono: '🥇', tipo: 'tesoro', precio: 250, desc: 'Oro de la época de los galeones.' },
@@ -104,6 +115,9 @@ const IDS_BASE_INICIAL = new Set(Object.keys(CATALOGO_ITEMS));
 const Items = {
   PRECIO_MINIMO: 5,
   PRECIO_MAXIMO: 5000,
+  RANURAS_EQUIPO: ['casco', 'chaleco', 'botas', 'ropa'],
+  SLOT_A_RANURA: { helmet: 'casco', armor: 'chaleco', boots: 'botas', shield: 'ropa' },
+  RANURA_A_SLOT: { casco: 'helmet', chaleco: 'armor', botas: 'boots', ropa: 'shield' },
 
   obtener(id) { return CATALOGO_ITEMS[id]; },
 
@@ -119,7 +133,7 @@ const Items = {
     if (!out.estado) out.estado = 'activo';
     if (out.rareza == null) out.rareza = 1;
     if (out.puedeUsar == null) out.puedeUsar = true;
-    if (out.puedeEquipar == null) out.puedeEquipar = out.tipo === 'arma';
+    if (out.puedeEquipar == null) out.puedeEquipar = out.tipo === 'arma' || this.RANURAS_EQUIPO.includes(out.tipo);
     if (out.puedeVender == null) out.puedeVender = true;
     if (out.puedeTirar == null) out.puedeTirar = true;
     if (out.puedeComerciar == null) out.puedeComerciar = true;
@@ -186,6 +200,13 @@ const Items = {
       filas.push(['Crudo', 'Sí · prob. negativo ' + (item.probCrudoNegativo ?? 60) + '%']);
     }
     if (item.dano) filas.push(['Daño', '+' + item.dano]);
+    if (item.defensa) filas.push(['Defensa', '+' + item.defensa]);
+    if (item.bonusVida) {
+      const u = item.bonusVidaModo === 'porcentaje' ? item.bonusVida + '%' : '+' + item.bonusVida;
+      filas.push(['Bonus vida', u]);
+    }
+    if (item.bonusDano) filas.push(['Bonus daño', '+' + item.bonusDano]);
+    if (item.resistencia) filas.push(['Resistencia', item.resistencia]);
     if (item.nivelMin) filas.push(['Nivel', (item.nivelMin || 1) + '–' + (item.nivelMax || 100)]);
     filas.push(['Estado', item.estado || 'activo']);
     if (item.creadoPor) filas.push(['Creado por', item.creadoPor]);
@@ -216,6 +237,14 @@ const Items = {
         efectoModo: o.efectoModo,
         crudo: o.crudo,
         probCrudoNegativo: o.probCrudoNegativo,
+        defensa: o.defensa,
+        bonusVida: o.bonusVida,
+        bonusVidaModo: o.bonusVidaModo,
+        bonusHambre: o.bonusHambre,
+        bonusHambreModo: o.bonusHambreModo,
+        bonusDano: o.bonusDano,
+        bonusVelocidad: o.bonusVelocidad,
+        resistencia: o.resistencia,
         dano: o.dano,
         nivelMin: o.nivelMin,
         nivelMax: o.nivelMax,
@@ -257,8 +286,74 @@ const Items = {
     return !!item && item.tipo === 'arma';
   },
 
-  esEquipable(item, id) {
-    return this.esArma(item);
+  ranuraDeItem(item) {
+    if (!item) return null;
+    if (this.RANURAS_EQUIPO.includes(item.tipo)) return item.tipo;
+    if (item.ranura && this.RANURAS_EQUIPO.includes(item.ranura)) return item.ranura;
+    return null;
+  },
+
+  esPiezaEquipo(item) {
+    return !!this.ranuraDeItem(item);
+  },
+
+  esEquipable(item, id, slotKey) {
+    if (this.esArma(item)) return !slotKey || slotKey === 'weapon';
+    const ranura = this.ranuraDeItem(item);
+    if (!ranura) return false;
+    if (!slotKey) return true;
+    return this.SLOT_A_RANURA[slotKey] === ranura;
+  },
+
+  equipoAptoParaNivel(item, nivel) {
+    if (!item) return false;
+    const min = item.nivelMin || 1;
+    const max = item.nivelMax || 100;
+    const n = Math.max(1, parseInt(nivel, 10) || 1);
+    return n >= min && n <= max;
+  },
+
+  bonusDePieza(item) {
+    if (!item) {
+      return { defensa: 0, vidaPct: 0, vidaFijo: 0, hambrePct: 0, hambreFijo: 0, dano: 0, velocidad: 0, resistencia: null };
+    }
+    return {
+      defensa: Math.max(0, Number(item.defensa) || 0),
+      vidaPct: item.bonusVidaModo === 'porcentaje' ? Math.max(0, Number(item.bonusVida) || 0) : 0,
+      vidaFijo: item.bonusVidaModo !== 'porcentaje' ? Math.max(0, Number(item.bonusVida) || 0) : 0,
+      hambrePct: item.bonusHambreModo === 'porcentaje' ? Math.max(0, Number(item.bonusHambre) || 0) : 0,
+      hambreFijo: item.bonusHambreModo !== 'porcentaje' ? Math.max(0, Number(item.bonusHambre) || 0) : 0,
+      dano: Math.max(0, Number(item.bonusDano) || 0),
+      velocidad: Math.max(0, Number(item.bonusVelocidad) || 0),
+      resistencia: item.resistencia || null
+    };
+  },
+
+  calcularBonusesEquipo(ids) {
+    const acc = { defensa: 0, vidaPct: 0, vidaFijo: 0, hambrePct: 0, hambreFijo: 0, dano: 0, velocidad: 0, resistencias: [] };
+    for (const id of (ids || [])) {
+      const b = this.bonusDePieza(this.obtener(id));
+      acc.defensa += b.defensa;
+      acc.vidaPct += b.vidaPct;
+      acc.vidaFijo += b.vidaFijo;
+      acc.hambrePct += b.hambrePct;
+      acc.hambreFijo += b.hambreFijo;
+      acc.dano += b.dano;
+      acc.velocidad += b.velocidad;
+      if (b.resistencia) acc.resistencias.push(b.resistencia);
+    }
+    return acc;
+  },
+
+  resumenBonusEquipo(item) {
+    const b = this.bonusDePieza(item);
+    const partes = [];
+    if (b.defensa) partes.push('+' + b.defensa + ' def');
+    if (b.vidaPct) partes.push('+' + b.vidaPct + '% vida');
+    if (b.vidaFijo) partes.push('+' + b.vidaFijo + ' vida');
+    if (b.hambrePct) partes.push('+' + b.hambrePct + '% hambre');
+    if (b.dano) partes.push('+' + b.dano + ' daño');
+    return partes.join(' · ');
   },
 
   usoEspecial(id) {
@@ -294,6 +389,9 @@ const Items = {
       partes.push(def.modo === 'porcentaje' ? '+' + def.valor + '% vida' : '+' + def.valor + ' vida');
     } else if (tc === 'crudo') {
       partes.push('crudo (riesgo)');
+    } else if (this.esPiezaEquipo(item)) {
+      const bonus = this.resumenBonusEquipo(item);
+      if (bonus) partes.push(bonus);
     }
     if (item.dano) partes.push('+' + item.dano + ' daño');
     if (this.usoEspecial(id) === 'cofre') partes.push('colocar en mapa');
@@ -329,6 +427,15 @@ const Items = {
         efectoModo: it.efectoModo || undefined,
         crudo: it.crudo,
         probCrudoNegativo: it.probCrudoNegativo,
+        defensa: it.defensa,
+        bonusVida: it.bonusVida,
+        bonusVidaModo: it.bonusVidaModo,
+        bonusHambre: it.bonusHambre,
+        bonusHambreModo: it.bonusHambreModo,
+        bonusDano: it.bonusDano,
+        bonusVelocidad: it.bonusVelocidad,
+        resistencia: it.resistencia,
+        ranura: it.ranura,
         dano: it.dano || undefined,
         nivelMin: it.nivelMin || undefined,
         nivelMax: it.nivelMax || undefined,

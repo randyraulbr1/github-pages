@@ -84,6 +84,7 @@ const Guardado = {
       proteccionRevivirHasta: 0,
       invisibleHasta: 0,
       armaEquipada: null,
+      equipoEquipado: { casco: null, chaleco: null, botas: null, ropa: null },
       admin: { misiones: [], tesoros: [], objetos: [] },
       preferencias: { notifChat: true, notifAmigos: true, vibracionCombate: true, posBtnAtacar: 'izq' },
       objetosSuelto: [],
@@ -102,7 +103,7 @@ const Guardado = {
       'mochila', 'dinero', 'vida', 'hambre', 'xp', 'nivel', 'posicionJugador',
       'tesorosRecogidos', 'misiones', 'misionesEstado',
       'correoEnviados', 'correoRecibidos', 'correoTiendaLocal',
-      'historialDinero', 'historialObjetos', 'mensajesVistos', 'muerto', 'muertePos', 'revividoEn', 'armaEquipada',
+      'historialDinero', 'historialObjetos', 'mensajesVistos', 'muerto', 'muertePos', 'revividoEn', 'armaEquipada', 'equipoEquipado',
       'preferencias', 'preferenciasT'
     ];
   },
