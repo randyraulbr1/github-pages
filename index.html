@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
   <title>Kingdom Map</title>
-  <meta name="mariel-version" content="299">
+  <meta name="mariel-version" content="300">
   <link rel="manifest" href="manifest.json">
   <link rel="icon" type="image/png" href="iconos/icono-192.png">
   <link rel="apple-touch-icon" href="iconos/icono-192.png">
@@ -15,11 +15,11 @@
   <link rel="stylesheet" href="css/amigos.css?v=295">
   <link rel="stylesheet" href="css/opciones.css?v=295">
   <link rel="stylesheet" href="css/notificaciones.css?v=117">
+  <script src="js/nucleo/red.js?v=300"></script>
   <script>
     (function () {
       var metaV = document.querySelector('meta[name="mariel-version"]');
       var E = (metaV && metaV.getAttribute('content')) || '299';
-      var CANON = 'https://raw.githubusercontent.com/randyraulbr1/github-pages/main/version.json';
       try {
         var fv = sessionStorage.getItem('mariel_force_version');
         var t0 = parseInt(sessionStorage.getItem('mariel_actualizado_en') || '0', 10);
@@ -31,9 +31,7 @@
         var rem = parseInt(j.version, 10);
         var loc = parseInt(E, 10);
         if (rem <= loc) {
-          try {
-            window.__MARIEL_UPDATE_PENDING = null;
-          } catch (e) { /* */ }
+          try { window.__MARIEL_UPDATE_PENDING = null; } catch (e) { /* */ }
           return;
         }
         window.__MARIEL_UPDATE_PENDING = { local: String(loc), remote: j.version };
@@ -52,18 +50,17 @@
         return parseInt(a.version, 10) >= parseInt(b.version, 10) ? a : b;
       }
       var ts = Date.now();
-      Promise.all([
-        fetch(CANON + '?_=' + ts, { cache: 'no-store' })
-          .then(function (r) { return r.ok ? r.json() : null; }).catch(function () { return null; }),
-        fetch(location.origin + '/version.json?_=' + ts, { cache: 'no-store' })
-          .then(function (r) { return r.ok ? r.json() : null; }).catch(function () { return null; }),
-        fetch('version.json?_=' + ts, { cache: 'no-store' })
-          .then(function (r) { return r.ok ? r.json() : null; }).catch(function () { return null; })
-      ]).then(function (lista) {
-        var canon = lista[0];
-        var mejor = canon || null;
+      var urls = typeof MarielRed !== 'undefined' ? MarielRed.urlsVersion(ts) : [
+        location.origin + '/version.json?_=' + ts,
+        'version.json?_=' + ts
+      ];
+      Promise.all(urls.map(function (u) {
+        return fetch(u, { cache: 'no-store' })
+          .then(function (r) { return r.ok ? r.json() : null; }).catch(function () { return null; });
+      })).then(function (lista) {
+        var mejor = null;
         for (var i = 0; i < lista.length; i++) mejor = mejorVersion(mejor, lista[i]);
-        revisar(canon && canon.version ? canon : mejor);
+        revisar(mejor);
       });
     })();
   </script>
@@ -82,7 +79,7 @@
     </div>
   </div>
 
-  <script src="js/nucleo/version_app.js?v=295"></script>
+  <script src="js/nucleo/version_app.js?v=300"></script>
   <script>MarielVersion.iniciar(window.__MARIEL_EMBEDDED__);</script>
 
   <!-- PANTALLA DE CARGA (visible desde el primer instante) -->
@@ -1263,7 +1260,7 @@
   <script src="lib/leaflet/leaflet.js?v=104"></script>
 
   <!-- MÓDULOS DEL JUEGO (orden importante) -->
-  <script src="js/config/config.js?v=295"></script>
+  <script src="js/config/config.js?v=300"></script>
   <script src="js/nucleo/utilidades.js?v=297"></script>
   <script src="js/nucleo/ui_components.js?v=298"></script>
   <script src="js/nucleo/ui_manager.js?v=298"></script>
@@ -1292,19 +1289,19 @@
   <script src="js/correo/correo.js?v=104"></script>
   <script src="js/enemigos/botin_enemigo.js?v=295"></script>
   <script src="js/enemigos/enemigos.js?v=295"></script>
-  <script src="js/online/sync_servidor.js?v=299"></script>
+  <script src="js/online/sync_servidor.js?v=300"></script>
   <script src="js/admin/admin.js?v=299"></script>
   <script src="js/opciones/opciones.js?v=295"></script>
   <script src="js/online/mundo_online.js?v=295"></script>
   <script src="js/online/contenido_mundo.js?v=295"></script>
   <script src="js/online/amigos.js?v=295"></script>
   <script src="js/chat/chat.js?v=295"></script>
-  <script src="js/online/multijugador.js?v=295"></script>
+  <script src="js/online/multijugador.js?v=300"></script>
   <script src="js/principal.js?v=295"></script>
   <script>
     // Registrar la app instalable (PWA)
     if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.register('sw.js?v=295', { updateViaCache: 'none' })
+      navigator.serviceWorker.register('sw.js?v=300', { updateViaCache: 'none' })
         .then(function (reg) {
           if (typeof MarielVersion !== 'undefined') MarielVersion.registrarServiceWorker(reg);
         })

@@ -19,6 +19,7 @@ const SyncServidor = {
   },
 
   _base() {
+    if (typeof MarielRed !== 'undefined') return MarielRed.urlServidor();
     return (CONFIG.servidorOnline || '').replace(/\/$/, '');
   },
 

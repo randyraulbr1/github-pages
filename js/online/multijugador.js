@@ -26,6 +26,7 @@ const Multijugador = {
   _marcadoresPartida: {},
 
   urlServidor() {
+    if (typeof MarielRed !== 'undefined') return MarielRed.urlServidor();
     return (CONFIG.servidorOnline || '').replace(/\/$/, '');
   },
 
@@ -683,7 +684,7 @@ const Multijugador = {
 
   _iniciarPollingMundo() {
     if (this._pollMundo) clearInterval(this._pollMundo);
-    this._pollMundo = setInterval(() => this._pullMundoServidor(), 4000);
+    this._pollMundo = setInterval(() => this._pullMundoServidor(), 6000);
   },
 
   _iniciarTickCuerpos() {

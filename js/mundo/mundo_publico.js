@@ -206,12 +206,16 @@ const MundoPublico = {
   },
 
   async _descargarDesdeGitHub() {
-    const urls = [];
-    if (CONFIG.repoPublicacion && CONFIG.ramaPublicacion) {
-      urls.push('https://raw.githubusercontent.com/' + CONFIG.repoPublicacion + '/' +
-        CONFIG.ramaPublicacion + '/datos/mundo.json');
+    const urls = typeof MarielRed !== 'undefined'
+      ? MarielRed.urlsMundoJson().filter(u => !u.includes('/api/public/mundo'))
+      : [];
+    if (!urls.length) {
+      if (CONFIG.repoPublicacion && CONFIG.ramaPublicacion) {
+        urls.push('https://raw.githubusercontent.com/' + CONFIG.repoPublicacion + '/' +
+          CONFIG.ramaPublicacion + '/datos/mundo.json');
+      }
+      urls.push('datos/mundo.json');
     }
-    urls.push('datos/mundo.json');
     for (const base of urls) {
       try {
         const r = await Utilidades.fetchConTimeout(base + '?t=' + Date.now(), { cache: 'no-store' }, 8000);
@@ -227,11 +231,14 @@ const MundoPublico = {
   },
 
   async _descargarDesdeServidor() {
-    if (!CONFIG.servidorOnline) return this._descargarDesdeGitHub();
+    if (!CONFIG.servidorOnline && typeof MarielRed !== 'undefined' && !MarielRed.urlServidor()) {
+      return this._descargarDesdeGitHub();
+    }
 
     let servidor = null;
     try {
-      const base = CONFIG.servidorOnline.replace(/\/$/, '');
+      const base = (typeof MarielRed !== 'undefined' ? MarielRed.urlServidor()
+        : CONFIG.servidorOnline.replace(/\/$/, ''));
       const r = await Utilidades.fetchConTimeout(base + '/api/public/mundo', { cache: 'no-store' }, 12000);
       const data = await r.json().catch(() => ({}));
       if (data.ok && data.mundo && typeof data.mundo === 'object') {
@@ -290,7 +297,9 @@ const MundoPublico = {
 
     let indice = [];
     try {
-      const base = CONFIG.servidorOnline.replace(/\/$/, '');
+      const base = (typeof MarielRed !== 'undefined' ? MarielRed.urlServidor()
+        : CONFIG.servidorOnline.replace(/\/$/, ''));
+      if (!base) return { indice: [], mundo: null };
       const r = await Utilidades.fetchConTimeout(base + '/api/public/cuentas', { cache: 'no-store' }, 8000);
       const data = await r.json().catch(() => ({}));
       if (data.ok && Array.isArray(data.jugadores)) {

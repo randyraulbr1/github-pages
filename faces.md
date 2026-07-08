@@ -370,7 +370,7 @@ Checklist mínimo:
 4. Admin (Randy): Organizar → mover PIN → confirmar → publicar.
 5. Segundo teléfono o PC: ver al otro jugador en mapa.
 
-Nota v299: PRs obsoletos #10–#114 **cerrados** (2026-07-08). Smoke + CI en main. Pendiente: validación móvil real (guía `faces/fase-8-validacion-movil-v299.md`).
+Nota v300: hosting gratis → **Oracle Cloud US East** (`api.tcodm.com`). Guía: `docs/ORACLE_DEPLOY_CUBA.md`. Render abandonado (5 GB/mes). Cliente Cuba: tcodm.com + api.tcodm.com (sin raw.githubusercontent.com en ruta crítica).
 
 Nota v290: checklist con tabla de seguimiento. Pendiente: ejecutar y marcar resultados antes del próximo deploy mayor.
 

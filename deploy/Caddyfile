@@ -1,0 +1,7 @@
+# Caddy — HTTPS automático para api.tcodm.com
+# Copiar a /etc/caddy/Caddyfile en la VM Oracle
+
+api.tcodm.com {
+    reverse_proxy 127.0.0.1:3000
+    encode gzip
+}

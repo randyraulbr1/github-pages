@@ -4,6 +4,8 @@
  */
 const express = require('express');
 const crypto = require('crypto');
+const fs = require('fs');
+const path = require('path');
 const { limiteRegistro, ipCliente } = require('../rateLimit');
 const {
   findUserByUsername,
@@ -134,6 +136,19 @@ function perfilDesdeSqlite(user, player, clave) {
     creado: Date.now()
   };
 }
+
+/** Versión del cliente (mismo dato que version.json en GitHub Pages). */
+router.get('/public/version', (req, res) => {
+  try {
+    const p = path.join(__dirname, '..', '..', 'version.json');
+    const raw = fs.readFileSync(p, 'utf8');
+    const j = JSON.parse(raw);
+    res.set('Cache-Control', 'no-store');
+    return res.json({ ok: true, version: String(j.version || ''), actualizadoEn: j.actualizadoEn || 0 });
+  } catch (e) {
+    return res.json({ ok: true, version: process.env.APP_VERSION || '299', actualizadoEn: 0 });
+  }
+});
 
 /** Mundo público (solo lectura) — fuente principal para el cliente */
 router.get('/public/mundo', (req, res) => {
