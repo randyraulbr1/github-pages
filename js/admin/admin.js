@@ -491,6 +491,59 @@ const Admin = {
     }
   },
 
+  /** Snapshot del último estado sincronizado con el servidor (base para deltas). */
+  _obtenerBaseSync() {
+    const raw = this._ultimoPublicado || this._crudoPublicado;
+    if (raw) {
+      try {
+        return typeof raw === 'string' ? JSON.parse(raw) : Object.assign({}, raw);
+      } catch (e) { /* */ }
+    }
+    try {
+      return JSON.parse(this._jsonMundo());
+    } catch (e) {
+      return null;
+    }
+  },
+
+  /** Fase 3.5 — publica cambios de mapa/config por objeto (sin mundo entero). */
+  async _publicarMapaDelta(silencioso) {
+    if (typeof SyncServidor === 'undefined' || !SyncServidor.sincronizarMapaDelta) {
+      return { ok: false, fallbackCompleto: true };
+    }
+    const base = this._obtenerBaseSync();
+    let actual;
+    try {
+      actual = JSON.parse(this._jsonMundo());
+    } catch (e) {
+      return { ok: false, error: 'JSON del mundo inválido' };
+    }
+    if (!base || !actual) {
+      return { ok: false, error: 'Mundo no listo' };
+    }
+
+    const firma = this._firmaMundo(JSON.stringify(actual));
+    if (firma === this._ultimoFirmaPublicada && !this._pubPendiente) {
+      return { ok: true, sinCambios: true };
+    }
+
+    const resultado = await SyncServidor.sincronizarMapaDelta(base, actual);
+    if (!resultado.ok) return resultado;
+
+    actual.actualizadoEn = resultado.actualizadoEn || resultado.data?.actualizadoEn || Date.now();
+    const json = JSON.stringify(actual, (clave, valor) =>
+      clave.startsWith('_') ? undefined : valor, 2);
+    this._sincronizarEstadoTrasPublicar(actual, json);
+    this._aplicarMundoRemoto(json);
+    if (typeof Multijugador !== 'undefined') {
+      Multijugador.mundoServidorTs = actual.actualizadoEn;
+    }
+    if (!silencioso) {
+      this._avisoSyncManual('📡 Mapa sincronizado — todos lo ven en vivo');
+    }
+    return { ok: true, ops: resultado.ops || 0 };
+  },
+
   _limpiarBorradoresLocalesPublicados(campos) {
     for (const campo of campos) {
       const pub = this.publicado[campo] || [];
@@ -5763,6 +5816,23 @@ const Admin = {
         this._ultimoErrorPub = 'Sin sesión en el servidor — escribe tu contraseña';
         return false;
       }
+    }
+
+    const usarDelta = !opts?.purgarJugadores && !opts?.mundoCompleto;
+    if (usarDelta && SyncServidor.sincronizarMapaDelta) {
+      const delta = await this._publicarMapaDelta(silencioso);
+      if (delta.ok) return true;
+      if (!delta.fallbackCompleto) {
+        this._ultimoErrorPub = delta.error || 'No se pudo sincronizar el mapa';
+        if (!silencioso && !opts?.soloSync) {
+          Notificaciones.mostrar(
+            '❌ No se pudo sincronizar: ' + this._ultimoErrorPub,
+            'error', 9000
+          );
+        }
+        return false;
+      }
+      /* servidor sin endpoints world/* — caer a sync-mundo completo */
     }
 
     const resultado = await SyncServidor.publicar(json);

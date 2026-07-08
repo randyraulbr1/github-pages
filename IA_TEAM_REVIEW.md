@@ -402,7 +402,8 @@ Cursor **reordena** para no mezclar un refactor enorme con parches pequeños en 
 | v274 Fase 1 | #104 | Seguridad servidor |
 | v275 Fase 2 | #105 | Roles, stats, HP, auditoría, docs |
 | v276 Fase 3.1+3.2 | #106 | `world_content`, proyector BD→blob, doble lectura |
-| v277 Fase 3.3+3.4 | — | Admin por objeto (sockets+REST), sync-mundo→BD |
+| v277 Fase 3.3+3.4 | #107 | Admin por objeto (sockets+REST), sync-mundo→BD |
+| v278 Fase 3.5 | — | Panel admin: delta sync por objeto |
 
 ### Cómo probar Fase 1 (checklist)
 

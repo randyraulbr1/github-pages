@@ -403,6 +403,178 @@ const SyncServidor = {
     return { ok: false, error: 'Servidor no responde' };
   },
 
+  WORLD_CONFIG_KEYS: [
+    'precios', 'itemsNuevos', 'mantenimiento', 'baneados', 'mensajes',
+    'combate', 'optimizarVisibilidad', 'tiendasStock',
+    'enemigosEstado', 'objetosEstado', 'tesorosEstado'
+  ],
+
+  MAP_DELTA_CAMPOS: [
+    { campo: 'objetos', type: 'item' },
+    { campo: 'enemigos', type: 'enemy' },
+    { campo: 'tesoros', type: 'treasure' },
+    { campo: 'tiendasAdmin', type: 'shop' },
+    { campo: 'misiones', type: 'mission' },
+    { campo: 'cofres', type: 'chest' }
+  ],
+
+  async _worldAdminPost(ruta, body, timeoutMs) {
+    const base = this._base();
+    const token = this._getToken();
+    if (!base || !token) {
+      return { ok: false, error: 'Sin sesión — vuelve a entrar con tu contraseña' };
+    }
+    await this.despertarServidor();
+    const timeout = timeoutMs || 20000;
+    try {
+      const r = await Utilidades.fetchConTimeout(base + ruta, {
+        method: 'POST',
+        headers: this._headers(),
+        body: JSON.stringify(body || {})
+      }, timeout);
+      const data = await r.json().catch(() => ({}));
+      if (r.status === 401 || r.status === 403) {
+        localStorage.removeItem(this.TOKEN_KEY);
+        return {
+          ok: false,
+          error: r.status === 403 ? 'Sin permiso de admin en el servidor' : 'Sesión expirada — vuelve a entrar',
+          status: r.status
+        };
+      }
+      if (r.status === 404) {
+        return { ok: false, error: 'Endpoint no disponible', status: 404, fallbackCompleto: true };
+      }
+      if (r.ok && data.ok) return { ok: true, data };
+      return { ok: false, error: data.error || ('Error ' + r.status), status: r.status };
+    } catch (e) {
+      return { ok: false, error: 'Servidor no responde' };
+    }
+  },
+
+  async adminUpsert({ id, type, x, y, data }) {
+    return this._worldAdminPost('/api/player/world/upsert', { id, type, x, y, data });
+  },
+
+  async adminDelete({ id }) {
+    return this._worldAdminPost('/api/player/world/delete', { id });
+  },
+
+  async adminConfig({ key, value }) {
+    return this._worldAdminPost('/api/player/world/config', { key, value });
+  },
+
+  _firmaElementoMapa(item, posiciones) {
+    const blob = Object.assign({}, item);
+    const pos = blob.pos || blob.posicion || posiciones?.[item.id];
+    if (pos && pos.length >= 2) {
+      blob.pos = [Number(pos[0]), Number(pos[1])];
+      delete blob.posicion;
+    }
+    delete blob._marcador;
+    return JSON.stringify(blob);
+  },
+
+  _indiceMapa(mundo, campo) {
+    const map = new Map();
+    const elim = new Set(mundo?.eliminados || []);
+    for (const it of (mundo?.[campo] || [])) {
+      if (!it?.id || elim.has(it.id)) continue;
+      map.set(it.id, this._firmaElementoMapa(it, mundo.posiciones));
+    }
+    return map;
+  },
+
+  /** Campos que aún requieren sync-mundo completo (jugadores, correo, etc.). */
+  necesitaSyncMundoCompleto(base, actual) {
+    if (!base || !actual) return true;
+    if (actual.purgarJugadores) return true;
+    const claves = [
+      'jugadores', 'partidas', 'combateEnemigos', 'correoReclamados', 'correoTienda',
+      'cuerposMuertos', 'adminPinClaves', 'moverPinJugador', 'tesoroIconoMapa',
+      'bolsasDrop', 'botinesEnemigo', 'eliminados_recuperables'
+    ];
+    for (const k of claves) {
+      const sb = JSON.stringify(base[k] ?? null);
+      const sa = JSON.stringify(actual[k] ?? null);
+      if (sb !== sa) return true;
+    }
+    return false;
+  },
+
+  /**
+   * Fase 3.5 — sincroniza solo mapa + config autorizada (sin subir mundo entero).
+   * Devuelve fallbackCompleto si el servidor no tiene los endpoints nuevos.
+   */
+  async sincronizarMapaDelta(base, actual) {
+    if (!base || !actual) {
+      return { ok: false, error: 'Mundo inválido' };
+    }
+    if (this.necesitaSyncMundoCompleto(base, actual)) {
+      return { ok: false, fallbackCompleto: true, reason: 'requiere sync completo' };
+    }
+
+    const baseElim = new Set(base.eliminados || []);
+    const actualElim = new Set(actual.eliminados || []);
+    let ops = 0;
+    const errores = [];
+
+    for (const id of actualElim) {
+      if (baseElim.has(id)) continue;
+      const r = await this.adminDelete({ id });
+      if (!r.ok) {
+        if (r.fallbackCompleto) return { ok: false, fallbackCompleto: true };
+        errores.push(r.error || ('delete ' + id));
+        continue;
+      }
+      ops++;
+    }
+
+    for (const { campo, type } of this.MAP_DELTA_CAMPOS) {
+      const prev = this._indiceMapa(base, campo);
+      const curr = this._indiceMapa(actual, campo);
+      const posiciones = actual.posiciones || {};
+
+      for (const [id, firma] of curr) {
+        if (prev.get(id) === firma) continue;
+        const item = (actual[campo] || []).find(x => x && x.id === id);
+        if (!item) continue;
+        const pos = item.pos || item.posicion || posiciones[id];
+        const r = await this.adminUpsert({
+          id,
+          type,
+          x: pos?.[0],
+          y: pos?.[1],
+          data: item
+        });
+        if (!r.ok) {
+          if (r.fallbackCompleto) return { ok: false, fallbackCompleto: true };
+          errores.push(r.error || ('upsert ' + id));
+          continue;
+        }
+        ops++;
+      }
+    }
+
+    for (const key of this.WORLD_CONFIG_KEYS) {
+      const sb = JSON.stringify(base[key] ?? null);
+      const sa = JSON.stringify(actual[key] ?? null);
+      if (sb === sa) continue;
+      const r = await this.adminConfig({ key, value: actual[key] });
+      if (!r.ok) {
+        if (r.fallbackCompleto) return { ok: false, fallbackCompleto: true };
+        errores.push(r.error || ('config ' + key));
+        continue;
+      }
+      ops++;
+    }
+
+    if (errores.length) {
+      return { ok: false, error: errores[0], ops };
+    }
+    const ts = Date.now();
+    return { ok: true, ops, actualizadoEn: ts };
+  },
+
   /** Sube vida/muerto de la partida al snapshot del servidor. */
   async subirPartida(perfilId, partida) {
     const base = this._base();
