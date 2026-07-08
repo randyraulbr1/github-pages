@@ -4048,6 +4048,7 @@ const Admin = {
     if (typeof UIManager !== 'undefined') UIManager.cerrar('ventana-admin');
     else document.getElementById('ventana-admin').classList.add('oculto');
     this.modo = modo;
+    document.body.classList.remove('admin-panel-abierto');
     document.body.classList.add('admin-organizar');
     const cesto = document.getElementById('admin-cesto-borrar');
     if (cesto) {

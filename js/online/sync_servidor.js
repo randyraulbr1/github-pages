@@ -692,6 +692,27 @@ const SyncServidor = {
     }
   },
 
+  /** Admin: historial de acciones (Fase 9). */
+  async obtenerAdminHistorial() {
+    const base = this._base();
+    const token = this._getToken();
+    if (!base || !token) return null;
+    try {
+      const r = await Utilidades.fetchConTimeout(base + '/api/player/admin-historial', {
+        headers: this._headers(),
+        cache: 'no-store'
+      }, 12000);
+      const data = await r.json().catch(() => ({}));
+      return data.ok ? data : null;
+    } catch (e) {
+      return null;
+    }
+  },
+
+  async restaurarAdminHistorial(historialId) {
+    return this._worldAdminPost('/api/player/admin-historial/restore', { historialId });
+  },
+
   /** Descarga el mundo desde SQLite (público o autenticado). */
   async obtenerMundo() {
     const base = this._base();

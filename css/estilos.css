@@ -1883,16 +1883,25 @@ body.mariel-bloqueado-actualizar .ventana:not(.oculto) {
 body.admin-panel-abierto #mapa,
 body.admin-panel-abierto #panel-hud-izq,
 body.admin-panel-abierto #barra-inferior-wrap,
-body.admin-panel-abierto #botones-inferiores,
-body.admin-panel-abierto #admin-controles {
+body.admin-panel-abierto #botones-inferiores {
+  pointer-events: none !important;
+}
+body.admin-panel-abierto:not(.admin-organizar):not(.admin-colocando):not(.ui-mapa-confirm) #admin-controles {
   pointer-events: none !important;
 }
 body.admin-panel-abierto #ventana-admin {
   pointer-events: auto !important;
 }
+body.admin-organizar #mapa,
+body.admin-organizar #admin-controles,
+body.admin-organizar .colocacion-controles,
 body.admin-colocando #mapa,
 body.admin-colocando #admin-controles {
   pointer-events: auto !important;
+}
+body.admin-panel-abierto:not(.admin-organizar):not(.admin-colocando):not(.ui-mapa-confirm) #admin-controles,
+body.admin-panel-abierto:not(.admin-organizar):not(.admin-colocando):not(.ui-mapa-confirm) .colocacion-controles {
+  pointer-events: none !important;
 }
 body.admin-colocando #barra-inferior-wrap,
 body.admin-colocando #botones-inferiores,
@@ -2913,6 +2922,16 @@ body.cuenta-eliminada .ventana { display: none !important; }
   word-break: break-word;
 }
 .admin-dep-sin-errores { margin: 0; font-size: 13px; color: #6ee7a0; }
+.admin-depuracion-historial { margin-top: 10px; display: flex; flex-direction: column; gap: 8px; }
+.admin-dep-hist-fila {
+  background: rgba(0, 0, 0, 0.25);
+  border-radius: 10px;
+  padding: 8px 10px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+.admin-dep-hist-meta { font-size: 11px; color: #9aa8c0; margin-bottom: 4px; }
+.admin-dep-hist-det { font-size: 12px; color: #e8eef8; margin-bottom: 6px; word-break: break-word; }
+.admin-dep-restore { padding: 6px 10px; font-size: 11px; }
 .cofre-colocar-cuerpo { padding: 0 14px 16px; display: flex; flex-direction: column; gap: 12px; }
 .cofre-tipo-pestanas { margin: 8px 0 0; }
 
@@ -3315,7 +3334,7 @@ body.jugador-muerto #admin-controles { pointer-events: none; opacity: .35; }
 }
 body.ui-mapa-confirm #admin-controles,
 body.ui-mapa-confirm .colocacion-controles {
-  z-index: var(--z-confirmaciones) !important;
+  z-index: var(--z-critico) !important;
   pointer-events: auto !important;
 }
 body.ui-mapa-confirm .overlay-mision,

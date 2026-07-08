@@ -28,6 +28,7 @@ const { getSyncStatus } = require('../syncStatus');
 const { getEventos } = require('../eventLog');
 const { registrar } = require('../eventLog');
 const { limiteAdminMapa, limitePublicarMundo, responderRateLimitHttp } = require('../rateLimit');
+const { getAdminHistorial, restaurarEntradaHistorial } = require('../adminHistorial');
 
 const router = express.Router();
 
@@ -54,6 +55,19 @@ router.post('/sync-mundo', authMiddleware, gameAdminMiddleware, (req, res) => {
   const io = req.app.get('io');
   const result = syncMundoFromJson(mundo, io);
   if (!result.ok) return res.status(400).json(result);
+  try {
+    const { registrarAdminHistorial } = require('../adminHistorial');
+    registrarAdminHistorial({
+      quien: 'admin:' + req.auth.playerId,
+      accion: 'publicar_mundo',
+      detalle: 'sync-mundo',
+      despues: {
+        objetos: (mundo.objetos || []).length,
+        enemigos: (mundo.enemigos || []).length,
+        misiones: (mundo.misiones || []).length
+      }
+    });
+  } catch (e) { /* */ }
   try {
     const { respaldoInmediato } = require('../respaldoThrottle');
     respaldoInmediato().catch(() => {});
@@ -232,6 +246,27 @@ router.post('/force-git-sync', authMiddleware, gameAdminMiddleware, async (req, 
     const snap = getWorldSnapshot();
     const { respaldarJugadoresEnGitHub } = require('../jugadoresBackup');
     await respaldarJugadoresEnGitHub(snap).catch(() => {});
+  }
+  res.json(r);
+});
+
+/** Admin: historial de acciones (Fase 9) */
+router.get('/admin-historial', authMiddleware, gameAdminMiddleware, (req, res) => {
+  res.json({ ok: true, historial: getAdminHistorial(50) });
+});
+
+/** Admin: restaurar entrada del historial */
+router.post('/admin-historial/restore', authMiddleware, gameAdminMiddleware, (req, res) => {
+  const historialId = req.body?.historialId || req.body?.id;
+  if (!historialId) {
+    return res.status(400).json({ ok: false, error: 'historialId requerido' });
+  }
+  const io = req.app.get('io');
+  const r = restaurarEntradaHistorial(historialId, 'admin:' + req.auth.playerId, io);
+  if (!r.ok) return res.status(400).json(r);
+  if (io && r.id) {
+    if (r.tombstone) emitirRemoveMapaPorOrigenId(r.id, io);
+    else emitirDeltaMapaPorOrigenId(r.id, io);
   }
   res.json(r);
 });

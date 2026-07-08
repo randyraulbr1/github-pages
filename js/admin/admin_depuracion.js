@@ -14,6 +14,12 @@ const AdminDepuracion = {
     this._enlazado = true;
     document.getElementById('admin-depuracion')?.addEventListener('click', () => this.abrir());
     document.getElementById('btn-admin-depuracion-refrescar')?.addEventListener('click', () => this._pintar());
+    document.getElementById('admin-depuracion-historial')?.addEventListener('click', (e) => {
+      const btn = e.target.closest('[data-restaurar-historial]');
+      if (!btn) return;
+      const id = btn.getAttribute('data-restaurar-historial');
+      if (id) this._restaurarHistorial(id);
+    });
   },
 
   abrir() {
@@ -238,6 +244,63 @@ const AdminDepuracion = {
         errBox.innerHTML = '<div class="admin-dep-errores-titulo">Errores y eventos recientes</div>'
           + '<pre class="admin-dep-errores-lista">' + lineas.map(l => this._esc(l)).join('\n') + '</pre>';
       }
+    }
+
+    await this._pintarHistorial();
+  },
+
+  async _pintarHistorial() {
+    const box = document.getElementById('admin-depuracion-historial');
+    if (!box) return;
+    if (typeof SyncServidor === 'undefined' || !SyncServidor.puedePublicar?.()) {
+      box.innerHTML = '';
+      return;
+    }
+    const data = await SyncServidor.obtenerAdminHistorial();
+    const lista = data?.historial || [];
+    if (!lista.length) {
+      box.innerHTML = '<p class="admin-dep-sin-errores">Sin acciones admin registradas aún</p>';
+      return;
+    }
+    const filas = lista.slice(0, 20).map((h) => {
+      const t = h.t ? new Date(h.t).toLocaleString('es-ES', { hour: '2-digit', minute: '2-digit', day: '2-digit', month: 'short' }) : '?';
+      const puede = ['upsert', 'delete', 'config'].includes(h.accion);
+      const btn = puede
+        ? '<button type="button" class="ui-btn ui-btn-secondary admin-dep-restore" data-restaurar-historial="' + this._esc(h.id) + '">↩ Restaurar</button>'
+        : '';
+      return '<div class="admin-dep-hist-fila">'
+        + '<div class="admin-dep-hist-meta">[' + t + '] v' + this._esc(h.version || '?') + ' · ' + this._esc(h.accion) + '</div>'
+        + '<div class="admin-dep-hist-det">' + this._esc((h.quien || '') + (h.refId ? ' · ' + h.refId : '') + (h.detalle ? ' — ' + h.detalle : '')) + '</div>'
+        + btn
+        + '</div>';
+    }).join('');
+    box.innerHTML = '<div class="admin-dep-errores-titulo">Historial admin (últimas acciones)</div>' + filas;
+  },
+
+  async _restaurarHistorial(historialId) {
+    if (!historialId) return;
+    if (typeof UIDialog !== 'undefined') {
+      const ok = await UIDialog.confirmar({
+        titulo: 'Restaurar acción',
+        texto: '¿Volver al estado anterior de esta entrada del historial?',
+        okText: 'Restaurar',
+        okVariant: 'danger'
+      });
+      if (!ok) return;
+    } else if (!confirm('¿Restaurar esta acción del historial?')) return;
+
+    if (typeof SyncServidor === 'undefined') return;
+    const r = await SyncServidor.restaurarAdminHistorial(historialId);
+    if (r.ok) {
+      if (typeof Notificaciones !== 'undefined') {
+        Notificaciones.mostrar('↩ Acción restaurada', 'exito', 4000);
+      }
+      if (typeof Admin !== 'undefined' && Admin._revisarActualizacion) {
+        await Admin._revisarActualizacion();
+      }
+      this._pintar();
+    } else if (typeof Notificaciones !== 'undefined') {
+      Notificaciones.mostrar(Utilidades.mensajeAmigable(r.error, 'No se pudo restaurar'), 'error', 5000);
     }
   },
 

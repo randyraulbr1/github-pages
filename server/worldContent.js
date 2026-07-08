@@ -267,6 +267,9 @@ function adminUpsertContent({ id, type, x, y, data, updatedBy }) {
   const py = y != null ? Number(y) : Number(blob.pos?.[1] ?? blob.posicion?.[1]);
   if (Number.isFinite(px) && Number.isFinite(py)) blob.pos = [px, py];
 
+  const existing = getContentRow(id);
+  const antes = existing && !existing.deleted ? parseBlob(existing) : null;
+
   upsertContentRow({
     id,
     type,
@@ -276,12 +279,24 @@ function adminUpsertContent({ id, type, x, y, data, updatedBy }) {
     deleted: 0,
     updated_by: updatedBy || 'admin'
   });
+  try {
+    const { registrarAdminHistorial } = require('./adminHistorial');
+    registrarAdminHistorial({
+      quien: updatedBy,
+      accion: 'upsert',
+      id,
+      tipo: type,
+      antes,
+      despues: blob
+    });
+  } catch (e) { /* */ }
   return { ok: true, id, type };
 }
 
 function adminDeleteContent(id, updatedBy) {
   if (!id) return { ok: false, error: 'id requerido' };
   const existing = getContentRow(id);
+  const antes = existing && !existing.deleted ? parseBlob(existing) : null;
   upsertContentRow({
     id,
     type: existing?.type || 'tombstone',
@@ -291,6 +306,17 @@ function adminDeleteContent(id, updatedBy) {
     deleted: 1,
     updated_by: updatedBy || 'admin'
   });
+  try {
+    const { registrarAdminHistorial } = require('./adminHistorial');
+    registrarAdminHistorial({
+      quien: updatedBy,
+      accion: 'delete',
+      id,
+      tipo: existing?.type || null,
+      antes,
+      despues: null
+    });
+  } catch (e) { /* */ }
   return { ok: true, id, tombstone: true };
 }
 
@@ -300,7 +326,19 @@ function adminConfigContent(key, value, updatedBy) {
   if (!CONFIG_KEYS.includes(k)) {
     return { ok: false, error: 'config no permitida: ' + k };
   }
+  const antes = getWorldConfig(k);
   setWorldConfig(k, value);
+  try {
+    const { registrarAdminHistorial } = require('./adminHistorial');
+    registrarAdminHistorial({
+      quien: updatedBy,
+      accion: 'config',
+      id: k,
+      tipo: 'config',
+      antes,
+      despues: value
+    });
+  } catch (e) { /* */ }
   return { ok: true, key: k };
 }
 

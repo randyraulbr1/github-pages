@@ -217,7 +217,7 @@ Mensajes/carteles:
 
 # FASE 5.1 - Bugs de capas y ventanas
 
-Estado: 🚧 En progreso (v286)
+Estado: ✅ Completada (v299)
 
 Bug detectado:
 
@@ -231,6 +231,8 @@ Solucion esperada:
 - Revisar z-index / orden de render / pointer-events.
 
 Nota v286: `--z-confirmaciones: 16000` en `#admin-controles`, `.colocacion-controles`, overlays de confirm; clase `body.ui-mapa-confirm`.
+
+Nota v299: al entrar en modo Organizar se quita `admin-panel-abierto`; controles de mapa usan `--z-critico` y `pointer-events: auto` con `ui-mapa-confirm` / `admin-organizar`.
 
 Prioridad de capas recomendada:
 
@@ -355,7 +357,7 @@ No publicar version si una prueba critica falla.
 
 # FASE 9 - Historial y restauracion
 
-Estado: ⏳ Pendiente
+Estado: ✅ Completada (v299)
 
 Objetivo: poder deshacer errores.
 
@@ -375,6 +377,8 @@ Debe guardar:
 - version
 - datos antes
 - datos despues
+
+Nota v299: `server/adminHistorial.js` registra upsert/delete/config/publicar en `worldContent` + JSONL. API `GET/POST /api/player/admin-historial` con restaurar. Panel Depuración muestra últimas acciones y botón ↩ Restaurar.
 
 ---
 
@@ -459,7 +463,7 @@ Nota v295: cocinar en juego (🍳 + cuchillo), endpoint `player:cookItem`, equip
 
 ## Bug UI - Confirmacion de mover PIN queda detras
 
-Estado: 🚧 En progreso (v286)
+Estado: ✅ Completada (v299)
 
 Descripcion:
 
@@ -472,11 +476,11 @@ Solucion sugerida:
 - usar UI Manager
 - confirmaciones siempre arriba
 
-Nota v286: capa `--z-confirmaciones` y `body.ui-mapa-confirm`.
+Nota v299: fix `admin-panel-abierto` + `admin-organizar`; z-index `--z-critico` en confirmaciones de mapa.
 
 ## Bug UI - Carteles repetidos
 
-Estado: 🚧 En progreso (v286)
+Estado: ✅ Completada (v286)
 
 Descripcion:
 
