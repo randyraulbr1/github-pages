@@ -340,7 +340,7 @@ Checklist mínimo:
 | Admin crea objeto | ☐ manual |
 | Admin mueve PIN | ☐ manual (fix v299 en código) |
 | Admin borra objeto | ☐ manual |
-| Reiniciar servidor | ✅ smoke 2026-07-08 — arranca sin crash |
+| Reiniciar servidor | ✅ smoke 2026-07-08 — /health OK (local + CI) |
 | Borrar caché | ☐ manual |
 | Entrar desde otro teléfono | ☐ manual |
 | Mala conexión | ☐ manual |
@@ -355,7 +355,7 @@ Checklist mínimo:
 4. Admin (Randy): Organizar → mover PIN → confirmar → publicar.
 5. Segundo teléfono o PC: ver al otro jugador en mapa.
 
-Nota v299: `scripts/smoke-v299.sh` en main (versión, JS, UI Fase 12, rate limit, historial, tcodm.com). PR #116–#120 mergeados. PR #121 docs obsoletos mergeado.
+Nota v299: `scripts/smoke-v299.sh` en main (versión, JS, UI Fase 12, rate limit, historial, tcodm.com). CI `.github/workflows/smoke-v299.yml`. Cerrar PRs viejos: `bash scripts/cerrar-prs-obsoletos.sh` (requiere `gh` de Randy). PR #116–#120 mergeados. PR #121–#122 docs/smoke mergeados.
 
 PRs obsoletos abiertos (cerrar manualmente, no mergear): #113, #114, #88, #19, #17, #16, #10 — todo superseded en v299.
 

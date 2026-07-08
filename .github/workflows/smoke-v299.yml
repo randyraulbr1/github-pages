@@ -1,0 +1,35 @@
+name: Smoke v299 (Fase 8)
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Smoke cliente y deploy
+        run: bash scripts/smoke-v299.sh
+
+      - name: Servidor arranca y /health responde
+        working-directory: server
+        run: |
+          npm ci --silent
+          PORT=3000 node server.js &
+          PID=$!
+          for i in $(seq 1 15); do
+            curl -sf http://127.0.0.1:3000/health && exit 0
+            sleep 1
+          done
+          kill $PID 2>/dev/null || true
+          echo "FALLO: /health no respondió"
+          exit 1
