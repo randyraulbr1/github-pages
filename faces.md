@@ -319,7 +319,7 @@ Cada pantalla debe tener:
 
 # FASE 8 - Pruebas antes de publicar
 
-Estado: 🚧 En progreso (v299 en main — smoke automático OK)
+Estado: 🚧 En progreso (v299 en main y tcodm.com — smoke automático OK)
 
 Objetivo: no publicar si una prueba crítica falla.
 
@@ -347,7 +347,9 @@ Checklist mínimo:
 | PC | ✅ smoke 2026-07-08 — JS + versión sincronizada |
 | Móvil | ✅ viewport 390×844 PR#119; ☐ toque real Android |
 
-Nota v299: `scripts/smoke-v299.sh` en main. PR #116–#120 mergeados en orden. `version.json` en GitHub = 299.
+Nota v299: `scripts/smoke-v299.sh` en main. PR #116–#120 mergeados en orden. `version.json` en GitHub = 299. tcodm.com sirve meta `mariel-version` 299 (2026-07-08).
+
+PRs obsoletos abiertos (cerrar manualmente, no mergear): #113, #114, #88, #19, #17, #16, #10 — todo superseded en v299.
 
 Nota v290: checklist con tabla de seguimiento. Pendiente: ejecutar y marcar resultados antes del próximo deploy mayor.
 
