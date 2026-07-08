@@ -36,6 +36,9 @@ for id in ventana-amigos ventana-mochila ventana-tienda ventana-misiones; do
 done
 grep -q 'ui-panel-header' index.html
 grep -q 'ui-panel-close' index.html
+grep -q 'red.js' index.html
+node --check js/nucleo/red.js
+grep -q 'api.tcodm.com' js/config/config.js
 echo "OK paneles UI Fase 12 (${#PANELES[@]} ventanas críticas)"
 
 echo "== Fases 9-11 (servidor) =="

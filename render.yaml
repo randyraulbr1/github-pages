@@ -17,4 +17,4 @@ services:
       - key: GITHUB_REPO
         value: randyraulbr1/github-pages
       - key: GITHUB_BRANCH
-        value: claude/web-rpg-gps-game-n3ybow
+        value: main

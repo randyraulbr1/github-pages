@@ -1,7 +1,7 @@
 // Detecta actualizaciones al instante y bloquea el juego hasta pulsar Actualizar.
 const MarielVersion = {
-  // Fuente canónica: rama main (donde se fusionan los PRs)
-  _versionCanonica: 'https://raw.githubusercontent.com/randyraulbr1/github-pages/main/version.json',
+  // Fuente canónica: mismo dominio (Cuba sin VPN) → api.tcodm.com → GitHub raw solo en dev
+  _versionCanonica: null,
 
   _bloqueado: false,
   _embebida: null,
@@ -257,11 +257,12 @@ const MarielVersion = {
     const opts = { cache: 'no-store', headers: { 'Cache-Control': 'no-cache', Pragma: 'no-cache' } };
     const origen = (typeof location !== 'undefined' && location.origin) ? location.origin : '';
 
-    const jsonUrls = [
-      this._versionCanonica + '?_=' + ts,
-      origen ? origen + '/version.json?_=' + ts : 0,
-      'version.json?_=' + ts
-    ].filter(Boolean);
+    const jsonUrls = typeof MarielRed !== 'undefined'
+      ? MarielRed.urlsVersion(ts)
+      : [
+          origen ? origen + '/version.json?_=' + ts : 0,
+          'version.json?_=' + ts
+        ].filter(Boolean);
 
     const leerJsonVersion = async (url) => {
       try {
@@ -275,9 +276,6 @@ const MarielVersion = {
     };
 
     const resultados = await Promise.all(jsonUrls.map((url) => leerJsonVersion(url)));
-    const canon = resultados.find((x) => String(x.url).startsWith(this._versionCanonica));
-    if (canon?.n > 0) return String(canon.n);
-
     const maxJson = Math.max(0, ...resultados.map((x) => x.n));
     if (maxJson > 0) return String(maxJson);
 

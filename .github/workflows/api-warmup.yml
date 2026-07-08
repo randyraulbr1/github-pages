@@ -1,0 +1,15 @@
+# Ping al servidor Oracle (api.tcodm.com) — opcional, mantiene VM activa si hace cold start.
+name: API warmup
+
+on:
+  schedule:
+    - cron: '*/30 * * * *'
+  workflow_dispatch:
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping api.tcodm.com
+        run: |
+          curl -sfS --max-time 30 https://api.tcodm.com/health && echo " OK api.tcodm.com" || echo " SKIP (api aún no desplegado)"

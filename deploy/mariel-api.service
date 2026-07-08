@@ -1,0 +1,15 @@
+[Unit]
+Description=Mariel Online API (Kingdom Map)
+After=network.target
+
+[Service]
+Type=simple
+User=ubuntu
+WorkingDirectory=/home/ubuntu/github-pages/server
+EnvironmentFile=/etc/mariel-api.env
+ExecStart=/usr/bin/node server.js
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

@@ -3,7 +3,7 @@
 // ============================================================
 const CONFIG = {
   // Cambiar al publicar: obliga al móvil a descartar caché vieja
-  version: '299',
+  version: '300',
   maxPila: 10,
 
   // Nombre reservado del administrador (solo este jugador ve el panel admin)
@@ -74,6 +74,7 @@ const CONFIG = {
   // Solo desarrollo local (nunca subas un token real al repositorio)
   tokenRegistroJugadores: '',
 
-  // Servidor multijugador en vivo (Render). Vacío = desactivado.
-  servidorOnline: 'https://mariel-online.onrender.com',
+  // Servidor multijugador — Oracle Cloud free (api.tcodm.com). Ver docs/ORACLE_DEPLOY_CUBA.md
+  // Render suspendido (5 GB/mes). Vacío = solo mapa local / GitHub Pages.
+  servidorOnline: 'https://api.tcodm.com',
 };

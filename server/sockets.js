@@ -67,7 +67,7 @@ const MAX_MOVE_DELTA = 0.00035;
 const MAX_GPS_DELTA = 0.004;
 const INTERACT_DISTANCE = 0.0005;
 const REVIVE_DISTANCE_METERS = 55;
-const SYNC_INTERVAL_MS = 8000;
+const SYNC_INTERVAL_MS = 12000;
 
 let enemyAIStarted = false;
 

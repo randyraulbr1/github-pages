@@ -276,7 +276,8 @@ const Usuarios = {
   },
 
   async _loginServidor(usuario, clave, intento) {
-    const base = (CONFIG.servidorOnline || '').replace(/\/$/, '');
+    const base = typeof MarielRed !== 'undefined' ? MarielRed.urlServidor()
+      : (CONFIG.servidorOnline || '').replace(/\/$/, '');
     if (!base) return null;
     try {
       const r = await Utilidades.fetchConTimeout(base + '/api/login-game', {
@@ -308,7 +309,8 @@ const Usuarios = {
   },
 
   async _registrarServidor(nombre, telefono, clave, perfilId, intento) {
-    const base = (CONFIG.servidorOnline || '').replace(/\/$/, '');
+    const base = typeof MarielRed !== 'undefined' ? MarielRed.urlServidor()
+      : (CONFIG.servidorOnline || '').replace(/\/$/, '');
     if (!base) return null;
     try {
       const r = await Utilidades.fetchConTimeout(base + '/api/register', {
