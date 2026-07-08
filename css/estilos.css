@@ -1676,8 +1676,13 @@ body.mariel-bloqueado-actualizar .ventana:not(.oculto) {
   align-items: stretch;
   justify-content: center;
   padding: env(safe-area-inset-top) 0 env(safe-area-inset-bottom);
+  touch-action: none;
+  overscroll-behavior: contain;
+  z-index: 4000;
 }
 #ventana-admin .ventana-admin-caja {
+  touch-action: pan-y manipulation;
+  pointer-events: auto;
   max-width: min(98vw, 1500px);
   width: 100%;
   max-height: 96vh;
@@ -1696,6 +1701,16 @@ body.mariel-bloqueado-actualizar .ventana:not(.oculto) {
     border-radius: 22px;
     box-shadow: 0 24px 80px rgba(0,0,0,.55);
   }
+}
+body.admin-panel-abierto #mapa,
+body.admin-panel-abierto #panel-hud-izq,
+body.admin-panel-abierto #barra-inferior-wrap,
+body.admin-panel-abierto #botones-inferiores,
+body.admin-panel-abierto #admin-controles {
+  pointer-events: none !important;
+}
+body.admin-panel-abierto #ventana-admin {
+  pointer-events: auto !important;
 }
 .admin-layout {
   display: flex;
@@ -2758,33 +2773,53 @@ body.cuenta-eliminada .ventana { display: none !important; }
   color: #fff;
   font-size: 15px;
 }
-#admin-lista-jugadores { padding: 0 6px 12px; }
+#admin-lista-jugadores {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  padding: 0 8px 12px;
+}
 .fila-jugador-admin {
   display: flex;
-  align-items: stretch;
-  gap: 10px;
-  padding: 12px;
-  margin: 0 6px 8px;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px;
+  margin: 0;
   border-radius: 14px;
   background: rgba(255,255,255,.05);
   border: 1px solid rgba(255,255,255,.08);
+  min-width: 0;
+  touch-action: manipulation;
 }
+.jugador-card-cabecera {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  min-width: 0;
+}
+.jugador-card-titulo { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
 .fila-jugador-admin .avatar {
-  width: 42px; height: 42px;
-  border-radius: 12px;
+  width: 36px; height: 36px;
+  border-radius: 10px;
   background: rgba(61,139,253,.22);
   display: flex; align-items: center; justify-content: center;
-  font-size: 20px; flex-shrink: 0;
+  font-size: 17px; flex-shrink: 0;
 }
 .fila-jugador-admin .datos { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 4px; }
-.fila-jugador-admin .nombre { font-weight: 700; font-size: 15px; line-height: 1.2; }
-.fila-jugador-admin .meta { font-size: 11px; color: #9aa5bd; line-height: 1.35; }
+.fila-jugador-admin .nombre {
+  font-weight: 700; font-size: 14px; line-height: 1.2;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.fila-jugador-admin .meta {
+  font-size: 10px; color: #9aa5bd; line-height: 1.3;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
 .fila-jugador-admin .stats {
-  display: flex; flex-wrap: wrap; gap: 6px; margin-top: 2px;
+  display: flex; flex-wrap: wrap; gap: 4px; margin-top: 2px;
 }
 .fila-jugador-admin .stat-chip {
-  font-size: 11px; font-weight: 600;
-  padding: 2px 8px; border-radius: 8px;
+  font-size: 10px; font-weight: 600;
+  padding: 1px 6px; border-radius: 6px;
   background: rgba(0,0,0,.28);
   color: #d8e2f4;
 }
@@ -2843,17 +2878,37 @@ body.cuenta-eliminada .ventana { display: none !important; }
   background: rgba(0,0,0,.2); font-size: 20px; padding: 6px; cursor: pointer;
 }
 .admin-emoji-btn.sel { border-color: #3d8bfd; background: rgba(61,139,253,.25); }
-.fila-jugador-admin .acciones { display: flex; flex-direction: column; gap: 5px; justify-content: center; flex-shrink: 0; position: relative; z-index: 2; }
+.fila-jugador-admin .jugador-barra-vida {
+  margin-top: 0;
+  height: 12px;
+}
+.fila-jugador-admin .acciones.acciones-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+  width: 100%;
+  position: relative;
+  z-index: 3;
+}
 .fila-jugador-admin .acciones button {
-  border: none; border-radius: 10px; padding: 7px 9px; cursor: pointer;
-  background: rgba(255,255,255,.12); color: #fff; font-size: 15px; min-width: 38px;
+  border: none; border-radius: 10px; padding: 10px 6px; cursor: pointer;
+  background: rgba(255,255,255,.12); color: #fff; font-size: 18px; min-height: 42px;
   touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
 }
 .fila-jugador-admin .acciones .btn-editar-jugador {
-  background: rgba(61,139,253,.28); font-weight: 700;
+  background: rgba(61,139,253,.32); font-weight: 700;
 }
-.fila-jugador-datos-tocable { cursor: pointer; }
-.fila-jugador-datos-tocable:active { opacity: .85; }
+.fila-jugador-admin .acciones .btn-eliminar-jugador {
+  background: rgba(255,69,58,.22); color: #ff8a80;
+}
+.fila-jugador-admin .acciones .btn-revivir-jugador {
+  background: rgba(48,209,88,.22); color: #7dffb0;
+}
+.fila-jugador-admin .acciones button:active { background: rgba(61,139,253,.35); transform: scale(0.97); }
+@media (max-width: 360px) {
+  #admin-lista-jugadores { grid-template-columns: 1fr; }
+}
 @media (max-width: 899px) {
   .admin-layout.admin-panel-editor-abierto #lista-admin { display: none; }
   .admin-layout.admin-panel-editor-abierto .admin-panel-derecho {
@@ -2861,7 +2916,6 @@ body.cuenta-eliminada .ventana { display: none !important; }
     max-width: 100%;
   }
 }
-.fila-jugador-admin .acciones button:active { background: rgba(61,139,253,.35); }
 .admin-ban-campo { padding: 12px 14px 0; }
 .admin-rejilla-infinito {
   display: flex;
@@ -3407,12 +3461,24 @@ body.admin-organizar .leaflet-marker-icon {
   margin-top: 12px;
   padding-top: 4px;
 }
-.icono-mapa.marcador-botin-enemigo {
-  animation: botinPulso 1.6s ease-in-out infinite;
-  filter: drop-shadow(0 0 8px #c9a227) drop-shadow(0 0 14px rgba(201, 162, 39, .75));
-  font-size: 30px;
+.leaflet-marker-icon.marcador-emoji-leaflet {
+  background: transparent !important;
+  border: none !important;
 }
-@keyframes botinPulso {
-  0%, 100% { transform: scale(1); }
-  50% { transform: scale(1.12); }
+.marcador-botin-wrap {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+  filter: drop-shadow(0 0 8px #c9a227) drop-shadow(0 0 12px rgba(201, 162, 39, .65));
+  animation: botinBrillo 1.6s ease-in-out infinite;
+}
+.marcador-botin-wrap .icono-mapa {
+  font-size: 30px;
+  line-height: 1;
+}
+@keyframes botinBrillo {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.72; }
 }
