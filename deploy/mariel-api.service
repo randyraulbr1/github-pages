@@ -1,15 +1,22 @@
 [Unit]
-Description=Mariel Online API (Kingdom Map)
+Description=Kingdom Map API (Node + Socket.IO)
 After=network.target
 
 [Service]
 Type=simple
 User=ubuntu
+Group=ubuntu
 WorkingDirectory=/home/ubuntu/github-pages/server
 EnvironmentFile=/etc/mariel-api.env
 ExecStart=/usr/bin/node server.js
 Restart=always
 RestartSec=5
+StartLimitIntervalSec=300
+StartLimitBurst=5
+
+# Logs
+StandardOutput=append:/var/log/mariel-api/out.log
+StandardError=append:/var/log/mariel-api/err.log
 
 [Install]
 WantedBy=multi-user.target

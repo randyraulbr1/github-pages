@@ -486,6 +486,27 @@ Nota v295: cocinar en juego (🍳 + cuchillo), endpoint `player:cookItem`, equip
 
 ---
 
+# FASE 15 - Migracion Oracle Cloud (produccion)
+
+Estado: 🚧 En progreso (v301 — scripts + docs listos; VM pendiente Randy)
+
+Objetivo: servidor gratis estable, un dominio, Cuba sin VPN, sin depender de Render.
+
+Documentacion maestra: `docs/ORACLE_MIGRACION.md`
+
+| Subfase | Tarea | Estado |
+|---------|-------|--------|
+| 15.1 | Scripts Nginx, install/update/backup, red.js | ✅ v301 |
+| 15.2 | VM Oracle US East + api.tcodm.com | ☐ Randy |
+| 15.3 | Prueba interna (login, GPS, admin) | ☐ |
+| 15.4 | Prueba 2–3 jugadores | ☐ |
+| 15.5 | DNS tcodm.com → Oracle, hostingUnificado: true | ☐ |
+| 15.6 | 48 h estables → marcar Render obsoleto | ☐ |
+
+Render: **no eliminado** — rollback hasta 15.6. GitHub Pages: activo como rollback DNS.
+
+---
+
 # Bugs conocidos / ideas pendientes
 
 ## Bug UI - Confirmacion de mover PIN queda detras

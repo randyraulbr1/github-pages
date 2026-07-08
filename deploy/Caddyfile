@@ -1,3 +1,4 @@
+# DEPRECATED — usar deploy/nginx/tcodm.conf + install-oracle.sh (Nginx)
 # Caddy — HTTPS automático para api.tcodm.com
 # Copiar a /etc/caddy/Caddyfile en la VM Oracle
 

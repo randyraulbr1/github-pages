@@ -1,5 +1,6 @@
-# Mantiene despierto el servidor Render (plan gratis) con un ping cada 10 minutos.
-name: Render warmup
+# DEPRECATED — Render suspendido (5 GB/mes). Rollback solo emergencia.
+# Producción: Oracle Cloud — ver docs/ORACLE_MIGRACION.md
+name: Render warmup (legacy)
 
 on:
   schedule:

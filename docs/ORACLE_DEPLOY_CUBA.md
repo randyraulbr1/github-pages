@@ -1,6 +1,8 @@
 # Oracle Cloud GRATIS — servidor para Cuba (sin VPN)
 
-**Coste:** $0/mes (Always Free) · **Ancho de banda:** ~10 TB/mes · **Región:** US East (Ashburn) — cerca de Cuba y de Florida.
+> **Guía completa de migración:** [`docs/ORACLE_MIGRACION.md`](ORACLE_MIGRACION.md) (fases, rollback, Nginx unificado).
+
+**Coste:** $0/mes (Always Free) · **Ancho de banda:** ~10 TB/mes · **Región:** US East (Ashburn)
 
 Render Hobby solo da 5 GB/mes (ya agotado). Oracle es la mejor opción gratis para multijugador GPS.
 

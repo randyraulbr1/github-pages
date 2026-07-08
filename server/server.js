@@ -1,7 +1,7 @@
 /**
  * Servidor principal — Express + Socket.IO + SQLite
- * Sin Firebase. Estado autoritativo en el servidor.
- * Plan gratis Render: cuentas respaldadas en GitHub (datos/mundo.json).
+ * Producción: Oracle Cloud Free + Nginx (tcodm.com). Render = rollback legacy.
+ * Cuentas respaldadas en GitHub (datos/mundo.json) vía GITHUB_TOKEN.
  */
 require('dotenv').config();
 
@@ -24,6 +24,7 @@ const CORS_ORIGINS = (() => {
   const fijos = [
     'https://tcodm.com',
     'https://www.tcodm.com',
+    'https://api.tcodm.com',
     'http://localhost:3000',
     'http://127.0.0.1:3000',
     'https://randyraulbr1.github.io'
@@ -38,6 +39,9 @@ const CORS_ORIGINS = (() => {
 initDb();
 
 const app = express();
+if (process.env.TRUST_PROXY === '1' || process.env.NODE_ENV === 'production') {
+  app.set('trust proxy', 1);
+}
 const server = http.createServer(app);
 
 const io = new Server(server, {
