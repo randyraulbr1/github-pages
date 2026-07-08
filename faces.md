@@ -380,7 +380,7 @@ Debe guardar:
 
 # FASE 10 - Panel de depuracion admin
 
-Estado: ⏳ Pendiente
+Estado: ✅ Completada (v296)
 
 Objetivo: encontrar bugs rapido sin adivinar.
 
@@ -395,6 +395,8 @@ Mostrar solo a owner/admin:
 - errores recientes
 - ultimo sync
 - tamano de datos descargados
+
+Nota v296: panel `admin-depuracion` en menú Servidor, vista `admin-vista-depuracion`, módulo `js/admin/admin_depuracion.js` con refresh cada 5 s y eventos de `/api/player/sync-status`.
 
 ---
 

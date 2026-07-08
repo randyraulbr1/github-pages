@@ -4,12 +4,12 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
   <title>Kingdom Map</title>
-  <meta name="mariel-version" content="295">
+  <meta name="mariel-version" content="296">
   <link rel="manifest" href="manifest.json">
   <link rel="icon" type="image/png" href="iconos/icono-192.png">
   <link rel="apple-touch-icon" href="iconos/icono-192.png">
   <link rel="stylesheet" href="lib/leaflet/leaflet.css">
-  <link rel="stylesheet" href="css/estilos.css?v=295">
+  <link rel="stylesheet" href="css/estilos.css?v=296">
   <link rel="stylesheet" href="css/chat.css?v=295">
   <link rel="stylesheet" href="css/amigos.css?v=295">
   <link rel="stylesheet" href="css/opciones.css?v=295">
@@ -17,7 +17,7 @@
   <script>
     (function () {
       var metaV = document.querySelector('meta[name="mariel-version"]');
-      var E = (metaV && metaV.getAttribute('content')) || '295';
+      var E = (metaV && metaV.getAttribute('content')) || '296';
       var CANON = 'https://raw.githubusercontent.com/randyraulbr1/github-pages/main/version.json';
       try {
         var fv = sessionStorage.getItem('mariel_force_version');
@@ -812,6 +812,7 @@
             </div>
           </div>
           <button class="fila-opcion admin-nav" id="admin-sync-github"><span class="icono-opcion">☁️</span> Respaldo GitHub</button>
+          <button class="fila-opcion admin-nav" id="admin-depuracion"><span class="icono-opcion">🔧</span> Depuración</button>
         </nav>
 
         <aside id="admin-panel-derecho" class="admin-panel-derecho oculto">
@@ -985,6 +986,15 @@
               <p id="admin-sync-estado" class="admin-clave-estado">Cargando estado…</p>
               <p id="admin-sync-detalle" class="admin-clave-ayuda" style="font-size:12px;word-break:break-all;"></p>
               <button type="button" id="btn-admin-sync-github" class="btn-auth-principal">☁️ Sincronizar con GitHub ahora</button>
+            </div>
+          </div>
+
+          <div id="admin-vista-depuracion" class="admin-vista oculto">
+            <div class="admin-depuracion-cuerpo">
+              <p class="admin-clave-ayuda">Métricas en vivo para diagnosticar problemas sin adivinar. Solo visible para administradores.</p>
+              <div id="admin-depuracion-grid" class="admin-depuracion-grid"></div>
+              <button type="button" id="btn-admin-depuracion-refrescar" class="fila-opcion admin-btn-toolbar">🔄 Actualizar ahora</button>
+              <div id="admin-depuracion-errores" class="admin-depuracion-errores"></div>
             </div>
           </div>
 
@@ -1232,6 +1242,7 @@
   <script src="js/dinero/dinero.js?v=104"></script>
   <script src="js/vida/vida.js?v=295"></script>
   <script src="js/items/items.js?v=295"></script>
+  <script src="js/admin/admin_depuracion.js?v=296"></script>
   <script src="js/admin/catalogo_objetos.js?v=295"></script>
   <script src="js/mochila/mochila.js?v=295"></script>
   <script src="js/bolsas/bolsas.js?v=295"></script>
@@ -1249,7 +1260,7 @@
   <script src="js/enemigos/botin_enemigo.js?v=295"></script>
   <script src="js/enemigos/enemigos.js?v=295"></script>
   <script src="js/online/sync_servidor.js?v=295"></script>
-  <script src="js/admin/admin.js?v=295"></script>
+  <script src="js/admin/admin.js?v=296"></script>
   <script src="js/opciones/opciones.js?v=295"></script>
   <script src="js/online/mundo_online.js?v=295"></script>
   <script src="js/online/contenido_mundo.js?v=295"></script>
