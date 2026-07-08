@@ -3,7 +3,7 @@
 // ============================================================
 const CONFIG = {
   // Cambiar al publicar: obliga al móvil a descartar caché vieja
-  version: '300',
+  version: '301',
   maxPila: 10,
 
   // Nombre reservado del administrador (solo este jugador ve el panel admin)
@@ -74,7 +74,8 @@ const CONFIG = {
   // Solo desarrollo local (nunca subas un token real al repositorio)
   tokenRegistroJugadores: '',
 
-  // Servidor multijugador — Oracle Cloud free (api.tcodm.com). Ver docs/ORACLE_DEPLOY_CUBA.md
-  // Render suspendido (5 GB/mes). Vacío = solo mapa local / GitHub Pages.
+  // Servidor multijugador — Oracle Cloud (Nginx). Ver docs/ORACLE_MIGRACION.md
+  // Fase 15.2–15.4: api.tcodm.com. Fase 15.5+: vacío + hostingUnificado: true
   servidorOnline: 'https://api.tcodm.com',
+  hostingUnificado: false,
 };

@@ -15,7 +15,8 @@ const SyncServidor = {
   },
 
   puedePublicar() {
-    return !!(CONFIG.servidorOnline && this._getToken());
+    const base = typeof MarielRed !== 'undefined' ? MarielRed.urlServidor() : (CONFIG.servidorOnline || '').replace(/\/$/, '');
+    return !!(base && this._getToken());
   },
 
   _base() {
