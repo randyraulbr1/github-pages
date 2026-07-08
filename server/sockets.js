@@ -42,7 +42,13 @@ const {
   marcarBroadcastMovimiento,
   limpiarJugador
 } = require('./interest');
-const { limiteChat, limiteAmigos } = require('./rateLimit');
+const {
+  limiteChat,
+  limiteAmigos,
+  limiteMovimiento,
+  limiteAdminMapa,
+  errorRateLimitSocket
+} = require('./rateLimit');
 
 /** Vida al revivir: valor enviado o 40 % de hpMax. */
 function vidaReviveDesdeMax(hpMax, reviveHp) {
@@ -256,6 +262,9 @@ function setupSockets(io) {
     }
 
     socket.on('player:move', (payload, ack) => {
+      if (!payload?.force && !limiteMovimiento('move:' + socket.playerId)) {
+        return ack?.(errorRateLimitSocket('movimiento'));
+      }
       const targetX = Number(payload?.x);
       const targetY = Number(payload?.y);
       if (!Number.isFinite(targetX) || !Number.isFinite(targetY)) {
@@ -526,6 +535,9 @@ function setupSockets(io) {
       if (!isGameAdminPlayer(socket.playerId)) {
         return ack?.({ ok: false, error: 'Solo el administrador del juego' });
       }
+      if (!limiteAdminMapa('adminMapa:' + socket.playerId)) {
+        return ack?.(errorRateLimitSocket('adminMapa'));
+      }
       const { id, type, x, y, data } = payload || {};
       const r = adminUpsertContent({
         id,
@@ -549,6 +561,9 @@ function setupSockets(io) {
       if (!isGameAdminPlayer(socket.playerId)) {
         return ack?.({ ok: false, error: 'Solo el administrador del juego' });
       }
+      if (!limiteAdminMapa('adminMapa:' + socket.playerId)) {
+        return ack?.(errorRateLimitSocket('adminMapa'));
+      }
       const id = payload?.id;
       const r = adminDeleteContent(id, 'admin:' + socket.playerId);
       if (!r.ok) return ack?.(r);
@@ -564,6 +579,9 @@ function setupSockets(io) {
     socket.on('world:adminConfig', (payload, ack) => {
       if (!isGameAdminPlayer(socket.playerId)) {
         return ack?.({ ok: false, error: 'Solo el administrador del juego' });
+      }
+      if (!limiteAdminMapa('adminMapa:' + socket.playerId)) {
+        return ack?.(errorRateLimitSocket('adminMapa'));
       }
       const { key, value } = payload || {};
       const r = adminConfigContent(key, value, 'admin:' + socket.playerId);

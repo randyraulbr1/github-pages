@@ -27,6 +27,7 @@ const { forcePushMundoActual } = require('../githubMundo');
 const { getSyncStatus } = require('../syncStatus');
 const { getEventos } = require('../eventLog');
 const { registrar } = require('../eventLog');
+const { limiteAdminMapa, limitePublicarMundo, responderRateLimitHttp } = require('../rateLimit');
 
 const router = express.Router();
 
@@ -43,6 +44,9 @@ router.get('/me', authMiddleware, (req, res) => {
 
 /** Admin del juego (randy) publica mundo desde su panel → todos en vivo */
 router.post('/sync-mundo', authMiddleware, gameAdminMiddleware, (req, res) => {
+  if (!limitePublicarMundo('pub:' + req.auth.playerId)) {
+    return responderRateLimitHttp(res, 'publicar');
+  }
   const mundo = req.body;
   if (!mundo || typeof mundo !== 'object') {
     return res.status(400).json({ ok: false, error: 'JSON del mundo requerido' });
@@ -59,6 +63,9 @@ router.post('/sync-mundo', authMiddleware, gameAdminMiddleware, (req, res) => {
 
 /** Admin: upsert de un objeto del mapa (Fase 3.3) */
 router.post('/world/upsert', authMiddleware, gameAdminMiddleware, (req, res) => {
+  if (!limiteAdminMapa('adminMapa:' + req.auth.playerId)) {
+    return responderRateLimitHttp(res, 'adminMapa');
+  }
   const { id, type, x, y, data } = req.body || {};
   const r = adminUpsertContent({
     id,
@@ -77,6 +84,9 @@ router.post('/world/upsert', authMiddleware, gameAdminMiddleware, (req, res) => 
 
 /** Admin: tombstone de un objeto del mapa */
 router.post('/world/delete', authMiddleware, gameAdminMiddleware, (req, res) => {
+  if (!limiteAdminMapa('adminMapa:' + req.auth.playerId)) {
+    return responderRateLimitHttp(res, 'adminMapa');
+  }
   const id = req.body?.id;
   const r = adminDeleteContent(id, 'admin:' + req.auth.playerId);
   if (!r.ok) return res.status(400).json(r);
@@ -88,6 +98,9 @@ router.post('/world/delete', authMiddleware, gameAdminMiddleware, (req, res) => 
 
 /** Admin: config global del mundo (precios, combate, etc.) */
 router.post('/world/config', authMiddleware, gameAdminMiddleware, (req, res) => {
+  if (!limiteAdminMapa('adminMapa:' + req.auth.playerId)) {
+    return responderRateLimitHttp(res, 'adminMapa');
+  }
   const { key, value } = req.body || {};
   const r = adminConfigContent(key, value, 'admin:' + req.auth.playerId);
   if (!r.ok) return res.status(400).json(r);

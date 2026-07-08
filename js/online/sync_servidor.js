@@ -388,6 +388,9 @@ const SyncServidor = {
             ? 'Sin permiso de admin en el servidor'
             : 'Sesión expirada — vuelve a entrar' };
         }
+        if (r.status === 429) {
+          return { ok: false, error: data.error || 'Demasiadas publicaciones — espera un momento', status: 429 };
+        }
         if (r.ok && data.ok) return { ok: true, data };
         if (intento < 2) {
           await new Promise(res => setTimeout(res, 2000 * (intento + 1)));
@@ -442,6 +445,13 @@ const SyncServidor = {
           ok: false,
           error: r.status === 403 ? 'Sin permiso de admin en el servidor' : 'Sesión expirada — vuelve a entrar',
           status: r.status
+        };
+      }
+      if (r.status === 429) {
+        return {
+          ok: false,
+          error: data.error || 'Demasiadas acciones — espera un momento',
+          status: 429
         };
       }
       if (r.status === 404) {
