@@ -254,8 +254,9 @@ Para mapa y cuentas, mantener el mismo patrón mental: **escribir en servidor �
 - [x] No hay conflictos importantes entre ChatGPT y Claude (consenso documentado).
 - [x] Cursor leyó `CHATGPT_CURSOR_REVIEW.md` (aprobación Fase 1).
 - [x] Decisión Fase 2/3/4 escrita (ver abajo).
-- [x] Fase 2 implementada (v275, PR `cursor/stability-phase2-7abe`).
-- [ ] Merge Fase 1 (#101–#104) + Fase 2 en `main` + deploy Render.
+- [x] Fase 2 implementada (v275, PR #105).
+- [x] Merge Fase 1 + Fase 2 en `main` (commit `96720be31`).
+- [ ] Deploy Render OK + checklists Fase 1 y Fase 2 pasados.
 
 ---
 
@@ -319,9 +320,7 @@ Para mapa y cuentas, mantener el mismo patrón mental: **escribir en servidor �
 ### DECISIÓN CURSOR — FASE 2 (tras leer `CHATGPT_CURSOR_REVIEW.md`)
 
 **Fecha:** 8 julio 2026  
-**Estado:** PLANIFICADA — **no implementar hasta merge de Fase 1 en `main` + deploy Render OK.**
-
-**Actualización 8 jul 2026:** Fase 2 **IMPLEMENTADA** en rama `cursor/stability-phase2-7abe` (v275). Pendiente merge a `main`.
+**Estado:** ✅ **IMPLEMENTADA y mergeada** en `main` (v275, PR #105). **APROBADA** por ChatGPT (opinión final 8 jul 2026).
 
 ChatGPT prioriza en **Alta:** (1) unificar fuente del mundo, (2) roles admin reales, (3) validar economía/inventario en servidor.  
 Cursor **reordena** para no mezclar un refactor enorme con parches pequeños en el mismo PR:
@@ -391,6 +390,7 @@ Cursor **reordena** para no mezclar un refactor enorme con parches pequeños en 
 | v272 | #101 | statsT, barras, ban instantáneo |
 | v273 | #102 | Sync admin rápida, tiendas, UI |
 | v274 Fase 1 | #104 | Seguridad servidor |
+| v275 Fase 2 | #105 | Roles, stats, HP, auditoría, docs |
 
 ### Cómo probar Fase 1 (checklist)
 
@@ -402,21 +402,33 @@ Cursor **reordena** para no mezclar un refactor enorme con parches pequeños en 
 6. [ ] Admin publica mapa → otros jugadores lo ven.
 7. [ ] `node --check` en todos los `.js` sin errores.
 
+### Pruebas obligatorias Fase 2 (ChatGPT — opinión final)
+
+Con una **cuenta normal** (no admin), todo debe **fallar correctamente**:
+
+1. [ ] `POST /sync-partida` con `perfilId` de otro jugador → **403**
+2. [ ] Socket `player:updateInventory` → **rechazado**
+3. [ ] Socket `player:updateStats` con HP > máximo del nivel → servidor **acota** al tope
+4. [ ] `POST /api/player/sync-mundo` o acciones admin → **403**
+5. [ ] Stats en vivo sin parpadeo (vida/oro no revierten solos)
+6. [ ] Admin re-login → JWT con `role: admin`; publicar mapa sigue funcionando
+7. [ ] Edición admin de jugador ajeno → entrada `admin_partida_edit` en log del servidor
+
 ---
 
 ## DECISIÓN PARA EL CREADOR
 
-**Fase 1:** Aprobada por ChatGPT (`CHATGPT_CURSOR_REVIEW.md`). Mergear PR #104 y desplegar en Render.
+**Fases 1–2:** Aprobadas por ChatGPT (`CHATGPT_CURSOR_REVIEW.md` — opinión final). Mergeadas en `main` (v275).
 
-**Fase 2 (v275):** Implementada en `cursor/stability-phase2-7abe` — mergear tras Fase 1.
+**Pendiente:** Deploy Render + pasar checklists Fase 1 (7 puntos) y Fase 2 (7 puntos arriba). Admin debe **re-login** tras deploy para JWT con `role: admin`.
 
-**Fase 3 (después):** Una sola fuente de verdad del mundo (lo que ChatGPT marca como prioridad alta #1).
+**Fase 3 (siguiente):** Una sola fuente de verdad del mundo — BD = oficial, snapshot = backup. **Prioridad máxima** según ChatGPT.
 
-**Motivo del orden:** ChatGPT pide arquitectura del mundo antes de muchas funciones nuevas, pero mezclar eso con roles/stats en un PR rompería el juego en vivo. Fase 2 cierra seguridad restante; Fase 3 ataca el desync «un jugador ve cosas que otro no».
+**Orden acordado:** Seguridad → Estabilidad → Arquitectura mundo → Optimización → Nuevas funciones.
 
-**Para decir a Cursor:** «Adelante con Fase 3» cuando Fase 2 esté en producción.
+**Para decir a Cursor:** «Adelante con Fase 3» cuando checklists pasen en producción.
 
-**Para ChatGPT y Claude:** Opinen sobre el plan Fase 2/3 en comentarios o nueva sección en `CHATGPT_CURSOR_REVIEW.md`. No implementen código.
+**Para ChatGPT y Claude:** Solo opiniones en `CHATGPT_CURSOR_REVIEW.md` / comentarios PR. No implementen código.
 
 ---
 
@@ -427,7 +439,7 @@ Cursor **reordena** para no mezclar un refactor enorme con parches pequeños en 
 | 2026-07-08 | 1.0 | ChatGPT, Claude, Gemini, Cursor | Documento inicial; estado post v273 |
 | 2026-07-08 | 1.1 | ChatGPT, Claude, Cursor | Gemini fuera del equipo (aviso del creador) |
 | 2026-07-08 | 1.3 | ChatGPT, Claude, Cursor | Fase 1 seguridad aprobada e implementada (v274) |
-| 2026-07-08 | 1.6 | Cursor | Fase 2 estabilidad implementada (v275): roles, stats, HP, auditoría, docs |
+| 2026-07-08 | 1.7 | ChatGPT, Cursor | Opinión final ChatGPT: Fases 1–2 APROBADAS; checklist obligatorio Fase 2 |
 
 ---
 
