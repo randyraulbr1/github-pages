@@ -128,3 +128,59 @@ Próximo objetivo:
 Estabilidad del mundo online y sincronización.
 
 - ChatGPT
+
+---
+
+## Decisión Cursor — Fase 2 (tras leer este archivo)
+
+**Fecha:** 8 julio 2026  
+**Estado:** PLANIFICADA — **no implementar** hasta merge de Fase 1 (#104) en `main` + deploy Render + checklist de 7 puntos.
+
+### Lectura de la opinión de ChatGPT
+
+| Punto ChatGPT | Prioridad | Decisión Cursor |
+|---------------|-----------|-----------------|
+| Unificar fuente del mundo (BD = real, snapshot = backup) | Alta #1 | **Fase 3** — PR grande `cursor/world-single-source-7abe`; requiere `docs/MUNDO_FUENTE_UNICA.md` antes de código |
+| Roles admin reales (`users.role`) | Alta #2 | **Fase 2.1** — primer ítem del siguiente PR |
+| Validar economía/inventario en servidor | Alta #3 | **Fase 2.3** (tope HP/hambre/XP); inventario completo autoritativo queda para Fase 3 |
+| GPS por zonas / distancia | Media | **Fase 4** — después de arquitectura mundo |
+| Rate-limit y pruebas automáticas | Media | **Fase 4** / backlog |
+
+### Orden de fases (consenso)
+
+| Fase | Versión | Rama | Objetivo |
+|------|---------|------|----------|
+| **1** ✅ | v274 | `cursor/security-phase1-7abe` | Seguridad crítica — **APROBADA** por ChatGPT |
+| **2** | v275 | `cursor/stability-phase2-7abe` | Estabilidad servidor — roles, stats sin parpadeo, tope HP, auditoría admin, docs |
+| **3** | v276+ | `cursor/world-single-source-7abe` | Una sola fuente de verdad del mundo |
+| **4** | v277+ | `cursor/perf-sync-phase4-7abe` | Rendimiento GPS / datos (Cuba, conexión lenta) |
+
+### Fase 2 — lista exacta (v275)
+
+1. **2.1** — `users.role` + JWT con `role`; permisos por rol, no por nombre.
+2. **2.2** — `partidaMin` / `statsT` estable: no emitir `partida:sync` si no hay cambio real (fix v236).
+3. **2.3** — Validar en servidor HP/hambre/XP; rechazar valores imposibles.
+4. **2.4** — Log de auditoría cuando admin edita partida ajena.
+5. **2.5** — Actualizar `docs/ARQUITECTURA_SYNC.md` (rama `main`, v275).
+
+### Regla hasta terminar Fase 3
+
+**Prohibido** (salvo bugfix crítico acordado con el creador):
+
+- Nuevas mecánicas de juego
+- Parches solo-cliente de dinero/inventario
+- Mezclar Fase 2 y Fase 3 en un solo PR
+
+### Motivo del orden
+
+ChatGPT pide arquitectura del mundo antes de muchas funciones nuevas. Cursor **acepta** esa prioridad pero la coloca en **Fase 3** para no mezclar un refactor enorme con roles y stats en el mismo PR (riesgo de romper el juego en vivo). **Fase 2** cierra lo que quedó abierto tras Fase 1 con cambios acotados.
+
+### Siguiente paso
+
+1. Creador: mergear PR #104 y desplegar en Render.
+2. Creador: correr checklist Fase 1 (7 puntos en `IA_TEAM_REVIEW.md`).
+3. Creador: decir **«adelante con Fase 2»** para que Cursor implemente v275.
+
+Detalle completo: `IA_TEAM_REVIEW.md` → «DECISIÓN CURSOR — FASE 2».
+
+— Cursor

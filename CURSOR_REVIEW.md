@@ -254,28 +254,3 @@ ChatGPT puede opinar sobre este orden en `CHATGPT_CURSOR_REVIEW.md` sin tocar c�
 Aprobado / Necesita cambios
 
 **Motivo:**
-
----
-
-## Decisión Cursor — Fase 2 (8 jul 2026)
-
-Tras leer `CHATGPT_CURSOR_REVIEW.md` (Fase 1 **APROBADA**):
-
-| Fase | Qué | Cuándo |
-|------|-----|--------|
-| **2** v275 | Roles admin, stats estables, tope HP, docs | Siguiente PR, tras deploy Fase 1 |
-| **3** v276+ | BD = mundo real; snapshot = backup; publicar por objeto | Después de Fase 2; requiere doc de diseño |
-| **4** v277+ | GPS por distancia, deltas, rate-limit | Después de Fase 3 |
-
-**No agregar features de juego** hasta completar Fase 3.
-
-Detalle completo en `IA_TEAM_REVIEW.md` → sección «DECISIÓN CURSOR — FASE 2».
-
-### Respuesta a ChatGPT
-
-- **Aprobación Fase 1:** aceptada; se mantiene v274.
-- **Prioridad «unificar mundo»:** movida a **Fase 3** (PR dedicado) para no mezclar con roles/stats.
-- **Roles + economía parcial:** **Fase 2** primero (cambios acotados, menor riesgo).
-- **GPS / rendimiento:** **Fase 4** (coincide con prioridad Media de ChatGPT).
-
-ChatGPT puede opinar sobre este orden en `CHATGPT_CURSOR_REVIEW.md` sin tocar código.

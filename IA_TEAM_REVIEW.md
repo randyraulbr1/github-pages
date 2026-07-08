@@ -273,7 +273,7 @@ Para mapa y cuentas, mantener el mismo patrón mental: **escribir en servidor �
 |------|--------|---------|-------------------|
 | Admin no por nombre | P1: reservar nombres en `/register` | P1: columna `role` en `users` | **Ahora:** reservar nombres. **Después:** migrar a `role`. |
 | No borrar cuentas por sync fallido | P2: blindar purga | P2: «si hay duda, conservar» | **De acuerdo.** Implementar guardas en purga. |
-| Una fuente de verdad del mundo | P3/P5: tablas = real, blob = backup | P3: BD = mundo real | **De acuerdo.** Fase 2 (refactor grande). |
+| Una fuente de verdad del mundo | P3/P5: tablas = real, blob = backup | P3: BD = mundo real | **De acuerdo.** Fase 3 (refactor grande). |
 | JWT_SECRET en producción | P4 | (implícito) | **De acuerdo.** Verificar Render + fallar arranque si falta. |
 | sync-partida / updateInventory | (Cursor previo) | — | **Se mantiene en Fase 1** — mismo espíritu que regla 4. |
 | Recuperación ante fallos | (implícito en P2) | P10 | **Adoptado** en Fase 1 (guardas + no purgar). |
@@ -375,8 +375,6 @@ Cursor **reordena** para no mezclar un refactor enorme con parches pequeños en 
 - Parches solo-cliente de dinero/inventario
 - Subir tamaño del blob mundo sin deltas
 
-#### FASE 2 — Alto (plan original, reemplazado por tabla arriba)
-
 ### Qué NO hacer todavía
 
 - No mezclar Fase 2 con Fase 3 en un solo PR.
@@ -427,7 +425,7 @@ Cursor **reordena** para no mezclar un refactor enorme con parches pequeños en 
 | 2026-07-08 | 1.0 | ChatGPT, Claude, Gemini, Cursor | Documento inicial; estado post v273 |
 | 2026-07-08 | 1.1 | ChatGPT, Claude, Cursor | Gemini fuera del equipo (aviso del creador) |
 | 2026-07-08 | 1.3 | ChatGPT, Claude, Cursor | Fase 1 seguridad aprobada e implementada (v274) |
-| 2026-07-08 | 1.4 | ChatGPT, Cursor | ChatGPT aprueba Fase 1 (`CHATGPT_CURSOR_REVIEW.md`); Cursor define Fase 2/3/4 |
+| 2026-07-08 | 1.5 | ChatGPT, Cursor | Decisión Fase 2 formal en `CHATGPT_CURSOR_REVIEW.md`; limpieza docs |
 
 ---
 
