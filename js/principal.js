@@ -222,18 +222,10 @@ async function asegurarMapaVisible() {
     const bloqueo = Admin.estadoBloqueo();
     if (bloqueo) {
       ocultarCarga();
-      const pantalla = document.getElementById('pantalla-bloqueo');
-      pantalla.classList.remove('oculto');
-      if (bloqueo.tipo === 'ban') {
-        document.getElementById('bloqueo-icono').textContent = '🚫';
-        document.getElementById('bloqueo-titulo').textContent = 'Cuenta suspendida';
-        document.getElementById('bloqueo-mensaje').textContent = bloqueo.mensaje;
-        return;
-      }
-      document.getElementById('bloqueo-icono').textContent = '🚧';
-      document.getElementById('bloqueo-titulo').textContent = 'Juego en mantenimiento';
-      document.getElementById('bloqueo-mensaje').textContent = bloqueo.mensaje;
+      Admin.mostrarPantallaBloqueoSiCorresponde();
+      if (bloqueo.tipo === 'ban') return;
       if (Admin.datos && Usuarios.esAdministrador() && Usuarios.perfilActivo.pinHash) {
+        const pantalla = document.getElementById('pantalla-bloqueo');
         const boton = document.getElementById('btn-bloqueo-admin');
         boton.classList.remove('oculto');
         boton.addEventListener('click', () => {

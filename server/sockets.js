@@ -321,9 +321,11 @@ function setupSockets(io) {
       } else if (payload?.perfilId && payload?.partidaMin) {
         const snap = getWorldSnapshot();
         const prevDatos = snap?.partidas?.[payload.perfilId]?.datos || {};
+        const statsT = payload.statsT || Date.now();
         actualizarPartidaEnSnapshot(payload.perfilId, {
           datos: Object.assign({}, prevDatos, payload.partidaMin),
-          t: Date.now()
+          t: statsT,
+          statsT
         }, io);
       }
 

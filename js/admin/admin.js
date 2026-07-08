@@ -4018,6 +4018,31 @@ const Admin = {
     return null;
   },
 
+  mostrarPantallaBloqueoSiCorresponde() {
+    const bloqueo = this.estadoBloqueo();
+    if (!bloqueo) return false;
+    const pantalla = document.getElementById('pantalla-bloqueo');
+    if (!pantalla) return true;
+    pantalla.classList.remove('oculto');
+    const icono = document.getElementById('bloqueo-icono');
+    const titulo = document.getElementById('bloqueo-titulo');
+    const mensaje = document.getElementById('bloqueo-mensaje');
+    if (bloqueo.tipo === 'ban') {
+      if (icono) icono.textContent = '🚫';
+      if (titulo) titulo.textContent = 'Cuenta suspendida';
+      if (mensaje) mensaje.textContent = bloqueo.mensaje;
+    } else {
+      if (icono) icono.textContent = '🚧';
+      if (titulo) titulo.textContent = 'Juego en mantenimiento';
+      if (mensaje) mensaje.textContent = bloqueo.mensaje;
+      const boton = document.getElementById('btn-bloqueo-admin');
+      if (boton && this.datos && Usuarios.esAdministrador() && Usuarios.perfilActivo?.pinHash) {
+        boton.classList.remove('oculto');
+      }
+    }
+    return true;
+  },
+
   _actualizarEtiquetaMantenimientoNav() {
     const el = document.getElementById('admin-mant-nav-texto');
     if (!el) return;
@@ -4741,6 +4766,7 @@ const Admin = {
     if (partida.muerto) revividoEn = null;
     else if (estabaMuerto) revividoEn = Date.now();
 
+    const ahora = Date.now();
     const snap = {
       datos: {
         mochila: partida.mochila,
@@ -4753,7 +4779,8 @@ const Admin = {
         nivel: partida.nivel,
         armaEquipada: partida.armaEquipada || null
       },
-      t: Date.now() + 8000
+      t: ahora,
+      statsT: ahora
     };
     snap.datos.vida = partida.vida;
     this.datos.partidasExtra[perfil.id] = snap;

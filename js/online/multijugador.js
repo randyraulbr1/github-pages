@@ -466,6 +466,9 @@ const Multijugador = {
       Admin._aplicarMundoRemoto(json, { permitirReduccion: !esAdmin });
       if (typeof Admin.pintarMapaCompleto === 'function') Admin.pintarMapaCompleto();
       if (data.mundo.cuerposMuertos) this._aplicarCuerpos(data.mundo.cuerposMuertos);
+      if (typeof Admin.mostrarPantallaBloqueoSiCorresponde === 'function') {
+        Admin.mostrarPantallaBloqueoSiCorresponde();
+      }
       if (typeof Usuarios !== 'undefined') {
         Usuarios.verificarCuentaEnMundo().catch(() => {});
       }
@@ -662,6 +665,9 @@ const Multijugador = {
     if (t <= (Guardado.datos.nubeT || 0)) return;
 
     const d = snap.datos;
+    const remoteStatsT = snap.statsT || t;
+    const localStatsT = Guardado.datos.statsT || 0;
+    const pisarStats = remoteStatsT >= localStatsT;
     const invPendiente = Guardado.datos._invPendienteSync;
     let mochilaLocal;
     let armaLocal;
@@ -669,7 +675,8 @@ const Multijugador = {
       mochilaLocal = JSON.parse(JSON.stringify(Guardado.datos.mochila || []));
       armaLocal = Guardado.datos.armaEquipada;
     }
-    Guardado._aplicarSnapshot(d);
+    Guardado._aplicarSnapshot(d, { sinStats: !pisarStats });
+    if (pisarStats) Guardado.datos.statsT = remoteStatsT;
     if (invPendiente) {
       Guardado.datos.mochila = mochilaLocal;
       Guardado.datos.armaEquipada = armaLocal;
@@ -1949,7 +1956,9 @@ const Multijugador = {
     if (typeof Usuarios !== 'undefined' && Usuarios.perfilActivo) {
       payload.perfilId = Usuarios.perfilActivo.id;
       const cambioMuerte = muerto !== this._ultimoMuertoSync;
-      if (forzar || cambioMuerte) {
+      const statsT = typeof Guardado !== 'undefined' ? (Guardado.datos.statsT || 0) : 0;
+      const statsNuevos = statsT > (this._ultimoStatsTEnviado || 0);
+      if (forzar || cambioMuerte || statsNuevos) {
         payload.partidaMin = {
           vida: payload.hp,
           muerto,
@@ -1957,6 +1966,8 @@ const Multijugador = {
           hambre: Vida.hambre,
           xp: Vida.xp
         };
+        payload.statsT = statsT || Date.now();
+        this._ultimoStatsTEnviado = payload.statsT;
         this._ultimoMuertoSync = muerto;
       }
     }

@@ -129,7 +129,7 @@ const Vida = {
     this.xp += cantidad;
     Guardado.datos.xp = this.xp;
     this._recalcularNivel();
-    Guardado.guardar();
+    Guardado._marcarStatsLocales();
     this.pintar();
     if (motivo) Notificaciones.mostrar('✨ +' + cantidad + ' XP · ' + motivo, 'info', 3000);
   },
@@ -140,7 +140,7 @@ const Vida = {
     if (this.hambre > 0) {
       this.hambre = Math.max(0, this.hambre - 1);
       Guardado.datos.hambre = this.hambre;
-      Guardado.guardar();
+      Guardado._marcarStatsLocales();
       this.pintar();
       if (this.hambre === 0) Notificaciones.mostrar('🍽️ ¡Tienes hambre! Come algo', 'alerta', 4000);
     } else {
@@ -154,7 +154,7 @@ const Vida = {
     this.hambre = Math.min(CONFIG.hambreMaxima, this.hambre + cantidad);
     if (this.hambre !== antes) {
       Guardado.datos.hambre = this.hambre;
-      Guardado.guardar();
+      Guardado._marcarStatsLocales();
       this.pintar();
       if (motivo) Notificaciones.mostrar('🍽️ ' + motivo + ' (+' + (this.hambre - antes) + ' hambre)', 'exito');
     }
@@ -170,7 +170,7 @@ const Vida = {
     this.actual = nuevo;
     if (this.actual !== antes) {
       Guardado.datos.vida = this.actual;
-      Guardado.guardar();
+      Guardado._marcarStatsLocales();
       this.pintar();
       if (nombreEnemigo || cantidad > 0) {
         this._mostrarDanoFlotante(cantidad);
@@ -206,7 +206,7 @@ const Vida = {
     this.actual = Math.max(0, Math.min(max, this.actual + cantidad));
     if (this.actual !== antes) {
       Guardado.datos.vida = this.actual;
-      Guardado.guardar();
+      Guardado._marcarStatsLocales();
       this.pintar();
       if (motivo && cantidad > 0) Notificaciones.mostrar('❤️ ' + motivo, 'exito');
       if (this.actual === 0) this._activarMuerte();
@@ -230,7 +230,7 @@ const Vida = {
     Guardado.datos.muerteInventario = (Guardado.datos.mochila || [])
       .filter(Boolean)
       .map(s => ({ id: s.id, cantidad: s.cantidad || 1 }));
-    Guardado.guardar();
+    Guardado._marcarStatsLocales();
     if (typeof Guardado !== 'undefined') Guardado.sincronizarNube(true).catch(() => {});
     this._mostrarPantallaMuerte();
     if (typeof Enemigos !== 'undefined' && Enemigos._limpiarVisionHaciaJugador) {
@@ -285,7 +285,7 @@ const Vida = {
     this.actual = cura;
     Guardado.datos.vida = this.actual;
     this._iniciarProteccionRevivir();
-    Guardado.guardar();
+    Guardado._marcarStatsLocales();
     this.pintar();
     const pantalla = document.getElementById('pantalla-muerte');
     if (pantalla) pantalla.classList.add('oculto');

@@ -7,6 +7,7 @@ const Guardado = {
   integridadRota: false,
   _temporizador: null,
   _syncNubeTimer: null,
+  _syncStatsTimer: null,
   _syncEnCurso: false,
   _syncFallos: 0,
   _syncIntervalo: null,
@@ -87,8 +88,13 @@ const Guardado = {
       preferencias: { notifChat: true, notifAmigos: true, vibracionCombate: true, posBtnAtacar: 'izq' },
       objetosSuelto: [],
       bolsasDrop: [],
-      nubeT: 0
+      nubeT: 0,
+      statsT: 0
     };
+  },
+
+  _camposStats() {
+    return ['vida', 'hambre', 'xp', 'nivel', 'muerto', 'muertePos', 'revividoEn', 'muertoAt', 'muerteInventario'];
   },
 
   _camposNube() {
@@ -108,13 +114,38 @@ const Guardado = {
       }
     }
     const t = Date.now();
-    return { datos, t };
+    const statsT = this.datos.statsT || t;
+    return { datos, t, statsT };
   },
 
-  _aplicarSnapshot(snap) {
+  _marcarStatsLocales() {
+    if (!this.datos) return;
+    this.datos.statsT = Date.now();
+    this.guardar();
+    this._programarSyncStats();
+  },
+
+  _programarSyncStats() {
+    if (typeof Usuarios === 'undefined' || !Usuarios.perfilActivo) return;
+    const online = CONFIG.servidorOnline &&
+      typeof Multijugador !== 'undefined' &&
+      localStorage.getItem(Multijugador.TOKEN_KEY);
+    if (!online && !MundoPublico.puedeEscribir()) return;
+    clearTimeout(this._syncStatsTimer);
+    this._syncStatsTimer = setTimeout(() => {
+      this.sincronizarNube(true).catch(() => {});
+      if (typeof Multijugador !== 'undefined') Multijugador.enviarStats(true);
+    }, 400);
+  },
+
+  _aplicarSnapshot(snap, opciones) {
     if (!snap) return;
+    const opts = opciones || {};
+    const stats = new Set(this._camposStats());
     for (const k of this._camposNube()) {
       if (snap[k] === undefined) continue;
+      if (opts.sinStats && stats.has(k)) continue;
+      if (opts.soloStats && !stats.has(k)) continue;
       // No pisar posición local con null de la nube (evita volver al centro del mapa)
       if (k === 'posicionJugador') {
         if (!snap[k] || !Array.isArray(snap[k]) || snap[k].length < 2) continue;
@@ -157,9 +188,13 @@ const Guardado = {
     }
 
     const localT = this.datos.nubeT || 0;
+    const remoteStatsT = nube.statsT || nube.t || 0;
+    const localStatsT = this.datos.statsT || 0;
+    const aplicarStats = remoteStatsT >= localStatsT;
     const debeFusionar = nube.t > localT || (partidaNuevaLocal && nube.t > 0);
     if (debeFusionar) {
-      this._aplicarSnapshot(nube.datos);
+      this._aplicarSnapshot(nube.datos, { sinStats: !aplicarStats });
+      if (aplicarStats) this.datos.statsT = remoteStatsT;
       this.datos.nubeT = nube.t || Date.now();
       this.datos.nubeFusionada = true;
       if (typeof Mochila !== 'undefined') {
@@ -235,6 +270,7 @@ const Guardado = {
         if (ok) {
           this._syncFallos = 0;
           this.datos.nubeT = snapshot.t;
+          if (snapshot.statsT) this.datos.statsT = snapshot.statsT;
           delete this.datos._invPendienteSync;
           const firma = await Utilidades.sha256(JSON.stringify(this.datos) + this.SAL);
           localStorage.setItem(this._clave(), JSON.stringify({ datos: this.datos, firma }));
@@ -262,6 +298,7 @@ const Guardado = {
       if (ok) {
         this._syncFallos = 0;
         this.datos.nubeT = snapshot.t;
+        if (snapshot.statsT) this.datos.statsT = snapshot.statsT;
         delete this.datos._invPendienteSync;
         const firma = await Utilidades.sha256(JSON.stringify(this.datos) + this.SAL);
         localStorage.setItem(this._clave(), JSON.stringify({ datos: this.datos, firma }));

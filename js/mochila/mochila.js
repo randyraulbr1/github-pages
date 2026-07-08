@@ -911,6 +911,7 @@ const Mochila = {
     } else if (tipo === 'vida') {
       const por = Items.valorPorUnidad(item, 'vida');
       Vida.cambiar(por * cantidad, null);
+      Vida.ganarXp(3 * cantidad, 'Medicina');
     }
   },
 

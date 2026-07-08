@@ -305,8 +305,8 @@ function actualizarPartidaEnSnapshot(perfilId, partidaSnap, io) {
   const snapshot = getWorldSnapshot() || { actualizadoEn: Date.now(), partidas: {}, jugadores: [] };
   if (!snapshot.partidas) snapshot.partidas = {};
   const actual = snapshot.partidas[perfilId];
-  const tNew = partidaSnap.t || Date.now();
-  const tOld = actual?.t || 0;
+  const tNew = partidaSnap.statsT || partidaSnap.t || Date.now();
+  const tOld = actual?.statsT || actual?.t || 0;
   if (actual && tOld > tNew) return false;
   const datos = partidaSnap.datos || partidaSnap;
   if (datos && (datos.muerto || (datos.vida != null && datos.vida <= 0))) {
