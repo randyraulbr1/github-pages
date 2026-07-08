@@ -2262,7 +2262,7 @@ const Admin = {
     if (!this._adminAbierto()) return;
     const vistaJug = document.getElementById('admin-vista-jugadores');
     if (!vistaJug || vistaJug.classList.contains('oculto')) return;
-    this._listarCuentasAsync({ soloRefrescar: true });
+    this._listarCuentasAsync({ soloRefrescar: true, sinPartidas: true });
   },
 
   _mostrarPanelDerecho(vistaId, titulo, opciones) {
@@ -2291,7 +2291,11 @@ const Admin = {
   },
 
   _volverAlPanel() {
+    if (this._editorJugador?._sinGuardar && !confirm('Tienes cambios sin guardar en el inventario. ¿Salir sin guardar?')) {
+      return;
+    }
     if (this._editorJugador?._creando) this._editorJugador = null;
+    if (this._editorJugador && !this._editorJugador._creando) this._editorJugador = null;
     const prev = this._adminNavPila.pop();
     document.getElementById('btn-admin-guardar').style.display = '';
     if (prev?.id) {
@@ -2997,13 +3001,11 @@ const Admin = {
     }
     localStorage.setItem(this.CLAVE, JSON.stringify(this.datos,
       (clave, valor) => clave.startsWith('_') ? undefined : valor));
-    this._pubPendiente = true;
-    const ok = await this._syncMapaServidor(false);
-    if (!ok && this.esAdminJugador()) {
-      this._adminAviso('No se publicó en el servidor. Revisa tu conexión y pulsa Guardar mapa.', 'error');
-    }
+    this.guardar();
     this._colocacion = null;
     this.salirModo();
+    this._encolarPublicacion(true);
+    Notificaciones.mostrar('📡 Publicando en el mapa…', 'info', 3000);
   },
 
   // ---------- MISIONES DEL ADMIN ----------
@@ -4221,11 +4223,6 @@ const Admin = {
     const opts = opciones || {};
     const cont = document.getElementById('admin-lista-jugadores');
     const buscar = document.getElementById('admin-buscar-jugador');
-
-    if (!opts.sinServidor) {
-      await this.actualizarJugadoresGlobales();
-    }
-    await this._actualizarPartidasDesdeServidor();
     if (!opts.soloRefrescar && buscar) buscar.value = '';
 
     const pintarFila = (j, destino) => {
@@ -4285,7 +4282,15 @@ const Admin = {
       if (!this._esCuentaProtegida(j)) {
         mk('🗑️', () => this._eliminarJugadorCuenta(j), 'Eliminar jugador', 'btn-eliminar-jugador');
       }
-      mk('✏️', () => this._abrirEditorJugador(local || j, !local), 'Editar cuenta e inventario');
+      mk('✏️', () => {
+        void (async () => {
+          try {
+            await this._abrirEditorJugador(local || j, !local);
+          } catch (e) {
+            this._adminAviso('No se pudo abrir el editor: ' + (e?.message || 'error'), 'error');
+          }
+        })();
+      }, 'Editar cuenta e inventario');
       mk('✉️', () => this.abrirMensaje(j.id), 'Enviar mensaje');
       mk('🚫', () => this._abrirBanJugador(j), 'Banear');
       fila.appendChild(acciones);
@@ -4357,8 +4362,15 @@ const Admin = {
     }
     pintar(buscar?.value || '');
     this._colocacion = null;
-    if (opts.soloRefrescar || !opts.abrirPanel) return;
-    this._mostrarPanelDerecho('admin-vista-jugadores', '👥 Jugadores');
+    if (opts.abrirPanel && !opts.soloRefrescar) {
+      this._mostrarPanelDerecho('admin-vista-jugadores', '👥 Jugadores');
+    }
+    if (opts.sinServidor && opts.sinPartidas) return;
+    try {
+      if (!opts.sinServidor) await this.actualizarJugadoresGlobales();
+      if (!opts.sinPartidas) await this._actualizarPartidasDesdeServidor();
+      pintar(buscar?.value || '');
+    } catch (e) { /* sin red */ }
   },
 
   async _eliminarJugadorCuenta(perfil) {
@@ -4544,7 +4556,8 @@ const Admin = {
     this._refrescarListaJugadoresSiAbierta();
   },
 
-  async _obtenerPartidaJugador(perfil) {
+  async _obtenerPartidaJugador(perfil, opts) {
+    const opciones = opts || {};
     const base = (d) => ({
       mochila: d.mochila || new Array(25).fill(null),
       dinero: d.dinero || { saldo: CONFIG.dineroInicial },
@@ -4568,18 +4581,30 @@ const Admin = {
     const clave = CONFIG.claveGuardado + '::' + perfil.id;
     try {
       const p = JSON.parse(localStorage.getItem(clave));
-      if (p?.datos) candidatos.push({ datos: p.datos, t: p.datos.nubeT || 0 });
+      if (p?.datos) candidatos.push({ datos: p.datos, t: p.datos.nubeT || p.t || 0 });
     } catch (e) { /* */ }
-    if (typeof MundoPublico !== 'undefined' && MundoPublico.cargarCuenta) {
-      const cuenta = await MundoPublico.cargarCuenta(perfil.id);
-      if (cuenta?.partida?.datos) {
-        candidatos.push({ datos: cuenta.partida.datos, t: cuenta.partida.t || 0 });
-      }
-    }
-    if (candidatos.length) {
+
+    const mejorLocal = () => {
+      if (!candidatos.length) return null;
       candidatos.sort((a, b) => (b.t || 0) - (a.t || 0));
       return JSON.parse(JSON.stringify(base(candidatos[0].datos)));
+    };
+
+    const localReciente = candidatos.some((c) => (Date.now() - (c.t || 0)) < 120000);
+    if (!opciones.forzarRed && localReciente) return mejorLocal();
+
+    if (typeof MundoPublico !== 'undefined' && MundoPublico.cargarCuenta) {
+      try {
+        const cuenta = await Promise.race([
+          MundoPublico.cargarCuenta(perfil.id),
+          new Promise((_, rej) => setTimeout(() => rej(new Error('timeout')), 8000))
+        ]);
+        if (cuenta?.partida?.datos) {
+          candidatos.push({ datos: cuenta.partida.datos, t: cuenta.partida.t || 0 });
+        }
+      } catch (e) { /* sin red o timeout */ }
     }
+    if (candidatos.length) return mejorLocal();
     return Object.assign(this._partidaDefault(), { vida: CONFIG.vidaMaxima, muerto: false });
   },
 
@@ -4652,7 +4677,6 @@ const Admin = {
       datos: {
         mochila: partida.mochila,
         dinero: partida.dinero,
-        vida: partida.vida,
         hambre: partida.hambre ?? CONFIG.hambreInicial,
         muerto: partida.muerto,
         muertePos: partida.muerto ? (partida.muertePos || null) : null,
@@ -4660,20 +4684,23 @@ const Admin = {
         nivel: partida.nivel,
         armaEquipada: partida.armaEquipada || null
       },
-      t: Date.now()
+      t: Date.now() + 8000
     };
+    snap.datos.vida = partida.vida;
     this.datos.partidasExtra[perfil.id] = snap;
     if (!this.publicado.partidas) this.publicado.partidas = {};
     this.publicado.partidas[perfil.id] = snap;
     this.guardar();
+    let okCuenta = true;
+    let okPartida = true;
     if (MundoPublico.puedeEscribir()) {
-      await MundoPublico.guardarCuenta(perfil, snap);
+      okCuenta = await MundoPublico.guardarCuenta(perfil, snap);
     }
     if (typeof SyncServidor !== 'undefined' && SyncServidor.subirPartida) {
-      await SyncServidor.subirPartida(perfil.id, snap);
+      okPartida = await SyncServidor.subirPartida(perfil.id, snap);
     }
     await this._sincronizarJugadorEditadoOnline(perfil, partida, snap);
-    await this._publicarParaTodos(true);
+    return { ok: !!(okCuenta || okPartida), okCuenta, okPartida };
   },
 
   async _sincronizarJugadorEditadoOnline(perfil, partida, snap) {
@@ -4699,12 +4726,19 @@ const Admin = {
       const g = this.jugadoresGlobales().find(j => j.id === perfil.id);
       if (g) p = Object.assign({}, g);
     }
+    const rejInf = document.getElementById('admin-rejilla-infinito');
+    const rejJug = document.getElementById('admin-rejilla-jugador');
+    if (rejInf) rejInf._catalogoListo = false;
+    if (rejJug) rejJug.innerHTML = '<div class="admin-cargando">Cargando inventario…</div>';
+    this._mostrarPanelDerecho('admin-vista-editor', '✏️ ' + (p.nombre || 'Jugador'));
+
     const partidaInicial = await this._obtenerPartidaJugador(p);
     this._editorJugador = {
       perfil: p,
       partida: partidaInicial,
       _arrastre: null,
-      _nivelInicial: partidaInicial.nivel ?? 1
+      _nivelInicial: partidaInicial.nivel ?? 1,
+      _sinGuardar: false
     };
     if (!this._editorJugador.partida.mochila) {
       this._editorJugador.partida.mochila = new Array(25).fill(null);
@@ -4728,8 +4762,11 @@ const Admin = {
     if (nom) nom.value = this._editorJugador.perfil.nombre || '';
     if (tel) tel.value = this._editorJugador.perfil.telefono || '';
     if (clv) clv.value = this._pinAdminGet(this._editorJugador.perfil.id) || '';
-    this._pintarEditorJugador();
-    this._mostrarPanelDerecho('admin-vista-editor', '✏️ ' + this._editorJugador.perfil.nombre);
+    this._pintarEditorJugador(false);
+  },
+
+  _marcarEditorSucio() {
+    if (this._editorJugador) this._editorJugador._sinGuardar = true;
   },
 
   _maxPila(id) {
@@ -4846,11 +4883,12 @@ const Admin = {
     }
   },
 
-  _pintarEditorJugador() {
+  _pintarEditorJugador(soloMochila) {
     const ed = this._editorJugador;
     if (!ed) return;
     const rejJug = document.getElementById('admin-rejilla-jugador');
     const rejInf = document.getElementById('admin-rejilla-infinito');
+    if (!rejJug) return;
     rejJug.innerHTML = '';
 
     ed.partida.mochila.forEach((sl, i) => {
@@ -4870,7 +4908,12 @@ const Admin = {
       rejJug.appendChild(cel);
     });
 
-    this._pintarInventarioInfinito(rejInf);
+    if (!soloMochila && rejInf) {
+      if (!rejInf._catalogoListo) {
+        this._pintarInventarioInfinito(rejInf);
+        rejInf._catalogoListo = true;
+      }
+    }
   },
 
   _editorArrastre(ev, origen, ref) {
@@ -4921,10 +4964,29 @@ const Admin = {
 
     const bajo = document.elementFromPoint(ev.clientX, ev.clientY);
     const slotEl = bajo?.closest?.('.admin-slot-jugador');
+
+    if (!slotEl && !a.movio && (a.origen === 'infinito' || a.origen === 'catalogo')) {
+      const id = a.ref;
+      let puesto = false;
+      for (let i = 0; i < ed.partida.mochila.length; i++) {
+        if (this._apilarEnMochilaAdmin(ed.partida.mochila, i, id, 1)) {
+          puesto = true;
+          break;
+        }
+      }
+      if (!puesto) {
+        Notificaciones.mostrar('Mochila llena o pilas al máximo', 'alerta', 3000);
+      } else {
+        this._marcarEditorSucio();
+      }
+      this._pintarEditorJugador(true);
+      return;
+    }
+
     if (!slotEl) {
       if (a.origen === 'jugador' && a.movio) ed.partida.mochila[a.ref] = null;
       if (ed._creando) this._pintarCrearJugador();
-      else this._pintarEditorJugador();
+      else this._pintarEditorJugador(true);
       return;
     }
     const dest = parseInt(slotEl.dataset.indice, 10);
@@ -4933,6 +4995,8 @@ const Admin = {
       const id = a.ref;
       if (!this._apilarEnMochilaAdmin(ed.partida.mochila, dest, id, 1)) {
         Notificaciones.mostrar('Casilla llena o pila al máximo (' + this._maxPila(id) + ')', 'alerta', 3000);
+      } else {
+        this._marcarEditorSucio();
       }
     } else if (a.origen === 'nota') {
       const texto = this._notaPendiente;
@@ -4942,15 +5006,17 @@ const Admin = {
       } else {
         ed.partida.mochila[dest] = { id: 'nota_escrita', cantidad: 1, texto };
         this._notaPendiente = null;
+        this._marcarEditorSucio();
       }
     } else if (a.origen === 'jugador') {
       if (!a.movio) return;
       const origen = a.ref;
       if (origen === dest) return;
       this._moverSlotAdmin(ed.partida.mochila, origen, dest);
+      this._marcarEditorSucio();
     }
     if (ed._creando) this._pintarCrearJugador();
-    else this._pintarEditorJugador();
+    else this._pintarEditorJugador(true);
   },
 
   _aplicarVidaJugadorDesdeNivel(nivel) {
@@ -5001,7 +5067,7 @@ const Admin = {
       if (claveNueva.length < 4) {
         this._adminAviso('La contraseña debe tener al menos 4 caracteres'); return;
       }
-    } else if (!ed.perfil.pinHash) {
+    } else if (!ed.perfil.pinHash && !claveNueva && !claveAnterior) {
       this._adminAviso('Pon una contraseña para que el jugador pueda entrar'); return;
     }
     ed.partida.dinero = ed.partida.dinero || { saldo: 0 };
@@ -5031,10 +5097,22 @@ const Admin = {
       Usuarios._guardarLista();
     }
     this.registrarJugador(ed.perfil, true);
-    await this._guardarPartidaJugador(ed.perfil, ed.partida);
-    this._adminAviso('✅ Datos de ' + nombre + ' guardados', 'exito');
+    const btnGuardar = document.getElementById('btn-admin-editor-guardar');
+    if (btnGuardar) { btnGuardar.disabled = true; btnGuardar.textContent = 'Guardando…'; }
+    let sync;
+    try {
+      sync = await this._guardarPartidaJugador(ed.perfil, ed.partida);
+    } finally {
+      if (btnGuardar) { btnGuardar.disabled = false; btnGuardar.textContent = 'Guardar cambios'; }
+    }
+    if (sync && !sync.ok) {
+      this._adminAviso('Guardado local OK, pero no llegó al servidor. Revisa conexión y vuelve a guardar.', 'error');
+    } else {
+      this._adminAviso('✅ Datos de ' + nombre + ' guardados', 'exito');
+    }
     this._editorJugador = null;
-    this.listarCuentas();
+    this._mostrarPanelDerecho('admin-vista-jugadores', '👥 Jugadores');
+    this._listarCuentasAsync({ soloRefrescar: true, sinPartidas: true });
   },
 
   async _entrarComoJugador() {
