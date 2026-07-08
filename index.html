@@ -4,12 +4,13 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
   <title>Kingdom Map</title>
-  <meta name="mariel-version" content="297">
+  <meta name="mariel-version" content="298">
   <link rel="manifest" href="manifest.json">
   <link rel="icon" type="image/png" href="iconos/icono-192.png">
   <link rel="apple-touch-icon" href="iconos/icono-192.png">
   <link rel="stylesheet" href="lib/leaflet/leaflet.css">
-  <link rel="stylesheet" href="css/estilos.css?v=296">
+  <link rel="stylesheet" href="css/estilos.css?v=298">
+  <link rel="stylesheet" href="css/ui_components.css?v=298">
   <link rel="stylesheet" href="css/chat.css?v=295">
   <link rel="stylesheet" href="css/amigos.css?v=295">
   <link rel="stylesheet" href="css/opciones.css?v=295">
@@ -17,7 +18,7 @@
   <script>
     (function () {
       var metaV = document.querySelector('meta[name="mariel-version"]');
-      var E = (metaV && metaV.getAttribute('content')) || '297';
+      var E = (metaV && metaV.getAttribute('content')) || '298';
       var CANON = 'https://raw.githubusercontent.com/randyraulbr1/github-pages/main/version.json';
       try {
         var fv = sessionStorage.getItem('mariel_force_version');
@@ -345,13 +346,13 @@
 
   <!-- ============ VENTANA: AMIGOS ============ -->
   <div id="ventana-amigos" class="ventana oculto">
-    <div class="friends-panel" role="dialog" aria-label="Panel de amigos">
-      <div class="panel-header">
-        <div class="panel-title">👥 Amigos</div>
-        <button type="button" class="amigos-close" id="cerrar-amigos" aria-label="Cerrar">✕</button>
+    <div class="friends-panel ui-panel inventario-caja">
+      <div class="panel-header ui-panel-header">
+        <div class="panel-title ui-panel-title">👥 Amigos</div>
+        <button type="button" class="amigos-close ui-panel-close" id="cerrar-amigos" aria-label="Cerrar">✕</button>
       </div>
 
-      <div class="panel-content">
+      <div class="panel-content ui-panel-body">
         <div class="amigos-agregar-seccion">
           <div class="section-title amigos-seccion-agregar-titulo">➕ Agregar amigo</div>
           <div class="amigos-agregar-box">
@@ -386,31 +387,31 @@
     </div>
   </div>
 
-  <div id="amigos-overlay" class="amigos-overlay oculto" aria-hidden="true">
-    <div class="amigos-confirm" role="dialog" aria-modal="true">
+  <div id="amigos-overlay" class="amigos-overlay ui-dialog-overlay oculto" aria-hidden="true">
+    <div class="amigos-confirm ui-dialog" role="dialog" aria-modal="true">
       <h3 id="amigos-confirm-title">Confirmar</h3>
       <p id="amigos-confirm-text">¿Seguro?</p>
-      <div class="confirm-row">
-        <button type="button" class="modal-btn cancel" id="amigos-confirm-cancel">Cancelar</button>
-        <button type="button" class="modal-btn ok" id="amigos-confirm-ok">Aceptar</button>
+      <div class="confirm-row ui-dialog-row">
+        <button type="button" class="modal-btn cancel ui-btn ui-btn-secondary" id="amigos-confirm-cancel">Cancelar</button>
+        <button type="button" class="modal-btn ok ui-btn ui-btn-primary" id="amigos-confirm-ok">Aceptar</button>
       </div>
     </div>
   </div>
 
-  <div id="amigos-toast" class="oculto" aria-live="polite"></div>
+  <div id="amigos-toast" class="ui-toast oculto" aria-live="polite"></div>
 
   <!-- ============ CHAT JUGADORES ============ -->
   <section class="chat-panel" id="chatPanel" aria-label="Chat de jugadores">
-    <div class="chat-inner-panel">
-      <div class="chat-header">
+    <div class="chat-inner-panel ui-panel inventario-caja">
+      <div class="chat-header ui-panel-header">
         <div class="header-left">
           <button type="button" class="back-btn" id="backBtnChat" aria-label="Volver">‹</button>
           <div class="chat-title">
-            <strong id="headerTitleChat">💬 Chats</strong>
+            <strong id="headerTitleChat" class="ui-panel-title">💬 Chats</strong>
             <small id="chatSub">Selecciona un jugador</small>
           </div>
         </div>
-        <button type="button" class="close-chat" id="closeChat" aria-label="Cerrar">✕</button>
+        <button type="button" class="close-chat ui-panel-close" id="closeChat" aria-label="Cerrar">✕</button>
       </div>
 
       <div class="chat-view chat-list show" id="chatList"></div>
@@ -455,12 +456,12 @@
 
   <!-- ============ VENTANA: MOCHILA / INVENTARIO ============ -->
   <div id="ventana-mochila" class="ventana oculto">
-    <div class="ventana-caja inventario-caja">
-      <div class="inv-header">
-        <div class="inv-titulo">🎒 INVENTARIO</div>
-        <button type="button" class="btn-cerrar inv-cerrar" data-cierra="ventana-mochila" aria-label="Cerrar">✕</button>
+    <div class="ventana-caja inventario-caja ui-panel">
+      <div class="inv-header ui-panel-header">
+        <div class="inv-titulo ui-panel-title">🎒 INVENTARIO</div>
+        <button type="button" class="btn-cerrar inv-cerrar ui-panel-close" data-cierra="ventana-mochila" aria-label="Cerrar">✕</button>
       </div>
-      <div class="inv-content">
+      <div class="inv-content ui-panel-body">
         <div class="inv-top-row">
           <div class="inv-dinero">💰 $<span id="inv-dinero-cantidad">100</span></div>
           <div class="inv-selected-name" id="inv-selected-name">Arrastra un objeto</div>
@@ -512,27 +513,32 @@
       <div id="papelera" class="oculto" aria-hidden="true"></div>
     </div>
   </div>
-  <div id="inv-toast" class="inv-toast" aria-live="polite"></div>
-  <div id="inv-confirm-overlay" class="inv-confirm-overlay oculto" aria-hidden="true">
-    <div class="inv-confirm" role="dialog" aria-modal="true" aria-labelledby="inv-confirm-title">
+  <div id="inv-toast" class="inv-toast ui-toast" aria-live="polite"></div>
+  <div id="inv-confirm-overlay" class="inv-confirm-overlay ui-dialog-overlay oculto" aria-hidden="true">
+    <div class="inv-confirm ui-dialog" role="dialog" aria-modal="true" aria-labelledby="inv-confirm-title">
       <h3 id="inv-confirm-title">Eliminar objeto</h3>
       <p id="inv-confirm-text">¿Seguro?</p>
-      <div class="inv-confirm-row">
-        <button type="button" class="inv-confirm-btn cancel" id="inv-confirm-cancel">Cancelar</button>
-        <button type="button" class="inv-confirm-btn ok" id="inv-confirm-ok">Eliminar</button>
+      <div class="inv-confirm-row ui-dialog-row">
+        <button type="button" class="inv-confirm-btn cancel ui-btn ui-btn-secondary" id="inv-confirm-cancel">Cancelar</button>
+        <button type="button" class="inv-confirm-btn ok ui-btn ui-btn-danger" id="inv-confirm-ok">Eliminar</button>
       </div>
     </div>
   </div>
 
   <!-- ============ VENTANA: TIENDA ============ -->
   <div id="ventana-tienda" class="ventana oculto">
-    <div class="ventana-caja">
-      <div class="ventana-titulo"><span id="tienda-nombre">Tienda</span> <button class="btn-cerrar" data-cierra="ventana-tienda">✕</button></div>
-      <div class="pestanas">
-        <button id="pestana-comprar" class="pestana activa">Comprar</button>
-        <button id="pestana-vender" class="pestana">Vender</button>
+    <div class="ventana-caja inventario-caja ui-panel">
+      <div class="inv-header ui-panel-header">
+        <div class="inv-titulo ui-panel-title">🏪 <span id="tienda-nombre">Tienda</span></div>
+        <button type="button" class="btn-cerrar inv-cerrar ui-panel-close" data-cierra="ventana-tienda" aria-label="Cerrar">✕</button>
       </div>
-      <div id="tienda-lista"></div>
+      <div class="inv-content ui-panel-body">
+        <div class="pestanas ui-tabs">
+          <button id="pestana-comprar" class="pestana ui-tab activa">Comprar</button>
+          <button id="pestana-vender" class="pestana ui-tab">Vender</button>
+        </div>
+        <div id="tienda-lista"></div>
+      </div>
     </div>
   </div>
 
@@ -541,8 +547,8 @@
     <div class="ventana-caja ventana-combate-caja">
       <div class="ventana-titulo"><span id="combate-nombre">Enemigo</span></div>
       <div class="combate-cuerpo">
-        <div class="combate-barra-vida">
-          <div id="combate-vida-relleno" class="combate-vida-relleno"></div>
+        <div class="combate-barra-vida ui-progress" id="combate-barra-vida-wrap">
+          <div id="combate-vida-relleno" class="ui-progress-fill combate-vida-relleno"></div>
         </div>
         <div id="combate-vida-texto" class="combate-vida-texto">—</div>
         <p id="combate-info" class="combate-info"></p>
@@ -589,51 +595,66 @@
 
   <!-- ============ VENTANA: PESCA ============ -->
   <div id="ventana-pesca" class="ventana oculto">
-    <div class="ventana-caja">
-      <div class="ventana-titulo">🎣 Pesca <button class="btn-cerrar" data-cierra="ventana-pesca">✕</button></div>
-      <div id="pesca-zona">
-        <div id="pesca-agua">
-          <div id="pesca-barra">
-            <div id="pesca-zona-verde"></div>
-            <div id="pesca-indicador"></div>
+    <div class="ventana-caja inventario-caja ui-panel">
+      <div class="inv-header ui-panel-header">
+        <div class="inv-titulo ui-panel-title">🎣 Pesca</div>
+        <button type="button" class="btn-cerrar inv-cerrar ui-panel-close" data-cierra="ventana-pesca" aria-label="Cerrar">✕</button>
+      </div>
+      <div class="inv-content ui-panel-body">
+        <div id="pesca-zona">
+          <div id="pesca-agua">
+            <div id="pesca-barra">
+              <div id="pesca-zona-verde"></div>
+              <div id="pesca-indicador"></div>
+            </div>
+            <div id="pesca-mensaje">Toca LANZAR y detén el indicador en la zona verde</div>
           </div>
-          <div id="pesca-mensaje">Toca LANZAR y detén el indicador en la zona verde</div>
+          <button id="btn-pescar" class="ui-btn ui-btn-primary">LANZAR</button>
         </div>
-        <button id="btn-pescar">LANZAR</button>
       </div>
     </div>
   </div>
 
   <!-- ============ VENTANA: MISIONES ============ -->
   <div id="ventana-misiones" class="ventana oculto">
-    <div class="ventana-caja">
-      <div class="ventana-titulo">📜 Misiones <button class="btn-cerrar" data-cierra="ventana-misiones">✕</button></div>
-      <div id="lista-misiones"></div>
+    <div class="ventana-caja inventario-caja ui-panel">
+      <div class="inv-header ui-panel-header">
+        <div class="inv-titulo ui-panel-title">📜 Misiones</div>
+        <button type="button" class="btn-cerrar inv-cerrar ui-panel-close" data-cierra="ventana-misiones" aria-label="Cerrar">✕</button>
+      </div>
+      <div class="inv-content ui-panel-body">
+        <div id="lista-misiones"></div>
+      </div>
     </div>
   </div>
 
   <!-- ============ VENTANA: HISTORIAL ============ -->
   <div id="ventana-historial" class="ventana oculto">
-    <div class="ventana-caja">
-      <div class="ventana-titulo">🧾 Historial <button class="btn-cerrar" data-cierra="ventana-historial">✕</button></div>
-      <div id="historial-jugador"></div>
-      <div class="pestanas">
-        <button id="pestana-hist-dinero" class="pestana activa">$ Dinero</button>
-        <button id="pestana-hist-objetos" class="pestana">📦 Objetos</button>
+    <div class="ventana-caja inventario-caja ui-panel">
+      <div class="inv-header ui-panel-header">
+        <div class="inv-titulo ui-panel-title">🧾 Historial</div>
+        <button type="button" class="btn-cerrar inv-cerrar ui-panel-close" data-cierra="ventana-historial" aria-label="Cerrar">✕</button>
       </div>
-      <div id="historial-integridad"></div>
-      <div id="historial-lista"></div>
+      <div class="inv-content ui-panel-body">
+        <div id="historial-jugador"></div>
+        <div class="pestanas ui-tabs">
+          <button id="pestana-hist-dinero" class="pestana ui-tab activa">$ Dinero</button>
+          <button id="pestana-hist-objetos" class="pestana ui-tab">📦 Objetos</button>
+        </div>
+        <div id="historial-integridad"></div>
+        <div id="historial-lista"></div>
+      </div>
     </div>
   </div>
 
   <!-- ============ VENTANA: AVISOS (últimas notificaciones) ============ -->
   <div id="ventana-notific" class="avisos-ventana oculto" aria-label="Últimos avisos">
-    <div class="avisos-panel">
-      <div class="avisos-header">
-        <div class="avisos-title">🔔 Últimos avisos</div>
-        <button type="button" class="avisos-close" id="cerrar-notific" aria-label="Cerrar">✕</button>
+    <div class="avisos-panel ui-panel inventario-caja">
+      <div class="avisos-header ui-panel-header">
+        <div class="avisos-title ui-panel-title">🔔 Últimos avisos</div>
+        <button type="button" class="avisos-close ui-panel-close" id="cerrar-notific" aria-label="Cerrar">✕</button>
       </div>
-      <div class="avisos-info">Misiones, alertas del admin y eventos importantes del juego.</div>
+      <div class="avisos-info ui-panel-body">Misiones, alertas del admin y eventos importantes del juego.</div>
       <div class="avisos-list" id="lista-notificaciones"></div>
       <div class="avisos-footer">
         <button type="button" class="avisos-clear-btn" id="avisos-marcar-leidos">Marcar leídos</button>
@@ -642,41 +663,51 @@
     </div>
   </div>
 
-  <div id="avisos-toast" aria-live="polite"></div>
+  <div id="avisos-toast" class="ui-toast oculto" aria-live="polite"></div>
 
   <!-- ============ VENTANA: CORREO ============ -->
   <div id="ventana-correo" class="ventana oculto">
-    <div class="ventana-caja">
-      <div class="ventana-titulo">📮 Correo <button class="btn-cerrar" data-cierra="ventana-correo">✕</button></div>
-      <div class="pestanas">
-        <button id="pestana-correo-enviar" class="pestana activa">Enviar</button>
-        <button id="pestana-correo-recibir" class="pestana">Recibir</button>
-        <button id="pestana-correo-pendientes" class="pestana">Pendientes</button>
-        <button id="pestana-correo-tienda" class="pestana">Tienda</button>
+    <div class="ventana-caja inventario-caja ui-panel">
+      <div class="inv-header ui-panel-header">
+        <div class="inv-titulo ui-panel-title">📮 Correo</div>
+        <button type="button" class="btn-cerrar inv-cerrar ui-panel-close" data-cierra="ventana-correo" aria-label="Cerrar">✕</button>
       </div>
-      <div id="correo-contenido"></div>
+      <div class="inv-content ui-panel-body">
+        <div class="pestanas ui-tabs">
+          <button id="pestana-correo-enviar" class="pestana ui-tab activa">Enviar</button>
+          <button id="pestana-correo-recibir" class="pestana ui-tab">Recibir</button>
+          <button id="pestana-correo-pendientes" class="pestana ui-tab">Pendientes</button>
+          <button id="pestana-correo-tienda" class="pestana ui-tab">Tienda</button>
+        </div>
+        <div id="correo-contenido"></div>
+      </div>
     </div>
   </div>
 
   <!-- ============ VENTANA: RECLAMO CORREO (20 casillas) ============ -->
   <div id="ventana-correo-reclamo" class="ventana oculto">
-    <div class="ventana-caja">
-      <div class="ventana-titulo">📬 Reclamar paquete <button class="btn-cerrar" data-cierra="ventana-correo-reclamo">✕</button></div>
-      <div id="correo-reclamo-info"></div>
-      <div id="rejilla-correo-reclamo"></div>
-      <div class="correo-nota" style="padding:10px 14px 14px;">Toca cada casilla para llevarlo a tu mochila. Lo que no quepa queda en el paquete.</div>
+    <div class="ventana-caja inventario-caja ui-panel">
+      <div class="inv-header ui-panel-header">
+        <div class="inv-titulo ui-panel-title">📬 Reclamar paquete</div>
+        <button type="button" class="btn-cerrar inv-cerrar ui-panel-close" data-cierra="ventana-correo-reclamo" aria-label="Cerrar">✕</button>
+      </div>
+      <div class="inv-content ui-panel-body">
+        <div id="correo-reclamo-info"></div>
+        <div id="rejilla-correo-reclamo" class="ui-grid"></div>
+        <div class="correo-nota" style="padding:4px 2px 8px;">Toca cada casilla para llevarlo a tu mochila. Lo que no quepa queda en el paquete.</div>
+      </div>
     </div>
   </div>
 
   <!-- ============ VENTANA: OPCIONES ============ -->
   <div id="ventana-opciones" class="opciones-ventana oculto" aria-label="Opciones del juego">
-    <div class="opciones-panel">
-      <div class="opciones-header">
-        <div class="opciones-title">⚙️ Opciones</div>
-        <button type="button" class="opciones-close" id="cerrar-opciones" aria-label="Cerrar">✕</button>
+    <div class="opciones-panel ui-panel inventario-caja">
+      <div class="opciones-header ui-panel-header">
+        <div class="opciones-title ui-panel-title">⚙️ Opciones</div>
+        <button type="button" class="opciones-close ui-panel-close" id="cerrar-opciones" aria-label="Cerrar">✕</button>
       </div>
 
-      <div class="opciones-content">
+      <div class="opciones-content ui-panel-body">
         <div class="opciones-profile">
           <div class="opciones-avatar" id="opciones-avatar">?</div>
           <div class="opciones-user">
@@ -1233,7 +1264,8 @@
   <!-- MÓDULOS DEL JUEGO (orden importante) -->
   <script src="js/config/config.js?v=295"></script>
   <script src="js/nucleo/utilidades.js?v=297"></script>
-  <script src="js/nucleo/ui_manager.js?v=295"></script>
+  <script src="js/nucleo/ui_components.js?v=298"></script>
+  <script src="js/nucleo/ui_manager.js?v=298"></script>
   <script src="js/mundo/mundo_publico.js?v=104"></script>
   <script src="js/notificaciones/notificaciones.js?v=295"></script>
   <script src="js/usuarios/usuarios.js?v=295"></script>

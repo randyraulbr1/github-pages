@@ -124,7 +124,7 @@ const UIManager = {
   },
 
   cerrarSuperior() {
-    const ordenConfirm = ['inv-confirm-overlay', 'opciones-overlay', 'chat-overlay', 'amigos-overlay'];
+    const ordenConfirm = ['ui-dialog-overlay', 'inv-confirm-overlay', 'opciones-overlay', 'chat-overlay', 'amigos-overlay'];
     for (let i = ordenConfirm.length - 1; i >= 0; i--) {
       const id = ordenConfirm[i];
       if (!this._confirmVisible(id)) continue;
@@ -174,7 +174,7 @@ const UIManager = {
   _syncBody() {
     const hayVentana = this._stack.some((id) => this.estaVisible(id));
     const hayConfirm = this._confirms.size > 0 ||
-      ['inv-confirm-overlay', 'opciones-overlay', 'chat-overlay', 'amigos-overlay']
+      ['ui-dialog-overlay', 'inv-confirm-overlay', 'opciones-overlay', 'chat-overlay', 'amigos-overlay']
         .some((id) => this._confirmVisible(id));
     document.body.classList.toggle('ui-bloquea-mapa', hayVentana || hayConfirm);
     document.body.classList.toggle('ui-ventana-abierta', hayVentana);

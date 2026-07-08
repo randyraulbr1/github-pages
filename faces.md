@@ -424,7 +424,7 @@ Cliente: errores 429 con mensajes amigables en `sync_servidor.js` y `utilidades.
 
 # FASE 12 - Inventario como patron visual
 
-Estado: ⏳ Pendiente
+Estado: ✅ Completada (v298)
 
 Objetivo: usar el inventario actual como guia de diseno para todo.
 
@@ -435,14 +435,11 @@ Reglas:
 - Los menus deben respetar el tamano de pantalla como el inventario.
 - No crear cada pantalla con estilos diferentes.
 
-Componentes recomendados:
+Componentes en `js/nucleo/ui_components.js` + `css/ui_components.css`:
 
-- UIPanel
-- UIButton
-- UIToast
-- UIDialog
-- UIProgressBar
-- UIGrid
+- UIPanel, UIButton, UIToast, UIDialog, UIProgressBar, UIGrid
+
+Nota v298: tienda, misiones, pesca, historial, correo, amigos, chat, opciones y avisos usan clases `ui-panel` / `inventario-caja`. Confirmaciones unificadas con `ui-dialog`.
 
 ---
 

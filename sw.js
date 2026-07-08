@@ -3,13 +3,14 @@
 // guarda todos los archivos en el teléfono (funciona con mala
 // conexión) y va guardando los pedazos de mapa ya visitados.
 // ============================================================
-const CACHE = 'mariel-explorer-v297';
+const CACHE = 'mariel-explorer-v298';
 
 const ARCHIVOS = [
   './',
   './index.html',
   './version.json',
   './manifest.json',
+  './css/ui_components.css',
   './css/estilos.css',
   './css/chat.css',
   './css/amigos.css',
@@ -23,6 +24,8 @@ const ARCHIVOS = [
   './js/config/config.js',
   './js/nucleo/version_app.js',
   './js/nucleo/utilidades.js',
+  './js/nucleo/ui_components.js',
+  './js/nucleo/ui_manager.js',
   './js/mundo/mundo_publico.js',
   './js/notificaciones/notificaciones.js',
   './js/usuarios/usuarios.js',

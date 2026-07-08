@@ -1,0 +1,401 @@
+/* ============================================================
+   FASE 12 — Patrón visual del inventario (ui_components.css)
+   Tokens y componentes reutilizables: panel, botón, diálogo, toast, barra, rejilla.
+   ============================================================ */
+
+:root {
+  --ui-panel-bg: linear-gradient(#8b8f98, #5b6068);
+  --ui-panel-border: #555;
+  --ui-panel-radius: 15px;
+  --ui-panel-shadow: 0 14px 34px rgba(0, 0, 0, 0.45);
+  --ui-panel-width: min(94vw, 400px);
+  --ui-panel-height: min(92dvh, 580px);
+  --ui-header-bg: rgba(0, 0, 0, 0.16);
+  --ui-header-h: 42px;
+  --ui-title-size: 17px;
+  --ui-close-bg: #454b54;
+  --ui-close-border: #333;
+  --ui-text: #fff;
+  --ui-text-muted: #c8cdd6;
+  --ui-accent: #3d8bfd;
+  --ui-ok: #34c759;
+  --ui-warn: #ffc107;
+  --ui-danger: #ff6b6b;
+  --ui-slot-bg: rgba(0, 0, 0, 0.22);
+  --ui-slot-border: rgba(255, 255, 255, 0.12);
+  --ui-z-confirm: 16000;
+}
+
+/* Panel base (inventario como referencia) */
+.ui-panel,
+.inventario-caja.ui-panel {
+  width: var(--ui-panel-width);
+  height: var(--ui-panel-height);
+  max-height: min(92dvh, calc(100dvh - 24px - env(safe-area-inset-top) - env(safe-area-inset-bottom)));
+  background: var(--ui-panel-bg);
+  border: 1px solid var(--ui-panel-border);
+  border-radius: var(--ui-panel-radius);
+  color: var(--ui-text);
+  overflow: hidden;
+  box-shadow: var(--ui-panel-shadow);
+  display: flex;
+  flex-direction: column;
+}
+
+.ui-panel-header,
+.inv-header.ui-panel-header {
+  height: var(--ui-header-h);
+  min-height: var(--ui-header-h);
+  padding: 0 10px;
+  background: var(--ui-header-bg);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex: 0 0 auto;
+}
+
+.ui-panel-title,
+.inv-titulo.ui-panel-title {
+  font-size: var(--ui-title-size);
+  font-weight: 900;
+  text-shadow: 0 2px 2px #000;
+  letter-spacing: 0;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ui-panel-close,
+.inv-cerrar.ui-panel-close {
+  width: 30px;
+  height: 30px;
+  border-radius: 8px;
+  border: 1px solid var(--ui-close-border);
+  background: var(--ui-close-bg);
+  color: #fff;
+  font-size: 18px;
+  flex-shrink: 0;
+  cursor: pointer;
+  line-height: 1;
+}
+
+.ui-panel-body,
+.inv-content.ui-panel-body {
+  flex: 1;
+  min-height: 0;
+  padding: 6px 8px calc(8px + env(safe-area-inset-bottom, 0px));
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  overflow: hidden auto;
+}
+
+/* Pestañas unificadas */
+.ui-tabs,
+.pestanas.ui-tabs {
+  display: flex;
+  margin: 0;
+  background: rgba(0, 0, 0, 0.18);
+  border-radius: 12px;
+  padding: 3px;
+  gap: 3px;
+  flex: 0 0 auto;
+}
+
+.ui-tab,
+.pestana.ui-tab {
+  flex: 1;
+  padding: 8px;
+  background: transparent;
+  color: #d0d5de;
+  border: none;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 700;
+  border-radius: 10px;
+}
+
+.ui-tab.activa,
+.pestana.ui-tab.activa {
+  background: rgba(61, 139, 253, 0.35);
+  color: #fff;
+}
+
+/* Botones */
+.ui-btn {
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 10px;
+  padding: 10px 14px;
+  font-size: 14px;
+  font-weight: 800;
+  cursor: pointer;
+  color: #fff;
+  background: rgba(0, 0, 0, 0.22);
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.4);
+}
+
+.ui-btn:active { transform: scale(0.97); }
+
+.ui-btn-primary {
+  background: linear-gradient(180deg, #4a9dff 0%, #2f6fd6 100%);
+  border-color: rgba(120, 180, 255, 0.45);
+}
+
+.ui-btn-secondary {
+  background: #454b54;
+  border-color: #333;
+}
+
+.ui-btn-danger {
+  background: linear-gradient(180deg, #ff7b7b 0%, #d64545 100%);
+  border-color: rgba(255, 140, 140, 0.45);
+}
+
+.ui-btn-ghost {
+  background: transparent;
+  border-color: rgba(255, 255, 255, 0.2);
+}
+
+/* Diálogo / confirmación */
+.ui-dialog-overlay,
+.inv-confirm-overlay.ui-dialog-overlay,
+.amigos-overlay.ui-dialog-overlay,
+.chat-overlay.ui-dialog-overlay,
+.opciones-overlay.ui-dialog-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: var(--ui-z-confirm);
+  background: rgba(0, 0, 0, 0.55);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  box-sizing: border-box;
+}
+
+.ui-dialog-overlay.oculto { display: none !important; }
+
+.ui-dialog,
+.inv-confirm.ui-dialog,
+.amigos-confirm.ui-dialog,
+.chat-confirm.ui-dialog,
+.opciones-confirm.ui-dialog {
+  width: min(92vw, 320px);
+  background: linear-gradient(180deg, #747a84 0%, #4e5560 100%);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 14px;
+  padding: 16px 14px 14px;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.5);
+  color: #fff;
+}
+
+.ui-dialog h3,
+.ui-dialog-title {
+  margin: 0 0 8px;
+  font-size: 17px;
+  font-weight: 900;
+  text-shadow: 0 1px 2px #000;
+}
+
+.ui-dialog p,
+.ui-dialog-text {
+  margin: 0 0 14px;
+  font-size: 14px;
+  line-height: 1.45;
+  color: var(--ui-text-muted);
+}
+
+.ui-dialog-row,
+.inv-confirm-row.ui-dialog-row,
+.confirm-row.ui-dialog-row {
+  display: flex;
+  gap: 8px;
+}
+
+.ui-dialog-row .ui-btn,
+.ui-dialog-row .inv-confirm-btn,
+.ui-dialog-row .modal-btn {
+  flex: 1;
+}
+
+/* Toast */
+.ui-toast,
+.inv-toast.ui-toast,
+#amigos-toast.ui-toast,
+#avisos-toast.ui-toast {
+  position: fixed;
+  left: 50%;
+  bottom: calc(72px + env(safe-area-inset-bottom, 0px));
+  transform: translateX(-50%) translateY(120%);
+  z-index: calc(var(--ui-z-confirm) + 2);
+  background: rgba(20, 24, 32, 0.92);
+  color: #fff;
+  padding: 10px 16px;
+  border-radius: 12px;
+  font-size: 14px;
+  font-weight: 700;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+  transition: transform 0.28s ease;
+  pointer-events: none;
+  max-width: min(92vw, 360px);
+  text-align: center;
+}
+
+.ui-toast.show,
+.inv-toast.show,
+#amigos-toast:not(.oculto),
+#avisos-toast:not(.oculto) {
+  transform: translateX(-50%) translateY(0);
+}
+
+.ui-toast.ok { border-color: rgba(52, 199, 89, 0.5); }
+.ui-toast.warn { border-color: rgba(255, 193, 7, 0.5); }
+.ui-toast.error { border-color: rgba(255, 107, 107, 0.5); }
+
+/* Barra de progreso */
+.ui-progress {
+  width: 100%;
+  height: 14px;
+  border-radius: 8px;
+  background: rgba(0, 0, 0, 0.35);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  overflow: hidden;
+}
+
+.ui-progress-fill {
+  height: 100%;
+  width: 0%;
+  border-radius: 7px;
+  background: linear-gradient(90deg, #ff6b6b, #ff3b30);
+  transition: width 0.25s ease;
+}
+
+.ui-progress.ok .ui-progress-fill {
+  background: linear-gradient(90deg, #6ee7a0, #34c759);
+}
+
+/* Rejilla tipo inventario */
+.ui-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(52px, 1fr));
+  gap: 6px;
+  padding: 4px 0;
+}
+
+.ui-grid-slot {
+  aspect-ratio: 1;
+  border-radius: 10px;
+  background: var(--ui-slot-bg);
+  border: 1px solid var(--ui-slot-border);
+  display: grid;
+  place-items: center;
+  font-size: 22px;
+  position: relative;
+  cursor: pointer;
+}
+
+.ui-grid-slot:active { transform: scale(0.96); }
+
+.ui-grid-slot .ui-grid-qty {
+  position: absolute;
+  right: 3px;
+  bottom: 2px;
+  font-size: 10px;
+  font-weight: 900;
+  color: #fff;
+  text-shadow: 0 1px 2px #000;
+}
+
+/* Ventanas legacy → patrón inventario cuando llevan ui-panel */
+.ventana-caja.inventario-caja.ui-panel {
+  background: var(--ui-panel-bg);
+  border: 1px solid var(--ui-panel-border);
+  border-radius: var(--ui-panel-radius);
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+  max-width: var(--ui-panel-width);
+}
+
+.ventana-caja.inventario-caja.ui-panel .ventana-titulo {
+  display: none;
+}
+
+/* Amigos / chat / opciones alineados al panel */
+#ventana-amigos .friends-panel.ui-panel,
+.chat-inner-panel.ui-panel,
+#ventana-opciones .opciones-panel.ui-panel,
+.avisos-panel.ui-panel {
+  width: var(--ui-panel-width);
+  max-height: var(--ui-panel-height);
+  border: 1px solid var(--ui-panel-border);
+  border-radius: var(--ui-panel-radius);
+  box-shadow: var(--ui-panel-shadow);
+  background: var(--ui-panel-bg);
+}
+
+#ventana-amigos .panel-header.ui-panel-header,
+.chat-header.ui-panel-header,
+#ventana-opciones .opciones-header.ui-panel-header,
+.avisos-header.ui-panel-header {
+  height: var(--ui-header-h);
+  min-height: var(--ui-header-h);
+  padding: 0 10px;
+  background: var(--ui-header-bg);
+}
+
+#ventana-amigos .panel-title.ui-panel-title,
+.chat-title strong.ui-panel-title,
+#ventana-opciones .opciones-title.ui-panel-title,
+.avisos-title.ui-panel-title {
+  font-size: var(--ui-title-size);
+  font-weight: 900;
+  text-shadow: 0 2px 2px #000;
+}
+
+#ventana-amigos .amigos-close.ui-panel-close,
+.close-chat.ui-panel-close,
+#ventana-opciones .opciones-close.ui-panel-close,
+.avisos-close.ui-panel-close {
+  width: 30px;
+  height: 30px;
+  border-radius: 8px;
+  border: 1px solid var(--ui-close-border);
+  background: var(--ui-close-bg);
+}
+
+#ventana-amigos .panel-content.ui-panel-body,
+#ventana-opciones .opciones-content.ui-panel-body,
+.avisos-panel .avisos-info.ui-panel-body,
+.chat-inner-panel > .chat-view.ui-panel-body {
+  flex: 1;
+  min-height: 0;
+}
+
+/* Listas dentro de paneles */
+.ui-panel-body #tienda-lista,
+.ui-panel-body #lista-misiones,
+.ui-panel-body #historial-lista,
+.ui-panel-body #lista-correo {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 4px 2px 8px;
+}
+
+@media (max-width: 380px) {
+  :root {
+    --ui-panel-width: min(96vw, 400px);
+  }
+  .ui-grid { gap: 4px; }
+}
+
+.combate-barra-vida.ui-progress {
+  height: 18px;
+  border-radius: 9px;
+}
+
+.combate-vida-relleno.ui-progress-fill {
+  border-radius: 8px;
+}
