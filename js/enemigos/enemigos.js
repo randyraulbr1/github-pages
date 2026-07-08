@@ -460,6 +460,7 @@ const Enemigos = {
       if (!silencioso) {
         if (botinCreado) {
           Notificaciones.mostrar('💀 ¡Enemigo derrotado! Recoge el botín 📦 en el mapa', 'exito', 5000);
+          if (typeof BotinEnemigo !== 'undefined') BotinEnemigo.refrescarMapa();
         } else {
           Notificaciones.mostrar('💀 ¡Derrotaste a ' + (e.nombre || 'Enemigo') + '!', 'exito', 5000);
         }
@@ -1452,6 +1453,7 @@ const Enemigos = {
         }
         Notificaciones.mostrar('💀 ¡Enemigo derrotado! Recoge el botín 📦 en el mapa', 'exito', 5000);
         this._procesarMuerteEnemigo(e, { silencioso: true, desdeRemoto: true });
+        if (typeof BotinEnemigo !== 'undefined') BotinEnemigo.refrescarMapa();
         return;
       }
       const contra = this._danoEnemigo(e);

@@ -537,6 +537,12 @@ const Multijugador = {
       BotinEnemigo.aplicarBotinEliminado(data.botinId);
     });
 
+    this.socket.on('sesion:actualizada', (data) => {
+      if (typeof Usuarios !== 'undefined' && Usuarios.aplicarSesionRemotaDesdeSocket) {
+        Usuarios.aplicarSesionRemotaDesdeSocket(data);
+      }
+    });
+
     this.socket.on('mundo:enemyState', (data) => {
       if (!data?.enemyId || typeof Enemigos === 'undefined') return;
       Enemigos._aplicarEstadoEnemigoRemoto(data.enemyId, data.estado, !!data.eliminado, data.botin);

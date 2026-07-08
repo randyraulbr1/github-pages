@@ -237,11 +237,21 @@ const Usuarios = {
   },
 
   _publicarSesionEnFondo(perfil, token) {
-    MundoPublico.guardarCuenta(Object.assign({}, perfil, {
+    const datos = Object.assign({}, perfil, {
       sesionToken: token,
       sesionT: perfil.sesionT
-    }), null).catch(() => {});
-    this._registrarEnAdminLocal(perfil);
+    });
+    this._registrarEnAdminLocal(datos);
+    const publicar = async () => {
+      try {
+        if (typeof SyncServidor !== 'undefined' && SyncServidor.puedePublicar()) {
+          await SyncServidor.registrarCuenta(datos, null);
+        } else if (typeof MundoPublico !== 'undefined') {
+          await MundoPublico.guardarCuenta(datos, null);
+        }
+      } catch (e) { /* */ }
+    };
+    return publicar();
   },
 
   async _loginServidor(usuario, clave, intento) {
@@ -440,6 +450,7 @@ const Usuarios = {
     const token = this._generarTokenSesion();
     perfil.sesionToken = token;
     perfil.sesionT = Date.now();
+    this._sesionRecienActivada = perfil.sesionT;
     this._guardarLista();
     this._ocultarAuth();
     if (window.MarielBoot) MarielBoot.enfrente('Cargando tu partida…');
@@ -451,7 +462,7 @@ const Usuarios = {
       location.reload();
       return;
     }
-    this._publicarSesionEnFondo(perfil, token);
+    this._publicarSesionEnFondo(perfil, token).catch(() => {});
     if (typeof Opciones !== 'undefined') Opciones._refrescarAdmin?.();
     if (typeof SyncServidor !== 'undefined') {
       SyncServidor.asegurarSesionServidor({}).then((ok) => {
@@ -467,16 +478,17 @@ const Usuarios = {
 
   iniciarVigilanciaSesion() {
     if (this._vigilanciaSesion) return;
-    this._vigilanciaSesion = setInterval(() => this.verificarSesionRemota(), 5000);
+    this._vigilanciaSesion = setInterval(() => this.verificarSesionRemota(), 3000);
     document.addEventListener('visibilitychange', () => {
       if (!document.hidden) this.verificarSesionRemota();
     });
+    setTimeout(() => this.verificarSesionRemota(), 800);
   },
 
   async verificarSesionRemota() {
     if (!this.perfilActivo || this._sesionCerrada) return;
     if (!this.perfilActivo.sesionToken) return;
-    if (Date.now() - (this.perfilActivo.sesionT || 0) < 20000) return;
+    if (this._sesionRecienActivada && Date.now() - this._sesionRecienActivada < 15000) return;
 
     try {
       if (typeof Admin !== 'undefined') await Admin.actualizarJugadoresGlobales();
@@ -495,7 +507,16 @@ const Usuarios = {
     this._sesionCerrada = true;
     document.body.classList.add('sesion-cerrada');
     document.querySelectorAll('.ventana').forEach(v => v.classList.add('oculto'));
-    document.getElementById('pantalla-sesion-remota').classList.remove('oculto');
+    const pant = document.getElementById('pantalla-sesion-remota');
+    if (pant) pant.classList.remove('oculto');
+  },
+
+  aplicarSesionRemotaDesdeSocket(data) {
+    if (!this.perfilActivo || this._sesionCerrada) return;
+    if (!data?.sesionToken || data.sesionToken === this.perfilActivo.sesionToken) return;
+    if (data.perfilId && data.perfilId !== this.perfilActivo.id) return;
+    if ((data.sesionT || 0) <= (this.perfilActivo.sesionT || 0)) return;
+    this._mostrarSesionCerrada();
   },
 
   _cuentaMeAfecta(data) {
