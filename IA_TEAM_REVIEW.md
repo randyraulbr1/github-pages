@@ -252,8 +252,10 @@ Para mapa y cuentas, mantener el mismo patrón mental: **escribir en servidor �
 - [x] Cursor leyó la auditoría profunda de Claude (rama `claude/web-rpg-gps-game-n3ybow`, commits `871e870` + `c5cd2a1a3`).
 - [x] Existe decisión clara y orden de implementación (ver abajo).
 - [x] No hay conflictos importantes entre ChatGPT y Claude (consenso documentado).
-- [ ] **Pendiente:** OK del creador antes de tocar código del juego.
-- [ ] Verificar que cada cambio no rompe: login, guardar mapa admin, editor jugador, multijugador en móvil.
+- [x] Cursor leyó `CHATGPT_CURSOR_REVIEW.md` (aprobación Fase 1).
+- [x] Decisión Fase 2/3/4 escrita (ver abajo).
+- [ ] Merge Fase 1 (#101–#104) en `main` + deploy Render.
+- [ ] OK del creador: «adelante con Fase 2».
 
 ---
 
@@ -297,9 +299,9 @@ Para mapa y cuentas, mantener el mismo patrón mental: **escribir en servidor �
 
 ### Lista exacta de cambios — ORDEN DE IMPLEMENTACIÓN
 
-**Estado:** ✅ **Fase 1 en implementación** (PR `cursor/security-phase1-7abe`, v274) — aprobada por el creador el 8 jul 2026.
+**Estado:** ✅ **Fase 1 COMPLETADA** (PR #104, v274) — **APROBADA** por ChatGPT en `CHATGPT_CURSOR_REVIEW.md` (8 jul 2026).
 
-#### FASE 1 — Crítico (hacer primero, un PR: `cursor/security-phase1-7abe`)
+#### FASE 1 — Crítico ✅ (PR #104, `cursor/security-phase1-7abe`)
 
 | # | Cambio | Motivo | Archivos | Prueba | Rollback |
 |---|--------|--------|----------|--------|----------|
@@ -310,29 +312,77 @@ Para mapa y cuentas, mantener el mismo patrón mental: **escribir en servidor �
 | **1.5** | Desactivar o rechazar `player:updateInventory` (cliente no manda inventario crudo) | Regla 4: trampas | `server/sockets.js` | Emit desde consola → **error** | Revertir commit |
 | **1.6** | Verificar en Render (sin código): `JWT_SECRET`, `GITHUB_TOKEN` configurados | P4/P10 | Panel Render | Variables visibles en dashboard | — |
 
-#### FASE 2 — Alto (segundo PR, tras estabilizar Fase 1)
+**Revisión ChatGPT:** `CHATGPT_CURSOR_REVIEW.md` — *Aprobado con observaciones.* Fase 1 no debe detenerse; siguiente foco = estabilidad del mundo online.
 
-| # | Cambio | Archivos |
-|---|--------|----------|
-| **2.1** | Migrar admin a `users.role` + JWT con `role`; checks por role, no por nombre | `server/db.js`, `server/auth.js`, `server/sockets.js`, rutas admin |
-| **2.2** | `partidaMin` / stats: no bump `t` si no hay cambio real (evitar parpadeo v236) | `server/sockets.js`, `server/syncMundo.js` |
-| **2.3** | Tope superior HP en `player:updateStats`; validación básica economía | `server/sockets.js` |
-| **2.4** | Actualizar `docs/ARQUITECTURA_SYNC.md` (rama `main`, v273+) | `docs/` |
+---
 
-#### FASE 3 — Medio (tercer bloque, cuando Fase 1–2 estén en producción)
+### DECISIÓN CURSOR — FASE 2 (tras leer `CHATGPT_CURSOR_REVIEW.md`)
 
-| # | Cambio | Archivos |
-|---|--------|----------|
-| **3.1** | Fuente única del mundo: tablas normalizadas = verdad; blob solo backup | `server/syncMundo.js`, `server/db.js`, `js/admin/admin.js` |
-| **3.2** | Publicar contenido admin por objeto (no mundo entero) | `server/`, `js/admin/admin.js` |
-| **3.3** | `player:move` por interés + coalescer; rate-limit chat/amigos/register | `server/sockets.js` |
-| **3.4** | Sync por deltas del mundo (reducir peso en conexiones lentas) | `server/`, `js/online/` |
+**Fecha:** 8 julio 2026  
+**Estado:** PLANIFICADA — **no implementar hasta merge de Fase 1 en `main` + deploy Render OK.**
+
+ChatGPT prioriza en **Alta:** (1) unificar fuente del mundo, (2) roles admin reales, (3) validar economía/inventario en servidor.  
+Cursor **reordena** para no mezclar un refactor enorme con parches pequeños en el mismo PR:
+
+| Bloque | Nombre | PR sugerido | Versión | Tamaño |
+|--------|--------|-------------|---------|--------|
+| **Fase 2** | Estabilidad servidor | `cursor/stability-phase2-7abe` | v275 | Mediano |
+| **Fase 3** | Arquitectura mundo (una sola verdad) | `cursor/world-single-source-7abe` | v276+ | Grande |
+| **Fase 4** | Rendimiento GPS / datos | `cursor/perf-sync-phase4-7abe` | v277+ | Mediano |
+
+#### FASE 2 — Estabilidad servidor (siguiente PR, v275)
+
+*Objetivo: cerrar huecos que quedan tras Fase 1 sin re-arquitecturar todo el mundo. Sin features nuevas de juego.*
+
+| # | Cambio | Motivo (ChatGPT / Claude) | Archivos | Prueba |
+|---|--------|---------------------------|----------|--------|
+| **2.1** | `users.role` (`player` \| `admin`) + JWT con `role`; checks por role, no solo por nombre | ChatGPT alta #2; cierra P1 definitivo | `server/db.js`, `server/auth.js`, `server/sockets.js`, `server/routes/*`, migración al arranque | Admin con role publica mapa; jugador no |
+| **2.2** | `partidaMin` / stats: no emitir `partida:sync` si datos no cambiaron (`statsT` estable) | Claude v236 parpadeo | `server/sockets.js`, `server/syncMundo.js`, `js/online/multijugador.js` | Stats en vivo sin revertir vida/oro |
+| **2.3** | Validación servidor en `player:updateStats`: tope HP/hambre/XP; rechazar valores imposibles | ChatGPT alta #3 (parcial) | `server/sockets.js` | Cliente no puede mandar HP > max |
+| **2.4** | Log/auditoría cuando admin edita partida ajena (socket + REST) | Trazabilidad | `server/sockets.js`, `server/eventLog.js` | Entrada en log tras edición admin |
+| **2.5** | Actualizar `docs/ARQUITECTURA_SYNC.md` (rama `main`, v275, flujo roles) | Docs desactualizadas | `docs/ARQUITECTURA_SYNC.md` | — |
+
+**Qué NO va en Fase 2:** unificar tablas vs blob (eso es Fase 3), GPS por distancia (Fase 4), features nuevas (tiendas extra, misiones, UI).
+
+#### FASE 3 — Arquitectura mundo (después de Fase 2, PR grande)
+
+*Objetivo: ChatGPT alta #1 + Claude P3/P5 — «todos ven lo mismo».*
+
+| # | Cambio |
+|---|--------|
+| **3.1** | Documento de diseño `docs/MUNDO_FUENTE_UNICA.md` (qué lee cada endpoint, plan migración) |
+| **3.2** | Tablas normalizadas (`world_objects`, `missions`, …) = **lectura en vivo** (`game:init`, mapa) |
+| **3.3** | `world_snapshot` / GitHub = **solo backup** (throttle 10 min + eventos críticos) |
+| **3.4** | Admin publica **por objeto** (crear/editar/borrar pin), no subir mundo entero 15 MB |
+| **3.5** | Cliente deja de depender de merge blob conflictivo para pins nuevos |
+
+**Riesgo:** alto si se hace de golpe. Fase 3 requiere plan escrito + prueba con 2 clientes antes de producción.
+
+#### FASE 4 — Rendimiento (conexión lenta Cuba)
+
+| # | Cambio |
+|---|--------|
+| **4.1** | `player:move` solo a jugadores cercanos (interest management) |
+| **4.2** | Coalescer movimientos en tick `players:sync` (8 s) |
+| **4.3** | Sync mundo por deltas / por zona |
+| **4.4** | Rate-limit: chat, amigos, register |
+
+#### Regla hasta terminar Fase 3
+
+**Prohibido** (salvo bugfix crítico acordado con creador):
+
+- Nuevas mecánicas de juego
+- Parches solo-cliente de dinero/inventario
+- Subir tamaño del blob mundo sin deltas
+
+#### FASE 2 — Alto (plan original, reemplazado por tabla arriba)
 
 ### Qué NO hacer todavía
 
-- No refactorizar todo el modelo de mundo (P3) en el mismo PR que P1.
-- No añadir features nuevas hasta cerrar Fase 1.
+- No mezclar Fase 2 con Fase 3 en un solo PR.
+- No añadir **features nuevas** hasta cerrar Fase 3 (arquitectura mundo).
 - No tocar `mariel-explorer/` (carpeta duplicada).
+- ChatGPT y Claude: **solo opiniones** en `CHATGPT_CURSOR_REVIEW.md` / comentarios PR — no código.
 
 ### Archivos ya en producción pendientes de merge (referencia)
 
@@ -340,7 +390,7 @@ Para mapa y cuentas, mantener el mismo patrón mental: **escribir en servidor �
 |---------|-----|--------|
 | v272 | #101 | statsT, barras, ban instantáneo |
 | v273 | #102 | Sync admin rápida, tiendas, UI |
-| docs | #103 | IA_TEAM_REVIEW + este consenso |
+| v274 Fase 1 | #104 | Seguridad servidor |
 
 ### Cómo probar Fase 1 (checklist)
 
@@ -356,19 +406,17 @@ Para mapa y cuentas, mantener el mismo patrón mental: **escribir en servidor �
 
 ## DECISIÓN PARA EL CREADOR
 
-**Problema:** Claude encontró huecos críticos (admin por nombre, purga de cuentas, JWT débil). ChatGPT confirma y pide ir por fases. Cursor añade cerrar `sync-partida` e `updateInventory`. Sin acuerdo, cada IA podría parchear por su cuenta.
+**Fase 1:** Aprobada por ChatGPT (`CHATGPT_CURSOR_REVIEW.md`). Mergear PR #104 y desplegar en Render.
 
-**Solución elegida:** Plan en **3 fases**. Solo **Fase 1** (6 ítems, servidor) se implementa primero, en un solo PR pequeño.
+**Fase 2 (siguiente):** Estabilidad servidor (v275) — roles admin, stats estables, validación HP, docs. **Sin features nuevas.**
 
-**Motivo:** Máxima seguridad y cero pérdida de datos con el menor riesgo de romper el juego en vivo. Coincide con ChatGPT («no tocar muchas cosas a la vez») y Claude (P1, P2, P4 primero).
+**Fase 3 (después):** Una sola fuente de verdad del mundo (lo que ChatGPT marca como prioridad alta #1).
 
-**Cambios necesarios:** Ver tabla Fase 1 arriba.
+**Motivo del orden:** ChatGPT pide arquitectura del mundo antes de muchas funciones nuevas, pero mezclar eso con roles/stats en un PR rompería el juego en vivo. Fase 2 cierra seguridad restante; Fase 3 ataca el desync «un jugador ve cosas que otro no».
 
-**Riesgos:** Bajo si Fase 1 va sola. Medio si mezclamos Fase 3 (refactor mundo) demasiado pronto.
+**Para decir a Cursor:** «Adelante con Fase 2» cuando Fase 1 esté en producción y el checklist de 7 puntos pase.
 
-**Prueba recomendada:** Mergear #101–#103 → desplegar → aplicar Fase 1 en Render → correr checklist de 7 puntos → recién ahí Fase 2.
-
-**Para ChatGPT y Claude:** Esta es la decisión de Cursor. No implementar código hasta que el creador diga «adelante con Fase 1».
+**Para ChatGPT y Claude:** Opinen sobre el plan Fase 2/3 en comentarios o nueva sección en `CHATGPT_CURSOR_REVIEW.md`. No implementen código.
 
 ---
 
@@ -379,6 +427,7 @@ Para mapa y cuentas, mantener el mismo patrón mental: **escribir en servidor �
 | 2026-07-08 | 1.0 | ChatGPT, Claude, Gemini, Cursor | Documento inicial; estado post v273 |
 | 2026-07-08 | 1.1 | ChatGPT, Claude, Cursor | Gemini fuera del equipo (aviso del creador) |
 | 2026-07-08 | 1.3 | ChatGPT, Claude, Cursor | Fase 1 seguridad aprobada e implementada (v274) |
+| 2026-07-08 | 1.4 | ChatGPT, Cursor | ChatGPT aprueba Fase 1 (`CHATGPT_CURSOR_REVIEW.md`); Cursor define Fase 2/3/4 |
 
 ---
 
