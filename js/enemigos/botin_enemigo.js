@@ -36,6 +36,9 @@ const BotinEnemigo = {
   _claveEnBotin(botin) {
     if (!botin?.participantes) return null;
     const parts = botin.participantes;
+    const keys = Object.keys(parts);
+    if (!keys.length) return null;
+
     const candidatos = new Set();
     const online = this._playerIdOnline();
     if (online) candidatos.add(online);
@@ -45,6 +48,9 @@ const BotinEnemigo = {
     for (const id of candidatos) {
       if (parts[id]) return id;
     }
+
+    // Un solo atacante: siempre es el jugador actual (caja en mapa aunque falle el id online)
+    if (keys.length === 1) return keys[0];
     const nombres = new Set();
     if (typeof Usuarios !== 'undefined' && Usuarios.perfilActivo?.nombre) {
       nombres.add(Usuarios.perfilActivo.nombre.trim().toLowerCase());
@@ -139,6 +145,21 @@ const BotinEnemigo = {
     if (this.yaReclamo(botin)) return false;
     if (Date.now() > (botin.expiraEn || 0)) return false;
     return true;
+  },
+
+  /** Muestra la caja en mapa sin abrir menú ni dar recompensa */
+  _mostrarCaja(botin) {
+    if (!botin?.id || !this.visibleParaMi(botin)) return;
+    if (typeof Admin !== 'undefined' && Admin._crearMarcadorBotin) {
+      Admin._crearMarcadorBotin(botin);
+    } else {
+      this._crearMarcador(botin);
+    }
+    if (typeof Admin !== 'undefined' && Admin.refrescarVisibles) {
+      Admin.refrescarVisibles();
+    } else {
+      this.refrescarMapa();
+    }
   },
 
   distanciaVer() {
@@ -246,21 +267,14 @@ const BotinEnemigo = {
       recompensas: calc.recompensas
     };
     this._guardarLocal(botin);
-    this._crearMarcador(botin);
+    this._mostrarCaja(botin);
     return botin;
   },
 
   aplicarBotin(botin) {
     if (!botin?.id) return;
     this._guardarLocal(botin);
-    if (this.visibleParaMi(botin)) {
-      this._crearMarcador(botin);
-      if (typeof Admin !== 'undefined' && Admin.refrescarVisibles) {
-        Admin.refrescarVisibles();
-      } else {
-        this.refrescarMapa();
-      }
-    }
+    this._mostrarCaja(botin);
   },
 
   aplicarBotinActualizado(botin) {

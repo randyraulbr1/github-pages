@@ -21,6 +21,26 @@ function parseData(row) {
 }
 
 /** Nunca pierde jugadores/partidas al publicar solo el mapa. */
+function fusionarSesionJugador(base, extra) {
+  const a = Object.assign({}, base || {}, extra || {});
+  const tBase = (base && base.sesionT) || 0;
+  const tExtra = (extra && extra.sesionT) || 0;
+  if (tBase > tExtra) {
+    a.sesionToken = base.sesionToken;
+    a.sesionT = tBase;
+  } else if (tExtra > tBase) {
+    a.sesionToken = extra.sesionToken;
+    a.sesionT = tExtra;
+  } else if (extra?.sesionToken) {
+    a.sesionToken = extra.sesionToken;
+    a.sesionT = tExtra;
+  } else if (base?.sesionToken) {
+    a.sesionToken = base.sesionToken;
+    a.sesionT = tBase;
+  }
+  return a;
+}
+
 function mergeJugadoresPartidas(destino, fuentes) {
   if (!destino || typeof destino !== 'object') return destino;
   const porId = new Map();
@@ -28,7 +48,7 @@ function mergeJugadoresPartidas(destino, fuentes) {
     if (!fuente) continue;
     for (const j of (fuente.jugadores || [])) {
       if (!j?.id) continue;
-      porId.set(j.id, Object.assign({}, porId.get(j.id), j));
+      porId.set(j.id, fusionarSesionJugador(porId.get(j.id), j));
     }
   }
   if (porId.size) destino.jugadores = [...porId.values()];

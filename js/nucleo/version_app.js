@@ -63,13 +63,34 @@ const MarielVersion = {
     } catch (e) { /* */ }
   },
 
+  _limpiarPendienteSiAlDia() {
+    const cargada = this.versionCargada();
+    const rem = this._versionPendiente();
+    if (rem && rem > cargada) return false;
+    window.__MARIEL_UPDATE_PENDING = null;
+    if (cargada) this._remota = String(cargada);
+    try {
+      const fv = sessionStorage.getItem('mariel_force_version');
+      const t0 = parseInt(sessionStorage.getItem('mariel_actualizado_en') || '0', 10);
+      if (fv && t0 && Date.now() - t0 < 120000 && this._num(fv) <= cargada) {
+        sessionStorage.removeItem('mariel_force_version');
+        sessionStorage.removeItem('mariel_actualizado_en');
+      }
+    } catch (e) { /* */ }
+    if (this._bloqueado) this._desbloquearActualizacion(String(cargada));
+    return true;
+  },
+
   _aplicarPendienteInline(opts) {
     const bloquear = opts?.bloquear !== false;
     const p = window.__MARIEL_UPDATE_PENDING;
     if (!p?.remote) return false;
     const rem = this._num(p.remote);
     const loc = this.versionCargada();
-    if (rem <= loc) return false;
+    if (rem <= loc) {
+      this._limpiarPendienteSiAlDia();
+      return false;
+    }
     this._remota = String(p.remote);
     if (bloquear) {
       this.mostrarBloqueo(String(loc || p.local || '?'), String(p.remote));
@@ -304,9 +325,7 @@ const MarielVersion = {
     const r = this._num(remoto);
 
     if (r && cargada >= r) {
-      if (bloquear || this._bloqueado) {
-        this._desbloquearActualizacion(String(cargada));
-      }
+      this._limpiarPendienteSiAlDia();
       return false;
     }
 
@@ -479,6 +498,7 @@ const MarielVersion = {
       const remoto = await this.obtenerRemota();
       if (remoto) this._remota = remoto;
       this.revisar({ bloquear });
+      this._limpiarPendienteSiAlDia();
       this._evitarBloqueoFantasma();
     } finally {
       this._comprobando = false;

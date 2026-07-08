@@ -1231,6 +1231,26 @@ const Admin = {
     return { jugadores: resultado, aliasIds };
   },
 
+  _fusionarSesionJugador(base, extra) {
+    const a = Object.assign({}, base || {}, extra || {});
+    const tBase = (base && base.sesionT) || 0;
+    const tExtra = (extra && extra.sesionT) || 0;
+    if (tBase > tExtra) {
+      a.sesionToken = base.sesionToken;
+      a.sesionT = tBase;
+    } else if (tExtra > tBase) {
+      a.sesionToken = extra.sesionToken;
+      a.sesionT = tExtra;
+    } else if (extra?.sesionToken) {
+      a.sesionToken = extra.sesionToken;
+      a.sesionT = tExtra;
+    } else if (base?.sesionToken) {
+      a.sesionToken = base.sesionToken;
+      a.sesionT = tBase;
+    }
+    return a;
+  },
+
   async actualizarJugadoresGlobales() {
     if (!this.publicado) this.publicado = { jugadores: [], baneados: [] };
     if (!this.datos) {
@@ -1250,17 +1270,20 @@ const Admin = {
         if (j?.id) porId.set(j.id, j);
       }
       for (const j of (this.datos.jugadoresExtra || [])) {
-        if (j?.id) porId.set(j.id, Object.assign({}, porId.get(j.id), j));
+        if (j?.id) porId.set(j.id, this._fusionarSesionJugador(porId.get(j.id), j));
       }
       if (typeof Usuarios !== 'undefined' && Usuarios.datos?.lista) {
         for (const p of Usuarios.datos.lista) {
           if (!p?.id) continue;
-          porId.set(p.id, Object.assign({}, porId.get(p.id), {
+          const prev = porId.get(p.id) || {};
+          porId.set(p.id, this._fusionarSesionJugador(prev, {
             id: p.id,
-            nombre: p.nombre || porId.get(p.id)?.nombre,
-            telefono: p.telefono || porId.get(p.id)?.telefono || '',
-            creado: p.creado || porId.get(p.id)?.creado,
-            pinHash: p.pinHash || porId.get(p.id)?.pinHash
+            nombre: p.nombre || prev.nombre,
+            telefono: p.telefono || prev.telefono || '',
+            creado: p.creado || prev.creado,
+            pinHash: p.pinHash || prev.pinHash,
+            sesionToken: p.sesionToken,
+            sesionT: p.sesionT
           }));
         }
       }
@@ -1284,7 +1307,7 @@ const Admin = {
       }
       for (const j of lista) {
         if (!j?.id) continue;
-        porId.set(j.id, Object.assign({}, porId.get(j.id), j));
+        porId.set(j.id, this._fusionarSesionJugador(porId.get(j.id), j));
       }
       this.publicado.jugadores = this._filtrarJugadoresBorrados([...porId.values()]);
     };

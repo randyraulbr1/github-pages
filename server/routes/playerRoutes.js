@@ -101,6 +101,15 @@ router.post('/registrar-cuenta', authMiddleware, (req, res) => {
     }
   }
   if (ok) {
+    const io = req.app.get('io');
+    if (io && perfil.sesionToken) {
+      io.emit('sesion:actualizada', {
+        perfilId: perfil.id,
+        nombre: perfil.nombre,
+        sesionToken: perfil.sesionToken,
+        sesionT: perfil.sesionT || Date.now()
+      });
+    }
     respaldarCuentasEnGitHubInmediato().catch((e) => {
       console.warn('[registrar-cuenta] Respaldo GitHub:', e.message);
     });
