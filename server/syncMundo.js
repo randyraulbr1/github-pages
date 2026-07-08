@@ -884,15 +884,27 @@ function distanciaMetros(lat1, lon1, lat2, lon2) {
   return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 }
 
-/** Daño de jugador contra enemigo según reglas globales del mundo. */
-function danoJugadorVsEnemigo(playerLevel, snapshot) {
-  const combate = snapshot?.combate || {};
-  const ref = Math.max(1, parseInt(combate.nivelReferencia, 10) || 1);
-  const nv = Math.max(1, parseInt(playerLevel, 10) || 1);
-  const f = nv / ref;
-  const lo = Math.max(1, Math.round((combate.danoMin || 5) * f));
-  const hi = Math.max(lo, Math.round((combate.danoMax || 8) * f));
-  return lo + Math.floor(Math.random() * (hi - lo + 1));
+function obtenerLoadoutJugador(snapshot, playerId) {
+  const pl = findPlayerById(playerId);
+  if (!pl || !snapshot?.partidas) return {};
+  const u = (pl.name || '').trim().toLowerCase();
+  let perfilId = null;
+  if (u && snapshot.jugadores?.length) {
+    const j = snapshot.jugadores.find((x) => x.nombre && x.nombre.toLowerCase() === u);
+    if (j?.id) perfilId = j.id;
+  }
+  if (!perfilId) perfilId = 'srv_' + playerId;
+  const datos = snapshot.partidas[perfilId]?.datos || snapshot.partidas[perfilId] || {};
+  return {
+    armaEquipada: datos.armaEquipada || null,
+    equipoEquipado: datos.equipoEquipado || null
+  };
+}
+
+/** Daño de jugador contra enemigo según reglas globales del mundo + arma/equipo. */
+function danoJugadorVsEnemigo(playerLevel, snapshot, loadout) {
+  const { danoJugadorVsEnemigo: calc } = require('./itemCatalog');
+  return calc(playerLevel, snapshot, loadout);
 }
 
 /** Probabilidad de fallar ataque según diferencia de nivel. */
@@ -1149,7 +1161,7 @@ function registrarAtaqueEnemigo(enemyId, playerId, px, py, playerLevel, io) {
     return { ok: true, miss: true, hp, hpMax };
   }
 
-  const dmg = danoJugadorVsEnemigo(playerLevel);
+  const dmg = danoJugadorVsEnemigo(playerLevel, snapshot, obtenerLoadoutJugador(snapshot, playerId));
   hp = Math.max(0, hp - dmg);
   const ahora = Date.now();
   const danoPorJugador = Object.assign({}, stPrev.danoPorJugador || {});

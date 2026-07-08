@@ -377,14 +377,20 @@ const Notificaciones = {
 
   abrirVisor() {
     this._pintarVisor();
-    const v = document.getElementById('ventana-notific');
-    v?.classList.remove('oculto');
-    v?.classList.add('show');
+    if (typeof UIManager !== 'undefined') UIManager.abrir('ventana-notific');
+    else {
+      const v = document.getElementById('ventana-notific');
+      v?.classList.remove('oculto');
+      v?.classList.add('show');
+    }
   },
 
   cerrarVisor() {
-    const v = document.getElementById('ventana-notific');
-    v?.classList.add('oculto');
-    v?.classList.remove('show');
+    if (typeof UIManager !== 'undefined') UIManager.cerrar('ventana-notific');
+    else {
+      const v = document.getElementById('ventana-notific');
+      v?.classList.add('oculto');
+      v?.classList.remove('show');
+    }
   }
 };

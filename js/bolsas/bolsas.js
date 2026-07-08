@@ -194,7 +194,7 @@ const Bolsas = {
     if (online) {
       const res = await Multijugador.recogerBolsa(bolsa.id, null, bolsa.pos);
       if (!res?.ok) {
-        Notificaciones.mostrar(res?.error || '🎒 No se pudo recoger', 'error', 3000);
+        Notificaciones.mostrar('❌ ' + Utilidades.mensajeAmigable(res?.error, 'No se pudo recoger'), 'error', 3000);
         return false;
       }
       if (res.vacia) this.aplicarBolsaEliminada(bolsa.id);

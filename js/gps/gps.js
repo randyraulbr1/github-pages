@@ -117,7 +117,7 @@ const GPS = {
         this._actualizar([pos.coords.latitude, pos.coords.longitude]);
       },
       err => {
-        Notificaciones.mostrar('No se pudo leer el GPS: ' + err.message, 'error');
+        Notificaciones.mostrar(Utilidades.mensajeAmigable(err.message, 'No se pudo leer el GPS'), 'error');
         this.dejarDeSeguir();
       },
       { enableHighAccuracy: true, maximumAge: 2000, timeout: 15000 }

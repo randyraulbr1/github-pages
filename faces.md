@@ -19,6 +19,18 @@ Regla principal: Cursor implementa. ChatGPT solo agrega ideas, revisiones y docu
 9. Si aparece un bug durante una fase, agregarlo en Bugs conocidos.
 10. No agregar nuevas funciones grandes antes de cerrar seguridad, estabilidad y mundo persistente.
 
+## Regla anti-conflictos al editar este archivo
+
+`faces.md` lo tocan varias ramas y agentes a la vez. Para evitar conflictos de merge:
+
+1. **Una sección por cambio** — solo editar la fase o bloque en el que trabajas (ej. Fase 6). No reescribir todo el archivo.
+2. **No mover fases** — no cambiar el orden ni renombrar encabezados de fase.
+3. **Cambios mínimos** — actualizar solo `Estado:` y `Nota:` de tu fase. No tocar el estado de otras fases (salvo un bug nuevo en *Bugs conocidos*).
+4. **Partir de main** — antes de editar, traer la última versión (`git pull origin main` o rebase sobre `main`).
+5. **Un tema por commit** — no mezclar en el mismo commit actualizaciones de fases distintas si se puede evitar.
+6. **Si hay conflicto de merge** — conservar la versión con más fases actualizadas; fusionar a mano solo las líneas `Estado:` y `Nota:` de la fase que implementaste.
+7. **Ideas de Randy/ChatGPT** — agregar al final (*Ideas*, *Bugs*) o en la fase indicada; Cursor no reformatea secciones enteras.
+
 Formato recomendado al completar:
 
 Estado: ✅ Completada
@@ -243,9 +255,11 @@ Pruebas:
 
 # FASE 6 - Administrador de ventanas UI Manager
 
-Estado: 🚧 En progreso (v287)
+Estado: ✅ Completada (v288)
 
 Objetivo: evitar bugs de ventanas, capas, foco y botones bloqueados.
+
+Nota v288: Todas las ventanas y overlays pasan por `UIManager` — tienda, misiones, historial, avisos, correo, pesca, cofres, admin, botín enemigo, overlay misión activa. ESC cierra la ventana superior; mapa bloqueado con `ui-bloquea-mapa`.
 
 Nota v287: `UIManager` central — abrir/cerrar ventanas, ESC, bloqueo mapa, confirmaciones. Conectado: mochila, opciones, amigos, chat, inventario confirm.
 
@@ -270,11 +284,13 @@ Ninguna pantalla debe abrir otra directamente sin pasar por el UI Manager.
 
 # FASE 7 - Sistema de errores amigables
 
-Estado: 🚧 En progreso (v286 parcial)
+Estado: ✅ Completada (v290)
 
 Objetivo: nunca mostrar errores feos al jugador.
 
-Nota v286: `Utilidades.mensajeAmigable()` en multijugador (saqueo, revivir, mover pin). v287: sync login servidor.
+Nota v290: `Utilidades.pintarEstado` (cargando/error/vacío/reintentar) en login, registro y amigos. v289: mensajeAmigable en rutas del jugador. Avisos ya tenían estado vacío.
+
+Nota v289: login/registro/GPS/amigos/chat/mochila/bolsas/combate/botín/tesoros. v288: tienda online.
 
 No mostrar:
 
@@ -301,27 +317,35 @@ Cada pantalla debe tener:
 
 # FASE 8 - Pruebas antes de publicar
 
-Estado: ⏳ Pendiente
+Estado: 🚧 En progreso (v290)
 
-Checklist minimo:
+Objetivo: no publicar si una prueba crítica falla.
 
-- Crear cuenta.
-- Iniciar sesion.
-- GPS propio.
-- Ver otro jugador.
-- Inventario.
-- Amigos.
-- Chat.
-- Bloquear jugador.
-- Admin crea objeto.
-- Admin mueve PIN.
-- Admin borra objeto.
-- Reiniciar servidor.
-- Borrar cache.
-- Entrar desde otro telefono.
-- Probar mala conexion.
-- Probar PC.
-- Probar movil.
+Cómo usar: marcar cada ítem con ☐ pendiente, ✅ ok o ❌ falló (fecha + nota breve).
+
+Checklist mínimo:
+
+| Prueba | Estado |
+|--------|--------|
+| Crear cuenta | ☐ |
+| Iniciar sesión | ☐ |
+| GPS propio | ☐ |
+| Ver otro jugador | ☐ |
+| Inventario | ☐ |
+| Amigos | ☐ |
+| Chat | ☐ |
+| Bloquear jugador | ☐ |
+| Admin crea objeto | ☐ |
+| Admin mueve PIN | ☐ |
+| Admin borra objeto | ☐ |
+| Reiniciar servidor | ☐ |
+| Borrar caché | ☐ |
+| Entrar desde otro teléfono | ☐ |
+| Mala conexión | ☐ |
+| PC | ☐ |
+| Móvil | ☐ |
+
+Nota v290: checklist con tabla de seguimiento. Pendiente: ejecutar y marcar resultados antes del próximo deploy mayor.
 
 Regla:
 
@@ -412,6 +436,18 @@ Componentes recomendados:
 - UIDialog
 - UIProgressBar
 - UIGrid
+
+---
+
+# FASE 13 - Catalogo fuerte de objetos en panel ADM
+
+Estado: ✅ Completada (v295)
+
+Objetivo: seccion ADM para administrar todos los objetos del juego.
+
+Nota v291–v294: catálogo ADM, consumibles %, equipo con bonus, armas min/max, comida cruda/cocinada, validación servidor. Ver `faces/fase-13-catalogo-objetos-admin.md`.
+
+Nota v295: cocinar en juego (🍳 + cuchillo), endpoint `player:cookItem`, equipo nv 11–20 ampliado.
 
 ---
 

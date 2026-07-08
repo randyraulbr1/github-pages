@@ -278,7 +278,8 @@ const Misiones = {
       botones.appendChild(this._boton('✖ Abandonar', '#ff453a', '#fff', () => this.abandonar(m)));
     }
     cont.appendChild(botones);
-    document.getElementById('ventana-misiones').classList.remove('oculto');
+    if (typeof UIManager !== 'undefined') UIManager.abrir('ventana-misiones');
+    else document.getElementById('ventana-misiones').classList.remove('oculto');
   },
 
   _boton(texto, fondo, color, accion) {
@@ -296,7 +297,8 @@ const Misiones = {
       return;
     }
     this._poner(m.id, { estado: m.tipo === 'visitar' ? 'lista' : 'aceptada', orden: Date.now(), progreso: 0 });
-    document.getElementById('ventana-misiones').classList.add('oculto');
+    if (typeof UIManager !== 'undefined') UIManager.cerrar('ventana-misiones');
+    else document.getElementById('ventana-misiones').classList.add('oculto');
     Notificaciones.mostrar('📜 Misión aceptada: ' + m.titulo, 'exito');
     this.refrescar();
   },
@@ -304,7 +306,8 @@ const Misiones = {
   abandonar(m) {
     if (!confirm('¿Abandonar la misión "' + m.titulo + '"?\n\nPerderás todo el progreso de esta misión.')) return;
     this._poner(m.id, { estado: 'disponible', progreso: 0 });
-    document.getElementById('ventana-misiones').classList.add('oculto');
+    if (typeof UIManager !== 'undefined') UIManager.cerrar('ventana-misiones');
+    else document.getElementById('ventana-misiones').classList.add('oculto');
     this._cerrarOverlay();
     Notificaciones.mostrar('✖ Misión abandonada: ' + m.titulo, 'alerta');
     this.refrescar();
@@ -325,7 +328,8 @@ const Misiones = {
       for (const r of m.requiere) Mochila.quitar(r.id, r.cantidad, 'Entregado (misión)');
     }
     this._poner(m.id, { estado: 'recolectada' });
-    document.getElementById('ventana-misiones').classList.add('oculto');
+    if (typeof UIManager !== 'undefined') UIManager.cerrar('ventana-misiones');
+    else document.getElementById('ventana-misiones').classList.add('oculto');
     this._cerrarOverlay();
     if (this._marcadores[m.id]) { this._marcadores[m.id].remove(); delete this._marcadores[m.id]; }
     if (this._lineas[m.id]) { this._lineas[m.id].remove(); delete this._lineas[m.id]; }
@@ -345,7 +349,8 @@ const Misiones = {
 
   // ---------- CARTEL CENTRAL (al tocar letrero) ----------
   _cerrarOverlay() {
-    document.getElementById('overlay-mision-activa')?.classList.add('oculto');
+    if (typeof UIManager !== 'undefined') UIManager.cerrar('overlay-mision-activa');
+    else document.getElementById('overlay-mision-activa')?.classList.add('oculto');
   },
 
   _mostrarOverlay(m) {
@@ -386,7 +391,8 @@ const Misiones = {
     }
     botones.appendChild(this._botonOverlay('Cerrar', () => this._cerrarOverlay(), 'secundario'));
 
-    overlay.classList.remove('oculto');
+    if (typeof UIManager !== 'undefined') UIManager.abrir('overlay-mision-activa');
+    else overlay.classList.remove('oculto');
   },
 
   _botonOverlay(texto, accion, tipo) {

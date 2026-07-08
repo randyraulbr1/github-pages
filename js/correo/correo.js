@@ -37,7 +37,8 @@ const Correo = {
 
   abrir() {
     this._procesarExpirados();
-    document.getElementById('ventana-correo').classList.remove('oculto');
+    if (typeof UIManager !== 'undefined') UIManager.abrir('ventana-correo');
+    else document.getElementById('ventana-correo').classList.remove('oculto');
     this.cambiarPestana(this.pestana);
   },
 
@@ -156,11 +157,16 @@ const Correo = {
 
   _abrirReclamo(codigo, envio, restante, yaReclamado) {
     this._reclamoActual = { codigo, envio, restante, yaReclamado };
-    document.getElementById('ventana-correo').classList.add('oculto');
+    if (typeof UIManager !== 'undefined') {
+      UIManager.cerrar('ventana-correo');
+      UIManager.abrir('ventana-correo-reclamo', { cerrarPares: false });
+    } else {
+      document.getElementById('ventana-correo').classList.add('oculto');
+      document.getElementById('ventana-correo-reclamo').classList.remove('oculto');
+    }
     document.getElementById('correo-reclamo-info').textContent =
       Items.seguro(envio.itemId).nombre + ' — quedan ' + restante + ' por recoger (toca para llevar a tu mochila)';
     this._pintarReclamo();
-    document.getElementById('ventana-correo-reclamo').classList.remove('oculto');
   },
 
   _pintarReclamo() {
@@ -205,7 +211,8 @@ const Correo = {
       await MundoPublico.reclamarCodigoCorreo(r.codigo, Usuarios.perfilActivo, true);
       Guardado.datos.correoRecibidos.push(r.codigo);
       Guardado.guardar();
-      document.getElementById('ventana-correo-reclamo').classList.add('oculto');
+      if (typeof UIManager !== 'undefined') UIManager.cerrar('ventana-correo-reclamo');
+      else document.getElementById('ventana-correo-reclamo').classList.add('oculto');
       Notificaciones.mostrar('📬 Reclamo completado', 'exito', 4000);
       this._reclamoActual = null;
       return;

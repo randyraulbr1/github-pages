@@ -4,20 +4,20 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
   <title>Kingdom Map</title>
-  <meta name="mariel-version" content="287">
+  <meta name="mariel-version" content="295">
   <link rel="manifest" href="manifest.json">
   <link rel="icon" type="image/png" href="iconos/icono-192.png">
   <link rel="apple-touch-icon" href="iconos/icono-192.png">
   <link rel="stylesheet" href="lib/leaflet/leaflet.css">
-  <link rel="stylesheet" href="css/estilos.css?v=287">
-  <link rel="stylesheet" href="css/chat.css?v=287">
-  <link rel="stylesheet" href="css/amigos.css?v=287">
-  <link rel="stylesheet" href="css/opciones.css?v=287">
+  <link rel="stylesheet" href="css/estilos.css?v=295">
+  <link rel="stylesheet" href="css/chat.css?v=295">
+  <link rel="stylesheet" href="css/amigos.css?v=295">
+  <link rel="stylesheet" href="css/opciones.css?v=295">
   <link rel="stylesheet" href="css/notificaciones.css?v=117">
   <script>
     (function () {
       var metaV = document.querySelector('meta[name="mariel-version"]');
-      var E = (metaV && metaV.getAttribute('content')) || '287';
+      var E = (metaV && metaV.getAttribute('content')) || '295';
       var CANON = 'https://raw.githubusercontent.com/randyraulbr1/github-pages/main/version.json';
       try {
         var fv = sessionStorage.getItem('mariel_force_version');
@@ -81,7 +81,7 @@
     </div>
   </div>
 
-  <script src="js/nucleo/version_app.js?v=287"></script>
+  <script src="js/nucleo/version_app.js?v=295"></script>
   <script>MarielVersion.iniciar(window.__MARIEL_EMBEDDED__);</script>
 
   <!-- PANTALLA DE CARGA (visible desde el primer instante) -->
@@ -376,6 +376,7 @@
           </details>
 
           <div class="amigos-lista-scroll">
+            <div id="amigos-estado" class="ui-estado-contenedor oculto"></div>
             <div id="amigos-pendientes" class="amigos-pendientes oculto"></div>
             <div id="amigos-lista" class="friends-list"></div>
             <div id="amigos-bloqueados" class="amigos-bloqueados oculto"></div>
@@ -470,16 +471,16 @@
           <div id="slot-arma-equipada" class="inv-equip-slot" data-equip="weapon" data-icon="⚔️" title="Arma">
             <span class="inv-slot-label">Arma</span>
           </div>
-          <div class="inv-equip-slot inv-equip-future" data-equip="shield" data-icon="🛡️" title="Próximamente">
-            <span class="inv-slot-label">Escudo</span>
+          <div class="inv-equip-slot" data-equip="shield" data-icon="👕" title="Ropa">
+            <span class="inv-slot-label">Ropa</span>
           </div>
-          <div class="inv-equip-slot inv-equip-future" data-equip="helmet" data-icon="⛑️" title="Próximamente">
+          <div class="inv-equip-slot" data-equip="helmet" data-icon="⛑️" title="Casco">
             <span class="inv-slot-label">Casco</span>
           </div>
-          <div class="inv-equip-slot inv-equip-future" data-equip="armor" data-icon="🎽" title="Próximamente">
+          <div class="inv-equip-slot" data-equip="armor" data-icon="🎽" title="Chaleco">
             <span class="inv-slot-label">Chaleco</span>
           </div>
-          <div class="inv-equip-slot inv-equip-future" data-equip="boots" data-icon="🥾" title="Próximamente">
+          <div class="inv-equip-slot" data-equip="boots" data-icon="🥾" title="Botas">
             <span class="inv-slot-label">Botas</span>
           </div>
         </div>
@@ -494,11 +495,12 @@
             <button type="button" class="inv-ctrl-btn inv-ctrl-delete" id="inv-delete-btn" title="Eliminar">🗑</button>
           </div>
           <div class="inv-ctrl-right">
+            <button type="button" class="inv-ctrl-btn inv-ctrl-cook" id="inv-cook-btn" title="Cocinar con cuchillo">🍳</button>
             <button type="button" class="inv-ctrl-btn inv-ctrl-use" id="inv-use-btn" title="Usar 1">1</button>
             <button type="button" class="inv-ctrl-btn inv-ctrl-use-all" id="inv-use-all-btn" title="Usar todos los necesarios">TODOS</button>
           </div>
         </div>
-        <p class="inv-ayuda">Arrastra para mover · suelta en − o 🗑</p>
+        <p class="inv-ayuda">Arrastra para mover · 🍳 cocinar crudo · suelta en − o 🗑</p>
       </div>
       <div id="inv-weapon-status" class="oculto" aria-hidden="true"></div>
       <div id="detalle-item" class="oculto" aria-hidden="true">
@@ -1017,8 +1019,49 @@
           <div id="admin-vista-catalogo" class="admin-vista oculto">
             <div class="admin-hub-cuerpo">
               <p class="admin-clave-ayuda">Catálogo del juego: precios de tienda y objetos personalizados.</p>
+              <button type="button" class="fila-opcion admin-nav admin-hub-btn" id="admin-cat-bdd"><span class="icono-opcion">📦</span> Catálogo de objetos</button>
               <button type="button" class="fila-opcion admin-nav admin-hub-btn" id="admin-cat-precios"><span class="icono-opcion">💲</span> Precios</button>
               <button type="button" class="fila-opcion admin-nav admin-hub-btn" id="admin-cat-item"><span class="icono-opcion">➕</span> Objeto nuevo</button>
+            </div>
+          </div>
+
+          <div id="admin-vista-catalogo-bdd" class="admin-vista oculto">
+            <div class="admin-catalogo-layout">
+              <div class="admin-catalogo-toolbar">
+                <input type="search" id="admin-catalogo-buscar" placeholder="Buscar por nombre o id…" autocomplete="off">
+                <select id="admin-catalogo-filtro-tipo" aria-label="Filtrar por tipo">
+                  <option value="">Todos los tipos</option>
+                  <option value="comida">🍽️ Consumible</option>
+                  <option value="arma">⚔️ Arma</option>
+                  <option value="pez">🐟 Animal</option>
+                  <option value="herramienta">🔧 Herramienta</option>
+                  <option value="tesoro">💎 Tesoro</option>
+                  <option value="material">📦 Material</option>
+                  <option value="especial">✨ Especial</option>
+                </select>
+                <select id="admin-catalogo-filtro-rareza" aria-label="Filtrar por rareza">
+                  <option value="">Todas las rarezas</option>
+                  <option value="1">★ 1</option>
+                  <option value="2">★★ 2</option>
+                  <option value="3">★★★ 3</option>
+                  <option value="4">★★★★ 4</option>
+                </select>
+                <span id="admin-catalogo-contador" class="admin-catalogo-contador">0 objetos</span>
+              </div>
+              <div class="admin-catalogo-cuerpo">
+                <div id="admin-catalogo-rejilla" class="admin-catalogo-rejilla"></div>
+                <div id="admin-catalogo-detalle" class="admin-catalogo-detalle">
+                  <p class="admin-clave-ayuda">Toca una casilla para ver la descripción y los datos del objeto.</p>
+                </div>
+              </div>
+              <div class="admin-catalogo-acciones">
+                <button type="button" id="btn-catalogo-crear" class="btn-auth-principal">➕ Crear objeto</button>
+                <button type="button" id="btn-catalogo-editar" class="btn-kingdom-secundario" disabled>Editar</button>
+                <button type="button" id="btn-catalogo-duplicar" class="btn-kingdom-secundario" disabled>Duplicar</button>
+                <button type="button" id="btn-catalogo-desactivar" class="btn-kingdom-secundario" disabled>Ocultar</button>
+                <button type="button" id="btn-catalogo-exportar-json" class="btn-kingdom-secundario">💾 JSON</button>
+                <button type="button" id="btn-catalogo-exportar-txt" class="btn-kingdom-secundario">📄 TXT</button>
+              </div>
             </div>
           </div>
 
@@ -1178,19 +1221,20 @@
   <script src="lib/leaflet/leaflet.js?v=104"></script>
 
   <!-- MÓDULOS DEL JUEGO (orden importante) -->
-  <script src="js/config/config.js?v=287"></script>
-  <script src="js/nucleo/utilidades.js?v=287"></script>
-  <script src="js/nucleo/ui_manager.js?v=287"></script>
+  <script src="js/config/config.js?v=295"></script>
+  <script src="js/nucleo/utilidades.js?v=295"></script>
+  <script src="js/nucleo/ui_manager.js?v=295"></script>
   <script src="js/mundo/mundo_publico.js?v=104"></script>
-  <script src="js/notificaciones/notificaciones.js?v=287"></script>
-  <script src="js/usuarios/usuarios.js?v=287"></script>
+  <script src="js/notificaciones/notificaciones.js?v=295"></script>
+  <script src="js/usuarios/usuarios.js?v=295"></script>
   <script src="js/guardado/guardado.js?v=149"></script>
   <script src="js/historial/historial.js?v=104"></script>
   <script src="js/dinero/dinero.js?v=104"></script>
-  <script src="js/vida/vida.js?v=287"></script>
-  <script src="js/items/items.js?v=140"></script>
-  <script src="js/mochila/mochila.js?v=287"></script>
-  <script src="js/bolsas/bolsas.js?v=287"></script>
+  <script src="js/vida/vida.js?v=295"></script>
+  <script src="js/items/items.js?v=295"></script>
+  <script src="js/admin/catalogo_objetos.js?v=295"></script>
+  <script src="js/mochila/mochila.js?v=295"></script>
+  <script src="js/bolsas/bolsas.js?v=295"></script>
   <script src="js/mapa/mapa.js?v=104"></script>
   <script src="js/gps/gps.js?v=150"></script>
   <script src="js/tiendas/datos_tiendas.js?v=104"></script>
@@ -1202,21 +1246,21 @@
   <script src="js/misiones/misiones.js?v=104"></script>
   <script src="js/cofres/cofres.js?v=104"></script>
   <script src="js/correo/correo.js?v=104"></script>
-  <script src="js/enemigos/botin_enemigo.js?v=287"></script>
-  <script src="js/enemigos/enemigos.js?v=287"></script>
-  <script src="js/online/sync_servidor.js?v=287"></script>
-  <script src="js/admin/admin.js?v=287"></script>
-  <script src="js/opciones/opciones.js?v=287"></script>
-  <script src="js/online/mundo_online.js?v=287"></script>
-  <script src="js/online/contenido_mundo.js?v=287"></script>
-  <script src="js/online/amigos.js?v=287"></script>
-  <script src="js/chat/chat.js?v=287"></script>
-  <script src="js/online/multijugador.js?v=287"></script>
-  <script src="js/principal.js?v=287"></script>
+  <script src="js/enemigos/botin_enemigo.js?v=295"></script>
+  <script src="js/enemigos/enemigos.js?v=295"></script>
+  <script src="js/online/sync_servidor.js?v=295"></script>
+  <script src="js/admin/admin.js?v=295"></script>
+  <script src="js/opciones/opciones.js?v=295"></script>
+  <script src="js/online/mundo_online.js?v=295"></script>
+  <script src="js/online/contenido_mundo.js?v=295"></script>
+  <script src="js/online/amigos.js?v=295"></script>
+  <script src="js/chat/chat.js?v=295"></script>
+  <script src="js/online/multijugador.js?v=295"></script>
+  <script src="js/principal.js?v=295"></script>
   <script>
     // Registrar la app instalable (PWA)
     if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.register('sw.js?v=287', { updateViaCache: 'none' })
+      navigator.serviceWorker.register('sw.js?v=295', { updateViaCache: 'none' })
         .then(function (reg) {
           if (typeof MarielVersion !== 'undefined') MarielVersion.registrarServiceWorker(reg);
         })

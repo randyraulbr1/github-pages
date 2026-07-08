@@ -1758,6 +1758,7 @@ const Admin = {
       Cofres._pintarTodos();
     }
     if (typeof GPS !== 'undefined') GPS._actualizarArrastre();
+    if (typeof AdminCatalogo !== 'undefined') AdminCatalogo.iniciar(this);
   },
 
   puedeMoverPinJugador() {
@@ -2356,7 +2357,8 @@ const Admin = {
     if (this._adminAbierto()) return;
     this._marcarPanelDesbloqueado();
     document.body.classList.add('admin-panel-abierto');
-    document.getElementById('ventana-admin').classList.remove('oculto');
+    if (typeof UIManager !== 'undefined') UIManager.abrir('ventana-admin', { cerrarPares: false });
+    else document.getElementById('ventana-admin').classList.remove('oculto');
     this._actualizarEtiquetaMantenimientoNav();
   },
 
@@ -2366,7 +2368,8 @@ const Admin = {
   },
 
   cerrarPanel() {
-    document.getElementById('ventana-admin')?.classList.add('oculto');
+    if (typeof UIManager !== 'undefined') UIManager.cerrar('ventana-admin');
+    else document.getElementById('ventana-admin')?.classList.add('oculto');
     document.body.classList.remove('admin-panel-abierto');
   },
 
@@ -2419,7 +2422,8 @@ const Admin = {
       layout.classList.toggle('admin-panel-editor-abierto', editorAbierto);
     }
     if (!opts.sinAbrirVentana) {
-      document.getElementById('ventana-admin')?.classList.remove('oculto');
+      if (typeof UIManager !== 'undefined') UIManager.abrir('ventana-admin', { cerrarPares: false });
+      else document.getElementById('ventana-admin')?.classList.remove('oculto');
     }
   },
 
@@ -2447,7 +2451,8 @@ const Admin = {
       return;
     }
     this._ocultarPanelDerecho();
-    document.getElementById('ventana-admin').classList.remove('oculto');
+    if (typeof UIManager !== 'undefined') UIManager.abrir('ventana-admin', { cerrarPares: false });
+    else document.getElementById('ventana-admin').classList.remove('oculto');
     this._actualizarEtiquetaMantenimientoNav();
   },
 
@@ -2491,10 +2496,10 @@ const Admin = {
     });
   },
 
-  abrirFormulario(tipo) {
+  abrirFormulario(tipo, datosPrefill) {
     const campos = document.getElementById('admin-form-campos');
     let titulo = 'Crear';
-    this._colocacion = { tipo, valores: null, marcador: null };
+    this._colocacion = { tipo, valores: datosPrefill || null, marcador: null };
 
     if (tipo === 'mision') {
       titulo = '📜 Crear misión';
@@ -2655,44 +2660,157 @@ const Admin = {
         this._campoNumero('af-precio', 'Precio nuevo (entre 5 y 5000)', 100) +
         '<div class="campo-caja">El precio cambia para TODOS al publicar el mundo</div>';
       document.getElementById('btn-admin-guardar').textContent = 'Guardar precio';
-    } else {
-      titulo = '➕ Crear objeto nuevo';
+    } else if (tipo === 'item_nuevo' || tipo === 'item_editar') {
+      const editando = tipo === 'item_editar';
+      const d = datosPrefill || this._colocacion.valores || {};
+      titulo = editando ? '✏️ Editar objeto' : '➕ Crear objeto nuevo';
       campos.innerHTML =
         this._campoTexto('af-nombre', 'Nombre del objeto', 'Ej: Ron añejo') +
         '<div class="campo-admin"><label>Icono — elige un emoji</label>' +
         '<input id="af-icono" maxlength="4" placeholder="Ej: 🍹" readonly>' +
         this._rejillaEmojisHtml() + '</div>' +
         '<div class="campo-doble">' +
-          this._campoNumero('af-precio', 'Precio (5 a 5000)', 50) +
-          this._campoSelect('af-tipo-item', 'Tipo', [
-            { v: 'comida', t: '🍽️ Consumible (comer/beber)' },
-            { v: 'arma', t: '⚔️ Arma' },
-            { v: 'herramienta', t: '🔧 Herramienta' },
-            { v: 'pez', t: '🐟 Animal / pez' },
-            { v: 'tesoro', t: '💎 Tesoro' },
-            { v: 'material', t: '📦 Material' },
-            { v: 'especial', t: '✨ Especial' }
-          ]) +
+          this._campoNumero('af-precio', 'Precio (5 a 5000)', d.precio || 50) +
+          this._campoSelect('af-tipo-item', 'Tipo',
+            '<option value="comida">🍽️ Consumible (comer/beber)</option>' +
+            '<option value="arma">⚔️ Arma</option>' +
+            '<option value="casco">⛑️ Casco</option>' +
+            '<option value="chaleco">🎽 Chaleco</option>' +
+            '<option value="botas">🥾 Botas</option>' +
+            '<option value="ropa">👕 Ropa</option>' +
+            '<option value="herramienta">🔧 Herramienta</option>' +
+            '<option value="pez">🐟 Animal / pez</option>' +
+            '<option value="tesoro">💎 Tesoro</option>' +
+            '<option value="material">📦 Material</option>' +
+            '<option value="especial">✨ Especial</option>') +
         '</div>' +
         '<div class="campo-doble">' +
-          this._campoNumero('af-cura-hambre', 'Cura hambre (consumible)', 0) +
-          this._campoNumero('af-cura-vida', 'Cura vida (medicina)', 0) +
+          this._campoNumero('af-cura-hambre', 'Cura hambre (legacy fijo)', d.cura || 0) +
+          this._campoNumero('af-cura-vida', 'Cura vida (legacy fijo)', d.curaVida || 0) +
+        '</div>' +
+        '<div class="campo-doble" id="af-efecto-campos">' +
+          this._campoSelect('af-efecto', 'Efecto (Fase 13)',
+            '<option value="">— Usar legacy arriba —</option>' +
+            '<option value="hambre">Hambre</option>' +
+            '<option value="vida">Vida</option>' +
+            '<option value="energia">Energía</option>' +
+            '<option value="veneno">Veneno</option>') +
+          this._campoSelect('af-efecto-modo', 'Modo',
+            '<option value="porcentaje">Porcentaje (%)</option>' +
+            '<option value="fijo">Valor fijo</option>') +
+        '</div>' +
+        this._campoNumero('af-efecto-valor', 'Valor del efecto', d.efectoValor || 0) +
+        '<div class="campo-doble" id="af-pez-crudo" style="display:none">' +
+          this._campoNumero('af-prob-crudo', 'Prob. efecto negativo crudo %', d.probCrudoNegativo ?? 60) +
+          '<div class="campo-caja">Los peces se pueden comer crudos con riesgo de perder vida</div>' +
         '</div>' +
         '<div class="campo-doble" id="af-arma-campos" style="display:none">' +
-          this._campoNumero('af-dano', 'Daño arma', 5) +
-          this._campoNumero('af-nivel-min', 'Nivel mín', 1) +
+          this._campoNumero('af-dano-min', 'Daño mín', d.danoMin || d.dano || 3) +
+          this._campoNumero('af-dano-max', 'Daño máx', d.danoMax || ((d.dano || 5) + 2)) +
         '</div>' +
-        this._campoTexto('af-desc', 'Descripción', 'Ej: Reserva especial del puerto');
-      document.getElementById('btn-admin-guardar').textContent = 'Crear objeto';
+        '<div class="campo-doble" id="af-arma-campos2" style="display:none">' +
+          this._campoNumero('af-nivel-min', 'Nivel mín', d.nivelMin || 1) +
+          this._campoNumero('af-nivel-max', 'Nivel máx', d.nivelMax || ((d.nivelMin || 1) + 9)) +
+        '</div>' +
+        this._campoTexto('af-cocinado-de', 'Cocinado de (id crudo, opcional)', d.cocinadoDe || '') +
+        this._campoTexto('af-version-cocinada', 'Al cocinar → id (crudo/pez)', d.versionCocinada || '') +
+        '<div class="campo-doble" id="af-equipo-campos" style="display:none">' +
+          this._campoNumero('af-defensa', 'Defensa', d.defensa || 0) +
+          this._campoNumero('af-bonus-vida', 'Bonus vida', d.bonusVida || 0) +
+        '</div>' +
+        '<div class="campo-doble" id="af-equipo-campos2" style="display:none">' +
+          this._campoSelect('af-bonus-vida-modo', 'Modo bonus vida',
+            '<option value="porcentaje">Porcentaje (%)</option>' +
+            '<option value="fijo">Valor fijo</option>') +
+          this._campoNumero('af-bonus-dano', 'Bonus daño', d.bonusDano || 0) +
+        '</div>' +
+        '<div class="campo-doble" id="af-equipo-campos3" style="display:none">' +
+          this._campoNumero('af-nivel-min-eq', 'Nivel mín', d.nivelMin || 1) +
+          this._campoNumero('af-nivel-max-eq', 'Nivel máx', d.nivelMax || ((d.nivelMin || 1) + 9)) +
+        '</div>' +
+        this._campoTexto('af-resistencia', 'Resistencia especial (opcional)', d.resistencia || '') +
+        this._campoTexto('af-desc', 'Descripción', 'Ej: Reserva especial del puerto') +
+        this._campoArea('af-desc-larga', 'Descripción larga (opcional)', 'Texto extra para el catálogo…');
+      document.getElementById('btn-admin-guardar').textContent = editando ? 'Guardar cambios' : 'Crear objeto';
       setTimeout(() => {
-        this._enlazarEmojisObjeto();
+        if (d.nombre) document.getElementById('af-nombre').value = d.nombre;
+        if (d.icono) document.getElementById('af-icono').value = d.icono;
+        if (d.desc) document.getElementById('af-desc').value = d.desc;
+        if (d.descLarga) document.getElementById('af-desc-larga').value = d.descLarga;
         const selTipo = document.getElementById('af-tipo-item');
+        if (d.tipo && selTipo) selTipo.value = d.tipo;
+        if (d.efecto) {
+          const ef = document.getElementById('af-efecto');
+          if (ef) ef.value = d.efecto;
+        }
+        if (d.efectoModo) {
+          const em = document.getElementById('af-efecto-modo');
+          if (em) em.value = d.efectoModo;
+        }
+        if (d.versionCocinada) {
+          const vc = document.getElementById('af-version-cocinada');
+          if (vc) vc.value = d.versionCocinada;
+        }
+        if (d.cocinadoDe) {
+          const cd = document.getElementById('af-cocinado-de');
+          if (cd) cd.value = d.cocinadoDe;
+        }
+        if (d.danoMin != null) {
+          const dm = document.getElementById('af-dano-min');
+          if (dm) dm.value = d.danoMin;
+        }
+        if (d.danoMax != null) {
+          const dx = document.getElementById('af-dano-max');
+          if (dx) dx.value = d.danoMax;
+        }
+        if (d.nivelMax != null && d.tipo === 'arma') {
+          const nmx = document.getElementById('af-nivel-max');
+          if (nmx) nmx.value = d.nivelMax;
+        }
+        this._enlazarEmojisObjeto();
         const armaBox = document.getElementById('af-arma-campos');
-        const toggleArma = () => {
-          if (armaBox) armaBox.style.display = selTipo?.value === 'arma' ? '' : 'none';
+        const armaBox2 = document.getElementById('af-arma-campos2');
+        const pezBox = document.getElementById('af-pez-crudo');
+        const eqBoxes = ['af-equipo-campos', 'af-equipo-campos2', 'af-equipo-campos3'].map((id) => document.getElementById(id));
+        const tiposEq = ['casco', 'chaleco', 'botas', 'ropa'];
+        if (d.bonusVidaModo) {
+          const bvm = document.getElementById('af-bonus-vida-modo');
+          if (bvm) bvm.value = d.bonusVidaModo;
+        }
+        if (d.defensa != null) {
+          const df = document.getElementById('af-defensa');
+          if (df) df.value = d.defensa;
+        }
+        if (d.bonusVida != null) {
+          const bv = document.getElementById('af-bonus-vida');
+          if (bv) bv.value = d.bonusVida;
+        }
+        if (d.bonusDano != null) {
+          const bd = document.getElementById('af-bonus-dano');
+          if (bd) bd.value = d.bonusDano;
+        }
+        if (d.nivelMin != null && tiposEq.includes(d.tipo)) {
+          const nmi = document.getElementById('af-nivel-min-eq');
+          if (nmi) nmi.value = d.nivelMin;
+        }
+        if (d.nivelMax != null && tiposEq.includes(d.tipo)) {
+          const nma = document.getElementById('af-nivel-max-eq');
+          if (nma) nma.value = d.nivelMax;
+        }
+        if (d.resistencia) {
+          const rs = document.getElementById('af-resistencia');
+          if (rs) rs.value = d.resistencia;
+        }
+        const toggleTipo = () => {
+          const t = selTipo?.value || '';
+          if (armaBox) armaBox.style.display = t === 'arma' ? '' : 'none';
+          if (armaBox2) armaBox2.style.display = t === 'arma' ? '' : 'none';
+          if (pezBox) pezBox.style.display = t === 'pez' ? '' : 'none';
+          const esEq = tiposEq.includes(t);
+          eqBoxes.forEach((box) => { if (box) box.style.display = esEq ? '' : 'none'; });
         };
-        selTipo?.addEventListener('change', toggleArma);
-        toggleArma();
+        selTipo?.addEventListener('change', toggleTipo);
+        toggleTipo();
       }, 0);
     }
     if (tipo === 'mision' || tipo === 'tesoro' || tipo === 'objeto' || tipo === 'enemigo' || tipo === 'tienda_admin') {
@@ -2947,39 +3065,93 @@ const Admin = {
       this._publicarParaTodos();
       return;
     }
-    if (tipo === 'item_nuevo') {
+    if (tipo === 'item_nuevo' || tipo === 'item_editar') {
+      const editando = tipo === 'item_editar';
+      const idExistente = editando ? this._colocacion.valores?.id : null;
       const nombre = this._valor('af-nombre').trim();
       const icono = this._valor('af-icono').trim() || '📦';
       if (nombre.length < 2) { alert('Ponle un nombre al objeto'); return; }
       if (!icono) { alert('Elige un emoji para el objeto'); return; }
-      const id = 'obj_' + nombre.toLowerCase().normalize('NFD').replace(/[^a-z0-9]/g, '').slice(0, 16) +
-        '_' + Date.now().toString(36).slice(-4);
       const tipoItem = this._valor('af-tipo-item') || 'especial';
       const curaH = this._numero('af-cura-hambre') || 0;
       const curaV = this._numero('af-cura-vida') || 0;
+      const efecto = this._valor('af-efecto').trim();
+      const efectoValor = this._numero('af-efecto-valor') || 0;
+      const efectoModo = this._valor('af-efecto-modo') || 'porcentaje';
       const nuevo = {
-        id, nombre, icono,
+        id: idExistente || ('obj_' + nombre.toLowerCase().normalize('NFD').replace(/[^a-z0-9]/g, '').slice(0, 16) +
+          '_' + Date.now().toString(36).slice(-4)),
+        nombre, icono,
         precio: Items._limitarPrecio(this._numero('af-precio')),
         tipo: tipoItem,
-        desc: this._valor('af-desc').trim()
+        desc: this._valor('af-desc').trim(),
+        descLarga: this._valor('af-desc-larga').trim(),
+        estado: 'activo'
       };
       if (curaH > 0) nuevo.cura = curaH;
       if (curaV > 0) nuevo.curaVida = curaV;
+      if (efecto && efectoValor > 0) {
+        nuevo.efecto = efecto;
+        nuevo.efectoValor = efectoValor;
+        nuevo.efectoModo = efectoModo === 'fijo' ? 'fijo' : 'porcentaje';
+      }
+      if (tipoItem === 'pez' || (tipoItem === 'comida' && this._numero('af-prob-crudo') > 0)) {
+        nuevo.crudo = true;
+        nuevo.probCrudoNegativo = Math.min(100, Math.max(0, this._numero('af-prob-crudo') ?? 60));
+      }
+      const cocinadoDe = this._valor('af-cocinado-de').trim();
+      const versionCocinada = this._valor('af-version-cocinada').trim();
+      if (cocinadoDe) nuevo.cocinadoDe = cocinadoDe;
+      if (versionCocinada) nuevo.versionCocinada = versionCocinada;
       if (tipoItem === 'arma') {
-        nuevo.dano = Math.max(1, this._numero('af-dano') || 5);
+        const dMin = Math.max(1, this._numero('af-dano-min') || 1);
+        const dMax = Math.max(dMin, this._numero('af-dano-max') || dMin);
+        nuevo.danoMin = dMin;
+        nuevo.danoMax = dMax;
+        nuevo.dano = Math.round((dMin + dMax) / 2);
         nuevo.nivelMin = Math.max(1, this._numero('af-nivel-min') || 1);
-        nuevo.nivelMax = Math.min(100, (nuevo.nivelMin || 1) + 9);
+        nuevo.nivelMax = Math.min(100, this._numero('af-nivel-max') || ((nuevo.nivelMin || 1) + 9));
+      }
+      if (['casco', 'chaleco', 'botas', 'ropa'].includes(tipoItem)) {
+        nuevo.defensa = Math.max(0, this._numero('af-defensa') || 0);
+        nuevo.nivelMin = Math.max(1, this._numero('af-nivel-min-eq') || 1);
+        nuevo.nivelMax = Math.min(100, this._numero('af-nivel-max-eq') || ((nuevo.nivelMin || 1) + 9));
+        const bonusVida = this._numero('af-bonus-vida') || 0;
+        if (bonusVida > 0) {
+          nuevo.bonusVida = bonusVida;
+          nuevo.bonusVidaModo = this._valor('af-bonus-vida-modo') === 'fijo' ? 'fijo' : 'porcentaje';
+        }
+        const bonusDano = this._numero('af-bonus-dano') || 0;
+        if (bonusDano > 0) nuevo.bonusDano = bonusDano;
+        const resistencia = this._valor('af-resistencia').trim();
+        if (resistencia) nuevo.resistencia = resistencia;
+        nuevo.puedeEquipar = true;
       }
       const norm = Items._normalizarDef(nuevo);
       Object.assign(nuevo, norm);
-      this.datos.itemsNuevos.push(nuevo);
-      Items.aplicarMundo([nuevo], {});
+      if (editando) {
+        const idx = this.datos.itemsNuevos.findIndex(x => x.id === idExistente);
+        if (idx < 0) { alert('Objeto no encontrado'); return; }
+        const prev = this.datos.itemsNuevos[idx];
+        nuevo.creadoEn = prev.creadoEn;
+        nuevo.creadoPor = prev.creadoPor;
+        nuevo.modificadoEn = Date.now();
+        this.datos.itemsNuevos[idx] = nuevo;
+      } else {
+        nuevo.creadoEn = Date.now();
+        nuevo.modificadoEn = Date.now();
+        nuevo.creadoPor = (typeof Usuarios !== 'undefined' && Usuarios.perfilActivo)
+          ? Usuarios.perfilActivo.nombre : 'admin';
+        this.datos.itemsNuevos.push(nuevo);
+      }
+      this._reaplicarCatalogoItems();
       this.guardar();
       this._colocacion = null;
       this._ocultarPanelDerecho();
-      Notificaciones.mostrar('➕ Objeto creado: ' + icono + ' ' + nombre + ' ($' + nuevo.precio +
-        '). Ya puedes dejarlo en el mapa o darlo de recompensa', 'exito', 6000);
+      Notificaciones.mostrar((editando ? '✏️ Objeto actualizado: ' : '➕ Objeto creado: ') +
+        icono + ' ' + nombre, 'exito', 6000);
       this._publicarParaTodos(true);
+      if (typeof AdminCatalogo !== 'undefined') AdminCatalogo.refrescarSiAbierto();
       return;
     }
 
@@ -3069,7 +3241,8 @@ const Admin = {
     document.body.classList.remove('admin-organizar');
     document.body.classList.remove('admin-panel-abierto');
     document.body.classList.add('admin-colocando');
-    document.getElementById('ventana-admin').classList.add('oculto');
+    if (typeof UIManager !== 'undefined') UIManager.cerrar('ventana-admin');
+    else document.getElementById('ventana-admin').classList.add('oculto');
     this.modo = 'colocar';
     const centro = Mapa.mapa.getCenter();
     const icono = (this._colocacion?.tipo === 'tienda_admin')
@@ -3471,7 +3644,7 @@ const Admin = {
     if (typeof Multijugador !== 'undefined' && Multijugador.activo && CONFIG.servidorOnline) {
       const res = await Multijugador.recogerTesoroCompartido(t.id, pos);
       if (!res?.ok) {
-        Notificaciones.mostrar(res?.error || '🎒 No se pudo recoger el tesoro', 'error', 4500);
+        Notificaciones.mostrar('❌ ' + Utilidades.mensajeAmigable(res?.error, 'No se pudo recoger el tesoro'), 'error', 4500);
         return;
       }
     } else {
@@ -3624,7 +3797,7 @@ const Admin = {
     if (typeof Multijugador !== 'undefined' && Multijugador.activo && CONFIG.servidorOnline) {
       const res = await Multijugador.recogerObjetoCompartido(o.id, GPS.posicion);
       if (!res?.ok) {
-        Notificaciones.mostrar(res?.error || '🎒 No se pudo recoger (servidor)', 'error', 4500);
+        Notificaciones.mostrar('❌ ' + Utilidades.mensajeAmigable(res?.error, 'No se pudo recoger'), 'error', 4500);
         return;
       }
     } else {
@@ -3871,7 +4044,8 @@ const Admin = {
   // ---------- MODOS ORGANIZAR / ELIMINAR ----------
   entrarModo(modo) {
     this._ocultarPanelDerecho();
-    document.getElementById('ventana-admin').classList.add('oculto');
+    if (typeof UIManager !== 'undefined') UIManager.cerrar('ventana-admin');
+    else document.getElementById('ventana-admin').classList.add('oculto');
     this.modo = modo;
     document.body.classList.add('admin-organizar');
     const cesto = document.getElementById('admin-cesto-borrar');
@@ -4764,6 +4938,7 @@ const Admin = {
       hambre: d.hambre ?? CONFIG.hambreInicial,
       muerto: d.vida === 0 || !!d.muerto,
       armaEquipada: d.armaEquipada || null,
+      equipoEquipado: d.equipoEquipado || { casco: null, chaleco: null, botas: null, ropa: null },
       posicionJugador: d.posicionJugador || null,
       xp: d.xp ?? 0,
       nivel: d.nivel ?? 1
@@ -4839,6 +5014,7 @@ const Admin = {
         if (typeof Vida !== 'undefined') Vida.hambre = partida.hambre;
       }
       if (partida.armaEquipada !== undefined) Guardado.datos.armaEquipada = partida.armaEquipada;
+      if (partida.equipoEquipado) Guardado.datos.equipoEquipado = partida.equipoEquipado;
       await Guardado.guardarAhora();
       Mochila.slots = Guardado.datos.mochila;
       Mochila.pintar();
@@ -4865,6 +5041,7 @@ const Admin = {
       paquete.datos.vida = partida.vida;
       paquete.datos.muerto = partida.muerto;
       if (partida.armaEquipada !== undefined) paquete.datos.armaEquipada = partida.armaEquipada;
+      if (partida.equipoEquipado) paquete.datos.equipoEquipado = partida.equipoEquipado;
       if (partida.hambre != null) paquete.datos.hambre = partida.hambre;
       if (partida.posicionJugador && partida.posicionJugador.length >= 2) {
         paquete.datos.posicionJugador = partida.posicionJugador.slice();
@@ -4893,7 +5070,8 @@ const Admin = {
         revividoEn,
         xp: partida.xp,
         nivel: partida.nivel,
-        armaEquipada: partida.armaEquipada || null
+        armaEquipada: partida.armaEquipada || null,
+        equipoEquipado: partida.equipoEquipado || { casco: null, chaleco: null, botas: null, ropa: null }
       },
       t: ahora,
       statsT: ahora
@@ -5009,7 +5187,39 @@ const Admin = {
     const ids = new Set(Object.keys(CATALOGO_ITEMS));
     for (const it of (this.datos.itemsNuevos || [])) if (it?.id) ids.add(it.id);
     for (const it of (this.publicado.itemsNuevos || [])) if (it?.id) ids.add(it.id);
-    return [...ids].sort((a, b) => Items.seguro(a).nombre.localeCompare(Items.seguro(b).nombre));
+    return [...ids]
+      .filter(id => Items.estadoDe(this.datos.itemsNuevos, id) !== 'oculto')
+      .sort((a, b) => Items.seguro(a).nombre.localeCompare(Items.seguro(b).nombre));
+  },
+
+  _reaplicarCatalogoItems() {
+    for (const id of Object.keys(CATALOGO_ITEMS)) {
+      if (!Items.esBase(id)) delete CATALOGO_ITEMS[id];
+    }
+    const nuevosPorId = new Map();
+    for (const it of (this.publicado.itemsNuevos || [])) if (it?.id) nuevosPorId.set(it.id, it);
+    for (const it of (this.datos.itemsNuevos || [])) if (it?.id) nuevosPorId.set(it.id, it);
+    Items.aplicarMundo([...nuevosPorId.values()], this.datos.precios || {});
+  },
+
+  abrirFormularioItemEditar(id) {
+    const meta = Items.metaDe(this.datos.itemsNuevos, id);
+    if (!meta) {
+      Notificaciones.mostrar('Solo puedes editar objetos personalizados del ADM', 'alerta', 4000);
+      return;
+    }
+    this.abrirFormulario('item_editar', Object.assign({}, meta));
+  },
+
+  duplicarCatalogoItem(id) {
+    const src = Object.assign({}, Items.seguro(id), Items.metaDe(this.datos.itemsNuevos, id) || {});
+    const borrador = Object.assign({}, src);
+    delete borrador.id;
+    delete borrador.creadoEn;
+    delete borrador.modificadoEn;
+    delete borrador.creadoPor;
+    borrador.nombre = (borrador.nombre || 'Copia') + ' (copia)';
+    this.abrirFormulario('item_nuevo', borrador);
   },
 
   _pintarInventarioInfinito(contenedor, enlazar) {
@@ -5430,7 +5640,8 @@ const Admin = {
     this.registrarJugador(entrada, true);
     Usuarios._publicarSesionEnFondo(entrada, entrada.sesionToken);
     this._editorJugador = null;
-    document.getElementById('ventana-admin')?.classList.add('oculto');
+    if (typeof UIManager !== 'undefined') UIManager.cerrar('ventana-admin');
+    else document.getElementById('ventana-admin')?.classList.add('oculto');
     sessionStorage.setItem('mariel_cambio_sesion', entrada.id);
     sessionStorage.setItem('mariel_forzar_mundo', '1');
     sessionStorage.setItem('mariel_forzar_relogin', entrada.id);

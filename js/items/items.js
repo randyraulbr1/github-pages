@@ -7,6 +7,10 @@
 const TIPOS_ITEM = {
   comida:      { etiqueta: 'Consumible', categoria: 'consumibles', icono: '🍽️' },
   arma:        { etiqueta: 'Arma',       categoria: 'armas',       icono: '⚔️' },
+  casco:       { etiqueta: 'Casco',      categoria: 'objetos',     icono: '⛑️' },
+  chaleco:     { etiqueta: 'Chaleco',    categoria: 'objetos',     icono: '🎽' },
+  botas:       { etiqueta: 'Botas',      categoria: 'objetos',     icono: '🥾' },
+  ropa:        { etiqueta: 'Ropa',       categoria: 'objetos',     icono: '👕' },
   pez:         { etiqueta: 'Animal',     categoria: 'animales',    icono: '🐟' },
   herramienta: { etiqueta: 'Herramienta',categoria: 'objetos',     icono: '🔧' },
   tesoro:      { etiqueta: 'Tesoro',     categoria: 'objetos',     icono: '💎' },
@@ -66,18 +70,31 @@ const CATALOGO_ITEMS = {
   coco:           { nombre: 'Coco',              icono: '🥥', tipo: 'comida', precio: 35,  cura: 18, desc: 'Agua de coco directa de la palma.' },
   botiquin:       { nombre: 'Botiquín',          icono: '🩹', tipo: 'comida', precio: 300, curaVida: 55, desc: 'Vendas y medicinas: recupera vida o revive a un amigo.' },
   pocion_vida:    { nombre: 'Medicina fuerte',   icono: '🧪', tipo: 'comida', precio: 320, curaVida: 100, desc: 'Recupera toda la vida.' },
+  carne_cruda:    { nombre: 'Carne cruda',       icono: '🥩', tipo: 'comida', precio: 12,  crudo: true, probCrudoNegativo: 55, efectoValor: 12, desc: 'Comer cruda puede hacerte daño.' },
+  carne_cocinada: { nombre: 'Carne cocinada',    icono: '🍖', tipo: 'comida', precio: 28,  efecto: 'hambre', efectoValor: 25, efectoModo: 'porcentaje', cocinadoDe: 'carne_cruda', desc: 'Segura y nutritiva.' },
+  pescado_cocinado:{ nombre: 'Pescado cocinado', icono: '🍣', tipo: 'comida', precio: 22,  efecto: 'hambre', efectoValor: 20, efectoModo: 'porcentaje', cocinadoDe: 'sardina', desc: 'A la plancha, sin riesgo.' },
 
-  // ---------- ARMAS (10) — una por tramo de nivel, daño suma al combate global ----------
-  arma_nv1:   { nombre: 'Cuchillo de combate', icono: '🔪', tipo: 'arma', precio: 120,  dano: 5,  nivelMin: 1,  nivelMax: 10,  desc: 'Para novatos (nivel 1–10). +5 de daño.' },
-  arma_nv2:   { nombre: 'Machete',             icono: '🗡️', tipo: 'arma', precio: 350,  dano: 10, nivelMin: 11, nivelMax: 20, desc: 'Nivel 11–20. +10 de daño.' },
-  arma_nv3:   { nombre: 'Lanza corta',         icono: '🔱', tipo: 'arma', precio: 620,  dano: 15, nivelMin: 21, nivelMax: 30, desc: 'Nivel 21–30. +15 de daño.' },
-  arma_nv4:   { nombre: 'Espada corta',        icono: '⚔️', tipo: 'arma', precio: 980,  dano: 20, nivelMin: 31, nivelMax: 40, desc: 'Nivel 31–40. +20 de daño.' },
-  arma_nv5:   { nombre: 'Espada larga',        icono: '🗡️', tipo: 'arma', precio: 1450, dano: 25, nivelMin: 41, nivelMax: 50, desc: 'Nivel 41–50. +25 de daño.' },
-  arma_nv6:   { nombre: 'Hacha de guerra',     icono: '🪓', tipo: 'arma', precio: 2100, dano: 32, nivelMin: 51, nivelMax: 60, desc: 'Nivel 51–60. +32 de daño.' },
-  arma_nv7:   { nombre: 'Martillo pesado',     icono: '🔨', tipo: 'arma', precio: 2900, dano: 38, nivelMin: 61, nivelMax: 70, desc: 'Nivel 61–70. +38 de daño.' },
-  arma_nv8:   { nombre: 'Alabarda',            icono: '⚔️', tipo: 'arma', precio: 3800, dano: 45, nivelMin: 71, nivelMax: 80, desc: 'Nivel 71–80. +45 de daño.' },
-  arma_nv9:   { nombre: 'Katana',              icono: '🗡️', tipo: 'arma', precio: 4500, dano: 52, nivelMin: 81, nivelMax: 90, desc: 'Nivel 81–90. +52 de daño.' },
-  arma_nv10:  { nombre: 'Tridente legendario', icono: '🔱', tipo: 'arma', precio: 5000, dano: 60, nivelMin: 91, nivelMax: 100, desc: 'Nivel 91–100. +60 de daño.' },
+  // ---------- ARMAS (10) — rango de daño por tramo de nivel ----------
+  arma_nv1:   { nombre: 'Cuchillo de combate', icono: '🔪', tipo: 'arma', precio: 120,  dano: 5,  danoMin: 3,  danoMax: 7,  nivelMin: 1,  nivelMax: 10,  desc: 'Nv 1–10. Daño 3–7.' },
+  arma_nv2:   { nombre: 'Machete',             icono: '🗡️', tipo: 'arma', precio: 350,  dano: 10, danoMin: 8,  danoMax: 12, nivelMin: 11, nivelMax: 20, desc: 'Nv 11–20. Daño 8–12.' },
+  arma_nv3:   { nombre: 'Lanza corta',         icono: '🔱', tipo: 'arma', precio: 620,  dano: 15, danoMin: 12, danoMax: 18, nivelMin: 21, nivelMax: 30, desc: 'Nv 21–30. Daño 12–18.' },
+  arma_nv4:   { nombre: 'Espada corta',        icono: '⚔️', tipo: 'arma', precio: 980,  dano: 20, danoMin: 17, danoMax: 23, nivelMin: 31, nivelMax: 40, desc: 'Nv 31–40. Daño 17–23.' },
+  arma_nv5:   { nombre: 'Espada larga',        icono: '🗡️', tipo: 'arma', precio: 1450, dano: 25, danoMin: 22, danoMax: 28, nivelMin: 41, nivelMax: 50, desc: 'Nv 41–50. Daño 22–28.' },
+  arma_nv6:   { nombre: 'Hacha de guerra',     icono: '🪓', tipo: 'arma', precio: 2100, dano: 32, danoMin: 28, danoMax: 36, nivelMin: 51, nivelMax: 60, desc: 'Nv 51–60. Daño 28–36.' },
+  arma_nv7:   { nombre: 'Martillo pesado',     icono: '🔨', tipo: 'arma', precio: 2900, dano: 38, danoMin: 34, danoMax: 42, nivelMin: 61, nivelMax: 70, desc: 'Nv 61–70. Daño 34–42.' },
+  arma_nv8:   { nombre: 'Alabarda',            icono: '⚔️', tipo: 'arma', precio: 3800, dano: 45, danoMin: 40, danoMax: 50, nivelMin: 71, nivelMax: 80, desc: 'Nv 71–80. Daño 40–50.' },
+  arma_nv9:   { nombre: 'Katana',              icono: '🗡️', tipo: 'arma', precio: 4500, dano: 52, danoMin: 47, danoMax: 57, nivelMin: 81, nivelMax: 90, desc: 'Nv 81–90. Daño 47–57.' },
+  arma_nv10:  { nombre: 'Tridente legendario', icono: '🔱', tipo: 'arma', precio: 5000, dano: 60, danoMin: 54, danoMax: 66, nivelMin: 91, nivelMax: 100, desc: 'Nv 91–100. Daño 54–66.' },
+
+  // ---------- EQUIPO (bonus solo equipado) ----------
+  casco_nv1:    { nombre: 'Casco de cuero',     icono: '⛑️', tipo: 'casco',   precio: 90,  nivelMin: 1,  nivelMax: 10,  defensa: 2,  bonusVida: 5,  bonusVidaModo: 'porcentaje', desc: 'Nv 1–10. +5% vida máx.' },
+  chaleco_nv1:  { nombre: 'Chaleco ligero',     icono: '🎽', tipo: 'chaleco', precio: 120, nivelMin: 1,  nivelMax: 10,  defensa: 4,  bonusVida: 8,  bonusVidaModo: 'porcentaje', desc: 'Nv 1–10. +8% vida máx.' },
+  botas_nv1:    { nombre: 'Botas de cuero',     icono: '🥾', tipo: 'botas',   precio: 70,  nivelMin: 1,  nivelMax: 10,  defensa: 1,  bonusVelocidad: 2, desc: 'Nv 1–10. Ligeras.' },
+  ropa_nv1:     { nombre: 'Ropa sencilla',      icono: '👕', tipo: 'ropa',    precio: 60,  nivelMin: 1,  nivelMax: 10,  defensa: 1,  bonusHambre: 5, bonusHambreModo: 'porcentaje', desc: 'Nv 1–10. +5% hambre máx.' },
+  chaleco_nv20: { nombre: 'Chaleco reforzado',  icono: '🦺', tipo: 'chaleco', precio: 450, nivelMin: 11, nivelMax: 20, defensa: 15, bonusVida: 25, bonusVidaModo: 'porcentaje', resistencia: 'golpes +10%', desc: 'Nv 11–20. +25% vida máx.' },
+  casco_nv20:   { nombre: 'Casco militar',      icono: '🪖', tipo: 'casco',   precio: 380, nivelMin: 11, nivelMax: 20, defensa: 8,  bonusVida: 12, bonusVidaModo: 'porcentaje', desc: 'Nv 11–20. +12% vida máx.' },
+  botas_nv20:   { nombre: 'Botas reforzadas',   icono: '🥾', tipo: 'botas',   precio: 320, nivelMin: 11, nivelMax: 20, defensa: 4,  bonusVelocidad: 5, desc: 'Nv 11–20. Más rápidas.' },
+  ropa_nv20:    { nombre: 'Uniforme táctico',   icono: '🧥', tipo: 'ropa',    precio: 290, nivelMin: 11, nivelMax: 20, defensa: 3,  bonusHambre: 12, bonusHambreModo: 'porcentaje', desc: 'Nv 11–20. +12% hambre máx.' },
 
   // ---------- TESOROS Y VALIOSOS (9) ----------
   moneda_antigua: { nombre: 'Moneda antigua',    icono: '🥉', tipo: 'tesoro', precio: 100, desc: 'Una moneda colonial oxidada.' },
@@ -99,9 +116,14 @@ const CATALOGO_ITEMS = {
   llave_maestra:  { nombre: 'Llave maestra',   icono: '🗝️', tipo: 'herramienta', precio: 180, desc: '15% de abrir un cofre oculto cercano (se gasta).' }
 };
 
+const IDS_BASE_INICIAL = new Set(Object.keys(CATALOGO_ITEMS));
+
 const Items = {
   PRECIO_MINIMO: 5,
   PRECIO_MAXIMO: 5000,
+  RANURAS_EQUIPO: ['casco', 'chaleco', 'botas', 'ropa'],
+  SLOT_A_RANURA: { helmet: 'casco', armor: 'chaleco', boots: 'botas', shield: 'ropa' },
+  RANURA_A_SLOT: { casco: 'helmet', chaleco: 'armor', botas: 'boots', ropa: 'shield' },
 
   obtener(id) { return CATALOGO_ITEMS[id]; },
 
@@ -114,7 +136,155 @@ const Items = {
     else if (out.curaVida) out.tipo = 'comida';
     else if (out.cura && !out.curaVida) out.tipo = 'comida';
     else if (!out.tipo || !TIPOS_ITEM[out.tipo]) out.tipo = 'especial';
+    if (!out.estado) out.estado = 'activo';
+    if (out.rareza == null) out.rareza = 1;
+    if (out.puedeUsar == null) out.puedeUsar = true;
+    if (out.puedeEquipar == null) out.puedeEquipar = out.tipo === 'arma' || this.RANURAS_EQUIPO.includes(out.tipo);
+    if (out.puedeVender == null) out.puedeVender = true;
+    if (out.puedeTirar == null) out.puedeTirar = true;
+    if (out.puedeComerciar == null) out.puedeComerciar = true;
+    if (out.pierdeAlMorir == null) out.pierdeAlMorir = false;
     return out;
+  },
+
+  esBase(id) {
+    return IDS_BASE_INICIAL.has(id);
+  },
+
+  metaDe(itemsNuevos, id) {
+    return (itemsNuevos || []).find(x => x && x.id === id) || null;
+  },
+
+  estadoDe(itemsNuevos, id) {
+    return this.metaDe(itemsNuevos, id)?.estado || 'activo';
+  },
+
+  idsTodos() {
+    return Object.keys(CATALOGO_ITEMS).sort((a, b) =>
+      this.seguro(a).nombre.localeCompare(this.seguro(b).nombre, 'es'));
+  },
+
+  listarParaAdmin(itemsNuevos, opts) {
+    const q = (opts?.q || '').trim().toLowerCase();
+    const tipoF = opts?.tipo || '';
+    const rarezaF = opts?.rareza !== '' && opts?.rareza != null ? parseInt(opts.rareza, 10) : null;
+    const lista = [];
+    for (const id of this.idsTodos()) {
+      const meta = this.metaDe(itemsNuevos, id);
+      const estado = meta?.estado || 'activo';
+      if (!opts?.incluirOcultos && (estado === 'oculto' || estado === 'eliminado')) continue;
+      const item = Object.assign({}, CATALOGO_ITEMS[id], meta, {
+        id,
+        esBase: this.esBase(id) && !meta
+      });
+      if (tipoF && item.tipo !== tipoF) continue;
+      if (rarezaF != null && !Number.isNaN(rarezaF) && (item.rareza || 1) !== rarezaF) continue;
+      if (q) {
+        const blob = [item.nombre, id, item.desc, item.descLarga].join(' ').toLowerCase();
+        if (!blob.includes(q)) continue;
+      }
+      lista.push(item);
+    }
+    return lista;
+  },
+
+  resumenDetalle(item) {
+    const filas = [];
+    filas.push(['ID', item.id]);
+    filas.push(['Tipo', this.etiquetaTipo(item)]);
+    filas.push(['Precio', '$' + (item.precio || this.PRECIO_MINIMO)]);
+    if (item.rareza) filas.push(['Rareza', String(item.rareza)]);
+    const def = this.defEfecto(item);
+    if (def) {
+      const unidad = def.modo === 'porcentaje' ? def.valor + '%' : String(def.valor);
+      filas.push(['Efecto', def.efecto + ' (' + unidad + ')']);
+    } else {
+      if (item.cura) filas.push(['Hambre', '+' + item.cura]);
+      if (item.curaVida) filas.push(['Vida', '+' + item.curaVida]);
+    }
+    if (item.crudo !== false && item.tipo === 'pez') {
+      filas.push(['Crudo', 'Sí · prob. negativo ' + (item.probCrudoNegativo ?? 60) + '%']);
+    }
+    if (item.cocinadoDe) filas.push(['Cocinado de', item.cocinadoDe]);
+    if (item.versionCocinada) filas.push(['Al cocinar', item.versionCocinada]);
+    if (item.dano) {
+      const r = this.rangoDanoArma(item);
+      filas.push(['Daño', r.lo + '–' + r.hi]);
+    }
+    if (item.defensa) filas.push(['Defensa', '+' + item.defensa]);
+    if (item.bonusVida) {
+      const u = item.bonusVidaModo === 'porcentaje' ? item.bonusVida + '%' : '+' + item.bonusVida;
+      filas.push(['Bonus vida', u]);
+    }
+    if (item.bonusDano) filas.push(['Bonus daño', '+' + item.bonusDano]);
+    if (item.resistencia) filas.push(['Resistencia', item.resistencia]);
+    if (item.nivelMin) filas.push(['Nivel', (item.nivelMin || 1) + '–' + (item.nivelMax || 100)]);
+    filas.push(['Estado', item.estado || 'activo']);
+    if (item.creadoPor) filas.push(['Creado por', item.creadoPor]);
+    if (item.creadoEn) filas.push(['Creado', Utilidades.fechaLegible(item.creadoEn)]);
+    if (item.modificadoEn) filas.push(['Modificado', Utilidades.fechaLegible(item.modificadoEn)]);
+    return filas;
+  },
+
+  exportarCatalogo(itemsNuevos, formato) {
+    const lista = this.listarParaAdmin(itemsNuevos, { incluirOcultos: false });
+    const payload = {
+      version: CONFIG.version,
+      exportadoEn: new Date().toISOString(),
+      total: lista.length,
+      objetos: lista.map(o => ({
+        id: o.id,
+        nombre: o.nombre,
+        icono: o.icono,
+        tipo: o.tipo,
+        rareza: o.rareza || 1,
+        precio: o.precio,
+        desc: o.desc || '',
+        descLarga: o.descLarga || '',
+        cura: o.cura,
+        curaVida: o.curaVida,
+        efecto: o.efecto,
+        efectoValor: o.efectoValor,
+        efectoModo: o.efectoModo,
+        crudo: o.crudo,
+        probCrudoNegativo: o.probCrudoNegativo,
+        defensa: o.defensa,
+        bonusVida: o.bonusVida,
+        bonusVidaModo: o.bonusVidaModo,
+        bonusHambre: o.bonusHambre,
+        bonusHambreModo: o.bonusHambreModo,
+        bonusDano: o.bonusDano,
+        bonusVelocidad: o.bonusVelocidad,
+        resistencia: o.resistencia,
+        cocinadoDe: o.cocinadoDe,
+        versionCocinada: o.versionCocinada,
+        danoMin: o.danoMin,
+        danoMax: o.danoMax,
+        dano: o.dano,
+        nivelMin: o.nivelMin,
+        nivelMax: o.nivelMax,
+        estado: o.estado || 'activo',
+        esBase: !!o.esBase
+      }))
+    };
+    const v = CONFIG.version || '?';
+    if (formato === 'txt') {
+      let txt = 'Catálogo Kingdom Map v' + v + '\nExportado: ' + payload.exportadoEn +
+        '\nTotal objetos activos: ' + payload.total + '\n\n';
+      for (const o of payload.objetos) {
+        txt += o.icono + ' ' + o.nombre + ' [' + o.id + ']\n';
+        txt += '  Tipo: ' + o.tipo + ' · Precio: $' + o.precio + ' · Rareza: ' + o.rareza + '\n';
+        if (o.desc) txt += '  ' + o.desc + '\n';
+        if (o.descLarga) txt += '  ' + o.descLarga + '\n';
+        txt += '\n';
+      }
+      return { mime: 'text/plain;charset=utf-8', nombre: 'catalogo-objetos-v' + v + '.txt', contenido: txt };
+    }
+    return {
+      mime: 'application/json;charset=utf-8',
+      nombre: 'catalogo-objetos-v' + v + '.json',
+      contenido: JSON.stringify(payload, null, 2)
+    };
   },
 
   metaTipo(item) {
@@ -131,8 +301,74 @@ const Items = {
     return !!item && item.tipo === 'arma';
   },
 
-  esEquipable(item, id) {
-    return this.esArma(item);
+  ranuraDeItem(item) {
+    if (!item) return null;
+    if (this.RANURAS_EQUIPO.includes(item.tipo)) return item.tipo;
+    if (item.ranura && this.RANURAS_EQUIPO.includes(item.ranura)) return item.ranura;
+    return null;
+  },
+
+  esPiezaEquipo(item) {
+    return !!this.ranuraDeItem(item);
+  },
+
+  esEquipable(item, id, slotKey) {
+    if (this.esArma(item)) return !slotKey || slotKey === 'weapon';
+    const ranura = this.ranuraDeItem(item);
+    if (!ranura) return false;
+    if (!slotKey) return true;
+    return this.SLOT_A_RANURA[slotKey] === ranura;
+  },
+
+  equipoAptoParaNivel(item, nivel) {
+    if (!item) return false;
+    const min = item.nivelMin || 1;
+    const max = item.nivelMax || 100;
+    const n = Math.max(1, parseInt(nivel, 10) || 1);
+    return n >= min && n <= max;
+  },
+
+  bonusDePieza(item) {
+    if (!item) {
+      return { defensa: 0, vidaPct: 0, vidaFijo: 0, hambrePct: 0, hambreFijo: 0, dano: 0, velocidad: 0, resistencia: null };
+    }
+    return {
+      defensa: Math.max(0, Number(item.defensa) || 0),
+      vidaPct: item.bonusVidaModo === 'porcentaje' ? Math.max(0, Number(item.bonusVida) || 0) : 0,
+      vidaFijo: item.bonusVidaModo !== 'porcentaje' ? Math.max(0, Number(item.bonusVida) || 0) : 0,
+      hambrePct: item.bonusHambreModo === 'porcentaje' ? Math.max(0, Number(item.bonusHambre) || 0) : 0,
+      hambreFijo: item.bonusHambreModo !== 'porcentaje' ? Math.max(0, Number(item.bonusHambre) || 0) : 0,
+      dano: Math.max(0, Number(item.bonusDano) || 0),
+      velocidad: Math.max(0, Number(item.bonusVelocidad) || 0),
+      resistencia: item.resistencia || null
+    };
+  },
+
+  calcularBonusesEquipo(ids) {
+    const acc = { defensa: 0, vidaPct: 0, vidaFijo: 0, hambrePct: 0, hambreFijo: 0, dano: 0, velocidad: 0, resistencias: [] };
+    for (const id of (ids || [])) {
+      const b = this.bonusDePieza(this.obtener(id));
+      acc.defensa += b.defensa;
+      acc.vidaPct += b.vidaPct;
+      acc.vidaFijo += b.vidaFijo;
+      acc.hambrePct += b.hambrePct;
+      acc.hambreFijo += b.hambreFijo;
+      acc.dano += b.dano;
+      acc.velocidad += b.velocidad;
+      if (b.resistencia) acc.resistencias.push(b.resistencia);
+    }
+    return acc;
+  },
+
+  resumenBonusEquipo(item) {
+    const b = this.bonusDePieza(item);
+    const partes = [];
+    if (b.defensa) partes.push('+' + b.defensa + ' def');
+    if (b.vidaPct) partes.push('+' + b.vidaPct + '% vida');
+    if (b.vidaFijo) partes.push('+' + b.vidaFijo + ' vida');
+    if (b.hambrePct) partes.push('+' + b.hambrePct + '% hambre');
+    if (b.dano) partes.push('+' + b.dano + ' daño');
+    return partes.join(' · ');
   },
 
   usoEspecial(id) {
@@ -143,27 +379,41 @@ const Items = {
     if (!item || !id) return false;
     if (this.usoEspecial(id)) return true;
     const t = this.tipoConsumible(item, id);
-    return t === 'hambre' || t === 'vida';
+    return t === 'hambre' || t === 'vida' || t === 'crudo';
   },
 
   esUsableEnVarios(item, id) {
     const t = this.tipoConsumible(item, id);
-    return t === 'hambre' || t === 'vida';
+    return t === 'hambre' || t === 'vida' || t === 'crudo';
   },
 
   requiereConfirmBorrar(item, id, desdeEquip) {
     if (desdeEquip) return true;
     const t = this.tipoConsumible(item, id);
-    if (t === 'hambre' || t === 'vida') return false;
+    if (t === 'hambre' || t === 'vida' || t === 'crudo') return false;
     return true;
   },
 
   resumenInventario(item, id) {
     const partes = [this.etiquetaTipo(item)];
     const tc = this.tipoConsumible(item, id);
-    if (tc === 'hambre') partes.push('+' + (item.cura || 0) + ' hambre');
-    if (tc === 'vida') partes.push('+' + (item.curaVida || item.cura || 0) + ' vida');
-    if (item.dano) partes.push('+' + item.dano + ' daño');
+    const def = this.defEfecto(item);
+    if (def && tc === 'hambre') {
+      partes.push(def.modo === 'porcentaje' ? '+' + def.valor + '% hambre' : '+' + def.valor + ' hambre');
+    } else if (def && tc === 'vida') {
+      partes.push(def.modo === 'porcentaje' ? '+' + def.valor + '% vida' : '+' + def.valor + ' vida');
+    } else if (tc === 'crudo') {
+      partes.push('crudo (riesgo)');
+      const coc = this.idResultadoCocina(item, id);
+      if (coc) partes.push('🍳→ ' + this.seguro(coc).nombre);
+    } else if (this.esPiezaEquipo(item)) {
+      const bonus = this.resumenBonusEquipo(item);
+      if (bonus) partes.push(bonus);
+    }
+    if (item.dano) {
+      const r = this.rangoDanoArma(item);
+      partes.push('⚔️ ' + r.lo + '–' + r.hi + ' daño');
+    }
     if (this.usoEspecial(id) === 'cofre') partes.push('colocar en mapa');
     if (this.usoEspecial(id) === 'llave') partes.push('abrir cofre');
     if (this.usoEspecial(id) === 'escribir') partes.push('escribir nota');
@@ -180,6 +430,11 @@ const Items = {
   aplicarMundo(itemsNuevos, precios) {
     for (const it of (itemsNuevos || [])) {
       if (!it.id) continue;
+      const estado = it.estado || 'activo';
+      if (estado === 'oculto' || estado === 'eliminado') {
+        if (!this.esBase(it.id)) delete CATALOGO_ITEMS[it.id];
+        continue;
+      }
       const norm = this._normalizarDef({
         nombre: it.nombre || it.id,
         icono: it.icono || '📦',
@@ -187,11 +442,41 @@ const Items = {
         precio: this._limitarPrecio(it.precio),
         cura: it.cura || undefined,
         curaVida: it.curaVida || undefined,
+        efecto: it.efecto || undefined,
+        efectoValor: it.efectoValor != null ? it.efectoValor : undefined,
+        efectoModo: it.efectoModo || undefined,
+        crudo: it.crudo,
+        probCrudoNegativo: it.probCrudoNegativo,
+        defensa: it.defensa,
+        bonusVida: it.bonusVida,
+        bonusVidaModo: it.bonusVidaModo,
+        bonusHambre: it.bonusHambre,
+        bonusHambreModo: it.bonusHambreModo,
+        bonusDano: it.bonusDano,
+        bonusVelocidad: it.bonusVelocidad,
+        resistencia: it.resistencia,
+        versionCocinada: it.versionCocinada,
+        cocinadoDe: it.cocinadoDe,
         dano: it.dano || undefined,
+        danoMin: it.danoMin,
+        danoMax: it.danoMax,
+        ranura: it.ranura,
         nivelMin: it.nivelMin || undefined,
         nivelMax: it.nivelMax || undefined,
+        rareza: it.rareza || undefined,
         desc: it.desc || 'Objeto creado por el administrador.',
-        unico: it.unico || undefined
+        descLarga: it.descLarga || undefined,
+        unico: it.unico || undefined,
+        estado: it.estado || 'activo',
+        creadoEn: it.creadoEn,
+        modificadoEn: it.modificadoEn,
+        creadoPor: it.creadoPor,
+        puedeUsar: it.puedeUsar,
+        puedeEquipar: it.puedeEquipar,
+        puedeVender: it.puedeVender,
+        puedeTirar: it.puedeTirar,
+        puedeComerciar: it.puedeComerciar,
+        pierdeAlMorir: it.pierdeAlMorir
       });
       CATALOGO_ITEMS[it.id] = norm;
     }
@@ -240,26 +525,110 @@ const Items = {
     return nivel >= min && nivel <= max;
   },
 
-  /** 'hambre' | 'vida' | 'especial' | null — el inventario usa esto para usar/borrar */
+  rangoDanoArma(item) {
+    if (!item || item.tipo !== 'arma') return { lo: 0, hi: 0 };
+    let lo = Number(item.danoMin);
+    let hi = Number(item.danoMax);
+    if (!Number.isFinite(lo) && !Number.isFinite(hi)) {
+      const d = Number(item.dano) || 0;
+      lo = Math.max(1, d - 2);
+      hi = d + 2;
+    }
+    if (!Number.isFinite(lo)) lo = hi;
+    if (!Number.isFinite(hi)) hi = lo;
+    lo = Math.max(0, Math.round(lo));
+    hi = Math.max(lo, Math.round(hi));
+    return { lo, hi };
+  },
+
+  tirarDanoArma(item) {
+    const r = this.rangoDanoArma(item);
+    if (r.hi <= r.lo) return r.lo;
+    return r.lo + Math.floor(Math.random() * (r.hi - r.lo + 1));
+  },
+
+  /** Id del objeto cocinado resultante, o null. */
+  idResultadoCocina(item, id) {
+    if (!item) return null;
+    if (item.versionCocinada) return item.versionCocinada;
+    if (item.tipo === 'pez' && item.crudo !== false) return 'pescado_cocinado';
+    if (item.crudo === true || this.tipoConsumible(item, id) === 'crudo') {
+      for (const cid of this.idsTodos()) {
+        const it = this.obtener(cid);
+        if (it?.cocinadoDe === id) return cid;
+      }
+    }
+    return null;
+  },
+
+  esCocinable(item, id) {
+    return !!this.idResultadoCocina(item, id);
+  },
+
+  requiereCuchilloCocinar() {
+    return true;
+  },
+
+  /** Definición de efecto consumible (Fase 13): porcentaje o valor fijo. */
+  defEfecto(item) {
+    if (!item || typeof item !== 'object') return null;
+    if (item.efecto && item.efectoValor != null && item.efectoValor > 0) {
+      return {
+        efecto: item.efecto,
+        valor: Number(item.efectoValor),
+        modo: item.efectoModo === 'porcentaje' ? 'porcentaje' : 'fijo'
+      };
+    }
+    if (item.curaVida != null && item.curaVida > 0) {
+      if (item.curaVida >= 100) return { efecto: 'vida', valor: 100, modo: 'porcentaje' };
+      return { efecto: 'vida', valor: item.curaVida, modo: 'fijo' };
+    }
+    if (item.cura != null && item.cura > 0) {
+      return { efecto: 'hambre', valor: item.cura, modo: 'fijo' };
+    }
+    if (item.crudo === true && item.tipo === 'comida') {
+      return { efecto: 'crudo', valor: item.efectoValor || 12, modo: 'porcentaje' };
+    }
+    if (item.tipo === 'pez' && item.crudo !== false) {
+      return { efecto: 'crudo', valor: item.efectoValor || 10, modo: 'porcentaje' };
+    }
+    return null;
+  },
+
+  calcularEfectoUnidad(item, tipo, stats) {
+    const def = this.defEfecto(item);
+    if (!def) return this.valorPorUnidad(item, tipo);
+    const efecto = tipo || def.efecto;
+    const max = efecto === 'hambre'
+      ? (stats?.hambreMax ?? CONFIG.hambreMaxima)
+      : (stats?.vidaMax ?? (typeof Vida !== 'undefined' ? Vida.vidaMaxima() : CONFIG.vidaMaxima));
+    if (def.modo === 'porcentaje') {
+      return Math.max(0, Math.round(max * def.valor / 100));
+    }
+    return Math.max(0, Math.round(def.valor));
+  },
+
+  /** 'hambre' | 'vida' | 'crudo' | 'especial' | null */
   tipoConsumible(item, id) {
     if (!item) return null;
     const uso = this.usoEspecial(id);
     if (uso) return 'especial';
-    if (item.curaVida) return 'vida';
-    if (item.tipo === 'comida' && item.cura) return 'hambre';
-    if (item.cura && item.tipo !== 'comida') return 'vida';
+    const def = this.defEfecto(item);
+    if (!def) return null;
+    if (def.efecto === 'crudo') return 'crudo';
+    if (def.efecto === 'vida' || def.efecto === 'veneno') return 'vida';
+    if (def.efecto === 'hambre') return 'hambre';
     return null;
   },
 
   esConsumible(item, id) {
     const t = this.tipoConsumible(item, id);
-    return t === 'hambre' || t === 'vida';
+    return t === 'hambre' || t === 'vida' || t === 'crudo';
   },
 
   valorPorUnidad(item, tipo) {
-    if (tipo === 'hambre') return item.cura || 0;
-    if (tipo === 'vida') return item.curaVida || item.cura || 0;
-    return 0;
+    if (tipo === 'crudo') return 0;
+    return this.calcularEfectoUnidad(item, tipo);
   },
 
   /**
@@ -272,8 +641,9 @@ const Items = {
     const disp = Math.max(0, cantidadDisponible || 0);
     if (!disp) return 0;
 
-    const por = this.valorPorUnidad(item, tipo);
-    if (por <= 0) return 0;
+    const por = this.calcularEfectoUnidad(item, tipo, stats);
+    if (por <= 0 && tipo !== 'crudo') return 0;
+    if (tipo === 'crudo') return Math.min(disp, 1);
 
     if (tipo === 'hambre') {
       const max = stats?.hambreMax ?? CONFIG.hambreMaxima;

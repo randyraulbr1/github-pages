@@ -1683,6 +1683,16 @@ const Multijugador = {
     });
   },
 
+  cocinarItemServidor(itemId, cantidad) {
+    return new Promise((resolve) => {
+      if (!this.socket || !this.activo || !itemId) return resolve({ ok: false });
+      this.socket.emit('player:cookItem', { itemId, cantidad: cantidad || 1 }, (res) => {
+        if (res?.ok) this._aplicarRespuestaEconomia(res);
+        resolve(res || { ok: false });
+      });
+    });
+  },
+
   recogerObjetoCompartido(origenId, pos) {
     return new Promise((resolve) => {
       if (!this.socket || !this.activo || !origenId) return resolve({ ok: false });

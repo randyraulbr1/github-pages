@@ -23,6 +23,8 @@ const UIManager = {
     'ventana-cofre-colocar': { esc: true, peer: true },
     'ventana-cofre-pin': { esc: true, peer: true },
     'ventana-admin': { esc: true, peer: false },
+    'overlay-mision-activa': { esc: true, peer: true },
+    'overlay-botin-enemigo': { esc: true, peer: true },
     'ventana-combate': { esc: false, peer: false },
     'ventana-ataud': { esc: false, peer: false }
   },
@@ -142,6 +144,12 @@ const UIManager = {
       if (cfg?.esc === false) continue;
       if (id === 'ventana-admin' && typeof Admin !== 'undefined' && Admin.cerrarPanel) {
         Admin.cerrarPanel();
+      } else if (id === 'overlay-mision-activa' && typeof Misiones !== 'undefined' && Misiones._cerrarOverlay) {
+        Misiones._cerrarOverlay();
+      } else if (id === 'overlay-botin-enemigo' && typeof BotinEnemigo !== 'undefined' && BotinEnemigo.cerrarMenu) {
+        BotinEnemigo.cerrarMenu();
+      } else if (id === 'ventana-notific' && typeof Notificaciones !== 'undefined' && Notificaciones.cerrarVisor) {
+        Notificaciones.cerrarVisor();
       } else if (id === 'chatPanel' && typeof Chat !== 'undefined' && Chat.cerrarPanel) {
         Chat.cerrarPanel();
       } else {

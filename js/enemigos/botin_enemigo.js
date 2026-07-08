@@ -421,13 +421,17 @@ const BotinEnemigo = {
       btnReclamar.textContent = yaReclamo ? 'Ya reclamaste' : 'Reclamar mi parte';
     }
 
-    overlay.classList.remove('oculto');
+    if (typeof UIManager !== 'undefined') UIManager.abrir('overlay-botin-enemigo');
+    else overlay.classList.remove('oculto');
   },
 
   cerrarMenu() {
     this._abierto = null;
-    const overlay = document.getElementById('overlay-botin-enemigo');
-    if (overlay) overlay.classList.add('oculto');
+    if (typeof UIManager !== 'undefined') UIManager.cerrar('overlay-botin-enemigo');
+    else {
+      const overlay = document.getElementById('overlay-botin-enemigo');
+      if (overlay) overlay.classList.add('oculto');
+    }
   },
 
   async reclamar(botin) {
@@ -448,7 +452,7 @@ const BotinEnemigo = {
       const pos = b.pos || (typeof GPS !== 'undefined' ? GPS.posicion : null);
       const res = await Multijugador.reclamarBotinEnemigo(b.id, pos);
       if (!res?.ok) {
-        Notificaciones.mostrar(res?.error || 'No se pudo reclamar', 'alerta', 4000);
+        Notificaciones.mostrar(Utilidades.mensajeAmigable(res?.error, 'No se pudo reclamar'), 'alerta', 4000);
         return false;
       }
       await this._aplicarRecompensa(res.recompensa, b.enemyNombre);

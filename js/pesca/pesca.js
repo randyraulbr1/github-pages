@@ -34,7 +34,8 @@ const Pesca = {
       Notificaciones.mostrar('🎣 Necesitas una caña de pescar (Casa del Pescador)', 'alerta', 4500);
       return;
     }
-    document.getElementById('ventana-pesca').classList.remove('oculto');
+    if (typeof UIManager !== 'undefined') UIManager.abrir('ventana-pesca');
+    else document.getElementById('ventana-pesca').classList.remove('oculto');
     this._reiniciar();
   },
 

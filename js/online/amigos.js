@@ -484,32 +484,49 @@ const Amigos = {
         if (!raw) continue;
         const data = JSON.parse(raw);
         if (!data || typeof data !== 'object') continue;
-        if (this.friends.length) return;
         if (!(data.friends?.length || data.pendingIn?.length || data.blocked?.length)) continue;
         this.aplicarSocial(data, { sinCache: true });
         try {
           localStorage.setItem(this._socialCacheKey(), JSON.stringify(this._datosCache()));
         } catch (e) { /* */ }
-        return;
+        return true;
       }
     } catch (e) { /* */ }
+    return false;
   },
 
   async refrescar() {
     const base = this._base();
     if (!base || !this._token()) {
       this._cargarSocialCache();
+      Utilidades.limpiarEstado('amigos-estado');
       return;
     }
+    Utilidades.pintarEstado('amigos-estado', { modo: 'cargando', mensaje: 'Cargando amigos…' });
     try {
       const r = await fetch(base + '/api/friends', { headers: this._headers() });
       const data = await r.json();
-      if (data.ok) {
-        this.aplicarSocial(data);
-        return;
+      if (!data.ok) throw new Error(data.error || 'No se pudo cargar');
+      Utilidades.limpiarEstado('amigos-estado');
+      this.aplicarSocial(data);
+    } catch (e) {
+      const teniaAmigos = this.friends.length > 0;
+      const desdeCache = !teniaAmigos && this._cargarSocialCache();
+      if (teniaAmigos || desdeCache) {
+        Utilidades.pintarEstado('amigos-estado', {
+          modo: 'alerta',
+          mensaje: Utilidades.mensajeAmigable(e, 'Sin conexión') + ' — mostrando lista guardada',
+          onReintentar: () => this.refrescar()
+        });
+      } else {
+        Utilidades.pintarEstado('amigos-estado', {
+          modo: 'error',
+          mensaje: e,
+          fallback: 'No se pudo cargar amigos',
+          onReintentar: () => this.refrescar()
+        });
       }
-    } catch (e) { /* sin red */ }
-    this._cargarSocialCache();
+    }
   },
 
   async solicitarPorNombre() {
@@ -546,7 +563,7 @@ const Amigos = {
       });
       const data = await r.json();
       if (!data.ok) {
-        Notificaciones.mostrar(data.error || 'No se pudo enviar', 'alerta', 3000);
+        Notificaciones.mostrar(Utilidades.mensajeAmigable(data.error, 'No se pudo enviar la solicitud'), 'alerta', 3000);
         return;
       }
       this._toast('📨 Solicitud enviada');
@@ -644,7 +661,7 @@ const Amigos = {
         if (okMsg) Notificaciones.mostrar(okMsg, 'exito', 2500);
         await this.refrescar();
       } else {
-        Notificaciones.mostrar(data.error || 'Error', 'alerta', 3000);
+        Notificaciones.mostrar(Utilidades.mensajeAmigable(data.error, 'No se pudo completar la acción'), 'alerta', 3000);
       }
     } catch (e) {
       Notificaciones.mostrar('Sin conexión', 'alerta', 3000);

@@ -16,7 +16,36 @@ const Vida = {
       return Admin.vidaJugadorPorNivel(n);
     }
     const extra = CONFIG.vidaExtraPorNivel || 4;
-    return CONFIG.vidaMaxima + Math.floor((n - 1) * extra);
+    let base = CONFIG.vidaMaxima + Math.floor((n - 1) * extra);
+    if (typeof Mochila !== 'undefined' && Mochila.bonusesEquipoActivos) {
+      const b = Mochila.bonusesEquipoActivos();
+      base += b.vidaFijo;
+      base = Math.round(base * (1 + b.vidaPct / 100));
+    }
+    return base;
+  },
+
+  hambreMaxima() {
+    let base = CONFIG.hambreMaxima;
+    if (typeof Mochila !== 'undefined' && Mochila.bonusesEquipoActivos) {
+      const b = Mochila.bonusesEquipoActivos();
+      base += b.hambreFijo;
+      base = Math.round(base * (1 + b.hambrePct / 100));
+    }
+    return base;
+  },
+
+  _clampStatsAlMax() {
+    const maxV = this.vidaMaxima();
+    if (this.actual > maxV) {
+      this.actual = maxV;
+      Guardado.datos.vida = maxV;
+    }
+    const maxH = this.hambreMaxima();
+    if (this.hambre > maxH) {
+      this.hambre = maxH;
+      Guardado.datos.hambre = maxH;
+    }
   },
 
   /** Vida al revivir: porcentaje de la vida máxima del jugador revivido. */
@@ -115,6 +144,9 @@ const Vida = {
           !Items.armaAptaParaNivel(Mochila.armaEquipadaId(), this.nivel)) {
         Mochila.desequiparArma();
       }
+      if (typeof Mochila !== 'undefined' && Mochila.desequiparEquipoFueraDeNivel) {
+        Mochila.desequiparEquipoFueraDeNivel();
+      }
       Notificaciones.mostrar(
         '⭐ ¡Subiste al nivel ' + this.nivel + '! Vida restaurada a ' + this.vidaMaxima(),
         'exito', 5000
@@ -151,7 +183,7 @@ const Vida = {
   alimentar(cantidad, motivo) {
     if (this.estaMuerto()) return;
     const antes = this.hambre;
-    this.hambre = Math.min(CONFIG.hambreMaxima, this.hambre + cantidad);
+    this.hambre = Math.min(this.hambreMaxima(), this.hambre + cantidad);
     if (this.hambre !== antes) {
       Guardado.datos.hambre = this.hambre;
       Guardado._marcarStatsLocales();
@@ -164,16 +196,20 @@ const Vida = {
   recibirDano(cantidad, motivo, nombreEnemigo) {
     if (this.estaMuerto() || cantidad <= 0) return;
     if (this.enProteccionRevivir()) return;
+    let dano = cantidad;
+    if (typeof Mochila !== 'undefined' && Mochila.bonusesEquipoActivos) {
+      dano = Math.max(1, dano - Mochila.bonusesEquipoActivos().defensa);
+    }
     const antes = this.actual;
-    let nuevo = Math.max(0, this.actual - cantidad);
+    let nuevo = Math.max(0, this.actual - dano);
     if (this._esAdmin()) nuevo = this.vidaMaxima();
     this.actual = nuevo;
     if (this.actual !== antes) {
       Guardado.datos.vida = this.actual;
       Guardado._marcarStatsLocales();
       this.pintar();
-      if (nombreEnemigo || cantidad > 0) {
-        this._mostrarDanoFlotante(cantidad);
+      if (nombreEnemigo || dano > 0) {
+        this._mostrarDanoFlotante(dano);
         if (nombreEnemigo && typeof Utilidades !== 'undefined') {
           Utilidades.vibrar(120 + Math.min(80, cantidad * 8));
         }
@@ -321,11 +357,11 @@ const Vida = {
     const vt = document.getElementById('vida-texto');
     if (vt) vt.textContent = this.actual + '/' + max;
 
-    const pctHam = (this.hambre / CONFIG.hambreMaxima) * 100;
+    const pctHam = (this.hambre / this.hambreMaxima()) * 100;
     const hr = document.getElementById('hambre-relleno');
     if (hr) hr.style.width = pctHam + '%';
     const ht = document.getElementById('hambre-texto');
-    if (ht) ht.textContent = this.hambre + '/' + CONFIG.hambreMaxima;
+    if (ht) ht.textContent = this.hambre + '/' + this.hambreMaxima();
 
     const nl = document.getElementById('nivel-texto');
     if (nl) nl.textContent = 'Nv ' + this.nivel;

@@ -749,7 +749,7 @@ const Chat = {
       return new Promise(resolve => {
         socket.emit('chat:send', payload, (res) => {
           if (!res?.ok) {
-            Notificaciones.mostrar(res?.error || 'No se pudo enviar', 'alerta', 3000);
+            Notificaciones.mostrar(Utilidades.mensajeAmigable(res?.error, 'No se pudo enviar el mensaje'), 'alerta', 3000);
             resolve(false);
             return;
           }
@@ -769,7 +769,7 @@ const Chat = {
       });
       const data = await r.json();
       if (!data.ok) {
-        Notificaciones.mostrar(data.error || 'No se pudo enviar', 'alerta', 3000);
+        Notificaciones.mostrar(Utilidades.mensajeAmigable(data.error, 'No se pudo enviar el mensaje'), 'alerta', 3000);
         return false;
       }
       if (data.message) this._recibirMensaje(data.message);

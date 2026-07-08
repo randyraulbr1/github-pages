@@ -107,6 +107,15 @@ function quitarDeMochila(slots, items) {
   return { ok: true, mochila, quitados };
 }
 
+function contarEnMochila(slots, itemId) {
+  const id = String(itemId || '');
+  let total = 0;
+  for (const sl of normalizarMochila(slots)) {
+    if (sl && sl.id === id) total += sl.cantidad || 1;
+  }
+  return total;
+}
+
 function itemsDeObjetoData(data) {
   if (!data || typeof data !== 'object') return [];
   if (Array.isArray(data.items) && data.items.length) {
@@ -126,5 +135,6 @@ module.exports = {
   agregarAMochila,
   agregarHastaAMochila,
   quitarDeMochila,
+  contarEnMochila,
   itemsDeObjetoData
 };
