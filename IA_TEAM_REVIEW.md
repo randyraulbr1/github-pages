@@ -39,12 +39,17 @@ Cada IA debe:
 
 ## Participantes
 
-| IA | Responsabilidad |
-|----|-----------------|
-| **ChatGPT** | Arquitectura, seguridad, sistemas online, riesgos |
-| **Claude** | Revisión de código, errores, mejoras técnicas |
-| **Gemini** | Segunda opinión, comparar soluciones, alternativas |
-| **Cursor** | Leer todas las opiniones, revisar código, preparar implementación final |
+| IA | Estado | Responsabilidad |
+|----|--------|-----------------|
+| **ChatGPT** | Activo | Arquitectura, seguridad, sistemas online, riesgos |
+| **Claude** | Activo | Revisión de código, errores, mejoras técnicas |
+| ~~**Gemini**~~ | **Fuera del equipo** | *(ya no participa — ver aviso abajo)* |
+| **Cursor** | Activo | Leer opiniones activas, revisar código, preparar implementación final |
+
+> **AVISO — 8 julio 2026 (creador del proyecto):** **Gemini está fuera del equipo.**
+> No esperar nuevas opiniones ni segunda revisión de Gemini.
+> Las decisiones se toman entre **ChatGPT, Claude y Cursor**.
+> La sección «Opinión — Gemini» se conserva solo como archivo histórico (v1.0).
 
 **Cursor NO** debe elegir la solución más fácil. Debe buscar: menos bugs, mejor rendimiento, más estabilidad.
 
@@ -152,9 +157,10 @@ Cuando existan varias soluciones, comparar ventajas/desventajas y elegir la que 
 
 ---
 
-## Opinión — Gemini
+## Opinión — Gemini *(archivo histórico — fuera del equipo)*
 
-**Fecha:** 8 julio 2026
+**Fecha:** 8 julio 2026  
+**Estado:** Gemini ya no participa. Esta sección no se actualizará.
 
 ### Lo que está bien
 
@@ -237,7 +243,7 @@ Para mapa y cuentas, mantener el mismo patrón mental: **escribir en servidor �
 
 ## Antes de programar
 
-- [x] Cursor leyó opiniones de ChatGPT, Claude y Gemini (este documento).
+- [x] Cursor leyó opiniones de ChatGPT y Claude (Gemini fuera — sección histórica).
 - [x] Existe decisión clara para trabajo inmediato (seguridad `sync-partida` + inventario).
 - [ ] **Pendiente:** implementar fases 1–2 y obtener OK del creador antes de refactor grande.
 - [ ] Verificar que el cambio no rompe: login, guardar mapa admin, editor jugador, multijugador en móvil.
@@ -246,7 +252,7 @@ Para mapa y cuentas, mantener el mismo patrón mental: **escribir en servidor �
 
 ## Decisión final
 
-**Responsable:** Cursor (con consenso ChatGPT + Claude + Gemini)  
+**Responsable:** Cursor (con consenso ChatGPT + Claude)  
 **Fecha:** 8 julio 2026
 
 ### Qué se eligió
@@ -310,6 +316,7 @@ Para mapa y cuentas, mantener el mismo patrón mental: **escribir en servidor �
 | Fecha | Versión doc | Participantes | Notas |
 |-------|-------------|---------------|-------|
 | 2026-07-08 | 1.0 | ChatGPT, Claude, Gemini, Cursor | Documento inicial; estado post v273 |
+| 2026-07-08 | 1.1 | ChatGPT, Claude, Cursor | Gemini fuera del equipo (aviso del creador) |
 
 ---
 
