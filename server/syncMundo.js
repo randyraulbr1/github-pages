@@ -309,8 +309,16 @@ function actualizarPartidaEnSnapshot(perfilId, partidaSnap, io, opts) {
   const actual = snapshot.partidas[perfilId];
 
   let snap = Object.assign({}, partidaSnap);
+  const prevDatos = actual?.datos || {};
   if (snap.datos) {
-    snap.datos = validarPartidaMin(snap.datos);
+    const fusionados = Object.assign({}, prevDatos, validarPartidaMin(snap.datos));
+    const tNew = fusionados.preferenciasT || snap.statsT || snap.t || 0;
+    const tOld = prevDatos.preferenciasT || 0;
+    if (prevDatos.preferencias && (!fusionados.preferencias || tNew < tOld)) {
+      fusionados.preferencias = prevDatos.preferencias;
+      fusionados.preferenciasT = prevDatos.preferenciasT || tOld;
+    }
+    snap.datos = fusionados;
   } else {
     const t = snap.t || snap.statsT || Date.now();
     snap = { datos: validarPartidaMin(snap), t, statsT: snap.statsT || t };

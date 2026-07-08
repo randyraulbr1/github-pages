@@ -1776,8 +1776,10 @@ const Admin = {
   },
 
   optimizacionVisibilidadActiva() {
+    if (this.esAdminJugador() && this.datos?.optimizarVisibilidad !== undefined) {
+      return !!this.datos.optimizarVisibilidad;
+    }
     if (this.publicado?.optimizarVisibilidad === false) return false;
-    if (this.esAdminJugador() && this.datos?.optimizarVisibilidad === false) return false;
     return CONFIG.optimizarVisibilidad !== false;
   },
 
@@ -1933,6 +1935,11 @@ const Admin = {
     const idsTesorosAntes = new Set(this.tesorosTodos().map(t => t.id));
     const idsMisionesAntes = new Set(this.misionesTodas().map(m => m.id));
     const eliminadosAntes = new Set(this.publicado.eliminados || []);
+    const prefsAdmin = {
+      moverPinJugador: this.datos.moverPinJugador,
+      optimizarVisibilidad: this.datos.optimizarVisibilidad,
+      verCofresOcultos: this.datos.verCofresOcultos
+    };
 
     this._crudoPublicado = texto;
     try {
@@ -2025,6 +2032,21 @@ const Admin = {
       this.datos.jugadoresPinAdmin = Object.assign(
         {}, this.publicado.adminPinClaves, this.datos.jugadoresPinAdmin || {}
       );
+      this.guardar();
+    }
+    if (prefsAdmin.moverPinJugador !== undefined) {
+      this.datos.moverPinJugador = !!prefsAdmin.moverPinJugador;
+    }
+    if (prefsAdmin.optimizarVisibilidad !== undefined) {
+      this.datos.optimizarVisibilidad = !!prefsAdmin.optimizarVisibilidad;
+    }
+    if (prefsAdmin.verCofresOcultos !== undefined) {
+      this.datos.verCofresOcultos = !!prefsAdmin.verCofresOcultos;
+      if (typeof Cofres !== 'undefined') Cofres.verOcultos = !!prefsAdmin.verCofresOcultos;
+    }
+    if (prefsAdmin.moverPinJugador !== undefined ||
+        prefsAdmin.optimizarVisibilidad !== undefined ||
+        prefsAdmin.verCofresOcultos !== undefined) {
       this.guardar();
     }
     if (this.datos.moverPinJugador === undefined && this.publicado.moverPinJugador !== undefined) {
@@ -5645,6 +5667,9 @@ const Admin = {
     remoto.tiendasStock = admin.tiendasStock || remoto.tiendasStock || {};
     remoto.combate = admin.combate || remoto.combate;
     if (admin.moverPinJugador !== undefined) remoto.moverPinJugador = !!admin.moverPinJugador;
+    if (admin.optimizarVisibilidad !== undefined) {
+      remoto.optimizarVisibilidad = !!admin.optimizarVisibilidad;
+    }
     if (admin.adminPinClaves) {
       remoto.adminPinClaves = Object.assign({}, remoto.adminPinClaves, admin.adminPinClaves);
     }
@@ -5989,7 +6014,9 @@ const Admin = {
       combate: this.combateConfig(),
       combateEnemigos: this.combateEnemigosConfig(),
       moverPinJugador: !!this.datos.moverPinJugador,
-      optimizarVisibilidad: this.optimizacionVisibilidadActiva(),
+      optimizarVisibilidad: this.datos.optimizarVisibilidad !== undefined
+        ? !!this.datos.optimizarVisibilidad
+        : this.optimizacionVisibilidadActiva(),
       adminPinClaves: Object.assign(
         {}, this.publicado.adminPinClaves || {}, this.datos.jugadoresPinAdmin || {}
       )

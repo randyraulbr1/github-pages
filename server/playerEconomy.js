@@ -59,9 +59,10 @@ function guardarPartida(snapshot, perfilId, datos, io) {
   if (!snapshot.partidas) snapshot.partidas = {};
   const prev = snapshot.partidas[perfilId] || { t: Date.now() };
   const validados = validarPartidaMin(datos);
+  const fusionados = Object.assign({}, prev.datos || {}, validados);
   const snap = {
     ...prev,
-    datos: validados,
+    datos: fusionados,
     t: Date.now(),
     statsT: Date.now()
   };

@@ -470,11 +470,13 @@ Con una **cuenta normal** (no admin), todo debe **fallar correctamente**:
 
 **v281:** fix arranque «Descargando el mundo…» (PR #111).
 
-**Pendiente operativo:** Deploy Render con **v283** + checklist post-deploy v280.
+**Pendiente operativo:** Deploy Render con **v284** + checklist post-deploy v280.
 
 **v282 Fase 3b (parcial):** pickup/drop/bolsa autoritativos.
 
 **v283 Fase 3b (tienda/tesoro/usar):** `player:shopBuy`, tesoro con recompensa en servidor, `player:useItem` (comida/medicina). Pendiente: venta en tienda, misiones con recompensa, sync-partida sin confiar en cliente.
+
+**v284 (preferencias persistentes):** opciones jugador (`preferencias` + `preferenciasT` en sync nube/servidor) y toggles admin no se resetean al sincronizar mundo/partida.
 
 **Para decir a Cursor:** Fases 3–4 mergeadas. v281+v282 en ramas agente. Siguiente 3b: economía/tiendas o deploy + pruebas.
 

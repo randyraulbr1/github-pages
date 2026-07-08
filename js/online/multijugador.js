@@ -717,6 +717,10 @@ const Multijugador = {
     const invPendiente = Guardado.datos._invPendienteSync;
     let mochilaLocal;
     let armaLocal;
+    const prefsLocal = Guardado.datos.preferencias
+      ? JSON.parse(JSON.stringify(Guardado.datos.preferencias))
+      : null;
+    const prefsTLocal = Guardado.datos.preferenciasT || 0;
     if (invPendiente && !pisarStats) {
       mochilaLocal = JSON.parse(JSON.stringify(Guardado.datos.mochila || []));
       armaLocal = Guardado.datos.armaEquipada;
@@ -729,6 +733,11 @@ const Multijugador = {
     if (invPendiente && !pisarStats) {
       Guardado.datos.mochila = mochilaLocal;
       Guardado.datos.armaEquipada = armaLocal;
+    }
+    const remotaT = d.preferenciasT || 0;
+    if (prefsLocal && (!d.preferencias || remotaT < prefsTLocal)) {
+      Guardado.datos.preferencias = prefsLocal;
+      Guardado.datos.preferenciasT = prefsTLocal;
     }
     Guardado.datos.nubeT = t;
 

@@ -102,7 +102,8 @@ const Guardado = {
       'mochila', 'dinero', 'vida', 'hambre', 'xp', 'nivel', 'posicionJugador',
       'tesorosRecogidos', 'misiones', 'misionesEstado',
       'correoEnviados', 'correoRecibidos', 'correoTiendaLocal',
-      'historialDinero', 'historialObjetos', 'mensajesVistos', 'muerto', 'muertePos', 'revividoEn', 'armaEquipada'
+      'historialDinero', 'historialObjetos', 'mensajesVistos', 'muerto', 'muertePos', 'revividoEn', 'armaEquipada',
+      'preferencias', 'preferenciasT'
     ];
   },
 
@@ -142,6 +143,10 @@ const Guardado = {
     if (!snap) return;
     const opts = opciones || {};
     const stats = new Set(this._camposStats());
+    const prefsLocales = this.datos.preferencias
+      ? JSON.parse(JSON.stringify(this.datos.preferencias))
+      : null;
+    const prefsTLocal = this.datos.preferenciasT || 0;
     for (const k of this._camposNube()) {
       if (snap[k] === undefined) continue;
       if (opts.sinStats && stats.has(k)) continue;
@@ -150,9 +155,21 @@ const Guardado = {
       if (k === 'posicionJugador') {
         if (!snap[k] || !Array.isArray(snap[k]) || snap[k].length < 2) continue;
       }
+      if (k === 'preferencias') {
+        const remotaT = snap.preferenciasT || opts.preferenciasT || 0;
+        if (!snap[k] || remotaT < prefsTLocal) continue;
+      }
+      if (k === 'preferenciasT') {
+        const remotaT = snap.preferenciasT || 0;
+        if (remotaT < prefsTLocal) continue;
+      }
       if (k === 'armaEquipada' || snap[k] !== null) {
         this.datos[k] = JSON.parse(JSON.stringify(snap[k]));
       }
+    }
+    if (prefsLocales && (!snap.preferencias || (snap.preferenciasT || 0) < prefsTLocal)) {
+      this.datos.preferencias = prefsLocales;
+      if (prefsTLocal) this.datos.preferenciasT = prefsTLocal;
     }
   },
 

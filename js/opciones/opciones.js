@@ -118,6 +118,7 @@ const Opciones = {
       Guardado.datos.preferencias = { notifChat: true, notifAmigos: true, vibracionCombate: true, posBtnAtacar: 'izq' };
     }
     Guardado.datos.preferencias[clave] = val;
+    Guardado.datos.preferenciasT = Date.now();
     Guardado.guardar();
     this._pintarSegmentos();
     if (clave === 'posBtnAtacar' && typeof Enemigos !== 'undefined') {
@@ -287,6 +288,7 @@ const Opciones = {
       Guardado.datos.preferencias = { notifChat: true, notifAmigos: true, vibracionCombate: true, posBtnAtacar: 'izq' };
     }
     Guardado.datos.preferencias[clave] = !!valor;
+    Guardado.datos.preferenciasT = Date.now();
     Guardado.guardar();
   },
 
