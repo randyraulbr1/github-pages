@@ -284,13 +284,13 @@ Ninguna pantalla debe abrir otra directamente sin pasar por el UI Manager.
 
 # FASE 7 - Sistema de errores amigables
 
-Estado: 🚧 En progreso (v289)
+Estado: ✅ Completada (v290)
 
 Objetivo: nunca mostrar errores feos al jugador.
 
-Nota v289: `mensajeAmigable` en login/registro, GPS, amigos, chat, mochila online, bolsas, combate, botín, tesoros. Pendiente: estados cargando/error/reintentar por pantalla.
+Nota v290: `Utilidades.pintarEstado` (cargando/error/vacío/reintentar) en login, registro y amigos. v289: mensajeAmigable en rutas del jugador. Avisos ya tenían estado vacío.
 
-Nota v288: compras de tienda online. v286: multijugador. v287: sync login servidor.
+Nota v289: login/registro/GPS/amigos/chat/mochila/bolsas/combate/botín/tesoros. v288: tienda online.
 
 No mostrar:
 
@@ -317,27 +317,35 @@ Cada pantalla debe tener:
 
 # FASE 8 - Pruebas antes de publicar
 
-Estado: ⏳ Pendiente
+Estado: 🚧 En progreso (v290)
 
-Checklist minimo:
+Objetivo: no publicar si una prueba crítica falla.
 
-- Crear cuenta.
-- Iniciar sesion.
-- GPS propio.
-- Ver otro jugador.
-- Inventario.
-- Amigos.
-- Chat.
-- Bloquear jugador.
-- Admin crea objeto.
-- Admin mueve PIN.
-- Admin borra objeto.
-- Reiniciar servidor.
-- Borrar cache.
-- Entrar desde otro telefono.
-- Probar mala conexion.
-- Probar PC.
-- Probar movil.
+Cómo usar: marcar cada ítem con ☐ pendiente, ✅ ok o ❌ falló (fecha + nota breve).
+
+Checklist mínimo:
+
+| Prueba | Estado |
+|--------|--------|
+| Crear cuenta | ☐ |
+| Iniciar sesión | ☐ |
+| GPS propio | ☐ |
+| Ver otro jugador | ☐ |
+| Inventario | ☐ |
+| Amigos | ☐ |
+| Chat | ☐ |
+| Bloquear jugador | ☐ |
+| Admin crea objeto | ☐ |
+| Admin mueve PIN | ☐ |
+| Admin borra objeto | ☐ |
+| Reiniciar servidor | ☐ |
+| Borrar caché | ☐ |
+| Entrar desde otro teléfono | ☐ |
+| Mala conexión | ☐ |
+| PC | ☐ |
+| Móvil | ☐ |
+
+Nota v290: checklist con tabla de seguimiento. Pendiente: ejecutar y marcar resultados antes del próximo deploy mayor.
 
 Regla:
 

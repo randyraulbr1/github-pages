@@ -80,13 +80,31 @@ const Usuarios = {
     document.body.classList.remove('en-auth');
   },
 
-  _mostrarAvisoAuth(pantalla, texto, tipo) {
+  _mostrarAvisoAuth(pantalla, texto, tipo, opts) {
     const id = pantalla === 'registro' ? 'registro-aviso' : 'login-aviso';
     const el = document.getElementById(id);
     if (!el) return;
-    el.textContent = texto;
+    el.innerHTML = '';
+    const span = document.createElement('span');
+    span.textContent = texto;
+    el.appendChild(span);
     el.className = 'auth-aviso-mensaje kingdom-auth-alerta ' + (tipo || 'error');
     el.classList.remove('oculto');
+    if (opts?.reintentar) {
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'auth-reintentar btn-kingdom-secundario';
+      btn.textContent = 'Reintentar';
+      btn.addEventListener('click', () => {
+        this._limpiarAvisoAuth(pantalla);
+        opts.reintentar();
+      });
+      el.appendChild(btn);
+    }
+  },
+
+  _authPuedeReintentar(texto) {
+    return /conectar|conexión|servidor|reintentando/i.test(String(texto || ''));
   },
 
   _limpiarAvisoAuth(pantalla) {
@@ -333,7 +351,9 @@ const Usuarios = {
 
     try {
       if (!CONFIG.servidorOnline) {
-        this._mostrarAvisoAuth('login', 'Servidor no disponible. Revisa tu conexión.');
+        this._mostrarAvisoAuth('login', 'Servidor no disponible. Revisa tu conexión.', 'error', {
+          reintentar: () => this.iniciarSesion()
+        });
         return;
       }
 
@@ -345,7 +365,8 @@ const Usuarios = {
         } else if (srv.codigo === 'cuenta_eliminada') {
           msg = 'Tu cuenta fue eliminada por el admin. Pídele que te restaure desde el panel.';
         }
-        this._mostrarAvisoAuth('login', msg);
+        const retry = this._authPuedeReintentar(msg) ? { reintentar: () => this.iniciarSesion() } : undefined;
+        this._mostrarAvisoAuth('login', msg, 'error', retry);
         return;
       }
 
@@ -380,7 +401,9 @@ const Usuarios = {
       }
     } catch (e) {
       console.error('Error en login:', e);
-      this._mostrarAvisoAuth('login', 'Error al entrar. Intenta de nuevo.');
+      this._mostrarAvisoAuth('login', Utilidades.mensajeAmigable(e, 'Error al entrar'), 'error', {
+        reintentar: () => this.iniciarSesion()
+      });
     } finally {
       if (btn) { btn.disabled = false; btn.textContent = 'Entrar al juego'; }
     }
@@ -418,28 +441,42 @@ const Usuarios = {
     };
 
     if (!CONFIG.servidorOnline) {
-      this._mostrarAvisoAuth('registro', 'Servidor no disponible. No se puede crear cuenta.');
+      this._mostrarAvisoAuth('registro', 'Servidor no disponible. No se puede crear cuenta.', 'error', {
+        reintentar: () => this.crear()
+      });
       return;
     }
 
-    const srv = await this._registrarServidor(nombre, telefono, clave, perfil.id);
-    if (srv?.error) {
-      this._mostrarAvisoAuth('registro', Utilidades.mensajeAmigable(srv.error, 'No se pudo crear la cuenta'));
-      return;
-    }
-    if (srv?.perfil?.id) perfil.id = srv.perfil.id;
+    const btnReg = document.getElementById('btn-crear-perfil');
+    if (btnReg) { btnReg.disabled = true; btnReg.textContent = 'Creando cuenta…'; }
+    try {
+      const srv = await this._registrarServidor(nombre, telefono, clave, perfil.id);
+      if (srv?.error) {
+        const msg = Utilidades.mensajeAmigable(srv.error, 'No se pudo crear la cuenta');
+        const retry = this._authPuedeReintentar(msg) ? { reintentar: () => this.crear() } : undefined;
+        this._mostrarAvisoAuth('registro', msg, 'error', retry);
+        return;
+      }
+      if (srv?.perfil?.id) perfil.id = srv.perfil.id;
 
-    this.datos.lista.push(perfil);
-    this._guardarLista();
-    this._registrarEnAdminLocal(perfil);
-    const snap = await this._partidaInicialRegistro();
-    await MundoPublico.guardarCuenta(perfil, snap);
-    await this._activar(perfil);
-    if (typeof SyncServidor !== 'undefined') {
-      SyncServidor.guardarClavePerfil(perfil.id, clave);
-    } else {
-      sessionStorage.setItem('mariel_clave_servidor', clave);
-      try { localStorage.setItem('mariel_clave_' + perfil.id, clave); } catch (e) { /* */ }
+      this.datos.lista.push(perfil);
+      this._guardarLista();
+      this._registrarEnAdminLocal(perfil);
+      const snap = await this._partidaInicialRegistro();
+      await MundoPublico.guardarCuenta(perfil, snap);
+      await this._activar(perfil);
+      if (typeof SyncServidor !== 'undefined') {
+        SyncServidor.guardarClavePerfil(perfil.id, clave);
+      } else {
+        sessionStorage.setItem('mariel_clave_servidor', clave);
+        try { localStorage.setItem('mariel_clave_' + perfil.id, clave); } catch (e) { /* */ }
+      }
+    } catch (e) {
+      this._mostrarAvisoAuth('registro', Utilidades.mensajeAmigable(e, 'Error al crear cuenta'), 'error', {
+        reintentar: () => this.crear()
+      });
+    } finally {
+      if (btnReg) { btnReg.disabled = false; btnReg.textContent = 'Registrarme'; }
     }
   },
 

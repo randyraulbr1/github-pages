@@ -134,5 +134,41 @@ const Utilidades = {
     if (/too far|demasiado lejos/i.test(low)) return msg;
     if (msg.length > 120 || /stack|at \w+\./i.test(msg)) return fb;
     return msg;
+  },
+
+  /** Fase 7 — estado cargando / error / vacío / reintentar en un contenedor */
+  pintarEstado(id, opts) {
+    const el = typeof id === 'string' ? document.getElementById(id) : id;
+    if (!el) return;
+    const modo = opts?.modo || 'vacio';
+    const fb = modo === 'cargando' ? 'Cargando…'
+      : modo === 'error' ? 'No se pudo cargar'
+        : modo === 'alerta' ? 'Aviso'
+          : 'Nada por aquí';
+    const mensaje = modo === 'vacio'
+      ? (opts?.textoVacio || opts?.mensaje || fb)
+      : this.mensajeAmigable(opts?.mensaje, opts?.fallback || fb);
+    el.className = 'ui-estado-contenedor ui-estado-' + modo;
+    el.classList.remove('oculto');
+    if (modo === 'cargando') {
+      el.innerHTML = '<div class="ui-estado-texto"><span class="ui-estado-spinner" aria-hidden="true"></span> ' + mensaje + '</div>';
+    } else {
+      el.innerHTML = '<div class="ui-estado-texto">' + mensaje + '</div>';
+    }
+    if (opts?.onReintentar && (modo === 'error' || modo === 'alerta')) {
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'ui-estado-reintentar btn-kingdom-secundario';
+      btn.textContent = 'Reintentar';
+      btn.addEventListener('click', opts.onReintentar);
+      el.appendChild(btn);
+    }
+  },
+
+  limpiarEstado(id) {
+    const el = typeof id === 'string' ? document.getElementById(id) : id;
+    if (!el) return;
+    el.innerHTML = '';
+    el.className = 'ui-estado-contenedor oculto';
   }
 };

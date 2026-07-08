@@ -3284,6 +3284,57 @@ body.admin-organizar .leaflet-marker-icon {
   border-color: rgba(255, 159, 10, .35);
   color: #ffd08a;
 }
+.auth-reintentar {
+  display: block;
+  margin: 10px auto 0;
+  min-width: 140px;
+}
+
+/* Fase 7 — estados UI reutilizables */
+.ui-estado-contenedor {
+  margin: 8px 0 12px;
+  padding: 12px 14px;
+  border-radius: 12px;
+  text-align: center;
+  font-size: 13px;
+  line-height: 1.45;
+}
+.ui-estado-cargando {
+  background: rgba(47, 122, 229, .12);
+  border: 1px solid rgba(47, 122, 229, .28);
+  color: #9ec5ff;
+}
+.ui-estado-error {
+  background: rgba(255, 69, 58, .14);
+  border: 1px solid rgba(255, 69, 58, .35);
+  color: #ffb4ae;
+}
+.ui-estado-alerta {
+  background: rgba(255, 159, 10, .12);
+  border: 1px solid rgba(255, 159, 10, .35);
+  color: #ffd08a;
+}
+.ui-estado-vacio {
+  background: rgba(255, 255, 255, .05);
+  border: 1px dashed rgba(255, 255, 255, .12);
+  color: #9aa5bd;
+}
+.ui-estado-spinner {
+  display: inline-block;
+  width: 14px;
+  height: 14px;
+  margin-right: 6px;
+  border: 2px solid rgba(158, 197, 255, .35);
+  border-top-color: #9ec5ff;
+  border-radius: 50%;
+  vertical-align: -2px;
+  animation: uiEstadoSpin .7s linear infinite;
+}
+@keyframes uiEstadoSpin { to { transform: rotate(360deg); } }
+.ui-estado-reintentar {
+  margin-top: 10px;
+  min-width: 140px;
+}
 
 /* ============ ADMIN: carpeta desplegable ============ */
 .admin-carpeta {
