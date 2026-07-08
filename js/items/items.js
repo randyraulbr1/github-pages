@@ -92,6 +92,9 @@ const CATALOGO_ITEMS = {
   botas_nv1:    { nombre: 'Botas de cuero',     icono: '🥾', tipo: 'botas',   precio: 70,  nivelMin: 1,  nivelMax: 10,  defensa: 1,  bonusVelocidad: 2, desc: 'Nv 1–10. Ligeras.' },
   ropa_nv1:     { nombre: 'Ropa sencilla',      icono: '👕', tipo: 'ropa',    precio: 60,  nivelMin: 1,  nivelMax: 10,  defensa: 1,  bonusHambre: 5, bonusHambreModo: 'porcentaje', desc: 'Nv 1–10. +5% hambre máx.' },
   chaleco_nv20: { nombre: 'Chaleco reforzado',  icono: '🦺', tipo: 'chaleco', precio: 450, nivelMin: 11, nivelMax: 20, defensa: 15, bonusVida: 25, bonusVidaModo: 'porcentaje', resistencia: 'golpes +10%', desc: 'Nv 11–20. +25% vida máx.' },
+  casco_nv20:   { nombre: 'Casco militar',      icono: '🪖', tipo: 'casco',   precio: 380, nivelMin: 11, nivelMax: 20, defensa: 8,  bonusVida: 12, bonusVidaModo: 'porcentaje', desc: 'Nv 11–20. +12% vida máx.' },
+  botas_nv20:   { nombre: 'Botas reforzadas',   icono: '🥾', tipo: 'botas',   precio: 320, nivelMin: 11, nivelMax: 20, defensa: 4,  bonusVelocidad: 5, desc: 'Nv 11–20. Más rápidas.' },
+  ropa_nv20:    { nombre: 'Uniforme táctico',   icono: '🧥', tipo: 'ropa',    precio: 290, nivelMin: 11, nivelMax: 20, defensa: 3,  bonusHambre: 12, bonusHambreModo: 'porcentaje', desc: 'Nv 11–20. +12% hambre máx.' },
 
   // ---------- TESOROS Y VALIOSOS (9) ----------
   moneda_antigua: { nombre: 'Moneda antigua',    icono: '🥉', tipo: 'tesoro', precio: 100, desc: 'Una moneda colonial oxidada.' },
@@ -203,6 +206,7 @@ const Items = {
       filas.push(['Crudo', 'Sí · prob. negativo ' + (item.probCrudoNegativo ?? 60) + '%']);
     }
     if (item.cocinadoDe) filas.push(['Cocinado de', item.cocinadoDe]);
+    if (item.versionCocinada) filas.push(['Al cocinar', item.versionCocinada]);
     if (item.dano) {
       const r = this.rangoDanoArma(item);
       filas.push(['Daño', r.lo + '–' + r.hi]);
@@ -253,6 +257,7 @@ const Items = {
         bonusVelocidad: o.bonusVelocidad,
         resistencia: o.resistencia,
         cocinadoDe: o.cocinadoDe,
+        versionCocinada: o.versionCocinada,
         danoMin: o.danoMin,
         danoMax: o.danoMax,
         dano: o.dano,
@@ -399,6 +404,8 @@ const Items = {
       partes.push(def.modo === 'porcentaje' ? '+' + def.valor + '% vida' : '+' + def.valor + ' vida');
     } else if (tc === 'crudo') {
       partes.push('crudo (riesgo)');
+      const coc = this.idResultadoCocina(item, id);
+      if (coc) partes.push('🍳→ ' + this.seguro(coc).nombre);
     } else if (this.esPiezaEquipo(item)) {
       const bonus = this.resumenBonusEquipo(item);
       if (bonus) partes.push(bonus);
@@ -448,6 +455,7 @@ const Items = {
         bonusDano: it.bonusDano,
         bonusVelocidad: it.bonusVelocidad,
         resistencia: it.resistencia,
+        versionCocinada: it.versionCocinada,
         cocinadoDe: it.cocinadoDe,
         dano: it.dano || undefined,
         danoMin: it.danoMin,
@@ -537,6 +545,28 @@ const Items = {
     const r = this.rangoDanoArma(item);
     if (r.hi <= r.lo) return r.lo;
     return r.lo + Math.floor(Math.random() * (r.hi - r.lo + 1));
+  },
+
+  /** Id del objeto cocinado resultante, o null. */
+  idResultadoCocina(item, id) {
+    if (!item) return null;
+    if (item.versionCocinada) return item.versionCocinada;
+    if (item.tipo === 'pez' && item.crudo !== false) return 'pescado_cocinado';
+    if (item.crudo === true || this.tipoConsumible(item, id) === 'crudo') {
+      for (const cid of this.idsTodos()) {
+        const it = this.obtener(cid);
+        if (it?.cocinadoDe === id) return cid;
+      }
+    }
+    return null;
+  },
+
+  esCocinable(item, id) {
+    return !!this.idResultadoCocina(item, id);
+  },
+
+  requiereCuchilloCocinar() {
+    return true;
   },
 
   /** Definición de efecto consumible (Fase 13): porcentaje o valor fijo. */

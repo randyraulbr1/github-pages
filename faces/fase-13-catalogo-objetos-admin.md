@@ -1,6 +1,8 @@
 # FASE 13 - Catalogo fuerte de objetos en panel ADM
 
-Estado: 🚧 En progreso (v294, pasos 1–8)
+Estado: ✅ Completada (v295)
+
+Nota v295: mecánica de cocinar — botón 🍳 en mochila con cuchillo; crudo/pez → cocinado; online `player:cookItem`; equipo nv 20 (casco/botas/ropa).
 
 ## Objetivo
 

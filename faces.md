@@ -441,19 +441,13 @@ Componentes recomendados:
 
 # FASE 13 - Catalogo fuerte de objetos en panel ADM
 
-Estado: 🚧 En progreso (v294)
+Estado: ✅ Completada (v295)
 
 Objetivo: seccion ADM para administrar todos los objetos del juego.
 
-Nota v291: pasos 1–3 — catálogo ADM, metadatos, exportar JSON/TXT.
+Nota v291–v294: catálogo ADM, consumibles %, equipo con bonus, armas min/max, comida cruda/cocinada, validación servidor. Ver `faces/fase-13-catalogo-objetos-admin.md`.
 
-Nota v292: paso 4 — consumibles %/fijo, validación servidor, peces crudos.
-
-Nota v293: paso 5 — equipamiento con bonus solo equipado (casco/chaleco/botas/ropa).
-
-Nota v294: pasos 6–8 — armas con daño min/max y nivel; comida cruda/cocinada (`carne_cruda`, `carne_cocinada`, `pescado_cocinado`); validación/sanitización servidor de `itemsNuevos` y daño online con arma/equipo.
-
-Pendiente: mecánica de cocinar en juego, más piezas de equipo por tramo, validación al publicar desde cliente.
+Nota v295: cocinar en juego (🍳 + cuchillo), endpoint `player:cookItem`, equipo nv 11–20 ampliado.
 
 ---
 

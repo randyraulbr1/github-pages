@@ -2713,6 +2713,7 @@ const Admin = {
           this._campoNumero('af-nivel-max', 'Nivel máx', d.nivelMax || ((d.nivelMin || 1) + 9)) +
         '</div>' +
         this._campoTexto('af-cocinado-de', 'Cocinado de (id crudo, opcional)', d.cocinadoDe || '') +
+        this._campoTexto('af-version-cocinada', 'Al cocinar → id (crudo/pez)', d.versionCocinada || '') +
         '<div class="campo-doble" id="af-equipo-campos" style="display:none">' +
           this._campoNumero('af-defensa', 'Defensa', d.defensa || 0) +
           this._campoNumero('af-bonus-vida', 'Bonus vida', d.bonusVida || 0) +
@@ -2745,6 +2746,10 @@ const Admin = {
         if (d.efectoModo) {
           const em = document.getElementById('af-efecto-modo');
           if (em) em.value = d.efectoModo;
+        }
+        if (d.versionCocinada) {
+          const vc = document.getElementById('af-version-cocinada');
+          if (vc) vc.value = d.versionCocinada;
         }
         if (d.cocinadoDe) {
           const cd = document.getElementById('af-cocinado-de');
@@ -3095,7 +3100,9 @@ const Admin = {
         nuevo.probCrudoNegativo = Math.min(100, Math.max(0, this._numero('af-prob-crudo') ?? 60));
       }
       const cocinadoDe = this._valor('af-cocinado-de').trim();
+      const versionCocinada = this._valor('af-version-cocinada').trim();
       if (cocinadoDe) nuevo.cocinadoDe = cocinadoDe;
+      if (versionCocinada) nuevo.versionCocinada = versionCocinada;
       if (tipoItem === 'arma') {
         const dMin = Math.max(1, this._numero('af-dano-min') || 1);
         const dMax = Math.max(dMin, this._numero('af-dano-max') || dMin);

@@ -6,6 +6,7 @@ const { validarPartidaMin, vidaMaximaPorNivel } = require('./playerStats');
 const {
   agregarAMochila,
   quitarDeMochila,
+  contarEnMochila,
   normalizarMochila
 } = require('./playerInventory');
 const {
@@ -271,10 +272,54 @@ function usarConsumible(playerId, itemId, cantidad, io) {
   };
 }
 
+function cocinarItem(playerId, itemId, cantidad, io) {
+  const qty = Math.max(1, Math.min(10, parseInt(cantidad, 10) || 1));
+  const snapshot = getWorldSnapshot() || { actualizadoEn: Date.now(), partidas: {} };
+  const item = require('./itemCatalog').itemFromSnapshot(itemId, snapshot);
+  const destId = require('./itemCatalog').idResultadoCocina(item, itemId, snapshot);
+  if (!destId) return { ok: false, error: 'No se puede cocinar' };
+  const pl = findPlayerById(playerId);
+  if (!pl) return { ok: false, error: 'Jugador no encontrado' };
+  const perfilId = buscarPerfilId(pl.name, playerId);
+  if (!perfilId) return { ok: false, error: 'Sin perfil' };
+
+  const { datos } = getDatosPartida(snapshot, perfilId);
+  if (datos.muerto || (datos.vida != null && datos.vida <= 0)) {
+    return { ok: false, error: 'No puedes cocinar estando muerto' };
+  }
+  if (contarEnMochila(datos.mochila, 'cuchillo') < 1) {
+    return { ok: false, error: 'Necesitas un cuchillo' };
+  }
+
+  const quitar = quitarDeMochila(datos.mochila, [{ id: itemId, cantidad: qty }]);
+  if (!quitar.ok) return quitar;
+
+  const agregar = agregarAMochila(quitar.mochila, [{ id: destId, cantidad: qty }]);
+  if (!agregar.ok) {
+    return { ok: false, error: agregar.error || 'Mochila llena' };
+  }
+
+  datos.mochila = agregar.mochila;
+  datos.xp = Math.min(999999999, Math.round(datos.xp || 0) + 2 * qty);
+
+  const snap = guardarPartida(snapshot, perfilId, datos, io);
+  return {
+    ok: true,
+    itemId,
+    destId,
+    cantidad: qty,
+    xp: datos.xp,
+    mochila: datos.mochila,
+    perfilId,
+    partida: snap
+  };
+}
+
 module.exports = {
   comprarEnTienda,
   registrarTesoroConRecompensa,
   usarConsumible,
+  cocinarItem,
   getSaldo,
   guardarPartida
 };

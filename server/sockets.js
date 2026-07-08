@@ -784,6 +784,19 @@ function setupSockets(io) {
       ack?.(result);
     });
 
+    socket.on('player:cookItem', (payload, ack) => {
+      const itemId = (payload?.itemId || '').trim();
+      if (!itemId) return ack?.({ ok: false, error: 'itemId requerido' });
+      const { cocinarItem } = require('../playerEconomy');
+      const result = cocinarItem(
+        socket.playerId,
+        itemId,
+        payload?.cantidad || 1,
+        io
+      );
+      ack?.(result);
+    });
+
     socket.on('player:lootBody', (payload, ack) => {
       const targetId = parseInt(payload?.targetPlayerId, 10);
       const itemId = (payload?.itemId || '').trim();

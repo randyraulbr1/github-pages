@@ -719,16 +719,23 @@ const Mochila = {
     return Items.esUsableEnInventario(item, id);
   },
 
+  _puedeCocinarItem(item, id) {
+    return Items.esCocinable(item, id) && this.tieneItem('cuchillo');
+  },
+
   _mostrarControlesArrastre(sl) {
     const controls = document.getElementById('inv-controls');
     const useBtn = document.getElementById('inv-use-btn');
     const useAllBtn = document.getElementById('inv-use-all-btn');
+    const cookBtn = document.getElementById('inv-cook-btn');
     if (!controls || !sl) return;
     const item = Items.seguro(sl.id);
     const puedeUsar = Items.esUsableEnInventario(item, sl.id);
+    const puedeCocinar = this._puedeCocinarItem(item, sl.id);
     const esConsumible = Items.esConsumible(item, sl.id);
     controls.classList.add('show');
     useBtn?.classList.toggle('on', puedeUsar);
+    cookBtn?.classList.toggle('on', puedeCocinar);
     const varios = puedeUsar && esConsumible && sl.cantidad > 1;
     useAllBtn?.classList.toggle('on', varios);
   },
@@ -948,6 +955,12 @@ const Mochila = {
       return;
     }
 
+    if (target.id === 'inv-cook-btn') {
+      this._cocinarDesde(from.place, from.key, 1);
+      this.pintar();
+      return;
+    }
+
     if (target.id === 'inv-use-btn') {
       this._usarDesde(from.place, from.key, false);
       this.pintar();
@@ -1089,6 +1102,52 @@ const Mochila = {
     } else {
       this._eliminarDesde(place, key, false);
     }
+  },
+
+  _cocinarDesde(place, key, cantidad) {
+    const sl = this._getItem(place, key);
+    if (!sl) return;
+    const item = Items.seguro(sl.id);
+    const destId = Items.idResultadoCocina(item, sl.id);
+    if (!destId) {
+      this._toast('No se puede cocinar');
+      return;
+    }
+    if (!this.tieneItem('cuchillo')) {
+      this._toast('Necesitas un cuchillo 🔪');
+      return;
+    }
+    if (Vida.estaMuerto()) {
+      this._toast('No puedes cocinar estando muerto');
+      return;
+    }
+
+    const qty = Math.min(Math.max(1, cantidad || 1), sl.cantidad);
+    if (!this.puedeRecibirRecompensa([{ id: destId, cantidad: qty }])) {
+      this._toast('🎒 No hay espacio para lo cocinado');
+      return;
+    }
+
+    const online = typeof Multijugador !== 'undefined' && Multijugador.activo && CONFIG.servidorOnline;
+    if (online) {
+      void Multijugador.cocinarItemServidor(sl.id, qty).then((res) => {
+        if (!res?.ok) {
+          this._toast(Utilidades.mensajeAmigable(res?.error, 'No se pudo cocinar'));
+          return;
+        }
+        const dest = Items.seguro(res.destId || destId);
+        this._toast('🍳 Cocinaste ' + qty + 'x ' + dest.nombre);
+        this.pintar();
+      });
+      return;
+    }
+
+    this._quitarCantidad(place, key, qty);
+    this.agregar(destId, qty, { silencioso: true });
+    Vida.ganarXp(2 * qty, 'Cocinar');
+    const dest = Items.seguro(destId);
+    this._toast('🍳 Cocinaste ' + qty + 'x ' + dest.nombre);
+    this.pintar();
   },
 
   _usarDesde(place, key, usarTodo) {

@@ -188,7 +188,29 @@ function validarItemDef(item) {
   if (out.probCrudoNegativo != null) {
     out.probCrudoNegativo = clamp(Math.round(Number(out.probCrudoNegativo) || 0), 0, 100);
   }
+  if (out.versionCocinada && typeof out.versionCocinada !== 'string') {
+    out.versionCocinada = String(out.versionCocinada);
+  }
   return { ok: errors.length === 0, errors, item: out };
+}
+
+function idResultadoCocina(item, itemId, snapshot) {
+  if (!item) return null;
+  if (item.versionCocinada) return item.versionCocinada;
+  if (item.tipo === 'pez' && item.crudo !== false) return 'pescado_cocinado';
+  if (item.crudo === true || tipoConsumible(itemId, snapshot) === 'crudo') {
+    for (const it of (snapshot?.itemsNuevos || [])) {
+      if (it?.cocinadoDe === itemId) return it.id;
+    }
+    if (itemId === 'carne_cruda') return 'carne_cocinada';
+    if (PECES_BASE.has(itemId)) return 'pescado_cocinado';
+  }
+  return null;
+}
+
+function esCocinable(itemId, snapshot) {
+  const item = itemFromSnapshot(itemId, snapshot);
+  return !!idResultadoCocina(item, itemId, snapshot);
 }
 
 function sanitizarItemsNuevos(lista) {
@@ -282,6 +304,8 @@ module.exports = {
   danoJugadorVsEnemigo,
   validarItemDef,
   sanitizarItemsNuevos,
+  idResultadoCocina,
+  esCocinable,
   efectoConsumible,
   tipoConsumible,
   calcularPuntosEfecto,

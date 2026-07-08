@@ -1304,6 +1304,16 @@ button { font-family: inherit; }
 .inv-ctrl-delete {
   background: linear-gradient(#d25d5d, #8b2d2d);
 }
+.inv-ctrl-cook {
+  background: linear-gradient(#d4a24a, #8b5e1a);
+  font-size: 14px;
+}
+.inv-ctrl-cook {
+  display: none;
+}
+.inv-ctrl-cook.on {
+  display: flex;
+}
 .inv-ctrl-use {
   background: linear-gradient(#5da26a, #2d6b38);
   font-size: 13px;
