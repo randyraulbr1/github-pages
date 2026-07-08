@@ -441,13 +441,15 @@ Componentes recomendados:
 
 # FASE 13 - Catalogo fuerte de objetos en panel ADM
 
-Estado: 🚧 En progreso (v291)
+Estado: 🚧 En progreso (v292)
 
 Objetivo: seccion ADM para administrar todos los objetos del juego.
 
 Nota v291: pasos 1–3 del plan — modelo con metadatos (`estado`, `creadoPor`, fechas), panel Catálogo de objetos (buscar, filtros, casillas, detalle), crear/editar/duplicar/ocultar personalizados, exportar JSON/TXT. Ver `faces/fase-13-catalogo-objetos-admin.md`.
 
-Pendiente: consumibles %, equipamiento con bonus, armas por nivel, comida cruda, validacion servidor.
+Nota v292: paso 4 — consumibles con efecto porcentaje/fijo (`efecto`, `efectoValor`, `efectoModo`), validación servidor (`aplicarConsumibleEnDatos`), peces comibles crudos con riesgo, formulario ADM ampliado.
+
+Pendiente: equipamiento con bonus, armas por nivel completas, comida cruda/cocinada avanzada, validacion servidor todos los campos.
 
 ---
 

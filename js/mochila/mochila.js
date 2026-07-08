@@ -934,13 +934,28 @@ const Mochila = {
   _aplicarConsumo(item, id, cantidad) {
     const tipo = Items.tipoConsumible(item, id);
     if (tipo === 'hambre') {
-      const total = (item.cura || 0) * cantidad;
+      const total = Items.calcularEfectoUnidad(item, 'hambre') * cantidad;
       Vida.alimentar(total, null);
-      Vida.ganarXp(5, 'Comer');
+      Vida.ganarXp(5 * cantidad, 'Comer');
     } else if (tipo === 'vida') {
-      const por = Items.valorPorUnidad(item, 'vida');
+      const por = Items.calcularEfectoUnidad(item, 'vida');
       Vida.cambiar(por * cantidad, null);
       Vida.ganarXp(3 * cantidad, 'Medicina');
+    } else if (tipo === 'crudo') {
+      const def = Items.defEfecto(item);
+      const prob = item.probCrudoNegativo ?? 60;
+      const vidaMax = Vida.vidaMaxima();
+      let negativo = false;
+      for (let i = 0; i < cantidad; i++) {
+        if (Math.random() * 100 < prob) {
+          const dmg = Math.max(1, Math.round(vidaMax * (def?.valor || 10) / 100));
+          Vida.cambiar(-dmg, null);
+          negativo = true;
+        } else {
+          Vida.alimentar(Math.round(CONFIG.hambreMaxima * 0.08), null);
+        }
+      }
+      if (!negativo) Vida.ganarXp(2 * cantidad, 'Comer crudo');
     }
   },
 

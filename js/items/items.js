@@ -174,8 +174,17 @@ const Items = {
     filas.push(['Tipo', this.etiquetaTipo(item)]);
     filas.push(['Precio', '$' + (item.precio || this.PRECIO_MINIMO)]);
     if (item.rareza) filas.push(['Rareza', String(item.rareza)]);
-    if (item.cura) filas.push(['Hambre', '+' + item.cura]);
-    if (item.curaVida) filas.push(['Vida', '+' + item.curaVida]);
+    const def = this.defEfecto(item);
+    if (def) {
+      const unidad = def.modo === 'porcentaje' ? def.valor + '%' : String(def.valor);
+      filas.push(['Efecto', def.efecto + ' (' + unidad + ')']);
+    } else {
+      if (item.cura) filas.push(['Hambre', '+' + item.cura]);
+      if (item.curaVida) filas.push(['Vida', '+' + item.curaVida]);
+    }
+    if (item.crudo !== false && item.tipo === 'pez') {
+      filas.push(['Crudo', 'Sí · prob. negativo ' + (item.probCrudoNegativo ?? 60) + '%']);
+    }
     if (item.dano) filas.push(['Daño', '+' + item.dano]);
     if (item.nivelMin) filas.push(['Nivel', (item.nivelMin || 1) + '–' + (item.nivelMax || 100)]);
     filas.push(['Estado', item.estado || 'activo']);
@@ -202,6 +211,11 @@ const Items = {
         descLarga: o.descLarga || '',
         cura: o.cura,
         curaVida: o.curaVida,
+        efecto: o.efecto,
+        efectoValor: o.efectoValor,
+        efectoModo: o.efectoModo,
+        crudo: o.crudo,
+        probCrudoNegativo: o.probCrudoNegativo,
         dano: o.dano,
         nivelMin: o.nivelMin,
         nivelMax: o.nivelMax,
@@ -255,26 +269,32 @@ const Items = {
     if (!item || !id) return false;
     if (this.usoEspecial(id)) return true;
     const t = this.tipoConsumible(item, id);
-    return t === 'hambre' || t === 'vida';
+    return t === 'hambre' || t === 'vida' || t === 'crudo';
   },
 
   esUsableEnVarios(item, id) {
     const t = this.tipoConsumible(item, id);
-    return t === 'hambre' || t === 'vida';
+    return t === 'hambre' || t === 'vida' || t === 'crudo';
   },
 
   requiereConfirmBorrar(item, id, desdeEquip) {
     if (desdeEquip) return true;
     const t = this.tipoConsumible(item, id);
-    if (t === 'hambre' || t === 'vida') return false;
+    if (t === 'hambre' || t === 'vida' || t === 'crudo') return false;
     return true;
   },
 
   resumenInventario(item, id) {
     const partes = [this.etiquetaTipo(item)];
     const tc = this.tipoConsumible(item, id);
-    if (tc === 'hambre') partes.push('+' + (item.cura || 0) + ' hambre');
-    if (tc === 'vida') partes.push('+' + (item.curaVida || item.cura || 0) + ' vida');
+    const def = this.defEfecto(item);
+    if (def && tc === 'hambre') {
+      partes.push(def.modo === 'porcentaje' ? '+' + def.valor + '% hambre' : '+' + def.valor + ' hambre');
+    } else if (def && tc === 'vida') {
+      partes.push(def.modo === 'porcentaje' ? '+' + def.valor + '% vida' : '+' + def.valor + ' vida');
+    } else if (tc === 'crudo') {
+      partes.push('crudo (riesgo)');
+    }
     if (item.dano) partes.push('+' + item.dano + ' daño');
     if (this.usoEspecial(id) === 'cofre') partes.push('colocar en mapa');
     if (this.usoEspecial(id) === 'llave') partes.push('abrir cofre');
@@ -304,6 +324,11 @@ const Items = {
         precio: this._limitarPrecio(it.precio),
         cura: it.cura || undefined,
         curaVida: it.curaVida || undefined,
+        efecto: it.efecto || undefined,
+        efectoValor: it.efectoValor != null ? it.efectoValor : undefined,
+        efectoModo: it.efectoModo || undefined,
+        crudo: it.crudo,
+        probCrudoNegativo: it.probCrudoNegativo,
         dano: it.dano || undefined,
         nivelMin: it.nivelMin || undefined,
         nivelMax: it.nivelMax || undefined,
@@ -369,26 +394,63 @@ const Items = {
     return nivel >= min && nivel <= max;
   },
 
-  /** 'hambre' | 'vida' | 'especial' | null — el inventario usa esto para usar/borrar */
+  /** Definición de efecto consumible (Fase 13): porcentaje o valor fijo. */
+  defEfecto(item) {
+    if (!item || typeof item !== 'object') return null;
+    if (item.efecto && item.efectoValor != null && item.efectoValor > 0) {
+      return {
+        efecto: item.efecto,
+        valor: Number(item.efectoValor),
+        modo: item.efectoModo === 'porcentaje' ? 'porcentaje' : 'fijo'
+      };
+    }
+    if (item.curaVida != null && item.curaVida > 0) {
+      if (item.curaVida >= 100) return { efecto: 'vida', valor: 100, modo: 'porcentaje' };
+      return { efecto: 'vida', valor: item.curaVida, modo: 'fijo' };
+    }
+    if (item.cura != null && item.cura > 0) {
+      return { efecto: 'hambre', valor: item.cura, modo: 'fijo' };
+    }
+    if (item.tipo === 'pez' && item.crudo !== false) {
+      return { efecto: 'crudo', valor: item.efectoValor || 10, modo: 'porcentaje' };
+    }
+    return null;
+  },
+
+  calcularEfectoUnidad(item, tipo, stats) {
+    const def = this.defEfecto(item);
+    if (!def) return this.valorPorUnidad(item, tipo);
+    const efecto = tipo || def.efecto;
+    const max = efecto === 'hambre'
+      ? (stats?.hambreMax ?? CONFIG.hambreMaxima)
+      : (stats?.vidaMax ?? (typeof Vida !== 'undefined' ? Vida.vidaMaxima() : CONFIG.vidaMaxima));
+    if (def.modo === 'porcentaje') {
+      return Math.max(0, Math.round(max * def.valor / 100));
+    }
+    return Math.max(0, Math.round(def.valor));
+  },
+
+  /** 'hambre' | 'vida' | 'crudo' | 'especial' | null */
   tipoConsumible(item, id) {
     if (!item) return null;
     const uso = this.usoEspecial(id);
     if (uso) return 'especial';
-    if (item.curaVida) return 'vida';
-    if (item.tipo === 'comida' && item.cura) return 'hambre';
-    if (item.cura && item.tipo !== 'comida') return 'vida';
+    const def = this.defEfecto(item);
+    if (!def) return null;
+    if (def.efecto === 'crudo') return 'crudo';
+    if (def.efecto === 'vida' || def.efecto === 'veneno') return 'vida';
+    if (def.efecto === 'hambre') return 'hambre';
     return null;
   },
 
   esConsumible(item, id) {
     const t = this.tipoConsumible(item, id);
-    return t === 'hambre' || t === 'vida';
+    return t === 'hambre' || t === 'vida' || t === 'crudo';
   },
 
   valorPorUnidad(item, tipo) {
-    if (tipo === 'hambre') return item.cura || 0;
-    if (tipo === 'vida') return item.curaVida || item.cura || 0;
-    return 0;
+    if (tipo === 'crudo') return 0;
+    return this.calcularEfectoUnidad(item, tipo);
   },
 
   /**
@@ -401,8 +463,9 @@ const Items = {
     const disp = Math.max(0, cantidadDisponible || 0);
     if (!disp) return 0;
 
-    const por = this.valorPorUnidad(item, tipo);
-    if (por <= 0) return 0;
+    const por = this.calcularEfectoUnidad(item, tipo, stats);
+    if (por <= 0 && tipo !== 'crudo') return 0;
+    if (tipo === 'crudo') return Math.min(disp, 1);
 
     if (tipo === 'hambre') {
       const max = stats?.hambreMax ?? CONFIG.hambreMaxima;

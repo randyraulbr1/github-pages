@@ -2681,8 +2681,24 @@ const Admin = {
             '<option value="especial">✨ Especial</option>') +
         '</div>' +
         '<div class="campo-doble">' +
-          this._campoNumero('af-cura-hambre', 'Cura hambre (consumible)', d.cura || 0) +
-          this._campoNumero('af-cura-vida', 'Cura vida (medicina)', d.curaVida || 0) +
+          this._campoNumero('af-cura-hambre', 'Cura hambre (legacy fijo)', d.cura || 0) +
+          this._campoNumero('af-cura-vida', 'Cura vida (legacy fijo)', d.curaVida || 0) +
+        '</div>' +
+        '<div class="campo-doble" id="af-efecto-campos">' +
+          this._campoSelect('af-efecto', 'Efecto (Fase 13)',
+            '<option value="">— Usar legacy arriba —</option>' +
+            '<option value="hambre">Hambre</option>' +
+            '<option value="vida">Vida</option>' +
+            '<option value="energia">Energía</option>' +
+            '<option value="veneno">Veneno</option>') +
+          this._campoSelect('af-efecto-modo', 'Modo',
+            '<option value="porcentaje">Porcentaje (%)</option>' +
+            '<option value="fijo">Valor fijo</option>') +
+        '</div>' +
+        this._campoNumero('af-efecto-valor', 'Valor del efecto', d.efectoValor || 0) +
+        '<div class="campo-doble" id="af-pez-crudo" style="display:none">' +
+          this._campoNumero('af-prob-crudo', 'Prob. efecto negativo crudo %', d.probCrudoNegativo ?? 60) +
+          '<div class="campo-caja">Los peces se pueden comer crudos con riesgo de perder vida</div>' +
         '</div>' +
         '<div class="campo-doble" id="af-arma-campos" style="display:none">' +
           this._campoNumero('af-dano', 'Daño arma', d.dano || 5) +
@@ -2698,13 +2714,27 @@ const Admin = {
         if (d.descLarga) document.getElementById('af-desc-larga').value = d.descLarga;
         const selTipo = document.getElementById('af-tipo-item');
         if (d.tipo && selTipo) selTipo.value = d.tipo;
+        if (d.efecto) {
+          const ef = document.getElementById('af-efecto');
+          if (ef) ef.value = d.efecto;
+        }
+        if (d.efectoModo) {
+          const em = document.getElementById('af-efecto-modo');
+          if (em) em.value = d.efectoModo;
+        }
+        if (d.efectoValor != null) {
+          const ev = document.getElementById('af-efecto-valor');
+          if (ev) ev.value = d.efectoValor;
+        }
         this._enlazarEmojisObjeto();
         const armaBox = document.getElementById('af-arma-campos');
-        const toggleArma = () => {
+        const pezBox = document.getElementById('af-pez-crudo');
+        const toggleTipo = () => {
           if (armaBox) armaBox.style.display = selTipo?.value === 'arma' ? '' : 'none';
+          if (pezBox) pezBox.style.display = selTipo?.value === 'pez' ? '' : 'none';
         };
-        selTipo?.addEventListener('change', toggleArma);
-        toggleArma();
+        selTipo?.addEventListener('change', toggleTipo);
+        toggleTipo();
       }, 0);
     }
     if (tipo === 'mision' || tipo === 'tesoro' || tipo === 'objeto' || tipo === 'enemigo' || tipo === 'tienda_admin') {
@@ -2969,6 +2999,9 @@ const Admin = {
       const tipoItem = this._valor('af-tipo-item') || 'especial';
       const curaH = this._numero('af-cura-hambre') || 0;
       const curaV = this._numero('af-cura-vida') || 0;
+      const efecto = this._valor('af-efecto').trim();
+      const efectoValor = this._numero('af-efecto-valor') || 0;
+      const efectoModo = this._valor('af-efecto-modo') || 'porcentaje';
       const nuevo = {
         id: idExistente || ('obj_' + nombre.toLowerCase().normalize('NFD').replace(/[^a-z0-9]/g, '').slice(0, 16) +
           '_' + Date.now().toString(36).slice(-4)),
@@ -2981,6 +3014,15 @@ const Admin = {
       };
       if (curaH > 0) nuevo.cura = curaH;
       if (curaV > 0) nuevo.curaVida = curaV;
+      if (efecto && efectoValor > 0) {
+        nuevo.efecto = efecto;
+        nuevo.efectoValor = efectoValor;
+        nuevo.efectoModo = efectoModo === 'fijo' ? 'fijo' : 'porcentaje';
+      }
+      if (tipoItem === 'pez') {
+        nuevo.crudo = true;
+        nuevo.probCrudoNegativo = Math.min(100, Math.max(0, this._numero('af-prob-crudo') ?? 60));
+      }
       if (tipoItem === 'arma') {
         nuevo.dano = Math.max(1, this._numero('af-dano') || 5);
         nuevo.nivelMin = Math.max(1, this._numero('af-nivel-min') || 1);
