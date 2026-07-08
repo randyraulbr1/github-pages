@@ -23,6 +23,36 @@ for f in server/*.js server/routes/*.js; do
 done
 echo "OK servidor"
 
+echo "== Fase 12 UI (paneles unificados) =="
+grep -q 'ui_components.css' index.html
+grep -q 'ui_components.js' index.html
+for id in ventana-amigos ventana-mochila ventana-tienda ventana-misiones ventana-opciones ventana-admin; do
+  grep -q "id=\"$id\"" index.html
+done
+grep -q 'ui-panel-header' index.html
+grep -q 'ui-panel-close' index.html
+echo "OK paneles UI Fase 12"
+
+echo "== Fases 9-11 (servidor) =="
+for f in server/rateLimit.js server/adminHistorial.js; do
+  [ -f "$f" ] || { echo "FALTA $f"; exit 1; }
+  node --check "$f"
+done
+grep -q 'rateLimit' server/sockets.js
+grep -q 'adminHistorial\|historial' server/routes/playerRoutes.js
+echo "OK rate limit + historial admin"
+
+echo "== Deploy tcodm.com =="
+REMOTE_V=$(curl -sf -m 12 https://raw.githubusercontent.com/randyraulbr1/github-pages/main/version.json | grep -oP '"version": "\K[0-9]+' || true)
+[ "$REMOTE_V" = "$V" ] || { echo "FALTA sync GitHub version.json ($REMOTE_V vs $V)"; exit 1; }
+HTML=""
+for i in 1 2 3; do
+  HTML=$(curl -sf -m 15 https://tcodm.com/ 2>/dev/null) && break
+  sleep 2
+done
+echo "$HTML" | grep -qF "content=\"$V\"" || { echo "FALTA tcodm.com v$V"; exit 1; }
+echo "OK tcodm.com sirve v$V"
+
 echo "== Health (si servidor en :3000) =="
 if curl -sf -m 3 http://127.0.0.1:3000/health >/dev/null 2>&1; then
   curl -s http://127.0.0.1:3000/health | head -c 200

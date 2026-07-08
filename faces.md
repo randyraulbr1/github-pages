@@ -347,7 +347,15 @@ Checklist mínimo:
 | PC | ✅ smoke 2026-07-08 — JS + versión sincronizada |
 | Móvil | ✅ viewport 390×844 PR#119; ☐ toque real Android |
 
-Nota v299: `scripts/smoke-v299.sh` en main. PR #116–#120 mergeados en orden. `version.json` en GitHub = 299. tcodm.com sirve meta `mariel-version` 299 (2026-07-08).
+### Checklist rápido Android (~10 min)
+
+1. Borrar caché del sitio o modo incógnito → debe cargar **v299**.
+2. Crear cuenta o login → mapa visible con GPS.
+3. Abrir inventario, amigos, chat, opciones → paneles sin desborde, botón ✕ cierra.
+4. Admin (Randy): Organizar → mover PIN → confirmar → publicar.
+5. Segundo teléfono o PC: ver al otro jugador en mapa.
+
+Nota v299: `scripts/smoke-v299.sh` en main (versión, JS, UI Fase 12, rate limit, historial, tcodm.com). PR #116–#120 mergeados. PR #121 docs obsoletos mergeado.
 
 PRs obsoletos abiertos (cerrar manualmente, no mergear): #113, #114, #88, #19, #17, #16, #10 — todo superseded en v299.
 
