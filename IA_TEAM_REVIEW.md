@@ -466,9 +466,11 @@ Con una **cuenta normal** (no admin), todo debe **fallar correctamente**:
 
 **Fase 3:** Diseño **cerrado por consenso** — ver `FASE3_DISENO_MUNDO.md` + sección «DECISIÓN CURSOR — consenso Fase 3» arriba.
 
-**Pendiente operativo:** Deploy Render + checklists Fase 1 (7) y Fase 2 (9, incluye extras Claude). Admin **re-login** para JWT `role: admin`.
+**Pendiente operativo:** Deploy Render con **v281** (fix arranque «Descargando el mundo…») + **checklist post-deploy v280** (sección abajo). Checklists Fase 1 (7) y Fase 2 (9) si no se hicieron aún.
 
-**Para decir a Cursor:** Fases 3–4 **mergeadas en main** (v280). Siguiente: validar en Render + checklists.
+**v281 (fix arranque):** `obtenerMundo` con timeout 12 s; no borrar mundo ya descargado en `Admin.cargar`; una sola descarga en boot; límite 25 s en paso «mundo»; `/api/public/mundo` con try/catch.
+
+**Para decir a Cursor:** Fases 3–4 mergeadas (v280). v281 corrige cuelgue en pantalla de carga. Siguiente: deploy + checklists.
 
 #### FASE 4 — Rendimiento (v280) ✅ mergeado en main
 

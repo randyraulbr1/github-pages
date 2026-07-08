@@ -156,6 +156,23 @@ async function asegurarMapaVisible() {
       }
     }
   };
+  const pasoConLimite = async (nombre, fn, ms) => {
+    const limite = ms || 25000;
+    try {
+      await Promise.race([
+        Promise.resolve().then(fn),
+        new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), limite))
+      ]);
+    } catch (e) {
+      console.error('Error en paso "' + nombre + '":', e);
+      if (typeof Notificaciones !== 'undefined') {
+        const msg = e && e.message === 'timeout'
+          ? '⚠️ El servidor tardó demasiado cargando el mundo. El juego sigue con datos locales…'
+          : '⚠️ Problema en: ' + nombre + '. El juego sigue…';
+        Notificaciones.mostrar(msg, 'alerta', 6000);
+      }
+    }
+  };
 
   try {
     MarielBoot.mostrar('Conectando con la nube…');
@@ -171,7 +188,7 @@ async function asegurarMapaVisible() {
       }
     });
     avanzarCarga('Descargando el mundo…');
-    await pasoSeguro('mundo', () => Admin.cargar());
+    await pasoConLimite('mundo', () => Admin.cargar(), 25000);
     if (typeof Admin !== 'undefined' && !Admin._mundoCargado) {
       Admin._mundoCargado = true;
       if (!Admin.publicado) {

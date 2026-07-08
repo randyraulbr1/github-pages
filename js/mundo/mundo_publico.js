@@ -4,6 +4,7 @@
 // Admin escribe con token GitHub; jugadores solo leen el mismo archivo.
 // ============================================================
 const MundoPublico = {
+  _mundoCache: null,
 
   puedePublicar() {
     return typeof SyncServidor !== 'undefined' && SyncServidor.puedePublicar();
@@ -229,7 +230,18 @@ const MundoPublico = {
     if (!CONFIG.servidorOnline) return this._descargarDesdeGitHub();
 
     let servidor = null;
-    if (typeof SyncServidor !== 'undefined' && SyncServidor.obtenerMundo) {
+    try {
+      const base = CONFIG.servidorOnline.replace(/\/$/, '');
+      const r = await Utilidades.fetchConTimeout(base + '/api/public/mundo', { cache: 'no-store' }, 12000);
+      const data = await r.json().catch(() => ({}));
+      if (data.ok && data.mundo && typeof data.mundo === 'object') {
+        servidor = {
+          texto: JSON.stringify(data.mundo),
+          actualizadoEn: data.actualizadoEn || data.mundo.actualizadoEn || 0
+        };
+      }
+    } catch (e) { /* */ }
+    if (!servidor && typeof SyncServidor !== 'undefined' && SyncServidor.obtenerMundo) {
       const data = await SyncServidor.obtenerMundo();
       if (data?.mundo && typeof data.mundo === 'object') {
         servidor = {
@@ -237,19 +249,6 @@ const MundoPublico = {
           actualizadoEn: data.actualizadoEn || data.mundo.actualizadoEn || 0
         };
       }
-    }
-    if (!servidor) {
-      try {
-        const base = CONFIG.servidorOnline.replace(/\/$/, '');
-        const r = await Utilidades.fetchConTimeout(base + '/api/public/mundo', { cache: 'no-store' }, 8000);
-        const data = await r.json().catch(() => ({}));
-        if (data.ok && data.mundo && typeof data.mundo === 'object') {
-          servidor = {
-            texto: JSON.stringify(data.mundo),
-            actualizadoEn: data.actualizadoEn || data.mundo.actualizadoEn || 0
-          };
-        }
-      } catch (e) { /* */ }
     }
 
     if (!servidor) {
@@ -273,7 +272,8 @@ const MundoPublico = {
     return true;
   },
 
-  async refrescarCuentasServidor() {
+  async refrescarCuentasServidor(opts) {
+    const omitirMundo = !!(opts && opts.omitirMundo);
     if (this.usaFirebase()) {
       const [mundo, indice] = await Promise.all([
         this._firebaseGet('mundo'),
@@ -299,11 +299,15 @@ const MundoPublico = {
       }
     } catch (e) { /* */ }
 
-    const remoto = await this._descargarDesdeServidor();
     let mundo = null;
-    if (remoto?.texto) {
-      this._mundoCache = remoto.texto;
-      try { mundo = JSON.parse(remoto.texto); } catch (e) {}
+    if (omitirMundo && this._mundoCache) {
+      try { mundo = JSON.parse(this._mundoCache); } catch (e) { /* */ }
+    } else {
+      const remoto = await this._descargarDesdeServidor();
+      if (remoto?.texto) {
+        this._mundoCache = remoto.texto;
+        try { mundo = JSON.parse(remoto.texto); } catch (e) {}
+      }
     }
 
     if (!indice.length && mundo?.jugadores?.length) {
@@ -342,7 +346,10 @@ const MundoPublico = {
 
   async descargar() {
     const remoto = await this._descargarDesdeServidor();
-    if (remoto?.texto) return remoto.texto;
+    if (remoto?.texto) {
+      this._mundoCache = remoto.texto;
+      return remoto.texto;
+    }
     return null;
   },
 

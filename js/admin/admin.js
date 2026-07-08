@@ -70,16 +70,18 @@ const Admin = {
 
     // El mundo oficial: GitHub Pages + servidor en vivo (el más reciente gana)
     this.publicado = { misiones: [], tesoros: [], objetos: [], posiciones: {}, eliminados: [], precios: {}, itemsNuevos: [], jugadores: [] };
-    this._crudoPublicado = null;
+    const mundoYaDescargado = this._crudoPublicado ||
+      (typeof MundoPublico !== 'undefined' && MundoPublico._mundoCache) || null;
     try {
-      const texto = await this._descargarMejorMundo();
+      const texto = mundoYaDescargado || await this._descargarMejorMundo();
       if (texto) {
         this._crudoPublicado = texto;
+        if (typeof MundoPublico !== 'undefined') MundoPublico._mundoCache = texto;
         this.publicado = Object.assign(this.publicado, JSON.parse(texto));
       }
     } catch (e) { /* sin conexión: se sigue con lo guardado */ }
     try {
-      const { indice } = await MundoPublico.refrescarCuentasServidor();
+      const { indice } = await MundoPublico.refrescarCuentasServidor({ omitirMundo: !!mundoYaDescargado });
       if (indice?.length) {
         const porId = new Map();
         for (const j of (this.publicado.jugadores || [])) {

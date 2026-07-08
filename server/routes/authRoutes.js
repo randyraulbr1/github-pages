@@ -137,18 +137,23 @@ function perfilDesdeSqlite(user, player, clave) {
 
 /** Mundo público (solo lectura) — fuente principal para el cliente */
 router.get('/public/mundo', (req, res) => {
-  const io = req.app.get('io');
-  const { repararSnapshotMundo } = require('../syncCuentas');
-  repararSnapshotMundo(io);
-  const snap = getWorldSnapshotPublic();
-  res.json({
-    ok: true,
-    mundo: snap || {
-      misiones: [], tesoros: [], objetos: [], enemigos: [],
-      posiciones: {}, eliminados: [], jugadores: [], partidas: {}
-    },
-    actualizadoEn: snap?.actualizadoEn || 0
-  });
+  try {
+    const io = req.app.get('io');
+    const { repararSnapshotMundo } = require('../syncCuentas');
+    repararSnapshotMundo(io);
+    const snap = getWorldSnapshotPublic();
+    res.json({
+      ok: true,
+      mundo: snap || {
+        misiones: [], tesoros: [], objetos: [], enemigos: [],
+        posiciones: {}, eliminados: [], jugadores: [], partidas: {}
+      },
+      actualizadoEn: snap?.actualizadoEn || 0
+    });
+  } catch (e) {
+    console.error('[public/mundo]', e.message);
+    res.status(500).json({ ok: false, error: 'Error leyendo el mundo' });
+  }
 });
 
 /** Cuentas del juego para login (desde snapshot SQLite + tabla users) */

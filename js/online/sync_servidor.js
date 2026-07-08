@@ -687,7 +687,8 @@ const SyncServidor = {
     const headers = token ? { Authorization: 'Bearer ' + token } : {};
     const url = token ? base + '/api/player/mundo' : base + '/api/public/mundo';
     try {
-      const r = await fetch(url, { headers, cache: 'no-store' });
+      const r = await Utilidades.fetchConTimeout(url, { headers, cache: 'no-store' }, 12000);
+      if (!r.ok) return null;
       const data = await r.json().catch(() => ({}));
       if (!data.ok) return null;
       return {
