@@ -19,6 +19,18 @@ Regla principal: Cursor implementa. ChatGPT solo agrega ideas, revisiones y docu
 9. Si aparece un bug durante una fase, agregarlo en Bugs conocidos.
 10. No agregar nuevas funciones grandes antes de cerrar seguridad, estabilidad y mundo persistente.
 
+## Regla anti-conflictos al editar este archivo
+
+`faces.md` lo tocan varias ramas y agentes a la vez. Para evitar conflictos de merge:
+
+1. **Una sección por cambio** — solo editar la fase o bloque en el que trabajas (ej. Fase 6). No reescribir todo el archivo.
+2. **No mover fases** — no cambiar el orden ni renombrar encabezados de fase.
+3. **Cambios mínimos** — actualizar solo `Estado:` y `Nota:` de tu fase. No tocar el estado de otras fases (salvo un bug nuevo en *Bugs conocidos*).
+4. **Partir de main** — antes de editar, traer la última versión (`git pull origin main` o rebase sobre `main`).
+5. **Un tema por commit** — no mezclar en el mismo commit actualizaciones de fases distintas si se puede evitar.
+6. **Si hay conflicto de merge** — conservar la versión con más fases actualizadas; fusionar a mano solo las líneas `Estado:` y `Nota:` de la fase que implementaste.
+7. **Ideas de Randy/ChatGPT** — agregar al final (*Ideas*, *Bugs*) o en la fase indicada; Cursor no reformatea secciones enteras.
+
 Formato recomendado al completar:
 
 Estado: ✅ Completada
