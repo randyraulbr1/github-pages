@@ -2730,6 +2730,10 @@ body.cuenta-eliminada .ventana { display: none !important; }
 .admin-crear-campos { flex-shrink: 0; }
 #admin-vista-editor { overflow: hidden; }
 #admin-vista-crear-jugador { overflow: hidden; }
+.admin-layout.admin-panel-editor-abierto #admin-vista-editor,
+.admin-layout.admin-panel-editor-abierto #admin-vista-crear-jugador {
+  overflow-y: auto;
+}
 
 @media (min-width: 900px) {
   #hud-nucleo-fijo { width: 260px; min-width: 260px; max-width: 260px; }
@@ -2839,10 +2843,23 @@ body.cuenta-eliminada .ventana { display: none !important; }
   background: rgba(0,0,0,.2); font-size: 20px; padding: 6px; cursor: pointer;
 }
 .admin-emoji-btn.sel { border-color: #3d8bfd; background: rgba(61,139,253,.25); }
-.fila-jugador-admin .acciones { display: flex; flex-direction: column; gap: 5px; justify-content: center; }
+.fila-jugador-admin .acciones { display: flex; flex-direction: column; gap: 5px; justify-content: center; flex-shrink: 0; position: relative; z-index: 2; }
 .fila-jugador-admin .acciones button {
   border: none; border-radius: 10px; padding: 7px 9px; cursor: pointer;
   background: rgba(255,255,255,.12); color: #fff; font-size: 15px; min-width: 38px;
+  touch-action: manipulation;
+}
+.fila-jugador-admin .acciones .btn-editar-jugador {
+  background: rgba(61,139,253,.28); font-weight: 700;
+}
+.fila-jugador-datos-tocable { cursor: pointer; }
+.fila-jugador-datos-tocable:active { opacity: .85; }
+@media (max-width: 899px) {
+  .admin-layout.admin-panel-editor-abierto #lista-admin { display: none; }
+  .admin-layout.admin-panel-editor-abierto .admin-panel-derecho {
+    width: 100%;
+    max-width: 100%;
+  }
 }
 .fila-jugador-admin .acciones button:active { background: rgba(61,139,253,.35); }
 .admin-ban-campo { padding: 12px 14px 0; }

@@ -18,6 +18,7 @@ const Admin = {
   _organizandoArrastreActivo: false,
   _adminNavPila: [],
   _adminVistaActual: null,
+  _listarCuentasGen: 0,
   _jugadoresTab: 'vivos',
   _colocacion: null,  // { tipo, valores, marcador }
   _fantasmas: [],     // marcadores temporales de tesoros base en modo admin
@@ -1823,7 +1824,7 @@ const Admin = {
       const jugadoresAbierto = panelJug && !panelJug.classList.contains('oculto');
       if (this.esAdminJugador() && jugadoresAbierto) {
         await this.actualizarJugadoresGlobales();
-        this._listarCuentasAsync({ soloRefrescar: true });
+        this._listarCuentasAsync({ soloRefrescar: true, sinPartidas: true });
       }
       if (typeof Usuarios !== 'undefined') Usuarios.verificarSesionRemota();
       if (typeof Guardado !== 'undefined' && Usuarios?.perfilActivo) {
@@ -2283,18 +2284,28 @@ const Admin = {
     this._adminVistaTitulo = titulo || '';
     document.querySelectorAll('.admin-vista').forEach(v => v.classList.add('oculto'));
     const vista = document.getElementById(vistaId);
-    if (vista) vista.classList.remove('oculto');
+    if (vista) {
+      vista.classList.remove('oculto');
+      vista.scrollTop = 0;
+    }
     const tit = document.getElementById('admin-panel-titulo');
     if (tit) tit.textContent = titulo || '';
-    document.getElementById('admin-panel-derecho').classList.remove('oculto');
+    const panelDer = document.getElementById('admin-panel-derecho');
+    if (panelDer) panelDer.classList.remove('oculto');
+    const layout = document.querySelector('.admin-layout');
+    if (layout) {
+      const editorAbierto = vistaId === 'admin-vista-editor' || vistaId === 'admin-vista-crear-jugador';
+      layout.classList.toggle('admin-panel-editor-abierto', editorAbierto);
+    }
     if (!opts.sinAbrirVentana) {
-      document.getElementById('ventana-admin').classList.remove('oculto');
+      document.getElementById('ventana-admin')?.classList.remove('oculto');
     }
   },
 
   _ocultarPanelDerecho() {
-    document.getElementById('admin-panel-derecho').classList.add('oculto');
+    document.getElementById('admin-panel-derecho')?.classList.add('oculto');
     document.querySelectorAll('.admin-vista').forEach(v => v.classList.add('oculto'));
+    document.querySelector('.admin-layout')?.classList.remove('admin-panel-editor-abierto');
     this._adminVistaActual = null;
     this._adminVistaTitulo = '';
   },
@@ -2309,7 +2320,9 @@ const Admin = {
     document.getElementById('btn-admin-guardar').style.display = '';
     if (prev?.id) {
       this._mostrarPanelDerecho(prev.id, prev.titulo, { sinHistorial: true });
-      if (prev.id === 'admin-vista-jugadores') this._listarCuentasAsync({ soloRefrescar: true });
+      if (prev.id === 'admin-vista-jugadores') {
+        this._listarCuentasAsync({ soloRefrescar: true, sinPartidas: true });
+      }
       return;
     }
     this._ocultarPanelDerecho();
@@ -4233,9 +4246,14 @@ const Admin = {
 
   async _listarCuentasAsync(opciones) {
     const opts = opciones || {};
+    const gen = ++this._listarCuentasGen;
     const cont = document.getElementById('admin-lista-jugadores');
     const buscar = document.getElementById('admin-buscar-jugador');
     if (!opts.soloRefrescar && buscar) buscar.value = '';
+
+    const abrirEditor = (perfil, soloGlobal) => {
+      void this._abrirEditorJugador(perfil, soloGlobal);
+    };
 
     const pintarFila = (j, destino) => {
       const local = Usuarios.datos.lista.find(p => p.id === j.id);
@@ -4285,7 +4303,11 @@ const Admin = {
         b.textContent = t;
         if (title) b.title = title;
         if (cls) b.className = cls;
-        b.addEventListener('click', fn);
+        b.addEventListener('click', (ev) => {
+          ev.preventDefault();
+          ev.stopPropagation();
+          fn();
+        });
         acciones.appendChild(b);
       };
       if (muerto) {
@@ -4294,18 +4316,19 @@ const Admin = {
       if (!this._esCuentaProtegida(j)) {
         mk('🗑️', () => this._eliminarJugadorCuenta(j), 'Eliminar jugador', 'btn-eliminar-jugador');
       }
-      mk('✏️', () => {
-        void (async () => {
-          try {
-            await this._abrirEditorJugador(local || j, !local);
-          } catch (e) {
-            this._adminAviso('No se pudo abrir el editor: ' + (e?.message || 'error'), 'error');
-          }
-        })();
-      }, 'Editar cuenta e inventario');
+      mk('✏️', () => abrirEditor(local || j, !local), 'Editar cuenta e inventario', 'btn-editar-jugador');
       mk('✉️', () => this.abrirMensaje(j.id), 'Enviar mensaje');
       mk('🚫', () => this._abrirBanJugador(j), 'Banear');
       fila.appendChild(acciones);
+      const datosEl = fila.querySelector('.datos');
+      if (datosEl) {
+        datosEl.classList.add('fila-jugador-datos-tocable');
+        datosEl.title = 'Toca para editar inventario y cuenta';
+        datosEl.addEventListener('click', (ev) => {
+          if (ev.target.closest('.acciones')) return;
+          abrirEditor(local || j, !local);
+        });
+      }
       destino.appendChild(fila);
     };
 
@@ -4374,13 +4397,17 @@ const Admin = {
     }
     pintar(buscar?.value || '');
     this._colocacion = null;
-    if (opts.abrirPanel && !opts.soloRefrescar) {
+    const vistaEditor = this._adminVistaActual === 'admin-vista-editor' ||
+      this._adminVistaActual === 'admin-vista-crear-jugador';
+    if (opts.abrirPanel && !opts.soloRefrescar && !vistaEditor) {
       this._mostrarPanelDerecho('admin-vista-jugadores', '👥 Jugadores');
     }
     if (opts.sinServidor && opts.sinPartidas) return;
     try {
       if (!opts.sinServidor) await this.actualizarJugadoresGlobales();
+      if (gen !== this._listarCuentasGen) return;
       if (!opts.sinPartidas) await this._actualizarPartidasDesdeServidor();
+      if (gen !== this._listarCuentasGen) return;
       pintar(buscar?.value || '');
     } catch (e) { /* sin red */ }
   },
@@ -4740,48 +4767,62 @@ const Admin = {
   },
 
   async _abrirEditorJugador(perfil, soloGlobal) {
+    if (!perfil?.id) {
+      this._adminAviso('Jugador no válido', 'error');
+      return;
+    }
+    this._listarCuentasGen++;
     let p = perfil;
     if (soloGlobal) {
       const g = this.jugadoresGlobales().find(j => j.id === perfil.id);
       if (g) p = Object.assign({}, g);
     }
+    this._mostrarPanelDerecho('admin-vista-editor', '✏️ ' + (p.nombre || 'Jugador'));
+
     const rejInf = document.getElementById('admin-rejilla-infinito');
     const rejJug = document.getElementById('admin-rejilla-jugador');
     if (rejInf) rejInf._catalogoListo = false;
     if (rejJug) rejJug.innerHTML = '<div class="admin-cargando">Cargando inventario…</div>';
-    this._mostrarPanelDerecho('admin-vista-editor', '✏️ ' + (p.nombre || 'Jugador'));
 
-    const partidaInicial = await this._obtenerPartidaJugador(p);
-    this._editorJugador = {
-      perfil: p,
-      partida: partidaInicial,
-      _arrastre: null,
-      _nivelInicial: partidaInicial.nivel ?? 1,
-      _sinGuardar: false
-    };
-    if (!this._editorJugador.partida.mochila) {
-      this._editorJugador.partida.mochila = new Array(25).fill(null);
+    try {
+      const partidaInicial = await this._obtenerPartidaJugador(p);
+      if (this._adminVistaActual !== 'admin-vista-editor') return;
+
+      this._editorJugador = {
+        perfil: p,
+        partida: partidaInicial,
+        _arrastre: null,
+        _nivelInicial: partidaInicial.nivel ?? 1,
+        _sinGuardar: false
+      };
+      if (!this._editorJugador.partida.mochila) {
+        this._editorJugador.partida.mochila = new Array(25).fill(null);
+      }
+      const oroEl = document.getElementById('admin-editor-oro');
+      if (oroEl) oroEl.value = this._editorJugador.partida.dinero?.saldo ?? 0;
+      const nv = this._editorJugador.partida.nivel ?? 1;
+      const xp = this._editorJugador.partida.xp ?? 0;
+      const nvEl = document.getElementById('admin-editor-nivel');
+      const xpEl = document.getElementById('admin-editor-xp');
+      if (nvEl) nvEl.value = nv;
+      if (xpEl) xpEl.value = xp;
+      const vidaEl = document.getElementById('admin-editor-vida');
+      if (vidaEl) vidaEl.value = this._editorJugador.partida.vida ?? this.vidaJugadorPorNivel(nv);
+      this._actualizarHintVidaEditor();
+      if (nvEl && !nvEl._nivelEditorOk) {
+        nvEl._nivelEditorOk = true;
+        nvEl.addEventListener('input', () => this._aplicarVidaJugadorDesdeNivel(parseInt(nvEl.value, 10) || 1));
+      }
+      const nom = document.getElementById('admin-editor-nombre');
+      const tel = document.getElementById('admin-editor-telefono');
+      const clv = document.getElementById('admin-editor-clave');
+      if (nom) nom.value = this._editorJugador.perfil.nombre || '';
+      if (tel) tel.value = this._editorJugador.perfil.telefono || '';
+      if (clv) clv.value = this._pinAdminGet(this._editorJugador.perfil.id) || '';
+      this._pintarEditorJugador(false);
+    } catch (e) {
+      this._adminAviso('No se pudo abrir el editor: ' + (e?.message || 'error'), 'error');
     }
-    document.getElementById('admin-editor-oro').value = this._editorJugador.partida.dinero?.saldo ?? 0;
-    const nv = this._editorJugador.partida.nivel ?? 1;
-    const xp = this._editorJugador.partida.xp ?? 0;
-    const nvEl = document.getElementById('admin-editor-nivel');
-    const xpEl = document.getElementById('admin-editor-xp');
-    if (nvEl) nvEl.value = nv;
-    if (xpEl) xpEl.value = xp;
-    document.getElementById('admin-editor-vida').value = this._editorJugador.partida.vida ?? this.vidaJugadorPorNivel(nv);
-    this._actualizarHintVidaEditor();
-    if (nvEl && !nvEl._nivelEditorOk) {
-      nvEl._nivelEditorOk = true;
-      nvEl.addEventListener('input', () => this._aplicarVidaJugadorDesdeNivel(parseInt(nvEl.value, 10) || 1));
-    }
-    const nom = document.getElementById('admin-editor-nombre');
-    const tel = document.getElementById('admin-editor-telefono');
-    const clv = document.getElementById('admin-editor-clave');
-    if (nom) nom.value = this._editorJugador.perfil.nombre || '';
-    if (tel) tel.value = this._editorJugador.perfil.telefono || '';
-    if (clv) clv.value = this._pinAdminGet(this._editorJugador.perfil.id) || '';
-    this._pintarEditorJugador(false);
   },
 
   _marcarEditorSucio() {
