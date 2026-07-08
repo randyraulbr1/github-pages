@@ -97,6 +97,48 @@ const Misiones = {
     this._crearMarcador(m);
   },
 
+  syncDesdeServidor(mAdmin) {
+    if (!mAdmin?.id) return;
+    const m = this._normalizarAdmin(mAdmin);
+    const idx = this.lista.findIndex(x => x.id === m.id);
+    if (idx < 0) {
+      this.lista.push(m);
+      this._crearMarcador(m);
+      return;
+    }
+    this.lista[idx] = Object.assign({}, this.lista[idx], m);
+    const mar = this._marcadores[m.id];
+    if (mar && m.pos) {
+      mar.setLatLng(m.pos);
+      const p = Mapa.puntosInteractivos.find(x => x.id === m.id);
+      if (p) p.posicion = m.pos.slice();
+    } else if (!mar) {
+      this._crearMarcador(m);
+    }
+    this._actualizarIconoMapa(m);
+    this.pintarLetrero();
+    this.actualizarLineas();
+  },
+
+  quitarDesdeServidor(id) {
+    if (!id) return;
+    const idx = this.lista.findIndex(m => m.id === id);
+    if (idx < 0) return;
+    if (this._marcadores[id]) {
+      this._marcadores[id].remove();
+      delete this._marcadores[id];
+    }
+    if (this._lineas[id]) {
+      this._lineas[id].remove();
+      delete this._lineas[id];
+    }
+    this.lista.splice(idx, 1);
+    const pi = Mapa.puntosInteractivos.findIndex(p => p.id === id);
+    if (pi >= 0) Mapa.puntosInteractivos.splice(pi, 1);
+    this.pintarLetrero();
+    this.actualizarLineas();
+  },
+
   _crearMarcador(m) {
     if (this._estado(m.id).estado === 'recolectada') return;
     const marcador = Mapa.crearMarcadorEmoji(m.pos, '❗', 26);

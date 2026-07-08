@@ -1115,6 +1115,37 @@ function registrarAtaqueEnemigo(enemyId, playerId, px, py, playerLevel, io) {
   };
 }
 
+function emitirDeltaMapaPorOrigenId(origenId, io) {
+  if (!io || !origenId) return;
+  const row = findObjectByOrigenId(origenId);
+  if (row) {
+    io.emit('world:updateObject', formatWorldObject(row));
+    return;
+  }
+  const m = findMissionByOrigenId(origenId);
+  if (m) io.emit('mission:update', formatMission(m));
+}
+
+function emitirRemoveMapaPorOrigenId(origenId, io) {
+  if (!io || !origenId) return;
+  const row = findObjectByOrigenId(origenId);
+  if (row) {
+    io.emit('world:removeObject', { id: row.id, origenId });
+    return;
+  }
+  const m = findMissionByOrigenId(origenId);
+  if (m) {
+    io.emit('mission:update', {
+      id: m.id,
+      isActive: false,
+      deleted: true,
+      origenId
+    });
+    return;
+  }
+  io.emit('world:removeObject', { origenId });
+}
+
 /** Proyecta arrays de mapa del snapshot a world_objects + missions (tablas en vivo). */
 function proyectarMapaEnTablas(mundo, io, silent) {
   if (!mundo || typeof mundo !== 'object') return { objetos: 0, misiones: 0 };
@@ -1204,6 +1235,20 @@ function proyectarMapaEnTablas(mundo, io, silent) {
     seenMissions.add(m.id);
     upsertMission(m, io);
     misiones++;
+  }
+
+  for (const c of (mundo.cofres || [])) {
+    if (!c?.id || eliminados.has(c.id)) continue;
+    const pos = c.pos || (mundo.posiciones || {})[c.id];
+    if (!pos || pos.length < 2) continue;
+    seenObjects.add(c.id);
+    upsertWorldObject(c.id, 'chest', pos[0], pos[1], {
+      visible: c.visible !== false,
+      pin: c.pin || null,
+      slots: c.slots || [],
+      vacioDesde: c.vacioDesde || null
+    }, io, true);
+    objetos++;
   }
 
   for (const id of eliminados) {
@@ -1351,6 +1396,8 @@ const {
 module.exports = {
   syncMundoFromJson,
   proyectarMapaEnTablas,
+  emitirDeltaMapaPorOrigenId,
+  emitirRemoveMapaPorOrigenId,
   fusionarMapaPublicacion,
   contarElementosMapa,
   mergeJugadoresPartidas,

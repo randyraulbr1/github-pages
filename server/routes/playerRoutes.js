@@ -13,7 +13,7 @@ const {
   findPlayerByUserId
 } = require('../db');
 const { authMiddleware, gameAdminMiddleware, hashPassword, partidaAuthMiddleware } = require('../auth');
-const { syncMundoFromJson, actualizarPartidaEnSnapshot, registrarCuentaEnSnapshot } = require('../syncMundo');
+const { syncMundoFromJson, actualizarPartidaEnSnapshot, registrarCuentaEnSnapshot, emitirDeltaMapaPorOrigenId, emitirRemoveMapaPorOrigenId } = require('../syncMundo');
 const {
   adminUpsertContent,
   adminDeleteContent,
@@ -71,6 +71,7 @@ router.post('/world/upsert', authMiddleware, gameAdminMiddleware, (req, res) => 
   if (!r.ok) return res.status(400).json(r);
   const io = req.app.get('io');
   const pub = refreshMundoPublicadoDesdeBD(io);
+  emitirDeltaMapaPorOrigenId(r.id, io);
   res.json({ ok: true, id: r.id, type: r.type, actualizadoEn: pub.actualizadoEn });
 });
 
@@ -81,6 +82,7 @@ router.post('/world/delete', authMiddleware, gameAdminMiddleware, (req, res) => 
   if (!r.ok) return res.status(400).json(r);
   const io = req.app.get('io');
   const pub = refreshMundoPublicadoDesdeBD(io);
+  emitirRemoveMapaPorOrigenId(r.id, io);
   res.json({ ok: true, id: r.id, tombstone: true, actualizadoEn: pub.actualizadoEn });
 });
 

@@ -30,7 +30,7 @@ const { verifyToken, isGameAdminPlayer, canEditPartida } = require('./auth');
 const { validarStatsJugador } = require('./playerStats');
 const { auditarSiAdminEditaAjeno } = require('./auditLog');
 const { startEnemyAI } = require('./enemyAI');
-const { registrarRecogidaObjeto, registrarRecogidaTesoro, registrarCuerpoMuerto, quitarCuerpoMuerto, getCuerpoMuerto, sincronizarCuerposExpirados, sincronizarBolsasExpiradas, sincronizarBotinesExpirados, actualizarInventarioCuerpo, registrarLootMuerto, actualizarPartidaEnSnapshot, revivirPartidaEnSnapshot, buscarPerfilIdPorNombre, limpiarBolsasExpiradas, crearBolsaDrop, recogerBolsaDrop, registrarAtaqueEnemigo, reclamarBotinEnemigo } = require('./syncMundo');
+const { registrarRecogidaObjeto, registrarRecogidaTesoro, registrarCuerpoMuerto, quitarCuerpoMuerto, getCuerpoMuerto, sincronizarCuerposExpirados, sincronizarBolsasExpiradas, sincronizarBotinesExpirados, actualizarInventarioCuerpo, registrarLootMuerto, actualizarPartidaEnSnapshot, revivirPartidaEnSnapshot, buscarPerfilIdPorNombre, limpiarBolsasExpiradas, crearBolsaDrop, recogerBolsaDrop, registrarAtaqueEnemigo, reclamarBotinEnemigo, emitirDeltaMapaPorOrigenId, emitirRemoveMapaPorOrigenId } = require('./syncMundo');
 const {
   adminUpsertContent,
   adminDeleteContent,
@@ -530,6 +530,7 @@ function setupSockets(io) {
       });
       if (!r.ok) return ack?.(r);
       const pub = refreshMundoPublicadoDesdeBD(io);
+      emitirDeltaMapaPorOrigenId(r.id, io);
       try {
         const { registrar } = require('./eventLog');
         registrar('world_admin_upsert', `${type}:${id}`);
@@ -545,6 +546,7 @@ function setupSockets(io) {
       const r = adminDeleteContent(id, 'admin:' + socket.playerId);
       if (!r.ok) return ack?.(r);
       const pub = refreshMundoPublicadoDesdeBD(io);
+      emitirRemoveMapaPorOrigenId(r.id, io);
       try {
         const { registrar } = require('./eventLog');
         registrar('world_admin_delete', String(id));

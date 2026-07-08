@@ -794,12 +794,26 @@ const Admin = {
   },
 
   misionesTodas() {
+    if (typeof ContenidoMundo !== 'undefined' && ContenidoMundo.usarDeltas()) {
+      const lista = ContenidoMundo.listaMisiones();
+      if (this.esAdminJugador()) {
+        return this._combinar(lista, this.datos.misiones || []);
+      }
+      return lista;
+    }
     if (this.esAdminJugador()) {
       return this._combinar(this.publicado.misiones || [], this.datos.misiones || []);
     }
     return (this.publicado.misiones || []).filter(e => !this.eliminado(e.id));
   },
   tesorosTodos() {
+    if (typeof ContenidoMundo !== 'undefined' && ContenidoMundo.usarDeltas()) {
+      const lista = ContenidoMundo.listaTesoros();
+      if (this.esAdminJugador()) {
+        return this._combinar(lista, this.datos.tesoros || []);
+      }
+      return lista;
+    }
     if (this.esAdminJugador()) {
       return this._combinar(this.publicado.tesoros || [], this.datos.tesoros || []);
     }
@@ -812,6 +826,13 @@ const Admin = {
     return (this.publicado.enemigos || []).filter(e => !this.eliminado(e.id));
   },
   tiendasAdminTodas() {
+    if (typeof ContenidoMundo !== 'undefined' && ContenidoMundo.usarDeltas()) {
+      const lista = ContenidoMundo.listaTiendas();
+      if (this.esAdminJugador()) {
+        return this._combinar(lista, this.datos.tiendasAdmin || []);
+      }
+      return lista;
+    }
     if (this.esAdminJugador()) {
       return this._combinar(this.publicado.tiendasAdmin || [], this.datos.tiendasAdmin || []);
     }
@@ -1624,6 +1645,8 @@ const Admin = {
   },
 
   eliminado(id) {
+    if (typeof ContenidoMundo !== 'undefined' && ContenidoMundo.usarDeltas() &&
+        ContenidoMundo.estaEliminado(id)) return true;
     if ((this.publicado.eliminados || []).includes(id)) return true;
     return this.esAdminJugador() && (this.datos.eliminados || []).includes(id);
   },

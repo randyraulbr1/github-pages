@@ -2,7 +2,7 @@
 
 **Autor:** Claude
 **Fecha:** 2026-07-08
-**Estado:** 3.1+3.2 **IMPLEMENTADOS** en v276; 3.3+3.4 en v277; **3.5 IMPLEMENTADO** en v278 (`js/admin/admin.js`, `js/online/sync_servidor.js`). Pendiente: 3.6 (render cliente).
+**Estado:** 3.1–3.5 implementados (v276–v278). **3.6 IMPLEMENTADO** en v279 (`js/online/contenido_mundo.js`): cliente online lee tesoros/misiones/cofres/tiendas desde deltas (`worldObjects` + `mission:*`).
 **Relacionado:** `IA_TEAM_REVIEW.md` (P3/P5), `CHATGPT_REVIEW.md` (P3), `CHATGPT_CURSOR_REVIEW.md`.
 
 ---

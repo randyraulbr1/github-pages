@@ -320,6 +320,13 @@ const Multijugador = {
       this.online = (data.onlinePlayers || []).filter(p => this._visible(p.playerId));
       this._redibujar(false);
       if (data.cuerposMuertos) this._aplicarCuerpos(data.cuerposMuertos);
+      if (typeof ContenidoMundo !== 'undefined') {
+        ContenidoMundo.inicializarDesdeInit({
+          worldObjects: data.worldObjects,
+          missions: data.missions,
+          mundoSnapshot: data.mundoSnapshot
+        });
+      }
       if (data.worldObjects && typeof Enemigos !== 'undefined') {
         for (const obj of data.worldObjects) {
           if (obj?.type !== 'enemy' || !obj.data?.origenId) continue;
@@ -427,12 +434,17 @@ const Multijugador = {
 
     this.socket.on('world:updateObject', (obj) => {
       if (!obj?.data?.origenId) return;
+      const origenId = obj.data.origenId;
       if (obj.type === 'enemy' && typeof Enemigos !== 'undefined') {
-        Enemigos.actualizarDesdeServidor(obj.data.origenId, obj.x, obj.y, obj.data);
+        Enemigos.actualizarDesdeServidor(origenId, obj.x, obj.y, obj.data);
+        return;
+      }
+      if (typeof ContenidoMundo !== 'undefined' && ContenidoMundo.usarDeltas() &&
+          (obj.type === 'treasure' || obj.type === 'shop' || obj.type === 'chest')) {
+        ContenidoMundo.aplicarWorldObject(obj);
         return;
       }
       if (typeof Admin === 'undefined') return;
-      const origenId = obj.data.origenId;
       const recogido = Admin.publicado?.objetosEstado?.[origenId]?.recogidoAt;
       if (recogido) {
         Admin.aplicarRecogidaCompartida(origenId, recogido, null);
@@ -453,7 +465,25 @@ const Multijugador = {
       }
     });
 
-    this.socket.on('world:removeObject', () => { /* el mundo completo llega por mundo:sync */ });
+    this.socket.on('world:removeObject', (payload) => {
+      const origenId = payload?.origenId;
+      if (!origenId) return;
+      if (typeof ContenidoMundo !== 'undefined' && ContenidoMundo.usarDeltas()) {
+        ContenidoMundo.quitarPorOrigenId(origenId);
+      }
+    });
+
+    this.socket.on('mission:create', (m) => {
+      if (typeof ContenidoMundo !== 'undefined' && ContenidoMundo.usarDeltas()) {
+        ContenidoMundo.aplicarMision(m);
+      }
+    });
+
+    this.socket.on('mission:update', (m) => {
+      if (typeof ContenidoMundo !== 'undefined' && ContenidoMundo.usarDeltas()) {
+        ContenidoMundo.aplicarMision(m);
+      }
+    });
 
     this.socket.on('mundo:sync', (data) => {
       if (!data?.mundo || typeof Admin === 'undefined') return;
@@ -463,8 +493,14 @@ const Multijugador = {
       Admin._crudoPublicado = json;
       Admin._ultimoFirmaPublicada = Admin._firmaMundo(json);
       const esAdmin = typeof Usuarios !== 'undefined' && Usuarios.esAdministrador();
+      if (typeof ContenidoMundo !== 'undefined' && ContenidoMundo.usarDeltas()) {
+        ContenidoMundo.reconciliarDesdeSnapshot(data.mundo);
+      }
       Admin._aplicarMundoRemoto(json, { permitirReduccion: !esAdmin });
-      if (typeof Admin.pintarMapaCompleto === 'function') Admin.pintarMapaCompleto();
+      if (typeof Admin.pintarMapaCompleto === 'function' &&
+          !(typeof ContenidoMundo !== 'undefined' && ContenidoMundo.usarDeltas())) {
+        Admin.pintarMapaCompleto();
+      }
       if (data.mundo.cuerposMuertos) this._aplicarCuerpos(data.mundo.cuerposMuertos);
       if (typeof Admin.mostrarPantallaBloqueoSiCorresponde === 'function') {
         Admin.mostrarPantallaBloqueoSiCorresponde();

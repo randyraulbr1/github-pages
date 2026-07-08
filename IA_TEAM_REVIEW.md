@@ -403,7 +403,8 @@ Cursor **reordena** para no mezclar un refactor enorme con parches pequeños en 
 | v275 Fase 2 | #105 | Roles, stats, HP, auditoría, docs |
 | v276 Fase 3.1+3.2 | #106 | `world_content`, proyector BD→blob, doble lectura |
 | v277 Fase 3.3+3.4 | #107 | Admin por objeto (sockets+REST), sync-mundo→BD |
-| v278 Fase 3.5 | — | Panel admin: delta sync por objeto |
+| v278 Fase 3.5 | #108 | Panel admin delta sync |
+| v279 Fase 3.6 | — | Cliente: ContenidoMundo + deltas render |
 
 ### Cómo probar Fase 1 (checklist)
 
@@ -467,9 +468,13 @@ Con una **cuenta normal** (no admin), todo debe **fallar correctamente**:
 
 **Pendiente operativo:** Deploy Render + checklists Fase 1 (7) y Fase 2 (9, incluye extras Claude). Admin **re-login** para JWT `role: admin`.
 
-**Para decir a Cursor:** «**Adelante con Fase 3.3**» (admin por objeto) cuando checklists pasen y doble lectura OK en Render.
+**Para decir a Cursor:** Fase 3 **cerrada** (3.1–3.6). Siguiente bloque: **Fase 4** (rendimiento GPS).
 
-**Fase 3.1+3.2 (v276):** ✅ `world_content`, `world_config`, migración idempotente, `construirSnapshotDesdeBD()`, validación doble lectura al arrancar.
+**Fase 3.1+3.2 (v276):** ✅ `world_content`, proyector BD→blob, doble lectura.
+
+**Fase 3.3–3.5 (v277–v278):** ✅ Admin por objeto (servidor + panel delta sync).
+
+**Fase 3.6 (v279):** ✅ `ContenidoMundo` — render online desde `world:updateObject` / `mission:*`.
 
 **Visibilidad equipo:** opiniones de Claude viven en **`main`** (`IA_TEAM_REVIEW.md`, `FASE3_DISENO_MUNDO.md`), no solo en rama `claude/web-rpg-gps-game-n3ybow`.
 

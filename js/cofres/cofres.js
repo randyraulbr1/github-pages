@@ -89,6 +89,12 @@ const Cofres = {
   },
 
   lista() {
+    if (typeof ContenidoMundo !== 'undefined' && ContenidoMundo.usarDeltas()) {
+      const mapa = new Map();
+      for (const c of ContenidoMundo.listaCofres()) mapa.set(c.id, c);
+      for (const c of (Guardado.datos.cofresLocales || [])) mapa.set(c.id, c);
+      return [...mapa.values()].filter(c => !c.eliminado);
+    }
     const mapa = new Map();
     for (const c of ((Admin && Admin.publicado && Admin.publicado.cofres) || [])) mapa.set(c.id, c);
     for (const c of (Guardado.datos.cofresLocales || [])) mapa.set(c.id, c);
