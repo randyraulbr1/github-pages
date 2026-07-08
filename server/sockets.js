@@ -31,6 +31,12 @@ const { validarStatsJugador } = require('./playerStats');
 const { auditarSiAdminEditaAjeno } = require('./auditLog');
 const { startEnemyAI } = require('./enemyAI');
 const { registrarRecogidaObjeto, registrarRecogidaTesoro, registrarCuerpoMuerto, quitarCuerpoMuerto, getCuerpoMuerto, sincronizarCuerposExpirados, sincronizarBolsasExpiradas, sincronizarBotinesExpirados, actualizarInventarioCuerpo, registrarLootMuerto, actualizarPartidaEnSnapshot, revivirPartidaEnSnapshot, buscarPerfilIdPorNombre, limpiarBolsasExpiradas, crearBolsaDrop, recogerBolsaDrop, registrarAtaqueEnemigo, reclamarBotinEnemigo } = require('./syncMundo');
+const {
+  adminUpsertContent,
+  adminDeleteContent,
+  adminConfigContent,
+  refreshMundoPublicadoDesdeBD
+} = require('./worldContent');
 
 /** Vida al revivir: valor enviado o 40 % de hpMax. */
 function vidaReviveDesdeMax(hpMax, reviveHp) {
@@ -507,6 +513,58 @@ function setupSockets(io) {
       }
 
       ack?.({ ok: true, x: targetX, y: targetY });
+    });
+
+    socket.on('world:adminUpsert', (payload, ack) => {
+      if (!isGameAdminPlayer(socket.playerId)) {
+        return ack?.({ ok: false, error: 'Solo el administrador del juego' });
+      }
+      const { id, type, x, y, data } = payload || {};
+      const r = adminUpsertContent({
+        id,
+        type,
+        x,
+        y,
+        data,
+        updatedBy: 'admin:' + socket.playerId
+      });
+      if (!r.ok) return ack?.(r);
+      const pub = refreshMundoPublicadoDesdeBD(io);
+      try {
+        const { registrar } = require('./eventLog');
+        registrar('world_admin_upsert', `${type}:${id}`);
+      } catch (e) { /* */ }
+      ack?.({ ok: true, id: r.id, type: r.type, actualizadoEn: pub.actualizadoEn });
+    });
+
+    socket.on('world:adminDelete', (payload, ack) => {
+      if (!isGameAdminPlayer(socket.playerId)) {
+        return ack?.({ ok: false, error: 'Solo el administrador del juego' });
+      }
+      const id = payload?.id;
+      const r = adminDeleteContent(id, 'admin:' + socket.playerId);
+      if (!r.ok) return ack?.(r);
+      const pub = refreshMundoPublicadoDesdeBD(io);
+      try {
+        const { registrar } = require('./eventLog');
+        registrar('world_admin_delete', String(id));
+      } catch (e) { /* */ }
+      ack?.({ ok: true, id: r.id, tombstone: true, actualizadoEn: pub.actualizadoEn });
+    });
+
+    socket.on('world:adminConfig', (payload, ack) => {
+      if (!isGameAdminPlayer(socket.playerId)) {
+        return ack?.({ ok: false, error: 'Solo el administrador del juego' });
+      }
+      const { key, value } = payload || {};
+      const r = adminConfigContent(key, value, 'admin:' + socket.playerId);
+      if (!r.ok) return ack?.(r);
+      const pub = refreshMundoPublicadoDesdeBD(io);
+      try {
+        const { registrar } = require('./eventLog');
+        registrar('world_admin_config', String(r.key));
+      } catch (e) { /* */ }
+      ack?.({ ok: true, key: r.key, actualizadoEn: pub.actualizadoEn });
     });
 
     socket.on('player:revive', (payload, ack) => {

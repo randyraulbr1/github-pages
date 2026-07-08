@@ -2,7 +2,7 @@
 
 **Autor:** Claude
 **Fecha:** 2026-07-08
-**Estado:** 3.1+3.2 **IMPLEMENTADOS** en v276 (`server/worldContent.js`). Pendiente: 3.3+ (admin por objeto).
+**Estado:** 3.1+3.2 **IMPLEMENTADOS** en v276; 3.3+3.4 **IMPLEMENTADOS** en v277 (`server/worldContent.js`, `server/syncMundo.js`, `server/sockets.js`). Pendiente: 3.5 (panel admin).
 **Relacionado:** `IA_TEAM_REVIEW.md` (P3/P5), `CHATGPT_REVIEW.md` (P3), `CHATGPT_CURSOR_REVIEW.md`.
 
 ---

@@ -243,6 +243,195 @@ function migrarWorldContentSiVacio(snapshot) {
   return { migrated: true, count: total, ...r };
 }
 
+function getContentRow(id) {
+  if (!id) return null;
+  return db.prepare('SELECT * FROM world_content WHERE id = ?').get(id);
+}
+
+function isTombstoned(id) {
+  const row = getContentRow(id);
+  return !!(row && row.deleted);
+}
+
+const VALID_CONTENT_TYPES = Object.keys(TYPE_TO_CAMPO);
+
+function adminUpsertContent({ id, type, x, y, data, updatedBy }) {
+  if (!id || typeof id !== 'string') return { ok: false, error: 'id requerido' };
+  if (!type || !VALID_CONTENT_TYPES.includes(type)) {
+    return { ok: false, error: 'type inválido (item|enemy|treasure|shop|mission|chest)' };
+  }
+
+  let blob = data && typeof data === 'object' ? Object.assign({}, data) : {};
+  blob.id = id;
+  const px = x != null ? Number(x) : Number(blob.pos?.[0] ?? blob.posicion?.[0]);
+  const py = y != null ? Number(y) : Number(blob.pos?.[1] ?? blob.posicion?.[1]);
+  if (Number.isFinite(px) && Number.isFinite(py)) blob.pos = [px, py];
+
+  upsertContentRow({
+    id,
+    type,
+    x: Number.isFinite(px) ? px : null,
+    y: Number.isFinite(py) ? py : null,
+    data_json: blob,
+    deleted: 0,
+    updated_by: updatedBy || 'admin'
+  });
+  return { ok: true, id, type };
+}
+
+function adminDeleteContent(id, updatedBy) {
+  if (!id) return { ok: false, error: 'id requerido' };
+  const existing = getContentRow(id);
+  upsertContentRow({
+    id,
+    type: existing?.type || 'tombstone',
+    x: existing?.x ?? null,
+    y: existing?.y ?? null,
+    data_json: existing ? parseBlob(existing) : {},
+    deleted: 1,
+    updated_by: updatedBy || 'admin'
+  });
+  return { ok: true, id, tombstone: true };
+}
+
+function adminConfigContent(key, value, updatedBy) {
+  const k = String(key || '').trim();
+  if (!k || k.startsWith('_')) return { ok: false, error: 'key inválida' };
+  if (!CONFIG_KEYS.includes(k)) {
+    return { ok: false, error: 'config no permitida: ' + k };
+  }
+  setWorldConfig(k, value);
+  return { ok: true, key: k };
+}
+
+/**
+ * Importa campos de mapa del JSON entrante a world_content.
+ * Respeta tombstones: no revive ids borrados salvo adminUpsert explícito.
+ */
+function importMapaJsonToWorldContent(mundo, updatedBy, opts = {}) {
+  if (!mundo || typeof mundo !== 'object') return { ok: false, error: 'mundo inválido' };
+  if (!isWorldContentMigrated()) return { ok: false, error: 'world_content no migrado' };
+
+  const eliminados = new Set(mundo.eliminados || []);
+  const respectTombstones = opts.respectTombstones !== false;
+  const seen = new Set();
+  let upserted = 0;
+  let skippedTombstone = 0;
+
+  const tryUpsert = (id, type, x, y, blob) => {
+    if (!id || eliminados.has(id)) return;
+    if (respectTombstones && isTombstoned(id)) {
+      skippedTombstone++;
+      return;
+    }
+    seen.add(id);
+    upsertContentRow({
+      id,
+      type,
+      x: x != null ? Number(x) : null,
+      y: y != null ? Number(y) : null,
+      data_json: blob,
+      deleted: 0,
+      updated_by: updatedBy || 'import'
+    });
+    upserted++;
+  };
+
+  for (const o of (mundo.objetos || [])) {
+    if (!o?.id || !o.pos || o.pos.length < 2) continue;
+    tryUpsert(o.id, 'item', o.pos[0], o.pos[1], o);
+  }
+  for (const e of (mundo.enemigos || [])) {
+    if (!e?.id) continue;
+    const pos = posEnemigo(e, mundo);
+    if (!pos) continue;
+    tryUpsert(e.id, 'enemy', pos[0], pos[1], e);
+  }
+  for (const t of (mundo.tesoros || [])) {
+    if (!t?.id || !t.pos || t.pos.length < 2) continue;
+    tryUpsert(t.id, 'treasure', t.pos[0], t.pos[1], t);
+  }
+  for (const t of (mundo.tiendasAdmin || [])) {
+    if (!t?.id) continue;
+    const pos = t.pos || t.posicion;
+    if (!pos || pos.length < 2) continue;
+    tryUpsert(t.id, 'shop', pos[0], pos[1], t);
+  }
+  for (const m of (mundo.misiones || [])) {
+    if (!m?.id || !m.pos || m.pos.length < 2) continue;
+    tryUpsert(m.id, 'mission', m.pos[0], m.pos[1], m);
+  }
+  for (const c of (mundo.cofres || [])) {
+    if (!c?.id) continue;
+    const pos = c.pos || (mundo.posiciones || {})[c.id];
+    if (!pos || pos.length < 2) continue;
+    tryUpsert(c.id, 'chest', pos[0], pos[1], c);
+  }
+
+  for (const id of eliminados) {
+    if (!id) continue;
+    adminDeleteContent(id, updatedBy);
+    seen.add(id);
+  }
+
+  migrarConfigDesdeSnapshot(mundo);
+
+  let purged = 0;
+  if (opts.purgeMissing) {
+    for (const row of getAllWorldContent(true)) {
+      if (seen.has(row.id)) continue;
+      upsertContentRow({
+        id: row.id,
+        type: row.type,
+        x: row.x,
+        y: row.y,
+        data_json: parseBlob(row),
+        deleted: 1,
+        updated_by: updatedBy || 'purge-missing'
+      });
+      purged++;
+    }
+  }
+
+  return { ok: true, upserted, skippedTombstone, purged, tombstones: eliminados.size };
+}
+
+/** Regenera snapshot de mapa desde BD, sincroniza tablas y emite mundo:sync. */
+function refreshMundoPublicadoDesdeBD(io, opts = {}) {
+  initWorldContentSchema();
+  const { saveWorldSnapshot } = require('./db');
+  const prev = getWorldSnapshot() || {};
+  const mundo = construirSnapshotDesdeBD(prev);
+  mundo.actualizadoEn = Date.now();
+
+  for (const k of ['bolsasDrop', 'botinesEnemigo', 'cuerposMuertos', 'correoReclamados', 'correoTienda', 'eliminados_recuperables']) {
+    if (prev[k] !== undefined) mundo[k] = prev[k];
+  }
+
+  saveWorldSnapshot(mundo);
+
+  if (opts.syncTables !== false) {
+    const { proyectarMapaEnTablas } = require('./syncMundo');
+    proyectarMapaEnTablas(mundo, io, opts.silent !== false);
+  }
+
+  if (io && !opts.silentMundoSync) {
+    io.emit('mundo:sync', { actualizadoEn: mundo.actualizadoEn, mundo });
+  }
+
+  try {
+    const { pedirRespaldo } = require('./respaldoThrottle');
+    pedirRespaldo();
+  } catch (e) { /* */ }
+
+  try {
+    const { registrar } = require('./eventLog');
+    registrar('world_content_publish', 'Mapa publicado desde BD');
+  } catch (e) { /* */ }
+
+  return { ok: true, mundo, actualizadoEn: mundo.actualizadoEn };
+}
+
 function parseBlob(row) {
   try {
     const d = JSON.parse(row.data_json || '{}');
@@ -353,6 +542,15 @@ module.exports = {
   setWorldConfig,
   getWorldConfig,
   getAllWorldContent,
+  getContentRow,
+  isTombstoned,
+  adminUpsertContent,
+  adminDeleteContent,
+  adminConfigContent,
+  importMapaJsonToWorldContent,
+  refreshMundoPublicadoDesdeBD,
+  isWorldContentMigrated,
   TYPE_TO_CAMPO,
-  CONFIG_KEYS
+  CONFIG_KEYS,
+  VALID_CONTENT_TYPES
 };

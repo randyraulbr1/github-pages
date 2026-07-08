@@ -14,6 +14,12 @@ const {
 } = require('../db');
 const { authMiddleware, gameAdminMiddleware, hashPassword, partidaAuthMiddleware } = require('../auth');
 const { syncMundoFromJson, actualizarPartidaEnSnapshot, registrarCuentaEnSnapshot } = require('../syncMundo');
+const {
+  adminUpsertContent,
+  adminDeleteContent,
+  adminConfigContent,
+  refreshMundoPublicadoDesdeBD
+} = require('../worldContent');
 const { auditarSiAdminEditaAjeno } = require('../auditLog');
 const { respaldarCuentasEnGitHub, respaldarCuentasEnGitHubInmediato, dejarSoloAdminEnSnapshot } = require('../syncCuentas');
 const { restaurarJugadorSiExiste } = require('../recoveryCuentas');
@@ -49,6 +55,43 @@ router.post('/sync-mundo', authMiddleware, gameAdminMiddleware, (req, res) => {
     respaldoInmediato().catch(() => {});
   } catch (e) { /* */ }
   res.json(result);
+});
+
+/** Admin: upsert de un objeto del mapa (Fase 3.3) */
+router.post('/world/upsert', authMiddleware, gameAdminMiddleware, (req, res) => {
+  const { id, type, x, y, data } = req.body || {};
+  const r = adminUpsertContent({
+    id,
+    type,
+    x,
+    y,
+    data,
+    updatedBy: 'admin:' + req.auth.playerId
+  });
+  if (!r.ok) return res.status(400).json(r);
+  const io = req.app.get('io');
+  const pub = refreshMundoPublicadoDesdeBD(io);
+  res.json({ ok: true, id: r.id, type: r.type, actualizadoEn: pub.actualizadoEn });
+});
+
+/** Admin: tombstone de un objeto del mapa */
+router.post('/world/delete', authMiddleware, gameAdminMiddleware, (req, res) => {
+  const id = req.body?.id;
+  const r = adminDeleteContent(id, 'admin:' + req.auth.playerId);
+  if (!r.ok) return res.status(400).json(r);
+  const io = req.app.get('io');
+  const pub = refreshMundoPublicadoDesdeBD(io);
+  res.json({ ok: true, id: r.id, tombstone: true, actualizadoEn: pub.actualizadoEn });
+});
+
+/** Admin: config global del mundo (precios, combate, etc.) */
+router.post('/world/config', authMiddleware, gameAdminMiddleware, (req, res) => {
+  const { key, value } = req.body || {};
+  const r = adminConfigContent(key, value, 'admin:' + req.auth.playerId);
+  if (!r.ok) return res.status(400).json(r);
+  const io = req.app.get('io');
+  const pub = refreshMundoPublicadoDesdeBD(io);
+  res.json({ ok: true, key: r.key, actualizadoEn: pub.actualizadoEn });
 });
 
 /** Mundo con auth (misma fuente que /api/public/mundo) */

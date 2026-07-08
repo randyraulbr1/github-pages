@@ -1115,30 +1115,10 @@ function registrarAtaqueEnemigo(enemyId, playerId, px, py, playerLevel, io) {
   };
 }
 
-function syncMundoFromJson(mundo, io) {
-  if (!mundo || typeof mundo !== 'object') {
-    return { ok: false, error: 'Mundo inválido' };
-  }
+/** Proyecta arrays de mapa del snapshot a world_objects + missions (tablas en vivo). */
+function proyectarMapaEnTablas(mundo, io, silent) {
+  if (!mundo || typeof mundo !== 'object') return { objetos: 0, misiones: 0 };
 
-  const prev = getWorldSnapshot();
-  fusionarJugadoresPublicacion(mundo, prev);
-  fusionarMapaPublicacion(mundo, prev);
-  const { asegurarAdminEnMundo } = require('./adminCuenta');
-  asegurarAdminEnMundo(mundo);
-  if (prev?.bolsasDrop?.length && !mundo.bolsasDrop?.length) {
-    mundo.bolsasDrop = prev.bolsasDrop;
-  }
-  if (prev?.botinesEnemigo && !mundo.botinesEnemigo) {
-    mundo.botinesEnemigo = prev.botinesEnemigo;
-  }
-  limpiarBolsasExpiradas(mundo);
-  limpiarBotinesExpirados(mundo);
-  if (prev?.cuerposMuertos) {
-    mundo.cuerposMuertos = mundo.cuerposMuertos || prev.cuerposMuertos;
-    limpiarCuerposExpirados(mundo);
-  }
-
-  mundo.actualizadoEn = mundo.actualizadoEn || Date.now();
   const eliminados = new Set(mundo.eliminados || []);
   const seenObjects = new Set();
   const seenMissions = new Set();
@@ -1249,6 +1229,54 @@ function syncMundoFromJson(mundo, io) {
     }
   }
 
+  return { objetos, misiones };
+}
+
+function syncMundoFromJson(mundo, io) {
+  if (!mundo || typeof mundo !== 'object') {
+    return { ok: false, error: 'Mundo inválido' };
+  }
+
+  const prev = getWorldSnapshot();
+  fusionarJugadoresPublicacion(mundo, prev);
+  fusionarMapaPublicacion(mundo, prev);
+  const { asegurarAdminEnMundo } = require('./adminCuenta');
+  asegurarAdminEnMundo(mundo);
+  if (prev?.bolsasDrop?.length && !mundo.bolsasDrop?.length) {
+    mundo.bolsasDrop = prev.bolsasDrop;
+  }
+  if (prev?.botinesEnemigo && !mundo.botinesEnemigo) {
+    mundo.botinesEnemigo = prev.botinesEnemigo;
+  }
+  limpiarBolsasExpiradas(mundo);
+  limpiarBotinesExpirados(mundo);
+  if (prev?.cuerposMuertos) {
+    mundo.cuerposMuertos = mundo.cuerposMuertos || prev.cuerposMuertos;
+    limpiarCuerposExpirados(mundo);
+  }
+
+  mundo.actualizadoEn = mundo.actualizadoEn || Date.now();
+
+  const {
+    isWorldContentMigrated,
+    importMapaJsonToWorldContent
+  } = require('./worldContent');
+
+  if (isWorldContentMigrated()) {
+    const imp = importMapaJsonToWorldContent(mundo, 'sync-mundo', {
+      respectTombstones: true,
+      purgeMissing: !!mundo.purgarMapaFaltante
+    });
+    if (!imp.ok) {
+      console.warn('[mundo] world_content import:', imp.error);
+    } else if (imp.skippedTombstone > 0) {
+      console.log('[mundo] tombstones respetados en sync:', imp.skippedTombstone);
+    }
+    Object.assign(mundo, construirSnapshotDesdeBD(mundo));
+  }
+
+  const { objetos, misiones } = proyectarMapaEnTablas(mundo, io, true);
+
   try {
     const {
       reconciliarCuentasEnSnapshot,
@@ -1322,6 +1350,7 @@ const {
 
 module.exports = {
   syncMundoFromJson,
+  proyectarMapaEnTablas,
   fusionarMapaPublicacion,
   contarElementosMapa,
   mergeJugadoresPartidas,
