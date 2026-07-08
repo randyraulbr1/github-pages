@@ -20,17 +20,17 @@ jobs:
           fetch-depth: 0
           token: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Fusionar main en claude/web-rpg-gps-game-n3ybow
+      - name: Sincronizar claude con main (sin conflictos)
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git fetch origin main claude/web-rpg-gps-game-n3ybow
-          git checkout claude/web-rpg-gps-game-n3ybow
-          git pull --rebase origin claude/web-rpg-gps-game-n3ybow
-          git merge origin/main -m "chore: sync claude desde main [auto]"
+          git checkout -B claude/web-rpg-gps-game-n3ybow origin/claude/web-rpg-gps-game-n3ybow
+          git reset --hard origin/main
           for i in 1 2 3 4 5 6; do
-            git push origin claude/web-rpg-gps-game-n3ybow && exit 0
-            git pull --rebase origin claude/web-rpg-gps-game-n3ybow
+            git push --force-with-lease origin claude/web-rpg-gps-game-n3ybow && exit 0
+            git fetch origin claude/web-rpg-gps-game-n3ybow
+            git reset --hard origin/main
             sleep $((i * 2))
           done
           echo "No se pudo hacer push a claude tras varios intentos"

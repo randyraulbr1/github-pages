@@ -257,25 +257,28 @@ const MarielVersion = {
     const opts = { cache: 'no-store', headers: { 'Cache-Control': 'no-cache', Pragma: 'no-cache' } };
     const origen = (typeof location !== 'undefined' && location.origin) ? location.origin : '';
 
-    const leerJson = async (url) => {
-      try {
-        const r = await fetch(url, opts);
-        if (!r.ok) return 0;
-        const v = this._parseVersionTexto(await r.text());
-        return this._num(v);
-      } catch (e) {
-        return 0;
-      }
-    };
-
     const jsonUrls = [
       this._versionCanonica + '?_=' + ts,
       origen ? origen + '/version.json?_=' + ts : 0,
       'version.json?_=' + ts
     ].filter(Boolean);
 
-    const jsonNums = await Promise.all(jsonUrls.map((url) => leerJson(url)));
-    const maxJson = Math.max(0, ...jsonNums);
+    const leerJsonVersion = async (url) => {
+      try {
+        const r = await fetch(url, opts);
+        if (!r.ok) return { n: 0, url };
+        const v = this._parseVersionTexto(await r.text());
+        return { n: this._num(v), url };
+      } catch (e) {
+        return { n: 0, url };
+      }
+    };
+
+    const resultados = await Promise.all(jsonUrls.map((url) => leerJsonVersion(url)));
+    const canon = resultados.find((x) => String(x.url).startsWith(this._versionCanonica));
+    if (canon?.n > 0) return String(canon.n);
+
+    const maxJson = Math.max(0, ...resultados.map((x) => x.n));
     if (maxJson > 0) return String(maxJson);
 
     try {
