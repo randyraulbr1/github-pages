@@ -8,12 +8,7 @@ Versión objetivo: **v299** en tcodm.com (`meta mariel-version` = 299).
 
 ## Antes de probar
 
-1. Cerrar PRs obsoletos (solo Randy, con `gh`):
-   ```bash
-   bash scripts/cerrar-prs-obsoletos.sh
-   ```
-   PRs: #113, #114, #88, #19, #17, #16, #10 — **no mergear**.
-
+1. ~~Cerrar PRs obsoletos~~ ✅ hecho.
 2. En el móvil: borrar caché del sitio **o** modo incógnito.
 
 3. Confirmar versión: al cargar tcodm.com debe verse v299 (pantalla actualizar o consola `mariel-version`).

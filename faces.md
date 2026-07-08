@@ -329,7 +329,7 @@ Objetivo: no publicar si una prueba crítica falla.
 
 | Item | Responsable | Estado |
 |------|-------------|--------|
-| Cerrar PRs obsoletos #113, #114, #88, #19, #17, #16, #10 | Randy (`bash scripts/cerrar-prs-obsoletos.sh`) | ☐ |
+| Cerrar PRs obsoletos #113, #114, #88, #19, #17, #16, #10 | Randy | ✅ 2026-07-08 — todos cerrados |
 | Prueba Android caminando con GPS | Randy | ☐ |
 | 2 jugadores reales en mapa | Randy | ☐ |
 | Inventario, admin, chat, amigos, tienda, misiones en móvil | Randy | ☐ |
@@ -370,9 +370,7 @@ Checklist mínimo:
 4. Admin (Randy): Organizar → mover PIN → confirmar → publicar.
 5. Segundo teléfono o PC: ver al otro jugador en mapa.
 
-Nota v299: `scripts/smoke-v299.sh` en main (versión, JS, UI Fase 12, rate limit, historial, tcodm.com). CI `.github/workflows/smoke-v299.yml`. Cerrar PRs viejos: `bash scripts/cerrar-prs-obsoletos.sh` (requiere `gh` de Randy). PR #116–#120 mergeados. PR #121–#122 docs/smoke mergeados.
-
-PRs obsoletos abiertos (cerrar manualmente, no mergear): #113, #114, #88, #19, #17, #16, #10 — todo superseded en v299.
+Nota v299: PRs obsoletos #10–#114 **cerrados** (2026-07-08). Smoke + CI en main. Pendiente: validación móvil real (guía `faces/fase-8-validacion-movil-v299.md`).
 
 Nota v290: checklist con tabla de seguimiento. Pendiente: ejecutar y marcar resultados antes del próximo deploy mayor.
 
