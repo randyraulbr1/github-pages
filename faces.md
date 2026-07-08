@@ -319,7 +319,7 @@ Cada pantalla debe tener:
 
 # FASE 8 - Pruebas antes de publicar
 
-Estado: 🚧 En progreso (v290)
+Estado: 🚧 En progreso (v299 en main — smoke automático OK)
 
 Objetivo: no publicar si una prueba crítica falla.
 
@@ -329,23 +329,25 @@ Checklist mínimo:
 
 | Prueba | Estado |
 |--------|--------|
-| Crear cuenta | ☐ |
-| Iniciar sesión | ☐ |
-| GPS propio | ☐ |
-| Ver otro jugador | ☐ |
-| Inventario | ☐ |
-| Amigos | ☐ |
-| Chat | ☐ |
-| Bloquear jugador | ☐ |
-| Admin crea objeto | ☐ |
-| Admin mueve PIN | ☐ |
-| Admin borra objeto | ☐ |
-| Reiniciar servidor | ☐ |
-| Borrar caché | ☐ |
-| Entrar desde otro teléfono | ☐ |
-| Mala conexión | ☐ |
-| PC | ☐ |
-| Móvil | ☐ |
+| Crear cuenta | ☐ manual |
+| Iniciar sesión | ☐ manual |
+| GPS propio | ☐ manual |
+| Ver otro jugador | ☐ manual |
+| Inventario | ☐ manual |
+| Amigos | ☐ manual |
+| Chat | ☐ manual |
+| Bloquear jugador | ☐ manual |
+| Admin crea objeto | ☐ manual |
+| Admin mueve PIN | ☐ manual (fix v299 en código) |
+| Admin borra objeto | ☐ manual |
+| Reiniciar servidor | ✅ smoke 2026-07-08 — arranca sin crash |
+| Borrar caché | ☐ manual |
+| Entrar desde otro teléfono | ☐ manual |
+| Mala conexión | ☐ manual |
+| PC | ✅ smoke 2026-07-08 — JS + versión sincronizada |
+| Móvil | ✅ viewport 390×844 PR#119; ☐ toque real Android |
+
+Nota v299: `scripts/smoke-v299.sh` en main. PR #116–#120 mergeados en orden. `version.json` en GitHub = 299.
 
 Nota v290: checklist con tabla de seguimiento. Pendiente: ejecutar y marcar resultados antes del próximo deploy mayor.
 
