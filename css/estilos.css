@@ -1712,6 +1712,15 @@ body.admin-panel-abierto #admin-controles {
 body.admin-panel-abierto #ventana-admin {
   pointer-events: auto !important;
 }
+body.admin-colocando #mapa,
+body.admin-colocando #admin-controles {
+  pointer-events: auto !important;
+}
+body.admin-colocando #barra-inferior-wrap,
+body.admin-colocando #botones-inferiores,
+body.admin-colocando #panel-hud-izq {
+  pointer-events: none !important;
+}
 .admin-layout {
   display: flex;
   flex: 1;

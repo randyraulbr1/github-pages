@@ -2920,9 +2920,9 @@ const Admin = {
       };
     } else if (tipo === 'tienda_admin') {
       const nombre = this._valor('af-nombre').trim();
-      if (nombre.length < 2) { alert('Ponle nombre a la tienda'); return; }
+      if (nombre.length < 2) { this._adminAviso('Ponle nombre a la tienda'); return; }
       const vende = (this._tiendaAdminSlots || []).filter(Boolean);
-      if (!vende.length) { alert('Añade al menos un artículo (toca ADM ∞)'); return; }
+      if (!vende.length) { this._adminAviso('Añade al menos un artículo (toca ADM ∞)'); return; }
       valores = {
         nombre,
         icono: this._valor('af-icono-tienda').trim() || '🏪',
@@ -2967,6 +2967,8 @@ const Admin = {
   _empezarColocacion() {
     if (typeof Cofres !== 'undefined') Cofres.cancelarPin(true);
     document.body.classList.remove('admin-organizar');
+    document.body.classList.remove('admin-panel-abierto');
+    document.body.classList.add('admin-colocando');
     document.getElementById('ventana-admin').classList.add('oculto');
     this.modo = 'colocar';
     const centro = Mapa.mapa.getCenter();
@@ -3048,7 +3050,6 @@ const Admin = {
     this._colocacion = null;
     this.salirModo();
     this._encolarPublicacion(true);
-    Notificaciones.mostrar('📡 Publicando en el mapa…', 'info', 3000);
   },
 
   // ---------- MISIONES DEL ADMIN ----------
@@ -3897,6 +3898,7 @@ const Admin = {
 
   salirModo() {
     this._organizandoArrastreActivo = false;
+    document.body.classList.remove('admin-colocando', 'admin-panel-abierto');
     // Cancelar colocación pendiente
     if (this._colocacion && this._colocacion.marcador) this._colocacion.marcador.remove();
     this._colocacion = null;
@@ -4695,7 +4697,8 @@ const Admin = {
     return Object.assign(this._partidaDefault(), { vida: CONFIG.vidaMaxima, muerto: false });
   },
 
-  async _guardarPartidaJugador(perfil, partida) {
+  async _guardarPartidaJugador(perfil, partida, opciones) {
+    const opts = opciones || {};
     if (!partida.mochila) partida.mochila = new Array(25).fill(null);
     if (!partida.dinero) partida.dinero = { saldo: 0 };
     partida.dinero.control = await Utilidades.sha256(Guardado.SAL + '|saldo|' + partida.dinero.saldo);
@@ -4707,7 +4710,8 @@ const Admin = {
     partida.muerto = partida.vida <= 0;
     if (!partida.muerto) partida.muertePos = null;
 
-    if (perfil.id === Usuarios.perfilActivo?.id) {
+    const esActivo = perfil.id === Usuarios.perfilActivo?.id;
+    if (esActivo) {
       Guardado.datos.mochila = partida.mochila;
       Guardado.datos.dinero = partida.dinero;
       Guardado.datos.vida = partida.vida;
@@ -4719,6 +4723,10 @@ const Admin = {
       if (partida.xp != null) {
         Guardado.datos.xp = partida.xp;
         if (typeof Vida !== 'undefined') Vida.xp = partida.xp;
+      }
+      if (partida.hambre != null) {
+        Guardado.datos.hambre = partida.hambre;
+        if (typeof Vida !== 'undefined') Vida.hambre = partida.hambre;
       }
       if (partida.armaEquipada !== undefined) Guardado.datos.armaEquipada = partida.armaEquipada;
       await Guardado.guardarAhora();
@@ -4737,27 +4745,25 @@ const Admin = {
         }
         Vida.pintar();
       }
-      if (typeof Multijugador !== 'undefined') Multijugador.enviarStats(true);
-      return;
+    } else {
+      const clave = CONFIG.claveGuardado + '::' + perfil.id;
+      let paquete;
+      try { paquete = JSON.parse(localStorage.getItem(clave)); } catch (e) { paquete = null; }
+      if (!paquete?.datos) paquete = { datos: Guardado._estadoNuevo() };
+      paquete.datos.mochila = partida.mochila;
+      paquete.datos.dinero = partida.dinero;
+      paquete.datos.vida = partida.vida;
+      paquete.datos.muerto = partida.muerto;
+      if (partida.armaEquipada !== undefined) paquete.datos.armaEquipada = partida.armaEquipada;
+      if (partida.hambre != null) paquete.datos.hambre = partida.hambre;
+      if (partida.posicionJugador && partida.posicionJugador.length >= 2) {
+        paquete.datos.posicionJugador = partida.posicionJugador.slice();
+      }
+      if (partida.xp != null) paquete.datos.xp = partida.xp;
+      if (partida.nivel != null) paquete.datos.nivel = partida.nivel;
+      paquete.firma = await Utilidades.sha256(JSON.stringify(paquete.datos) + Guardado.SAL);
+      localStorage.setItem(clave, JSON.stringify(paquete));
     }
-
-    const clave = CONFIG.claveGuardado + '::' + perfil.id;
-    let paquete;
-    try { paquete = JSON.parse(localStorage.getItem(clave)); } catch (e) { paquete = null; }
-    if (!paquete?.datos) paquete = { datos: Guardado._estadoNuevo() };
-    paquete.datos.mochila = partida.mochila;
-    paquete.datos.dinero = partida.dinero;
-    paquete.datos.vida = partida.vida;
-    paquete.datos.muerto = partida.muerto;
-    if (partida.armaEquipada !== undefined) paquete.datos.armaEquipada = partida.armaEquipada;
-    if (partida.hambre != null) paquete.datos.hambre = partida.hambre;
-    if (partida.posicionJugador && partida.posicionJugador.length >= 2) {
-      paquete.datos.posicionJugador = partida.posicionJugador.slice();
-    }
-    if (partida.xp != null) paquete.datos.xp = partida.xp;
-    if (partida.nivel != null) paquete.datos.nivel = partida.nivel;
-    paquete.firma = await Utilidades.sha256(JSON.stringify(paquete.datos) + Guardado.SAL);
-    localStorage.setItem(clave, JSON.stringify(paquete));
 
     if (!this.datos.partidasExtra) this.datos.partidasExtra = {};
     const prevDatos = (this.publicado.partidas || {})[perfil.id]?.datos || {};
@@ -4787,33 +4793,37 @@ const Admin = {
     if (!this.publicado.partidas) this.publicado.partidas = {};
     this.publicado.partidas[perfil.id] = snap;
     this.guardar();
-    let okCuenta = true;
-    let okPartida = true;
-    if (MundoPublico.puedeEscribir()) {
-      okCuenta = await MundoPublico.guardarCuenta(perfil, snap);
-    }
-    if (typeof SyncServidor !== 'undefined' && SyncServidor.subirPartida) {
+
+    const onlineOk = await this._sincronizarJugadorEditadoOnline(perfil, partida, snap);
+    let okPartida = onlineOk;
+    if (!onlineOk && typeof SyncServidor !== 'undefined' && SyncServidor.subirPartida) {
       okPartida = await SyncServidor.subirPartida(perfil.id, snap);
     }
-    await this._sincronizarJugadorEditadoOnline(perfil, partida, snap);
-    return { ok: !!(okCuenta || okPartida), okCuenta, okPartida };
+    let okCuenta = true;
+    if (opts.cuentaChanged && MundoPublico.puedeEscribir()) {
+      okCuenta = await MundoPublico.guardarCuenta(perfil, snap);
+    }
+    if (esActivo && typeof Multijugador !== 'undefined') Multijugador.enviarStats(true);
+    return { ok: !!(okPartida || okCuenta), okCuenta, okPartida, onlineOk };
   },
 
   async _sincronizarJugadorEditadoOnline(perfil, partida, snap) {
     const online = this._estadoOnlinePorNombre(perfil.nombre);
-    if (!online || typeof Multijugador === 'undefined' || !Multijugador.socket) return;
+    if (!online || typeof Multijugador === 'undefined' || !Multijugador.socket) return false;
     const maxV = this.vidaJugadorPorNivel(partida.nivel ?? 1);
     const hp = partida.muerto ? 0 : (partida.vida ?? maxV);
-    Multijugador.socket.emit('admin:updatePlayerPartida', {
-      targetPlayerId: online.playerId,
-      perfilId: perfil.id,
-      hp,
-      hpMax: maxV,
-      level: partida.nivel ?? 1,
-      xp: partida.xp ?? 0,
-      dead: !!partida.muerto,
-      partidaSnap: snap
-    }, () => {});
+    return new Promise((resolve) => {
+      Multijugador.socket.emit('admin:updatePlayerPartida', {
+        targetPlayerId: online.playerId,
+        perfilId: perfil.id,
+        hp,
+        hpMax: maxV,
+        level: partida.nivel ?? 1,
+        xp: partida.xp ?? 0,
+        dead: !!partida.muerto,
+        partidaSnap: snap
+      }, (res) => resolve(!!res?.ok));
+    });
   },
 
   async _abrirEditorJugador(perfil, soloGlobal) {
@@ -4843,6 +4853,8 @@ const Admin = {
         partida: partidaInicial,
         _arrastre: null,
         _nivelInicial: partidaInicial.nivel ?? 1,
+        _nombreInicial: p.nombre || '',
+        _telefonoInicial: p.telefono || '',
         _sinGuardar: false
       };
       if (!this._editorJugador.partida.mochila) {
@@ -5206,12 +5218,15 @@ const Admin = {
       }
       Usuarios._guardarLista();
     }
+    const nombreInicial = ed._nombreInicial ?? ed.perfil.nombre;
+    const telefonoInicial = ed._telefonoInicial ?? (ed.perfil.telefono || '');
+    const cuentaChanged = nombre !== nombreInicial || telefono !== telefonoInicial || !!claveNueva;
     this.registrarJugador(ed.perfil, true);
     const btnGuardar = document.getElementById('btn-admin-editor-guardar');
     if (btnGuardar) { btnGuardar.disabled = true; btnGuardar.textContent = 'Guardando…'; }
     let sync;
     try {
-      sync = await this._guardarPartidaJugador(ed.perfil, ed.partida);
+      sync = await this._guardarPartidaJugador(ed.perfil, ed.partida, { cuentaChanged });
     } finally {
       if (btnGuardar) { btnGuardar.disabled = false; btnGuardar.textContent = 'Guardar cambios'; }
     }

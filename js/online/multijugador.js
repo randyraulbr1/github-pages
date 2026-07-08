@@ -671,13 +671,16 @@ const Multijugador = {
     const invPendiente = Guardado.datos._invPendienteSync;
     let mochilaLocal;
     let armaLocal;
-    if (invPendiente) {
+    if (invPendiente && !pisarStats) {
       mochilaLocal = JSON.parse(JSON.stringify(Guardado.datos.mochila || []));
       armaLocal = Guardado.datos.armaEquipada;
     }
     Guardado._aplicarSnapshot(d, { sinStats: !pisarStats });
-    if (pisarStats) Guardado.datos.statsT = remoteStatsT;
-    if (invPendiente) {
+    if (pisarStats) {
+      Guardado.datos.statsT = remoteStatsT;
+      delete Guardado.datos._invPendienteSync;
+    }
+    if (invPendiente && !pisarStats) {
       Guardado.datos.mochila = mochilaLocal;
       Guardado.datos.armaEquipada = armaLocal;
     }
