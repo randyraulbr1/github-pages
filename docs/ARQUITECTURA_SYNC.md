@@ -212,14 +212,14 @@ admin:updatePlayerPartida o POST /sync-partida
 |------|--------|----------|
 | 1 Seguridad v274 | ✅ | sync-partida, JWT, purga, updateInventory |
 | 2 Estabilidad v275 | ✅ | roles, stats estables, tope HP, auditoría |
-| 3 Mundo fuente única v276+ | 📋 | BD = mundo real; snapshot = solo backup |
+| 3 Mundo fuente única v276+ | 🔄 | 3.1+3.2 hechos: `world_content`, proyector BD→blob, doble lectura |
 | 4 Rendimiento GPS v277+ | 📋 | Interest management, deltas |
 
 ---
 
 ## Versión y despliegue
 
-- Versión actual: **v275** (`js/config/config.js`, `version.json`)
+- Versión actual: **v276** (`js/config/config.js`, `version.json`)
 - Frontend: GitHub Pages — rama **`main`** (`tcodm.com`)
 - Backend: Render auto-deploy desde `main` (carpeta `server/`)
 - Ver también: `docs/RENDER_GRATIS.md`, `IA_TEAM_REVIEW.md`

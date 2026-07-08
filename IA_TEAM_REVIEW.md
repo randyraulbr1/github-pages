@@ -464,7 +464,9 @@ Con una **cuenta normal** (no admin), todo debe **fallar correctamente**:
 
 **Pendiente operativo:** Deploy Render + checklists Fase 1 (7) y Fase 2 (9, incluye extras Claude). Admin **re-login** para JWT `role: admin`.
 
-**Para decir a Cursor:** «**Adelante con Fase 3**» → implementar **solo 3.1+3.2** primero (migración + proyector + doble lectura).
+**Para decir a Cursor:** «**Adelante con Fase 3.3**» (admin por objeto) cuando checklists pasen y doble lectura OK en Render.
+
+**Fase 3.1+3.2 (v276):** ✅ `world_content`, `world_config`, migración idempotente, `construirSnapshotDesdeBD()`, validación doble lectura al arrancar.
 
 **Visibilidad equipo:** opiniones de Claude viven en **`main`** (`IA_TEAM_REVIEW.md`, `FASE3_DISENO_MUNDO.md`), no solo en rama `claude/web-rpg-gps-game-n3ybow`.
 

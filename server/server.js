@@ -150,6 +150,26 @@ async function arrancar() {
     const n = countUsers();
     const rec = reconciliarCuentasEnSnapshot();
     console.log('   Usuarios en BD:', n, '| Jugadores en snapshot:', rec.total);
+
+    try {
+      const snapNow = getWorldSnapshot();
+      const { migrarWorldContentSiVacio, validarDobleLecturaMundo } = require('./worldContent');
+      const mig = migrarWorldContentSiVacio(snapNow);
+      if (mig.migrated) {
+        console.log('   world_content: migración OK —', mig.count, 'filas');
+      }
+      const val = validarDobleLecturaMundo(snapNow);
+      if (val.ok) {
+        console.log('   world_content: doble lectura OK (diff mapa vacío)');
+      } else if (val.reason) {
+        console.warn('   world_content: doble lectura omitida —', val.reason);
+      } else {
+        console.warn('   world_content: doble lectura —', val.diffCount, 'diff(s):', val.resumen);
+      }
+    } catch (e) {
+      console.warn('   world_content Fase 3:', e.message);
+    }
+
     if (!process.env.GITHUB_TOKEN) {
       console.warn('   ⚠️ GITHUB_TOKEN no configurado — nuevas cuentas NO se respaldan en GitHub');
     }

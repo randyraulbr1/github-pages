@@ -1314,6 +1314,12 @@ function syncMundoFromJson(mundo, io) {
   return { ok: true, objetos, misiones, actualizadoEn: mundo.actualizadoEn };
 }
 
+const {
+  construirSnapshotDesdeBD,
+  validarDobleLecturaMundo,
+  migrarWorldContentSiVacio
+} = require('./worldContent');
+
 module.exports = {
   syncMundoFromJson,
   fusionarMapaPublicacion,
@@ -1345,5 +1351,8 @@ module.exports = {
   reclamarBotinEnemigo,
   sincronizarBotinesExpirados,
   limpiarBotinesExpirados,
-  calcularBotinEnemigo
+  calcularBotinEnemigo,
+  construirSnapshotDesdeBD,
+  validarDobleLecturaMundo,
+  migrarWorldContentSiVacio
 };

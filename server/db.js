@@ -129,6 +129,13 @@ function initDb() {
   migrateUserRoleColumn();
   migrateAdminUserRoles();
 
+  try {
+    const { initWorldContentSchema } = require('./worldContent');
+    initWorldContentSchema();
+  } catch (e) {
+    console.warn('   worldContent schema:', e.message);
+  }
+
   // Solo si la BD está vacía: semilla mínima; importMundo trae datos reales de mundo.json
   // seedWorldIfEmpty(); — desactivado, usa importMundo.js
   try {
