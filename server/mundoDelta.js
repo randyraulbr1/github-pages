@@ -56,6 +56,9 @@ function emitirMundoSync(io, prev, mundo) {
     msg.delta = true;
     msg.deltaKeys = plan.deltaKeys;
   }
+  const sockets = io.engine?.clientsCount ?? io.sockets?.sockets?.size ?? '?';
+  console.log('[mundo:sync] io.emit enviado a todos — sockets:', sockets,
+    plan.full ? 'completo' : 'delta ' + (plan.deltaKeys || []).join(','));
   io.emit('mundo:sync', msg);
   return plan;
 }

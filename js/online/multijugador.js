@@ -178,6 +178,7 @@ const Multijugador = {
     }
 
     await this.iniciar();
+    if (typeof MarielSyncLog !== 'undefined') MarielSyncLog.socketEstado();
     return !!this.socket;
   },
 
@@ -358,6 +359,7 @@ const Multijugador = {
       this._reconectando = false;
       this._ultimoDiagnostico = null;
       if (typeof MarielDiagnosticoRed !== 'undefined') MarielDiagnosticoRed.ultimo = null;
+      if (typeof MarielSyncLog !== 'undefined') MarielSyncLog.log('SOCKET CONECTADO', 'playerId en token JWT');
       this._ocultarAvisoReconexion();
       this._actualizarIndicadorConexion('online');
       if (typeof GPS !== 'undefined') {
@@ -401,6 +403,10 @@ const Multijugador = {
       this._reconectando = false;
       this._ocultarAvisoReconexion();
       this._actualizarIndicadorConexion('online');
+      if (typeof MarielSyncLog !== 'undefined') {
+        MarielSyncLog.log('SOCKET RECONECTADO', 'descargando mundo (loadWorld)');
+      }
+      this.loadWorld().catch(() => {});
       if (typeof Amigos !== 'undefined') Amigos.refrescar();
     });
 
@@ -591,6 +597,11 @@ const Multijugador = {
 
     this.socket.on('mundo:sync', (data) => {
       if (!data?.mundo || typeof Admin === 'undefined') return;
+      if (typeof MarielSyncLog !== 'undefined') {
+        MarielSyncLog.log('RECIBIDO mundo:sync',
+          (data.delta ? 'delta ' + (data.deltaKeys || []).join(',') : 'completo') +
+          ' ts=' + (data.actualizadoEn || '?'));
+      }
       let mundo = data.mundo;
       if (data.delta) {
         const deltaBytes = JSON.stringify(data.mundo).length;
@@ -602,6 +613,13 @@ const Multijugador = {
         }
       }
       const ts = data.actualizadoEn || mundo.actualizadoEn || Date.now();
+      if (!Admin._mundoCargado) {
+        if (typeof MarielSyncLog !== 'undefined') {
+          MarielSyncLog.log('mundo:sync PENDIENTE', 'Admin.iniciar aún no terminó');
+        }
+        this._mundoPendiente = { mundo, actualizadoEn: ts, delta: !!data.delta };
+        return;
+      }
       const json = JSON.stringify(mundo);
       this.mundoServidorTs = Math.max(this.mundoServidorTs, ts);
       Admin._crudoPublicado = json;
@@ -1132,10 +1150,21 @@ const Multijugador = {
     if (!this._mundoPendiente) return false;
     const data = this._mundoPendiente;
     this._mundoPendiente = null;
+    if (typeof MarielSyncLog !== 'undefined') {
+      MarielSyncLog.log('APLICANDO MUNDO PENDIENTE', 'tras Admin.cargar/iniciar');
+    }
+    if (data.mundo && data.delta && typeof Admin !== 'undefined' && Admin.publicado) {
+      const fusionado = Object.assign({}, Admin.publicado, data.mundo);
+      fusionado.actualizadoEn = data.actualizadoEn || fusionado.actualizadoEn;
+      return this._aplicarMundoAlCliente({ mundo: fusionado, actualizadoEn: data.actualizadoEn }, false);
+    }
     return this._aplicarMundoAlCliente(data, false);
   },
 
   async loadWorld() {
+    if (typeof MarielSyncLog !== 'undefined') {
+      MarielSyncLog.log('loadWorld()', 'reconexión o pull manual');
+    }
     if (this._socketListoParaMundo()) {
       if (typeof MarielConsumoRed !== 'undefined') {
         MarielConsumoRed.registrarAhorro(10700, 'mundo_doble_carga');
