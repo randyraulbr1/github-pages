@@ -1,8 +1,8 @@
-# FASE 8 — Validación móvil v299 (uso real)
+# FASE 8 — Validación móvil (uso real)
 
 Estado: ⏳ **BLOQUEANTE** — no empezar funciones grandes nuevas hasta completar esto.
 
-Versión objetivo: **v299** en tcodm.com (`meta mariel-version` = 299).
+Versión objetivo: **v304** en tcodm.com (`meta mariel-version` = 304).
 
 ---
 
@@ -10,8 +10,8 @@ Versión objetivo: **v299** en tcodm.com (`meta mariel-version` = 299).
 
 1. ~~Cerrar PRs obsoletos~~ ✅ hecho.
 2. En el móvil: borrar caché del sitio **o** modo incógnito.
-
-3. Confirmar versión: al cargar tcodm.com debe verse v299 (pantalla actualizar o consola `mariel-version`).
+3. Pulsar **Actualizar** si sale cartel de versión.
+4. Confirmar versión: debe verse **v304**. Servidor: `mariel-online.onrender.com`.
 
 ---
 

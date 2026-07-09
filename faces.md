@@ -319,21 +319,22 @@ Cada pantalla debe tener:
 
 # FASE 8 - Pruebas antes de publicar
 
-Estado: 🚧 En progreso (v299 — smoke automático OK; **validación real móvil pendiente**)
+Estado: 🚧 En progreso (v304 — smoke OK; **validación real móvil pendiente Randy**)
 
 Objetivo: no publicar si una prueba crítica falla.
 
-**Guía detallada:** `faces/fase-8-validacion-movil-v299.md`
+**Guía detallada:** `faces/fase-8-validacion-movil-v299.md` (actualizar versión objetivo a **v304** al probar).
 
 ### Pendiente bloqueante (antes de nuevas funciones)
 
 | Item | Responsable | Estado |
 |------|-------------|--------|
-| Cerrar PRs obsoletos #113, #114, #88, #19, #17, #16, #10 | Randy | ✅ 2026-07-08 — todos cerrados |
+| Cerrar PRs obsoletos #113, #114, #88, #19, #17, #16, #10 | Randy | ✅ 2026-07-08 |
 | Prueba Android caminando con GPS | Randy | ☐ |
 | 2 jugadores reales en mapa | Randy | ☐ |
 | Inventario, admin, chat, amigos, tienda, misiones en móvil | Randy | ☐ |
-| No empezar funciones grandes nuevas | Equipo | ⏳ hasta validar v299 |
+| Login Render Starter (v302+) | Randy | ✅ entra con randy |
+| No empezar funciones grandes nuevas | Equipo | ⏳ hasta validar móvil |
 
 Cómo usar: marcar cada ítem con ☐ pendiente, ✅ ok o ❌ falló (fecha + nota breve).
 
@@ -370,15 +371,17 @@ Checklist mínimo:
 4. Admin (Randy): Organizar → mover PIN → confirmar → publicar.
 5. Segundo teléfono o PC: ver al otro jugador en mapa.
 
-Nota v300: hosting gratis → **Oracle Cloud US East** (`api.tcodm.com`). Guía: `docs/ORACLE_DEPLOY_CUBA.md`. Render abandonado (5 GB/mes). Cliente Cuba: tcodm.com + api.tcodm.com (sin raw.githubusercontent.com en ruta crítica).
+Nota v304: optimización red Render (v303–304): sin doble carga mundo, sync-partida 90s, socket.io local, enemigos por cercanía, mundo:sync delta, panel consumo MB en Depuración.
 
-Nota v290: checklist con tabla de seguimiento. Pendiente: ejecutar y marcar resultados antes del próximo deploy mayor.
+Nota v302: fix URL Render + diagnóstico conexión; login-game HTTP 500 corregido.
+
+Nota v300: Render plan Starter activo (`mariel-online.onrender.com`). Oracle **pausado** (docs listos en `docs/ORACLE_MIGRACION.md`).
 
 Regla:
 
 No publicar version si una prueba critica falla.
 
-**No empezar funciones grandes nuevas hasta validar v299 en uso real** (ver guía Fase 8).
+**No empezar funciones grandes nuevas hasta validar v304 en móvil real** (ver guía Fase 8).
 
 ---
 
@@ -488,22 +491,41 @@ Nota v295: cocinar en juego (🍳 + cuchillo), endpoint `player:cookItem`, equip
 
 # FASE 15 - Migracion Oracle Cloud (produccion)
 
-Estado: 🚧 En progreso (v301 — scripts + docs listos; VM pendiente Randy)
+Estado: ⏳ Pausada — Randy usa **Render Starter** ($7/mes). Scripts Oracle listos por si se retoma.
 
-Objetivo: servidor gratis estable, un dominio, Cuba sin VPN, sin depender de Render.
+Objetivo: servidor estable, un dominio, Cuba sin VPN.
 
 Documentacion maestra: `docs/ORACLE_MIGRACION.md`
 
 | Subfase | Tarea | Estado |
 |---------|-------|--------|
 | 15.1 | Scripts Nginx, install/update/backup, red.js | ✅ v301 |
-| 15.2 | VM Oracle US East + api.tcodm.com | ☐ Randy |
-| 15.3 | Prueba interna (login, GPS, admin) | ☐ |
-| 15.4 | Prueba 2–3 jugadores | ☐ |
-| 15.5 | DNS tcodm.com → Oracle, hostingUnificado: true | ☐ |
-| 15.6 | 48 h estables → marcar Render obsoleto | ☐ |
+| 15.2–15.6 | VM Oracle, DNS, pruebas | ⏳ pausado |
 
-Render: **no eliminado** — rollback hasta 15.6. GitHub Pages: activo como rollback DNS.
+**Produccion actual:** juego en tcodm.com (GitHub Pages) + API en `mariel-online.onrender.com`.
+
+---
+
+# FASE 15B - Optimizacion consumo red (Render)
+
+Estado: 🚧 En progreso (v304 — optimizaciones seguras aplicadas; medicion en panel admin)
+
+Objetivo: bajar egress Render sin romper juego.
+
+Documentacion: `faces/fase-15-optimizacion-consumo-red.md`
+
+| Hecho (v303–304) | Pendiente |
+|------------------|-----------|
+| Auditoria inicial | Medir 48 h en Render dashboard |
+| Sin doble carga mundo | GPS throttle (no tocar aun) |
+| sync-partida 90s | Comprimir JSON en Node |
+| Poll HTTP off con socket | player:updateStats scoped |
+| socket.io desde tcodm.com | Bundling admin.js |
+| Enemigos por cercanía 500m | |
+| mundo:sync delta | |
+| Panel MB/sesion admin | |
+
+Nota v304: PR #130–131 mergeados. Estimado ~25–55 MB/mes (1 jugador, 2 h/día) vs ~60–90 antes.
 
 ---
 
