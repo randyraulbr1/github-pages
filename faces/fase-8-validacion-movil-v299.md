@@ -74,7 +74,7 @@ Viewport simulado PR #119: 390×844 — paneles ~358–367×580 px, sin desborde
 
 1. Marcar resultados en `faces.md` Fase 8 (tabla principal).
 2. Si todo ✅ → Fase 8 = Completada; se puede planear Fase 14+.
-3. Si algo ❌ → abrir fix puntual (no fase grande) con versión v300.
+3. Si algo ❌ → abrir fix puntual (no fase grande) con versión v304+.
 
 ---
 

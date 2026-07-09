@@ -4,29 +4,28 @@ Documento de continuidad: qué creó ChatGPT en `faces/`, qué está hecho y qu�
 
 ---
 
-## 1. Inventario de archivos `faces/`
+## 1. Inventario de documentación faces
 
-| Archivo | Origen | Estado doc | Acción |
-|---------|--------|------------|--------|
-| `fase-1-seguridad.md` | ChatGPT | ✅ Completada | Mantener |
-| `fase-2-roles-bd.md` | ChatGPT | 🟡 Parcial | Cerrar tras Fase 8 |
-| `fase-3-mundo-unico.md` | ChatGPT | 🟡 Parcial | Cerrar tras Fase 8 |
-| `fase-4-sync-perf.md` | ChatGPT | ✅ Completada | Mantener |
-| `fase-5-ui-manager.md` | ChatGPT | 🟡 Parcial | Solo bugs post-F8 |
-| `fase-6-inventario.md` | ChatGPT | ✅ Completada | Mantener |
-| `fase-7-errores.md` | ChatGPT | ✅ Completada | Reabrir solo bugs nuevos |
-| `fase-8-validacion-movil-v299.md` | ChatGPT + Cursor | 🔴 **BLOQUEANTE** | Randy manual |
-| `fase-9-estabilidad.md` | ChatGPT | ✅ Completada | Mantener |
-| `fase-10-panel-depuracion.md` | ChatGPT | ✅ Completada | Mantener |
-| `fase-11-admin-ops.md` | ChatGPT | ✅ Completada | Mantener |
-| `fase-12-catalogo-objetos.md` | ChatGPT | ✅ Completada | Mantener |
-| `fase-13-catalogo-objetos.md` | ChatGPT | ✅ Completada | Duplicado nombre con 12 — OK |
-| `fase-15-oracle-cloud.md` | ChatGPT | ⏸ Pausada | No usar hasta F8 ✅ |
-| `fase-15-optimizacion-consumo-red.md` | ChatGPT + Cursor | 🟡 Mayoría hecha | v304; pendiente scoped stats |
-| `ROADMAP-TERMINAR-JUEGO.md` | Cursor | 🆕 | Guía prioridades |
-| `faces.md` (raíz) | ChatGPT + Cursor | Actualizado | Índice maestro |
+### Archivos en `faces/` (repo actual)
 
-**No hay** `fase-14-*.md` — el salto 13 → 15 es intencional (Oracle = 15).
+| Archivo | Origen | Uso |
+|---------|--------|-----|
+| `fase-8-validacion-movil-v299.md` | ChatGPT + Cursor | 🔴 **Checklist móvil — hacer ahora** |
+| `fase-15-optimizacion-consumo-red.md` | ChatGPT + Cursor | Red Render v303–304 |
+| `fase-13-catalogo-objetos-admin.md` | ChatGPT | Referencia catálogo ✅ |
+| `nota-chatgpt-orden-pruebas-prs-114-117.md` | ChatGPT | Histórico PRs (parcialmente obsoleto) |
+| `ROADMAP-TERMINAR-JUEGO.md` | Cursor | Prioridades para terminar |
+| `REVISION-FACES-2026-07-09.md` | Cursor | Este documento |
+
+### Plan maestro (raíz)
+
+| Archivo | Contenido |
+|---------|-----------|
+| `faces.md` | **Todas las fases 1–15B** — ChatGPT escribió la mayoría aquí, no en archivos sueltos |
+| `FASE3_DISENO_MUNDO.md` | Diseño técnico Fase 3 (mundo único) |
+| `docs/ORACLE_MIGRACION.md` | Fase 15 Oracle — pausada |
+
+**No hay** `fase-14-*.md` ni `fase-1-seguridad.md` … `fase-7-errores.md` como archivos separados; eso vive en `faces.md`.
 
 ---
 

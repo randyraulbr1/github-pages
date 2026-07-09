@@ -365,7 +365,7 @@ Checklist mínimo:
 
 ### Checklist rápido Android (~10 min)
 
-1. Borrar caché del sitio o modo incógnito → debe cargar **v299**.
+1. Borrar caché del sitio o modo incógnito → debe cargar **v304**.
 2. Crear cuenta o login → mapa visible con GPS.
 3. Abrir inventario, amigos, chat, opciones → paneles sin desborde, botón ✕ cierra.
 4. Admin (Randy): Organizar → mover PIN → confirmar → publicar.
