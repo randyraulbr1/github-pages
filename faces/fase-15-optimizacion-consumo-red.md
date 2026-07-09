@@ -1,12 +1,42 @@
 # FASE 15 - Optimizacion de consumo de red y recursos
 
-Estado: ⏳ Pendiente
+Estado: 🚧 En progreso (v304 — ver `faces.md` Fase 15B)
 
 ## Contexto
 
-Randy activo el plan Starter de Render ($7/mes). El juego ya entra y funciona en Render, por lo que no se debe migrar a otro servidor por ahora.
+Randy activo el plan **Starter de Render** ($7/mes). El juego entra en `mariel-online.onrender.com`. **No migrar servidor** por ahora.
 
-Durante pruebas se consumieron aproximadamente 5 GB de ancho de banda en unos 2 dias con pocos jugadores. Eso puede ser demasiado para la fase de pruebas y hay que medirlo antes de seguir agregando sistemas grandes.
+Durante pruebas se consumieron ~5 GB en ~2 dias (URL incorrecta api.tcodm.com + bug login-game + pruebas admin). Tras v303–304 el consumo estimado baja mucho.
+
+## Implementado (v303–304)
+
+- [x] Eliminar doble carga HTTP de mundo (game:init + loadWorld)
+- [x] sync-partida cada 90 s (antes 45 s)
+- [x] Sin poll HTTP mundo/version con socket conectado
+- [x] socket.io.min.js en tcodm.com (no egress Render por script)
+- [x] Enemigos: world:updateObject solo a jugadores dentro de 500 m
+- [x] mundo:sync por delta (solo claves cambiadas)
+- [x] Panel admin Depuración: MB/sesión, proyección 30 días, ahorro estimado
+- [x] Diagnóstico conexión (v302): mensajes concretos, no "servidor dormido"
+
+## Pendiente (bajo riesgo)
+
+- [ ] Medir 48 h en Render Metrics y anotar MB/día reales
+- [ ] Cache-Control / gzip en Express (si aplica)
+- [ ] Reducir refresh depuración admin si consume mucho
+
+## Pendiente (requiere cuidado — despues de Fase 8)
+
+- [ ] player:updateStats solo a cercanos (no global)
+- [ ] partida:sync scoped al jugador
+- [ ] GPS: no tocar hasta validar móvil
+
+## Criterio de completado
+
+- [x] Optimizaciones seguras aplicadas
+- [ ] Medicion antes/despues en Render dashboard (Randy)
+- [ ] Fase 8 móvil ✅
+- [ ] Juego estable 1 semana sin regresiones de sync
 
 ## Objetivo
 
