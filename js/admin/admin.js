@@ -2413,8 +2413,8 @@ const Admin = {
       items: [
         { label: '📍 Mapa y pines', hub: 'admin-vista-hub-mapa', titulo: '📍 Mapa y pines' },
         { label: '📦 Objetos', hub: 'admin-vista-hub-objetos', titulo: '📦 Objetos' },
-        { label: '📜 Misiones', accion: () => this.abrirFormulario('mision'), titulo: '📜 Nueva misión' },
-        { label: '👥 Jugadores', accion: () => this._listarCuentasAsync({ abrirPanel: true }), titulo: '👥 Jugadores' },
+        { label: '📜 Misiones', accion: function() { this.abrirFormulario('mision'); }, titulo: '📜 Nueva misión' },
+        { label: '👥 Jugadores', accion: function() { this._listarCuentasAsync({ abrirPanel: true }); }, titulo: '👥 Jugadores' },
         { label: '💰 Economía', hub: 'admin-vista-hub-economia', titulo: '💰 Economía' }
       ]
     },
@@ -2422,8 +2422,8 @@ const Admin = {
       titulo: '⚔️ Combate',
       items: [
         { label: '👹 NPC y enemigos', hub: 'admin-vista-hub-combate', titulo: '👹 Combate' },
-        { label: '🏪 Tiendas', accion: () => this.abrirFormulario('tienda_admin'), titulo: '🏪 Nueva tienda' },
-        { label: '🧰 Cofres', accion: () => this.abrirCofreEnPanel(), titulo: '🧰 Cofre' }
+        { label: '🏪 Tiendas', accion: function() { this.abrirFormulario('tienda_admin'); }, titulo: '🏪 Nueva tienda' },
+        { label: '🧰 Cofres', accion: function() { this.abrirCofreEnPanel(); }, titulo: '🧰 Cofre' }
       ]
     },
     sistema: {
@@ -2462,7 +2462,7 @@ const Admin = {
       + it.label.replace(/^[^\s]+\s/, '') + '</button>'
     ).join('');
     lista.querySelectorAll('[data-admin-item]').forEach((btn) => {
-      btn.addEventListener('click', () => {
+      this._bindAdminBtn(btn, () => {
         const idx = parseInt(btn.getAttribute('data-admin-item').split('-').pop(), 10);
         const item = menu.items[idx];
         if (!item) return;
@@ -2477,30 +2477,38 @@ const Admin = {
   },
 
   _iniciarNavAdmin() {
+    if (this._adminNavIniciado) return;
+    this._adminNavIniciado = true;
     document.querySelectorAll('[data-admin-grupo]').forEach((btn) => {
-      btn.addEventListener('click', () => {
+      this._bindAdminBtn(btn, () => {
         this._mostrarAdminNavGrupo(btn.getAttribute('data-admin-grupo'));
       });
     });
-    document.getElementById('admin-nav-volver')?.addEventListener('click', () => {
-      this._mostrarAdminNavRaiz();
-      this._ocultarPanelDerecho();
-    });
+    const volver = document.getElementById('admin-nav-volver');
+    if (volver) {
+      this._bindAdminBtn(volver, () => {
+        this._mostrarAdminNavRaiz();
+        this._ocultarPanelDerecho();
+      });
+    }
     document.querySelectorAll('[data-admin-accion]').forEach((btn) => {
-      btn.addEventListener('click', () => {
+      this._bindAdminBtn(btn, () => {
         const id = btn.getAttribute('data-admin-accion');
         const orig = document.getElementById(id);
         if (orig) orig.click();
       });
     });
-    document.getElementById('btn-admin-refrescar-seccion')?.addEventListener('click', () => {
-      const v = this._adminVistaActual;
-      if (v === 'admin-vista-depuracion' && typeof AdminDepuracion !== 'undefined') {
-        AdminDepuracion._pintar(true);
-      } else if (v === 'admin-vista-jugadores') {
-        this._listarCuentasAsync({ soloRefrescar: true, sinPartidas: true });
-      }
-    });
+    const btnRef = document.getElementById('btn-admin-refrescar-seccion');
+    if (btnRef) {
+      this._bindAdminBtn(btnRef, () => {
+        const v = this._adminVistaActual;
+        if (v === 'admin-vista-depuracion' && typeof AdminDepuracion !== 'undefined') {
+          AdminDepuracion._pintar(true);
+        } else if (v === 'admin-vista-jugadores') {
+          this._listarCuentasAsync({ soloRefrescar: true, sinPartidas: true });
+        }
+      });
+    }
     this._mostrarAdminNavRaiz();
   },
 
