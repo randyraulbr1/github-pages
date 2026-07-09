@@ -8,6 +8,7 @@ const {
   findPlayerById,
   formatWorldObject
 } = require('./db');
+const { emitirWorldUpdateObject } = require('./worldBroadcast');
 
 const TICK_MS = 500;
 const ATTACK_COOLDOWN_MS = 2000;
@@ -214,7 +215,7 @@ function startEnemyAI(io, onlinePlayers) {
           y: newY,
           data_json: JSON.stringify(payload)
         });
-        io.emit('world:updateObject', formatWorldObject(updated));
+        emitirWorldUpdateObject(io, formatWorldObject(updated));
         obj.x = newX;
         obj.y = newY;
         obj.data_json = JSON.stringify(payload);

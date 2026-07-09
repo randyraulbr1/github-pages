@@ -15,6 +15,8 @@ const {
   getWorldSnapshot,
   findPlayerById
 } = require('./db');
+const { emitirWorldUpdateObject } = require('./worldBroadcast');
+const { emitirMundoSync } = require('./mundoDelta');
 
 function parseData(row) {
   try { return JSON.parse(row.data_json || '{}'); } catch (e) { return {}; }
@@ -816,7 +818,7 @@ function upsertWorldObject(origenId, type, x, y, data, io, silent) {
     });
   }
   const formatted = formatWorldObject(row);
-  if (io && !silent) io.emit('world:updateObject', formatted);
+  if (io && !silent) emitirWorldUpdateObject(io, formatted);
   return formatted;
 }
 
@@ -1234,7 +1236,7 @@ function registrarAtaqueEnemigo(enemyId, playerId, px, py, playerLevel, io) {
     data.facingDeg = bearingDeg(row.x, row.y, px, py);
     data.targetPlayerId = playerId;
     const updated = updateWorldObject(row.id, { data_json: JSON.stringify(data) });
-    if (io) io.emit('world:updateObject', formatWorldObject(updated));
+    if (io) emitirWorldUpdateObject(io, formatWorldObject(updated));
   }
 
   snapshot.actualizadoEn = ahora;
@@ -1267,7 +1269,7 @@ function emitirDeltaMapaPorOrigenId(origenId, io) {
   if (!io || !origenId) return;
   const row = findObjectByOrigenId(origenId);
   if (row) {
-    io.emit('world:updateObject', formatWorldObject(row));
+    emitirWorldUpdateObject(io, formatWorldObject(row));
     return;
   }
   const m = findMissionByOrigenId(origenId);
@@ -1526,10 +1528,7 @@ function syncMundoFromJson(mundo, io) {
   } catch (e) { /* */ }
 
   if (io) {
-    io.emit('mundo:sync', {
-      actualizadoEn: mundo.actualizadoEn,
-      mundo
-    });
+    emitirMundoSync(io, prev, mundo);
   }
 
   return { ok: true, objetos, misiones, actualizadoEn: mundo.actualizadoEn };

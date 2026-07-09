@@ -558,21 +558,31 @@ const Multijugador = {
 
     this.socket.on('mundo:sync', (data) => {
       if (!data?.mundo || typeof Admin === 'undefined') return;
-      const ts = data.actualizadoEn || data.mundo.actualizadoEn || Date.now();
-      const json = JSON.stringify(data.mundo);
+      let mundo = data.mundo;
+      if (data.delta) {
+        const deltaBytes = JSON.stringify(data.mundo).length;
+        mundo = this._fusionarMundoDelta(data.mundo);
+        if (typeof MarielConsumoRed !== 'undefined') {
+          const fullEst = JSON.stringify(mundo).length;
+          const ahorro = Math.max(0, fullEst - deltaBytes);
+          if (ahorro > 0) MarielConsumoRed.registrarAhorro(ahorro, 'mundo_sync_delta');
+        }
+      }
+      const ts = data.actualizadoEn || mundo.actualizadoEn || Date.now();
+      const json = JSON.stringify(mundo);
       this.mundoServidorTs = Math.max(this.mundoServidorTs, ts);
       Admin._crudoPublicado = json;
       Admin._ultimoFirmaPublicada = Admin._firmaMundo(json);
       const esAdmin = typeof Usuarios !== 'undefined' && Usuarios.esAdministrador();
       if (typeof ContenidoMundo !== 'undefined' && ContenidoMundo.usarDeltas()) {
-        ContenidoMundo.reconciliarDesdeSnapshot(data.mundo);
+        ContenidoMundo.reconciliarDesdeSnapshot(mundo);
       }
       Admin._aplicarMundoRemoto(json, { permitirReduccion: !esAdmin });
       if (typeof Admin.pintarMapaCompleto === 'function' &&
           !(typeof ContenidoMundo !== 'undefined' && ContenidoMundo.usarDeltas())) {
         Admin.pintarMapaCompleto();
       }
-      if (data.mundo.cuerposMuertos) this._aplicarCuerpos(data.mundo.cuerposMuertos);
+      if (mundo.cuerposMuertos) this._aplicarCuerpos(mundo.cuerposMuertos);
       if (typeof Admin.mostrarPantallaBloqueoSiCorresponde === 'function') {
         Admin.mostrarPantallaBloqueoSiCorresponde();
       }
@@ -759,6 +769,29 @@ const Multijugador = {
 
   _socketListoParaMundo() {
     return !!(this.activo && this.socket?.connected && this._mundoSocketListo);
+  },
+
+  _fusionarMundoDelta(parcial) {
+    let base = {};
+    try {
+      if (typeof Admin !== 'undefined' && Admin.publicado && typeof Admin.publicado === 'object') {
+        base = Admin.publicado;
+      } else if (typeof Admin !== 'undefined' && Admin._crudoPublicado) {
+        base = JSON.parse(Admin._crudoPublicado);
+      }
+    } catch (e) { base = {}; }
+    const out = Object.assign({}, base);
+    if (!parcial || typeof parcial !== 'object') return out;
+    for (const key of Object.keys(parcial)) {
+      if (key === 'partidas' && parcial.partidas && typeof parcial.partidas === 'object') {
+        out.partidas = Object.assign({}, out.partidas || {}, parcial.partidas);
+      } else if (key === 'actualizadoEn') {
+        out.actualizadoEn = parcial.actualizadoEn;
+      } else {
+        out[key] = parcial[key];
+      }
+    }
+    return out;
   },
 
   _iniciarTickCuerpos() {
