@@ -1,5 +1,5 @@
 {
-  "actualizadoEn": 1783614897971,
+  "actualizadoEn": 1783614899944,
   "misiones": [],
   "tesoros": [],
   "objetos": [],
@@ -33,7 +33,8 @@
       "pinHash": "4bdc96ffc0926b62d55708e3c1755ca3f04b8c28bec6fd85777117da67497f11",
       "creado": 1783263656375,
       "sesionToken": "mrdq9b40vbboscmudp",
-      "sesionT": 1783614897792
+      "sesionT": 1783614897792,
+      "telefonoCambiadoEn": 0
     },
     {
       "id": "pmra42v1xlv3c5",
@@ -435,10 +436,10 @@
           "posBtnAtacar": "der"
         },
         "preferenciasT": 1783560347756,
-        "_equipoT": 1783614872568
+        "_equipoT": 1783614898523
       },
-      "t": 1783614872970,
-      "statsT": 1783614872568
+      "t": 1783614898924,
+      "statsT": 1783614898523
     },
     "pmra42v1xlv3c5": {
       "datos": {
