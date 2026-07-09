@@ -293,7 +293,7 @@ Cada pantalla debe tener:
 
 # FASE 8 - Pruebas antes de publicar
 
-Estado: 🚧 En progreso (v309 — objetivo **v309** en tcodm.com)
+Estado: 🚧 En progreso (v316 — fix socket JWT + smoke CI)
 
 **Guía detallada:** `faces/fase-8-validacion-movil-v299.md` (actualizar versión al probar)
 

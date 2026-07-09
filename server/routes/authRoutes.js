@@ -21,7 +21,7 @@ const {
   getWorldSnapshotPublic,
   saveWorldSnapshot
 } = require('../db');
-const { hashPassword, comparePassword, signPlayerToken, authMiddleware, ownerMiddleware, normalizeRole } = require('../auth');
+const { hashPassword, comparePassword, signPlayerToken, authMiddleware, ownerMiddleware, gameAdminMiddleware, normalizeRole } = require('../auth');
 const { mergeJugadoresPartidas } = require('../syncMundo');
 const { forzarImportJugadores, leerMundoJson } = require('../importSnapshot');
 const { getJugadoresPublicos, respaldarCuentasEnGitHub, respaldarCuentasEnGitHubInmediato, buscarJugadorPublico } = require('../syncCuentas');
@@ -185,8 +185,8 @@ router.get('/public/cuentas', (req, res) => {
   });
 });
 
-/** Diagnóstico ligero del mundo en servidor (hash para comparar con GitHub). */
-router.get('/debug/world', (req, res) => {
+/** Diagnóstico ligero del mundo en servidor (hash para comparar con GitHub). Solo admin. */
+router.get('/debug/world', gameAdminMiddleware, (req, res) => {
   const snap = getWorldSnapshot();
   if (!snap) return res.json({ ok: false, error: 'sin snapshot' });
   res.json({

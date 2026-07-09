@@ -261,6 +261,10 @@ const MundoPublico = {
     if (!servidor) {
       return this._descargarDesdeGitHub();
     }
+    // En tcodm.com el servidor Render es la autoridad; no mezclar con mundo.json estático.
+    if (typeof MarielRed !== 'undefined' && MarielRed.esProduccion()) {
+      return servidor;
+    }
     const github = await this._descargarDesdeGitHub();
     return this._elegirMejorDescarga(servidor, github) || servidor;
   },
