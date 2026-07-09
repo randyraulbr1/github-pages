@@ -1760,6 +1760,7 @@ const Admin = {
     if (typeof GPS !== 'undefined') GPS._actualizarArrastre();
     if (typeof AdminCatalogo !== 'undefined') AdminCatalogo.iniciar(this);
     if (typeof AdminDepuracion !== 'undefined') AdminDepuracion.iniciar(this);
+    this._iniciarNavAdmin();
   },
 
   puedeMoverPinJugador() {
@@ -1810,10 +1811,12 @@ const Admin = {
   },
 
   _actualizarEtiquetaOptimizacionVisibilidad() {
-    const el = document.getElementById('admin-opt-visibilidad-texto');
-    if (!el) return;
     const on = this.optimizacionVisibilidadActiva();
-    el.textContent = 'Optimización 500 m: ' + (on ? 'ON' : 'OFF');
+    const txt = 'Optimización 500 m: ' + (on ? 'ON' : 'OFF');
+    ['admin-opt-visibilidad-texto', 'admin-hub-opt-vis-texto'].forEach((id) => {
+      const el = document.getElementById(id);
+      if (el) el.textContent = txt;
+    });
     const btn = document.getElementById('admin-opt-visibilidad');
     if (btn) btn.classList.toggle('admin-toggle-on', on);
   },
@@ -1834,10 +1837,12 @@ const Admin = {
   },
 
   _actualizarEtiquetaMoverPin() {
-    const el = document.getElementById('admin-mover-pin-texto');
-    if (!el) return;
     const on = !!this.datos.moverPinJugador;
-    el.textContent = 'Arrastrar pin (admin): ' + (on ? 'ON' : 'OFF');
+    const txt = 'Arrastrar pin (admin): ' + (on ? 'ON' : 'OFF');
+    ['admin-mover-pin-texto', 'admin-hub-mover-pin-texto'].forEach((id) => {
+      const el = document.getElementById(id);
+      if (el) el.textContent = txt;
+    });
     const btn = document.getElementById('admin-mover-pin');
     if (btn) btn.classList.toggle('admin-toggle-on', on);
   },
@@ -2360,6 +2365,8 @@ const Admin = {
     document.body.classList.add('admin-panel-abierto');
     if (typeof UIManager !== 'undefined') UIManager.abrir('ventana-admin', { cerrarPares: false });
     else document.getElementById('ventana-admin').classList.remove('oculto');
+    this._mostrarAdminNavRaiz();
+    this._ocultarPanelDerecho();
     this._actualizarEtiquetaMantenimientoNav();
   },
 
@@ -2400,6 +2407,103 @@ const Admin = {
     this._listarCuentasAsync({ soloRefrescar: true, sinPartidas: true });
   },
 
+  _MENU_ADMIN: {
+    mundo: {
+      titulo: '🌍 Mundo',
+      items: [
+        { label: '📍 Mapa y pines', hub: 'admin-vista-hub-mapa', titulo: '📍 Mapa y pines' },
+        { label: '📦 Objetos', hub: 'admin-vista-hub-objetos', titulo: '📦 Objetos' },
+        { label: '📜 Misiones', accion: () => this.abrirFormulario('mision'), titulo: '📜 Nueva misión' },
+        { label: '👥 Jugadores', accion: () => this._listarCuentasAsync({ abrirPanel: true }), titulo: '👥 Jugadores' },
+        { label: '💰 Economía', hub: 'admin-vista-hub-economia', titulo: '💰 Economía' }
+      ]
+    },
+    combate: {
+      titulo: '⚔️ Combate',
+      items: [
+        { label: '👹 NPC y enemigos', hub: 'admin-vista-hub-combate', titulo: '👹 Combate' },
+        { label: '🏪 Tiendas', accion: () => this.abrirFormulario('tienda_admin'), titulo: '🏪 Nueva tienda' },
+        { label: '🧰 Cofres', accion: () => this.abrirCofreEnPanel(), titulo: '🧰 Cofre' }
+      ]
+    },
+    sistema: {
+      titulo: '⚙️ Sistema',
+      items: [
+        { label: '🔧 Depuración', accion: () => { if (typeof AdminDepuracion !== 'undefined') AdminDepuracion.abrir(); }, titulo: '🔧 Depuración' },
+        { label: '📋 Historial', accion: () => { if (typeof AdminDepuracion !== 'undefined') AdminDepuracion.abrirHistorial(); }, titulo: '📋 Historial admin' },
+        { label: '⚙️ Ajustes', hub: 'admin-vista-hub-sistema', titulo: '⚙️ Ajustes del servidor' }
+      ]
+    }
+  },
+
+  _mostrarAdminNavRaiz() {
+    const raiz = document.getElementById('admin-nav-raiz');
+    const sub = document.getElementById('admin-nav-submenu');
+    if (raiz) raiz.classList.remove('oculto');
+    if (sub) sub.classList.add('oculto');
+    this._adminNavGrupo = null;
+  },
+
+  _mostrarAdminNavGrupo(grupo) {
+    const menu = this._MENU_ADMIN[grupo];
+    if (!menu) return;
+    this._adminNavGrupo = grupo;
+    const raiz = document.getElementById('admin-nav-raiz');
+    const sub = document.getElementById('admin-nav-submenu');
+    const tit = document.getElementById('admin-nav-submenu-titulo');
+    const lista = document.getElementById('admin-nav-submenu-lista');
+    if (raiz) raiz.classList.add('oculto');
+    if (sub) sub.classList.remove('oculto');
+    if (tit) tit.textContent = menu.titulo;
+    if (!lista) return;
+    lista.innerHTML = menu.items.map((it, i) =>
+      '<button type="button" class="fila-opcion admin-nav admin-nav-sub" data-admin-item="' + grupo + '-' + i + '">'
+      + '<span class="icono-opcion">' + it.label.split(' ')[0] + '</span> '
+      + it.label.replace(/^[^\s]+\s/, '') + '</button>'
+    ).join('');
+    lista.querySelectorAll('[data-admin-item]').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const idx = parseInt(btn.getAttribute('data-admin-item').split('-').pop(), 10);
+        const item = menu.items[idx];
+        if (!item) return;
+        if (item.hub) {
+          this._adminNavPila = this._adminNavPila || [];
+          this._mostrarPanelDerecho(item.hub, item.titulo);
+        } else if (item.accion) {
+          item.accion.call(this);
+        }
+      });
+    });
+  },
+
+  _iniciarNavAdmin() {
+    document.querySelectorAll('[data-admin-grupo]').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        this._mostrarAdminNavGrupo(btn.getAttribute('data-admin-grupo'));
+      });
+    });
+    document.getElementById('admin-nav-volver')?.addEventListener('click', () => {
+      this._mostrarAdminNavRaiz();
+      this._ocultarPanelDerecho();
+    });
+    document.querySelectorAll('[data-admin-accion]').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const id = btn.getAttribute('data-admin-accion');
+        const orig = document.getElementById(id);
+        if (orig) orig.click();
+      });
+    });
+    document.getElementById('btn-admin-refrescar-seccion')?.addEventListener('click', () => {
+      const v = this._adminVistaActual;
+      if (v === 'admin-vista-depuracion' && typeof AdminDepuracion !== 'undefined') {
+        AdminDepuracion._pintar(true);
+      } else if (v === 'admin-vista-jugadores') {
+        this._listarCuentasAsync({ soloRefrescar: true, sinPartidas: true });
+      }
+    });
+    this._mostrarAdminNavRaiz();
+  },
+
   _mostrarPanelDerecho(vistaId, titulo, opciones) {
     const opts = opciones || {};
     if (!opts.sinHistorial && this._adminVistaActual && this._adminVistaActual !== vistaId) {
@@ -2417,6 +2521,14 @@ const Admin = {
     if (tit) tit.textContent = titulo || '';
     const panelDer = document.getElementById('admin-panel-derecho');
     if (panelDer) panelDer.classList.remove('oculto');
+    const pie = document.getElementById('admin-panel-pie');
+    if (pie) pie.classList.remove('oculto');
+    this._actualizarAdminPanelPie();
+    const btnRef = document.getElementById('btn-admin-refrescar-seccion');
+    if (btnRef) {
+      const mostrar = vistaId === 'admin-vista-depuracion' || vistaId === 'admin-vista-jugadores';
+      btnRef.classList.toggle('oculto', !mostrar);
+    }
     const layout = document.querySelector('.admin-layout');
     if (layout) {
       const editorAbierto = vistaId === 'admin-vista-editor' || vistaId === 'admin-vista-crear-jugador';
@@ -2430,10 +2542,33 @@ const Admin = {
 
   _ocultarPanelDerecho() {
     document.getElementById('admin-panel-derecho')?.classList.add('oculto');
+    document.getElementById('admin-panel-pie')?.classList.add('oculto');
     document.querySelectorAll('.admin-vista').forEach(v => v.classList.add('oculto'));
     document.querySelector('.admin-layout')?.classList.remove('admin-panel-editor-abierto');
     this._adminVistaActual = null;
     this._adminVistaTitulo = '';
+  },
+
+  _actualizarAdminPanelPie() {
+    const ver = document.getElementById('admin-panel-version');
+    const sync = document.getElementById('admin-panel-sync-estado');
+    if (ver) {
+      const v = (typeof MarielVersion !== 'undefined' && MarielVersion.versionCargada)
+        ? MarielVersion.versionCargada()
+        : (CONFIG?.version || '?');
+      ver.textContent = 'v' + v;
+    }
+    if (sync) {
+      const ts = this.publicado?.actualizadoEn || this.datos?.actualizadoEn || 0;
+      if (ts) {
+        const d = new Date(ts);
+        sync.textContent = 'Mapa: ' + d.toLocaleString('es-ES', {
+          day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit'
+        });
+      } else {
+        sync.textContent = 'Sin guardado reciente';
+      }
+    }
   },
 
   _volverAlPanel() {
@@ -4332,11 +4467,13 @@ const Admin = {
   },
 
   _actualizarEtiquetaMantenimientoNav() {
-    const el = document.getElementById('admin-mant-nav-texto');
-    if (!el) return;
     const mant = this.datos.mantenimiento || this.publicado.mantenimiento || {};
     const on = !!mant.activo;
-    el.textContent = on ? 'ON' : 'OFF';
+    const txt = on ? 'ON' : 'OFF';
+    ['admin-mant-nav-texto', 'admin-hub-mant-texto'].forEach((id) => {
+      const el = document.getElementById(id);
+      if (el) el.textContent = txt;
+    });
     const btn = document.getElementById('admin-mantenimiento');
     if (btn) btn.classList.toggle('admin-toggle-on', on);
   },

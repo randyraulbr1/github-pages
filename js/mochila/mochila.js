@@ -239,6 +239,7 @@ const Mochila = {
 
     this.slots[idx] = null;
     Guardado.datos.equipoEquipado[ranura] = id;
+    Guardado.datos._equipoT = Date.now();
     this.guardar();
     this._notificarCambioEquipo();
     return true;
@@ -289,6 +290,13 @@ const Mochila = {
     const aplicar = () => {
       this._sanearArmaEquipada();
       this._sanearEquipoEquipado();
+      if (typeof Guardado !== 'undefined' && Guardado.datos) {
+        Guardado.datos._equipoT = Date.now();
+        Guardado.datos.statsT = Date.now();
+        if (typeof Guardado._programarSyncInventario === 'function') {
+          Guardado._programarSyncInventario();
+        }
+      }
       if (typeof Vida !== 'undefined') Vida._clampStatsAlMax();
       this.pintarArmaHud();
       const ventana = document.getElementById('ventana-mochila');
@@ -379,6 +387,7 @@ const Mochila = {
 
     this.slots[idx] = null;
     Guardado.datos.armaEquipada = id;
+    Guardado.datos._equipoT = Date.now();
     this.guardar();
     this.pintar();
     this._notificarCambioArma();

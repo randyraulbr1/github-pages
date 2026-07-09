@@ -106,8 +106,50 @@ const Guardado = {
       'tesorosRecogidos', 'misiones', 'misionesEstado',
       'correoEnviados', 'correoRecibidos', 'correoTiendaLocal',
       'historialDinero', 'historialObjetos', 'mensajesVistos', 'muerto', 'muertePos', 'revividoEn', 'armaEquipada', 'equipoEquipado',
-      'preferencias', 'preferenciasT'
+      'preferencias', 'preferenciasT', '_equipoT'
     ];
+  },
+
+  _equipoTienePiezas(eq) {
+    if (!eq || typeof eq !== 'object') return false;
+    const ranuras = typeof Items !== 'undefined' ? Items.RANURAS_EQUIPO : ['casco', 'chaleco', 'botas', 'ropa'];
+    return ranuras.some((r) => !!eq[r]);
+  },
+
+  _fusionarEquipoEquipado(local, remoto) {
+    const base = { casco: null, chaleco: null, botas: null, ropa: null };
+    const ranuras = typeof Items !== 'undefined' ? Items.RANURAS_EQUIPO : Object.keys(base);
+    const out = Object.assign({}, base, local || {});
+    for (const r of ranuras) {
+      if (remoto?.[r]) out[r] = remoto[r];
+    }
+    return out;
+  },
+
+  _aplicarEquipoDesdeSnapshot(snap, opts) {
+    const localEq = this.datos.equipoEquipado;
+    const remoteEq = snap.equipoEquipado;
+    const localArma = this.datos.armaEquipada;
+    const remoteArma = snap.armaEquipada;
+    const remEquipoT = snap._equipoT || snap.statsT || opts?.remoteStatsT || 0;
+    const locEquipoT = this.datos._equipoT || this.datos.statsT || 0;
+    const remotoGana = remEquipoT >= locEquipoT;
+
+    if (remoteEq !== undefined) {
+      if (this._equipoTienePiezas(localEq) && !this._equipoTienePiezas(remoteEq) && !remotoGana) {
+        /* conservar local */
+      } else if (remotoGana || this._equipoTienePiezas(remoteEq)) {
+        this.datos.equipoEquipado = this._fusionarEquipoEquipado(localEq, remoteEq);
+      }
+    }
+    if (remoteArma !== undefined) {
+      if (localArma && !remoteArma && !remotoGana) {
+        /* conservar local */
+      } else if (remotoGana || remoteArma) {
+        this.datos.armaEquipada = remoteArma || localArma || null;
+      }
+    }
+    if (snap._equipoT) this.datos._equipoT = Math.max(locEquipoT, snap._equipoT);
   },
 
   _snapshotNube() {
@@ -152,6 +194,7 @@ const Guardado = {
     const prefsTLocal = this.datos.preferenciasT || 0;
     for (const k of this._camposNube()) {
       if (snap[k] === undefined) continue;
+      if (k === 'armaEquipada' || k === 'equipoEquipado' || k === '_equipoT') continue;
       if (opts.sinStats && stats.has(k)) continue;
       if (opts.soloStats && !stats.has(k)) continue;
       // No pisar posición local con null de la nube (evita volver al centro del mapa)
@@ -170,6 +213,9 @@ const Guardado = {
         this.datos[k] = JSON.parse(JSON.stringify(snap[k]));
       }
     }
+    this._aplicarEquipoDesdeSnapshot(snap, {
+      remoteStatsT: opts.remoteStatsT || snap.statsT || snap.t || 0
+    });
     if (prefsLocales && (!snap.preferencias || (snap.preferenciasT || 0) < prefsTLocal)) {
       this.datos.preferencias = prefsLocales;
       if (prefsTLocal) this.datos.preferenciasT = prefsTLocal;
@@ -213,7 +259,10 @@ const Guardado = {
     const aplicarStats = remoteStatsT >= localStatsT;
     const debeFusionar = nube.t > localT || (partidaNuevaLocal && nube.t > 0);
     if (debeFusionar) {
-      this._aplicarSnapshot(nube.datos, { sinStats: !aplicarStats });
+      this._aplicarSnapshot(nube.datos, {
+        sinStats: !aplicarStats,
+        remoteStatsT: remoteStatsT
+      });
       if (aplicarStats) this.datos.statsT = remoteStatsT;
       this.datos.nubeT = nube.t || Date.now();
       this.datos.nubeFusionada = true;

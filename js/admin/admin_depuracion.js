@@ -7,13 +7,17 @@ const AdminDepuracion = {
   _enlazado: false,
   _refreshId: null,
   _ultimoPingMs: null,
+  _cachePintado: null,
+  _historialVisible: false,
 
   iniciar(admin) {
     this._admin = admin;
     if (this._enlazado) return;
     this._enlazado = true;
     document.getElementById('admin-depuracion')?.addEventListener('click', () => this.abrir());
-    document.getElementById('btn-admin-depuracion-refrescar')?.addEventListener('click', () => this._pintar());
+    document.getElementById('btn-admin-depuracion-refrescar')?.addEventListener('click', () => this._pintar(true));
+    document.getElementById('btn-admin-depuracion-txt')?.addEventListener('click', () => this._descargarInformeTxt());
+    document.getElementById('admin-dep-hist-buscar')?.addEventListener('input', () => this._pintarHistorial());
     document.getElementById('admin-depuracion-historial')?.addEventListener('click', (e) => {
       const btn = e.target.closest('[data-restaurar-historial]');
       if (!btn) return;
@@ -24,9 +28,26 @@ const AdminDepuracion = {
 
   abrir() {
     if (!this._admin?.esAdminJugador?.()) return;
+    this._historialVisible = false;
+    document.getElementById('admin-depuracion-grid')?.classList.remove('oculto');
+    document.getElementById('admin-depuracion-errores')?.classList.remove('oculto');
+    document.getElementById('btn-admin-depuracion-refrescar')?.classList.remove('oculto');
+    document.getElementById('admin-dep-hist-buscar')?.classList.add('oculto');
     this._admin._mostrarPanelDerecho('admin-vista-depuracion', '🔧 Depuración');
-    this._pintar();
+    this._pintar(true);
     this._iniciarRefresh();
+  },
+
+  abrirHistorial() {
+    if (!this._admin?.esAdminJugador?.()) return;
+    this._historialVisible = true;
+    document.getElementById('admin-depuracion-grid')?.classList.add('oculto');
+    document.getElementById('admin-depuracion-errores')?.classList.add('oculto');
+    document.getElementById('btn-admin-depuracion-refrescar')?.classList.add('oculto');
+    document.getElementById('admin-dep-hist-buscar')?.classList.remove('oculto');
+    this._admin._mostrarPanelDerecho('admin-vista-depuracion', '📋 Historial admin');
+    this._pintarHistorial();
+    this._detenerRefresh();
   },
 
   _iniciarRefresh() {
@@ -37,7 +58,7 @@ const AdminDepuracion = {
         this._detenerRefresh();
         return;
       }
-      this._pintar();
+      this._pintar(false);
     }, 5000);
   },
 
@@ -203,20 +224,49 @@ const AdminDepuracion = {
     return partes.length ? partes.join('\n') : 'Sin registro de sync';
   },
 
-  _tarjeta(etiqueta, valor, detalle, clase) {
-    return '<div class="admin-dep-tarjeta' + (clase ? ' ' + clase : '') + '">'
+  _tarjeta(etiqueta, valor, detalle, clase, key) {
+    return {
+      key: key || etiqueta,
+      html: '<div class="admin-dep-tarjeta' + (clase ? ' ' + clase : '') + '" data-dep-key="' + this._esc(key || etiqueta) + '">'
       + '<div class="admin-dep-etiq">' + etiqueta + '</div>'
       + '<div class="admin-dep-valor">' + (valor || '—') + '</div>'
       + (detalle ? '<div class="admin-dep-detalle">' + detalle + '</div>' : '')
-      + '</div>';
+      + '</div>'
+    };
   },
 
-  async _pintar() {
+  _aplicarTarjetas(grid, tarjetas) {
+    const mapa = {};
+    for (const t of tarjetas) mapa[t.key] = t.html;
+    const keys = new Set(Object.keys(mapa));
+    for (const key of keys) {
+      let el = grid.querySelector('[data-dep-key="' + key.replace(/"/g, '\\"') + '"]');
+      if (!el) {
+        grid.insertAdjacentHTML('beforeend', mapa[key]);
+        continue;
+      }
+      const wrap = document.createElement('div');
+      wrap.innerHTML = mapa[key];
+      const nuevo = wrap.firstElementChild;
+      if (nuevo && el.outerHTML !== nuevo.outerHTML) {
+        el.replaceWith(nuevo);
+      }
+    }
+    grid.querySelectorAll('[data-dep-key]').forEach((el) => {
+      if (!keys.has(el.getAttribute('data-dep-key'))) el.remove();
+    });
+    const cargando = grid.querySelector('.admin-dep-cargando');
+    if (cargando) cargando.remove();
+  },
+
+  async _pintar(forzarCompleto) {
     const grid = document.getElementById('admin-depuracion-grid');
     const errBox = document.getElementById('admin-depuracion-errores');
     if (!grid) return;
 
-    grid.innerHTML = '<p class="admin-dep-cargando">Consultando métricas…</p>';
+    if (forzarCompleto || !this._cachePintado) {
+      grid.innerHTML = '<p class="admin-dep-cargando">Consultando métricas…</p>';
+    }
 
     const ping = await this._medirPing();
     const conn = this._estadoConexion();
@@ -250,20 +300,23 @@ const AdminDepuracion = {
     const srvObj = status?.objetos != null ? status.objetos + ' objetos BD' : '';
     const consumo = this._resumenConsumo();
 
-    grid.innerHTML =
-      this._tarjeta('Versión del juego', this._versionJuego(), CONFIG?.servidorOnline ? 'Servidor: ' + this._baseServidor().replace(/^https?:\/\//, '') : '') +
-      this._tarjeta('Consumo Render (sesión)', consumo.totalTexto, consumo.detalle, consumo.clase) +
-      this._tarjeta('Proyección 30 días', consumo.proyectado30d, 'Al ritmo actual de esta sesión', consumo.clase) +
-      this._tarjeta('Ahorro estimado', consumo.ahorroTexto, 'Polls y cargas evitadas en esta sesión', 'ok') +
-      this._tarjeta('Ping /health', pingDetalle, ping.ok ? 'Latencia al servidor' : (ping.diagnostico?.detalle || 'Revisa red o URL del servidor'), ping.ok ? 'ok' : 'warn') +
-      this._tarjeta('Estado servidor', srvTexto, conn.texto, srvClase) +
-      this._tarjeta('Jugadores online', String(jug.total), jug.detalle + (srvJug ? ' · ' + srvJug : '')) +
-      this._tarjeta('Objetos cargados', String(obj.local), obj.detalle + (srvObj ? ' · ' + srvObj : '')) +
-      this._tarjeta('Zona actual', zona.texto, zona.detalle) +
-      this._tarjeta('Último sync', status?.ultimaSyncOk ? '✅ GitHub' : '⚠️ Sin sync OK', this._ultimoSyncTexto(status)) +
-      this._tarjeta('Datos descargados', datos.texto, datos.detalle);
+    const tarjetas = [
+      this._tarjeta('Versión del juego', this._versionJuego(), CONFIG?.servidorOnline ? 'Servidor: ' + this._baseServidor().replace(/^https?:\/\//, '') : '', '', 'version'),
+      this._tarjeta('Consumo Render (sesión)', consumo.totalTexto, consumo.detalle, consumo.clase, 'consumo'),
+      this._tarjeta('Proyección 30 días', consumo.proyectado30d, 'Al ritmo actual de esta sesión', consumo.clase, 'proyeccion'),
+      this._tarjeta('Ahorro estimado', consumo.ahorroTexto, 'Polls y cargas evitadas en esta sesión', 'ok', 'ahorro'),
+      this._tarjeta('Ping /health', pingDetalle, ping.ok ? 'Latencia al servidor' : (ping.diagnostico?.detalle || 'Revisa red o URL del servidor'), ping.ok ? 'ok' : 'warn', 'ping'),
+      this._tarjeta('Estado servidor', srvTexto, conn.texto, srvClase, 'servidor'),
+      this._tarjeta('Jugadores online', String(jug.total), jug.detalle + (srvJug ? ' · ' + srvJug : ''), '', 'jugadores'),
+      this._tarjeta('Objetos cargados', String(obj.local), obj.detalle + (srvObj ? ' · ' + srvObj : ''), '', 'objetos'),
+      this._tarjeta('Zona actual', zona.texto, zona.detalle, '', 'zona'),
+      this._tarjeta('Último sync', status?.ultimaSyncOk ? '✅ GitHub' : '⚠️ Sin sync OK', this._ultimoSyncTexto(status), '', 'sync'),
+      this._tarjeta('Datos descargados', datos.texto, datos.detalle, '', 'datos')
+    ];
+    this._aplicarTarjetas(grid, tarjetas);
+    this._cachePintado = Date.now();
 
-    if (errBox) {
+    if (errBox && !this._historialVisible) {
       const lineas = [];
       if (status?.ultimoError?.error) {
         lineas.push('[' + this._formatearFecha(status.ultimoError.at) + '] ' + status.ultimoError.error);
@@ -278,12 +331,55 @@ const AdminDepuracion = {
       if (!lineas.length) {
         errBox.innerHTML = '<p class="admin-dep-sin-errores">✅ Sin errores recientes en servidor</p>';
       } else {
-        errBox.innerHTML = '<div class="admin-dep-errores-titulo">Errores y eventos recientes</div>'
+        const nuevo = '<div class="admin-dep-errores-titulo">Errores y eventos recientes</div>'
           + '<pre class="admin-dep-errores-lista">' + lineas.map(l => this._esc(l)).join('\n') + '</pre>';
+        if (errBox.innerHTML !== nuevo) errBox.innerHTML = nuevo;
       }
+    } else if (errBox && this._historialVisible) {
+      errBox.innerHTML = '';
     }
 
     await this._pintarHistorial();
+  },
+
+  _textoInformeTxt() {
+    const grid = document.getElementById('admin-depuracion-grid');
+    const errBox = document.getElementById('admin-depuracion-errores');
+    const hist = document.getElementById('admin-depuracion-historial');
+    const lineas = [
+      'Kingdom GPS — Informe de depuración',
+      'Generado: ' + new Date().toISOString(),
+      'Versión: ' + this._versionJuego(),
+      '',
+      '=== Métricas ==='
+    ];
+    grid?.querySelectorAll('.admin-dep-tarjeta').forEach((card) => {
+      const etiq = card.querySelector('.admin-dep-etiq')?.textContent || '';
+      const val = card.querySelector('.admin-dep-valor')?.textContent || '';
+      const det = card.querySelector('.admin-dep-detalle')?.textContent || '';
+      lineas.push(etiq + ': ' + val + (det ? ' (' + det + ')' : ''));
+    });
+    if (errBox?.textContent?.trim()) {
+      lineas.push('', '=== Errores / eventos ===', errBox.textContent.trim());
+    }
+    if (hist?.textContent?.trim()) {
+      lineas.push('', '=== Historial admin ===', hist.textContent.trim());
+    }
+    return lineas.join('\n');
+  },
+
+  _descargarInformeTxt() {
+    const texto = this._textoInformeTxt();
+    const blob = new Blob([texto], { type: 'text/plain;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'kingdom-gps-depuracion-' + (CONFIG?.version || 'v') + '-' + Date.now() + '.txt';
+    a.click();
+    URL.revokeObjectURL(url);
+    if (typeof Notificaciones !== 'undefined') {
+      Notificaciones.mostrar('📥 Informe TXT descargado', 'exito', 3000);
+    }
   },
 
   async _pintarHistorial() {
@@ -294,9 +390,16 @@ const AdminDepuracion = {
       return;
     }
     const data = await SyncServidor.obtenerAdminHistorial();
-    const lista = data?.historial || [];
+    let lista = data?.historial || [];
+    const q = (document.getElementById('admin-dep-hist-buscar')?.value || '').trim().toLowerCase();
+    if (q) {
+      lista = lista.filter((h) => {
+        const txt = [h.accion, h.quien, h.refId, h.detalle, h.version].join(' ').toLowerCase();
+        return txt.includes(q);
+      });
+    }
     if (!lista.length) {
-      box.innerHTML = '<p class="admin-dep-sin-errores">Sin acciones admin registradas aún</p>';
+      box.innerHTML = '<p class="admin-dep-sin-errores">' + (q ? 'Sin coincidencias' : 'Sin acciones admin registradas aún') + '</p>';
       return;
     }
     const filas = lista.slice(0, 20).map((h) => {

@@ -482,16 +482,18 @@ Documentacion: `faces/fase-15-optimizacion-consumo-red.md`
 
 # FASE 16 - Panel ADM e inventario responsive
 
-Estado: ✅ Completada en código (v305–308 — validar en móvil Randy Fase 8)
+Estado: 🚧 En progreso (v311 — pie ADM + scrolls + equipo servidor)
 
 Documentacion: `faces/fase-16-ui-admin-inventario-responsive.md`
 
 | Item | Estado |
 |------|--------|
-| Equipo persiste al recargar | ✅ v305 |
-| Casillas inventario | ✅ v305 |
-| Actualizar primero | ✅ v306 |
-| Scrolls unificados | ✅ v307 |
+| Equipo persiste al recargar | ✅ v310 `_equipoT` |
+| Casillas inventario | ✅ v305–310 |
+| ADM reorganizado (Mundo/Combate/Sistema) | ✅ v310 |
+| Depuración sin parpadeo + TXT | ✅ v310 |
+| Pie ADM versión/sync + filtro historial | ✅ v311 |
+| Validación móvil Randy | ☐ Fase 8 |
 | ADM secciones + PC | ✅ v308 |
 
 Nota v308: menú ADM por `admin-seccion-titulo`; sidebar más ancho en PC; scroll unificado.
