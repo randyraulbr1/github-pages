@@ -264,16 +264,46 @@ const SyncServidor = {
   },
 
   /** Comprueba que el servidor responda antes de login o sync. */
-  async despertarServidor() {
+  async despertarServidor(opciones) {
+    const opts = opciones || {};
     const base = this._base();
     if (!base) return false;
+    const timeoutMs = opts.timeoutMs || (opts.completo ? 22000 : 14000);
+
+    // Arranque del juego: solo /health (rápido). Diagnóstico completo en panel Depuración.
+    if (!opts.completo) {
+      for (let intento = 0; intento < 4; intento++) {
+        try {
+          const r = await Utilidades.fetchConTimeout(base + '/health', { cache: 'no-store' }, timeoutMs);
+          if (r.ok) {
+            if (typeof MarielDiagnosticoRed !== 'undefined') {
+              MarielDiagnosticoRed._guardar({
+                codigo: MarielDiagnosticoRed.CODIGOS.OK,
+                titulo: 'Conexión OK',
+                detalle: base.replace(/^https?:\/\//, '') + ' responde.',
+                sugerencia: '',
+                url: base,
+                host: (typeof MarielDiagnosticoRed._hostDe === 'function')
+                  ? MarielDiagnosticoRed._hostDe(base) : base,
+                ok: true
+              });
+            }
+            return true;
+          }
+        } catch (e) { /* reintento */ }
+        if (intento < 3) {
+          await new Promise(res => setTimeout(res, 1500 + intento * 1500));
+        }
+      }
+    }
+
     if (typeof MarielDiagnosticoRed !== 'undefined') {
-      const diag = await MarielDiagnosticoRed.probarConexion(base, { timeoutMs: 22000 });
+      const diag = await MarielDiagnosticoRed.probarConexion(base, { timeoutMs });
       return !!diag.ok;
     }
     for (let intento = 0; intento < 4; intento++) {
       try {
-        const r = await Utilidades.fetchConTimeout(base + '/health', { cache: 'no-store' }, 22000);
+        const r = await Utilidades.fetchConTimeout(base + '/health', { cache: 'no-store' }, timeoutMs);
         if (r.ok) return true;
       } catch (e) { /* reintento */ }
       if (intento < 3) {
