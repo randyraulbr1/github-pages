@@ -286,19 +286,35 @@ const Usuarios = {
         body: JSON.stringify({ usuario, clave })
       }, 10000);
       const data = await r.json().catch(() => ({}));
-      if (!r.ok || !data.ok || !data.token) return { error: data.error || 'No se pudo entrar', codigo: data.codigo };
-      localStorage.setItem(
-        (typeof SyncServidor !== 'undefined' && SyncServidor.TOKEN_KEY) ||
-        (typeof Multijugador !== 'undefined' && Multijugador.TOKEN_KEY) || 'mariel_online_token',
-        data.token
-      );
-      if (typeof SyncServidor !== 'undefined') {
-        SyncServidor.marcarSesionOnline({
-          perfilId: data.perfil?.id,
-          playerId: data.player?.id
-        });
+      if (r.ok && data.ok && data.token) {
+        localStorage.setItem(
+          (typeof SyncServidor !== 'undefined' && SyncServidor.TOKEN_KEY) ||
+          (typeof Multijugador !== 'undefined' && Multijugador.TOKEN_KEY) || 'mariel_online_token',
+          data.token
+        );
+        if (typeof SyncServidor !== 'undefined') {
+          SyncServidor.marcarSesionOnline({
+            perfilId: data.perfil?.id,
+            playerId: data.player?.id
+          });
+        }
+        return data;
       }
-      return data;
+      if (r.status >= 500) {
+        const alt = await this._loginServidorLegacy(base, usuario, clave);
+        if (alt) return alt;
+        const diag = typeof MarielDiagnosticoRed !== 'undefined'
+          ? MarielDiagnosticoRed.clasificarFetch(null, base + '/api/login-game', r.status)
+          : null;
+        return {
+          error: diag && typeof MarielDiagnosticoRed !== 'undefined'
+            ? MarielDiagnosticoRed.mensajeUsuario(diag)
+            : 'Error del backend al iniciar sesión (HTTP ' + r.status + ').',
+          diagnostico: diag,
+          codigo: data.codigo
+        };
+      }
+      return { error: data.error || 'No se pudo entrar', codigo: data.codigo };
     } catch (e) {
       if ((intento || 0) < 2) {
         await new Promise(res => setTimeout(res, 1500));
@@ -313,6 +329,32 @@ const Usuarios = {
           : 'No se pudo conectar al servidor. Comprueba la red y la URL del servidor.',
         diagnostico: diag
       };
+    }
+  },
+
+  async _loginServidorLegacy(base, usuario, clave) {
+    try {
+      const r = await Utilidades.fetchConTimeout(base + '/api/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username: usuario, password: clave })
+      }, 10000);
+      const data = await r.json().catch(() => ({}));
+      if (!r.ok || !data.token) return null;
+      localStorage.setItem(
+        (typeof SyncServidor !== 'undefined' && SyncServidor.TOKEN_KEY) ||
+        (typeof Multijugador !== 'undefined' && Multijugador.TOKEN_KEY) || 'mariel_online_token',
+        data.token
+      );
+      if (typeof SyncServidor !== 'undefined') {
+        SyncServidor.marcarSesionOnline({
+          perfilId: data.perfil?.id,
+          playerId: data.player?.id
+        });
+      }
+      return data;
+    } catch (e) {
+      return null;
     }
   },
 
