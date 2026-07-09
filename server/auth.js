@@ -120,7 +120,6 @@ function isGameAdminPlayer(playerId) {
   if (!player) return false;
   const user = findUserById(player.user_id);
   if (user?.role && hasMinRole(user.role, 'admin')) return true;
-  if (user?.role === 'admin') return true;
   return isGameAdminName(player.name);
 }
 
