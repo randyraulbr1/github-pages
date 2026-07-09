@@ -1,8 +1,8 @@
-# FASE 8 — Validación móvil v309 (uso real)
+# FASE 8 — Validación móvil v311 (uso real)
 
 Estado: ⏳ **BLOQUEANTE** — no empezar funciones grandes nuevas hasta completar esto.
 
-Versión objetivo: **v309** en tcodm.com (`meta mariel-version` = 309).
+Versión objetivo: **v311** en tcodm.com (`meta mariel-version` = 311).
 
 ---
 
@@ -11,7 +11,7 @@ Versión objetivo: **v309** en tcodm.com (`meta mariel-version` = 309).
 1. ~~Cerrar PRs obsoletos~~ ✅ hecho.
 2. En el móvil: borrar caché del sitio **o** modo incógnito.
 
-3. Confirmar versión: al cargar tcodm.com debe verse v309 (pantalla actualizar o consola `mariel-version`).
+3. Confirmar versión: al cargar tcodm.com debe verse v311 (pantalla actualizar o consola `mariel-version`).
 
 ---
 
@@ -24,6 +24,7 @@ Versión objetivo: **v309** en tcodm.com (`meta mariel-version` = 309).
 | A1 | Login / cuenta | Entrar con cuenta existente o crear una | | |
 | A2 | GPS propio | Caminar 1–2 min; el pin debe moverse en el mapa | | |
 | A3 | Inventario 🎒 | Abrir, cerrar con ✕, no desbordar pantalla | | |
+| A3b | Equipo persiste | Equipar botas/casco → recargar página → siguen equipadas | | v311 `_equipoT` |
 | A4 | Amigos 👥 | Abrir, menú ⋮ de un amigo, cerrar | | |
 | A5 | Chat 💬 | Abrir lista, entrar a conversación, cerrar | | |
 | A6 | Tienda 🏪 | Comprar y vender en tienda admin (online) | | v309 shopSell | |
