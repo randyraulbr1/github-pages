@@ -1095,6 +1095,9 @@ button { font-family: inherit; }
   display: flex;
   flex-direction: column;
   gap: 2px;
+  overflow-x: hidden;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
 }
 .inv-top-row {
   display: flex;
@@ -1140,9 +1143,12 @@ button { font-family: inherit; }
 .inv-equip-row {
   display: flex;
   justify-content: center;
+  align-items: flex-start;
+  flex-wrap: wrap;
   gap: var(--slot-gap, 5px);
   margin-bottom: 4px;
   flex: 0 0 auto;
+  max-width: 100%;
 }
 .inv-equip-slot {
   width: var(--slot-size-mobile, 48px);
@@ -1975,8 +1981,8 @@ body.admin-colocando #panel-hud-izq {
 }
 @media (min-width: 900px) {
   #lista-admin {
-    width: clamp(200px, 18vw, 280px);
-    max-width: 280px;
+    width: clamp(220px, 20vw, 300px);
+    max-width: 300px;
     padding: 12px 10px 16px;
   }
   #lista-admin .fila-opcion {
@@ -3861,4 +3867,39 @@ body.admin-organizar .leaflet-marker-icon {
 @keyframes botinBrillo {
   0%, 100% { opacity: 1; }
   50% { opacity: 0.72; }
+}
+
+/* Fase 16 — navegación ADM profesional */
+.admin-nav-grupo {
+  font-weight: 900;
+  font-size: clamp(13px, 1.5vw, 15px);
+  padding: 14px 12px !important;
+  margin-bottom: 4px;
+  background: rgba(0, 0, 0, 0.14);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+.admin-nav-volver {
+  margin-bottom: 6px;
+  opacity: 0.9;
+}
+.admin-nav-sub {
+  text-align: left;
+}
+.admin-hub-cuerpo {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 4px 2px 12px;
+}
+.admin-hub-cuerpo .admin-hub-btn,
+.admin-hub-cuerpo .fila-opcion {
+  width: 100%;
+  text-align: left;
+  justify-content: flex-start;
+}
+.admin-hub-cuerpo .admin-clave-ayuda {
+  margin-bottom: 8px;
+}
+#admin-nav-acciones {
+  display: none !important;
 }

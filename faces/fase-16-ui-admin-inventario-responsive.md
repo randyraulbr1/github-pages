@@ -1,6 +1,8 @@
 # FASE 16 - Reorganizacion profesional del panel ADM e inventario responsive
 
-Estado: ✅ Completada en código (v305–308 — validar Randy Fase 8)
+Estado: 🚧 En progreso (v310 — ADM reorganizado + equipo persistente)
+
+Nota v310: menú ADM en 3 grupos (Mundo/Combate/Sistema); hubs por sección; equipo con `_equipoT` anti-pisado; depuración sin parpadeo + TXT. Validar Randy Fase 8.
 
 ## Contexto
 

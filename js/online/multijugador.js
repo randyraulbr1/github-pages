@@ -823,6 +823,8 @@ const Multijugador = {
     const localStatsT = Guardado.datos.statsT || 0;
     const pisarStats = remoteStatsT >= localStatsT;
     const invPendiente = Guardado.datos._invPendienteSync;
+    const equipoTLocal = Guardado.datos._equipoT || Guardado.datos.statsT || 0;
+    const equipoTRemoto = d._equipoT || remoteStatsT || 0;
     let mochilaLocal;
     let armaLocal;
     let equipoLocal;
@@ -836,6 +838,14 @@ const Multijugador = {
       equipoLocal = Guardado.datos.equipoEquipado
         ? JSON.parse(JSON.stringify(Guardado.datos.equipoEquipado))
         : null;
+    } else if (equipoTLocal > equipoTRemoto && typeof Guardado._equipoTienePiezas === 'function') {
+      if (Guardado._equipoTienePiezas(Guardado.datos.equipoEquipado) ||
+          Guardado.datos.armaEquipada) {
+        armaLocal = Guardado.datos.armaEquipada;
+        equipoLocal = Guardado.datos.equipoEquipado
+          ? JSON.parse(JSON.stringify(Guardado.datos.equipoEquipado))
+          : null;
+      }
     }
     Guardado._aplicarSnapshot(d, { sinStats: !pisarStats });
     if (pisarStats) {
@@ -846,6 +856,10 @@ const Multijugador = {
       Guardado.datos.mochila = mochilaLocal;
       Guardado.datos.armaEquipada = armaLocal;
       if (equipoLocal) Guardado.datos.equipoEquipado = equipoLocal;
+    } else if (equipoLocal) {
+      Guardado.datos.armaEquipada = armaLocal;
+      Guardado.datos.equipoEquipado = equipoLocal;
+      Guardado.datos._equipoT = equipoTLocal;
     }
     const remotaT = d.preferenciasT || 0;
     if (prefsLocal && (!d.preferencias || remotaT < prefsTLocal)) {
