@@ -736,10 +736,19 @@ button { font-family: inherit; }
 }
 .cartel-servidor-sub {
   font-size: 12px;
-  font-weight: 600;
-  color: #c8d2e4;
+  opacity: .85;
   line-height: 1.35;
+  text-align: center;
 }
+.cartel-servidor-detalle {
+  font-size: 11px;
+  opacity: .75;
+  line-height: 1.35;
+  text-align: center;
+  max-width: 100%;
+  word-break: break-word;
+}
+.cartel-servidor-detalle.oculto { display: none !important; }
 @keyframes cartel-servidor-pulso {
   0%, 100% { box-shadow: 0 12px 36px rgba(0, 0, 0, .5); }
   50% { box-shadow: 0 12px 36px rgba(251, 191, 36, .28); }

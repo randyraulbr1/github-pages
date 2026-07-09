@@ -65,6 +65,18 @@ const AdminDepuracion = {
   async _medirPing() {
     const base = this._baseServidor();
     if (!base) return { ok: false, ms: null, detalle: 'Sin URL de servidor' };
+    if (typeof MarielDiagnosticoRed !== 'undefined') {
+      const diag = await MarielDiagnosticoRed.probarConexion(base, { timeoutMs: 15000 });
+      const ms = diag.latenciaMs != null ? diag.latenciaMs : null;
+      if (diag.ok) {
+        this._ultimoPingMs = ms;
+        return { ok: true, ms, detalle: ms != null ? ms + ' ms' : 'OK', diagnostico: diag };
+      }
+      const det = typeof MarielDiagnosticoRed !== 'undefined'
+        ? MarielDiagnosticoRed.mensajeCorto(diag)
+        : 'Sin respuesta';
+      return { ok: false, ms, detalle: det, diagnostico: diag };
+    }
     const t0 = performance.now();
     try {
       const r = await Utilidades.fetchConTimeout(base + '/health', { cache: 'no-store' }, 15000);
@@ -218,7 +230,7 @@ const AdminDepuracion = {
 
     grid.innerHTML =
       this._tarjeta('Versión del juego', this._versionJuego(), CONFIG?.servidorOnline ? 'Servidor: ' + this._baseServidor().replace(/^https?:\/\//, '') : '') +
-      this._tarjeta('Ping /health', pingDetalle, ping.ok ? 'Latencia al servidor' : 'Comprueba red o Render dormido', ping.ok ? 'ok' : 'warn') +
+      this._tarjeta('Ping /health', pingDetalle, ping.ok ? 'Latencia al servidor' : (ping.diagnostico?.detalle || 'Revisa red o URL del servidor'), ping.ok ? 'ok' : 'warn') +
       this._tarjeta('Estado servidor', srvTexto, conn.texto, srvClase) +
       this._tarjeta('Jugadores online', String(jug.total), jug.detalle + (srvJug ? ' · ' + srvJug : '')) +
       this._tarjeta('Objetos cargados', String(obj.local), obj.detalle + (srvObj ? ' · ' + srvObj : '')) +

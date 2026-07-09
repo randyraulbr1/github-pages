@@ -30,6 +30,33 @@ const Multijugador = {
     return (CONFIG.servidorOnline || '').replace(/\/$/, '');
   },
 
+  _ultimoDiagnostico: null,
+
+  _registrarDiagnostico(diag) {
+    this._ultimoDiagnostico = diag || null;
+    if (typeof MarielDiagnosticoRed !== 'undefined' && diag) {
+      MarielDiagnosticoRed.ultimo = diag;
+    }
+  },
+
+  _mensajeDiagnostico(fallback) {
+    const d = this._ultimoDiagnostico ||
+      (typeof MarielDiagnosticoRed !== 'undefined' ? MarielDiagnosticoRed.ultimo : null);
+    if (d && typeof MarielDiagnosticoRed !== 'undefined') {
+      return MarielDiagnosticoRed.mensajeUsuario(d);
+    }
+    return fallback || 'No se pudo conectar al servidor.';
+  },
+
+  _mensajeDiagnosticoCorto(fallback) {
+    const d = this._ultimoDiagnostico ||
+      (typeof MarielDiagnosticoRed !== 'undefined' ? MarielDiagnosticoRed.ultimo : null);
+    if (d && typeof MarielDiagnosticoRed !== 'undefined') {
+      return MarielDiagnosticoRed.mensajeCorto(d);
+    }
+    return fallback || 'Sin conexión al servidor';
+  },
+
   async _cargarSocketIo() {
     if (typeof io !== 'undefined') return;
     const url = this.urlServidor();
@@ -38,7 +65,13 @@ const Multijugador = {
       const s = document.createElement('script');
       s.src = url + '/socket.io/socket.io.js';
       s.onload = resolve;
-      s.onerror = () => reject(new Error('Sin socket.io'));
+      s.onerror = () => {
+        const diag = typeof MarielDiagnosticoRed !== 'undefined'
+          ? MarielDiagnosticoRed.clasificarSocket(new Error('socket.io script load failed'), url)
+          : null;
+        this._registrarDiagnostico(diag);
+        reject(new Error(diag?.titulo || 'Sin socket.io'));
+      };
       document.head.appendChild(s);
     });
   },
@@ -84,6 +117,12 @@ const Multijugador = {
 
     if (typeof SyncServidor !== 'undefined') {
       await SyncServidor.despertarServidor();
+      if (typeof MarielDiagnosticoRed !== 'undefined' && MarielDiagnosticoRed.ultimo) {
+        this._registrarDiagnostico(MarielDiagnosticoRed.ultimo);
+        if (!MarielDiagnosticoRed.ultimo.ok) {
+          this._actualizarIndicadorConexion('offline');
+        }
+      }
       if (localStorage.getItem(this.TOKEN_KEY)) {
         const valido = await SyncServidor.verificarToken();
         const coincide = valido && await SyncServidor.tokenCoincideConPerfil();
@@ -170,6 +209,7 @@ const Multijugador = {
     try {
       await this._cargarSocketIo();
     } catch (e) {
+      this._actualizarIndicadorConexion('offline');
       return;
     }
 
@@ -250,14 +290,20 @@ const Multijugador = {
   _enlazarEventos() {
     if (!this.socket) return;
 
-    this.socket.on('connect_error', () => {
+    this.socket.on('connect_error', (err) => {
       this.activo = false;
-      this._actualizarIndicadorConexion('reconectando');
+      const diag = typeof MarielDiagnosticoRed !== 'undefined'
+        ? MarielDiagnosticoRed.clasificarSocket(err, base)
+        : null;
+      this._registrarDiagnostico(diag);
+      this._actualizarIndicadorConexion('offline');
     });
 
     this.socket.on('connect', () => {
       this.activo = true;
       this._reconectando = false;
+      this._ultimoDiagnostico = null;
+      if (typeof MarielDiagnosticoRed !== 'undefined') MarielDiagnosticoRed.ultimo = null;
       this._ocultarAvisoReconexion();
       this._actualizarIndicadorConexion('online');
       if (typeof GPS !== 'undefined') {
@@ -865,8 +911,26 @@ const Multijugador = {
     }
     if (titulo) {
       titulo.textContent = estado === 'offline'
-        ? 'Sin conexión al servidor'
-        : 'Servidor actualizando';
+        ? this._mensajeDiagnosticoCorto('Sin conexión al servidor')
+        : 'Reconectando al servidor…';
+    }
+    const sub = cartel.querySelector('.cartel-servidor-sub');
+    const det = cartel.querySelector('.cartel-servidor-detalle');
+    if (sub) {
+      sub.textContent = estado === 'offline'
+        ? 'Toca para recargar y reintentar'
+        : 'Esperando respuesta del servidor…';
+    }
+    if (det) {
+      const d = this._ultimoDiagnostico ||
+        (typeof MarielDiagnosticoRed !== 'undefined' ? MarielDiagnosticoRed.ultimo : null);
+      if (estado === 'offline' && d && d.detalle) {
+        det.textContent = d.detalle + (d.sugerencia ? ' ' + d.sugerencia : '');
+        det.classList.remove('oculto');
+      } else {
+        det.textContent = '';
+        det.classList.add('oculto');
+      }
     }
     cartel.classList.remove('oculto');
   },
@@ -888,7 +952,7 @@ const Multijugador = {
       el.setAttribute('aria-hidden', 'false');
     } else if (estado === 'offline') {
       el.classList.add('visible', 'estado-offline');
-      el.title = 'Sin conexión al servidor';
+      el.title = this._mensajeDiagnostico('Sin conexión al servidor');
       el.setAttribute('aria-hidden', 'false');
     } else {
       el.title = 'Conectado al servidor';

@@ -263,20 +263,29 @@ const SyncServidor = {
     return false;
   },
 
-  /** Despierta Render (plan gratis) antes de login o sync. */
+  /** Comprueba que el servidor responda antes de login o sync. */
   async despertarServidor() {
     const base = this._base();
     if (!base) return false;
+    if (typeof MarielDiagnosticoRed !== 'undefined') {
+      const diag = await MarielDiagnosticoRed.probarConexion(base, { timeoutMs: 22000 });
+      return !!diag.ok;
+    }
     for (let intento = 0; intento < 4; intento++) {
       try {
         const r = await Utilidades.fetchConTimeout(base + '/health', { cache: 'no-store' }, 22000);
         if (r.ok) return true;
-      } catch (e) { /* servidor dormido */ }
+      } catch (e) { /* reintento */ }
       if (intento < 3) {
         await new Promise(res => setTimeout(res, 2000 + intento * 2000));
       }
     }
     return false;
+  },
+
+  /** Último diagnóstico de red (para UI admin / cartel). */
+  ultimoDiagnostico() {
+    return (typeof MarielDiagnosticoRed !== 'undefined' && MarielDiagnosticoRed.ultimo) || null;
   },
 
   async verificarToken() {

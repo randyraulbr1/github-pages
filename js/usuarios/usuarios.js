@@ -304,7 +304,15 @@ const Usuarios = {
         await new Promise(res => setTimeout(res, 1500));
         return this._loginServidor(usuario, clave, (intento || 0) + 1);
       }
-      return { error: 'Sin conexión al servidor. Puede tardar si el servidor estaba dormido — inténtalo otra vez.' };
+      const diag = typeof MarielDiagnosticoRed !== 'undefined'
+        ? MarielDiagnosticoRed.clasificarFetch(e, base + '/api/login-game')
+        : null;
+      return {
+        error: typeof MarielDiagnosticoRed !== 'undefined' && diag
+          ? MarielDiagnosticoRed.mensajeUsuario(diag)
+          : 'No se pudo conectar al servidor. Comprueba la red y la URL del servidor.',
+        diagnostico: diag
+      };
     }
   },
 
@@ -337,7 +345,15 @@ const Usuarios = {
         await new Promise(res => setTimeout(res, 2000));
         return this._registrarServidor(nombre, telefono, clave, perfilId, (intento || 0) + 1);
       }
-      return { error: 'Sin conexión al servidor. Si estaba dormido, espera unos segundos e inténtalo otra vez.' };
+      const diag = typeof MarielDiagnosticoRed !== 'undefined'
+        ? MarielDiagnosticoRed.clasificarFetch(e, base + '/api/register')
+        : null;
+      return {
+        error: typeof MarielDiagnosticoRed !== 'undefined' && diag
+          ? MarielDiagnosticoRed.mensajeUsuario(diag)
+          : 'No se pudo conectar al servidor. Comprueba la red y la URL del servidor.',
+        diagnostico: diag
+      };
     }
   },
 
