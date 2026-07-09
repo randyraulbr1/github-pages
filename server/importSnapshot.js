@@ -290,5 +290,6 @@ module.exports = {
   restaurarMundoAlArranque,
   forzarImportJugadores,
   recuperarJugadoresPerdidos,
-  leerMundoJson
+  leerMundoJson,
+  leerJugadoresDesdeCarpeta
 };

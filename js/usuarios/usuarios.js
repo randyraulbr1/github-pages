@@ -286,7 +286,61 @@ const Usuarios = {
         body: JSON.stringify({ usuario, clave })
       }, 10000);
       const data = await r.json().catch(() => ({}));
-      if (!r.ok || !data.ok || !data.token) return { error: data.error || 'No se pudo entrar', codigo: data.codigo };
+      if (r.ok && data.ok && data.token) {
+        localStorage.setItem(
+          (typeof SyncServidor !== 'undefined' && SyncServidor.TOKEN_KEY) ||
+          (typeof Multijugador !== 'undefined' && Multijugador.TOKEN_KEY) || 'mariel_online_token',
+          data.token
+        );
+        if (typeof SyncServidor !== 'undefined') {
+          SyncServidor.marcarSesionOnline({
+            perfilId: data.perfil?.id,
+            playerId: data.player?.id
+          });
+        }
+        return data;
+      }
+      if (r.status >= 500) {
+        const alt = await this._loginServidorLegacy(base, usuario, clave);
+        if (alt) return alt;
+        const diag = typeof MarielDiagnosticoRed !== 'undefined'
+          ? MarielDiagnosticoRed.clasificarFetch(null, base + '/api/login-game', r.status)
+          : null;
+        return {
+          error: diag && typeof MarielDiagnosticoRed !== 'undefined'
+            ? MarielDiagnosticoRed.mensajeUsuario(diag)
+            : 'Error del backend al iniciar sesión (HTTP ' + r.status + ').',
+          diagnostico: diag,
+          codigo: data.codigo
+        };
+      }
+      return { error: data.error || 'No se pudo entrar', codigo: data.codigo };
+    } catch (e) {
+      if ((intento || 0) < 2) {
+        await new Promise(res => setTimeout(res, 1500));
+        return this._loginServidor(usuario, clave, (intento || 0) + 1);
+      }
+      const diag = typeof MarielDiagnosticoRed !== 'undefined'
+        ? MarielDiagnosticoRed.clasificarFetch(e, base + '/api/login-game')
+        : null;
+      return {
+        error: typeof MarielDiagnosticoRed !== 'undefined' && diag
+          ? MarielDiagnosticoRed.mensajeUsuario(diag)
+          : 'No se pudo conectar al servidor. Comprueba la red y la URL del servidor.',
+        diagnostico: diag
+      };
+    }
+  },
+
+  async _loginServidorLegacy(base, usuario, clave) {
+    try {
+      const r = await Utilidades.fetchConTimeout(base + '/api/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username: usuario, password: clave })
+      }, 10000);
+      const data = await r.json().catch(() => ({}));
+      if (!r.ok || !data.token) return null;
       localStorage.setItem(
         (typeof SyncServidor !== 'undefined' && SyncServidor.TOKEN_KEY) ||
         (typeof Multijugador !== 'undefined' && Multijugador.TOKEN_KEY) || 'mariel_online_token',
@@ -300,11 +354,7 @@ const Usuarios = {
       }
       return data;
     } catch (e) {
-      if ((intento || 0) < 2) {
-        await new Promise(res => setTimeout(res, 1500));
-        return this._loginServidor(usuario, clave, (intento || 0) + 1);
-      }
-      return { error: 'Sin conexión al servidor. Puede tardar si el servidor estaba dormido — inténtalo otra vez.' };
+      return null;
     }
   },
 
@@ -337,7 +387,15 @@ const Usuarios = {
         await new Promise(res => setTimeout(res, 2000));
         return this._registrarServidor(nombre, telefono, clave, perfilId, (intento || 0) + 1);
       }
-      return { error: 'Sin conexión al servidor. Si estaba dormido, espera unos segundos e inténtalo otra vez.' };
+      const diag = typeof MarielDiagnosticoRed !== 'undefined'
+        ? MarielDiagnosticoRed.clasificarFetch(e, base + '/api/register')
+        : null;
+      return {
+        error: typeof MarielDiagnosticoRed !== 'undefined' && diag
+          ? MarielDiagnosticoRed.mensajeUsuario(diag)
+          : 'No se pudo conectar al servidor. Comprueba la red y la URL del servidor.',
+        diagnostico: diag
+      };
     }
   },
 

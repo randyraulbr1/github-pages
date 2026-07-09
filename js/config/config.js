@@ -3,7 +3,7 @@
 // ============================================================
 const CONFIG = {
   // Cambiar al publicar: obliga al móvil a descartar caché vieja
-  version: '301',
+  version: '302',
   maxPila: 10,
 
   // Nombre reservado del administrador (solo este jugador ve el panel admin)
@@ -74,8 +74,6 @@ const CONFIG = {
   // Solo desarrollo local (nunca subas un token real al repositorio)
   tokenRegistroJugadores: '',
 
-  // Servidor multijugador — Oracle Cloud (Nginx). Ver docs/ORACLE_MIGRACION.md
-  // Fase 15.2–15.4: api.tcodm.com. Fase 15.5+: vacío + hostingUnificado: true
-  servidorOnline: 'https://api.tcodm.com',
-  hostingUnificado: false,
+  // Servidor multijugador en Render (plan Starter, sin suspensión)
+  servidorOnline: 'https://mariel-online.onrender.com',
 };

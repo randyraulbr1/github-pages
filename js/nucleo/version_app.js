@@ -1,6 +1,6 @@
 // Detecta actualizaciones al instante y bloquea el juego hasta pulsar Actualizar.
 const MarielVersion = {
-  // Fuente canónica: mismo dominio (Cuba sin VPN) → api.tcodm.com → GitHub raw solo en dev
+  // Fuente canónica: version.json en tcodm.com → API Render → GitHub raw solo en dev
   _versionCanonica: null,
 
   _bloqueado: false,
