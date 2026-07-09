@@ -155,6 +155,29 @@ async function arrancar() {
     const rec = reconciliarCuentasEnSnapshot();
     console.log('   Usuarios en BD:', n, '| Jugadores en snapshot:', rec.total);
 
+    if (process.env.GITHUB_TOKEN) {
+      try {
+        const { fetchMundoFromGitHub } = require('./githubMundo');
+        const { respaldoInmediato } = require('./respaldoThrottle');
+        const snapHeal = getWorldSnapshot();
+        const remotoHeal = await fetchMundoFromGitHub();
+        const nSnap = (snapHeal?.jugadores || []).length;
+        const nRemoto = (remotoHeal?.jugadores || []).length;
+        const nombres = (m) => new Set(
+          (m?.jugadores || []).map(j => String(j.nombre || '').toLowerCase()).filter(Boolean)
+        );
+        const ns = nombres(snapHeal);
+        const nr = nombres(remotoHeal || {});
+        const difieren = ns.size !== nr.size || [...ns].some(n => !nr.has(n));
+        if (snapHeal && nSnap > 0 && (nSnap > nRemoto || difieren)) {
+          console.log('[mundo] Auto-saneo GitHub: snapshot', nSnap, 'jugador(es) vs remoto', nRemoto);
+          await respaldoInmediato();
+        }
+      } catch (e) {
+        console.warn('[mundo] Auto-saneo GitHub omitido:', e.message);
+      }
+    }
+
     try {
       const snapNow = getWorldSnapshot();
       const { migrarWorldContentSiVacio, validarDobleLecturaMundo } = require('./worldContent');
