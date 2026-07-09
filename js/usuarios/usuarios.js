@@ -183,8 +183,25 @@ const Usuarios = {
     if (g?.nombre) perfil.nombre = g.nombre;
   },
 
+  _rolDesdeTokenOnline() {
+    try {
+      const key = (typeof Multijugador !== 'undefined' && Multijugador.TOKEN_KEY)
+        ? Multijugador.TOKEN_KEY : 'mariel_online_token';
+      const raw = localStorage.getItem(key);
+      if (!raw) return null;
+      const part = raw.split('.')[1];
+      if (!part) return null;
+      const json = JSON.parse(atob(part.replace(/-/g, '+').replace(/_/g, '/')));
+      return json?.role || null;
+    } catch (e) {
+      return null;
+    }
+  },
+
   esAdministrador() {
     if (!this.perfilActivo || !CONFIG.adminNombre) return false;
+    const rolJwt = this._rolDesdeTokenOnline();
+    if (rolJwt === 'admin' || rolJwt === 'owner') return true;
     const p = this.perfilActivo;
     const adminId = CONFIG.adminId || 'pmr7x4zhznzw5o';
     if (p.id === adminId) return true;

@@ -476,7 +476,7 @@ function setupSockets(io) {
       const perfilId = payload?.perfilId || buscarPerfilIdPorNombre(targetDb.name, targetId);
       if (perfilId && payload?.partidaSnap) {
         auditarSiAdminEditaAjeno(socket.playerId, perfilId, 'socket admin:updatePlayerPartida');
-        actualizarPartidaEnSnapshot(perfilId, payload.partidaSnap, io);
+        actualizarPartidaEnSnapshot(perfilId, payload.partidaSnap, io, { permitirEconomiaCliente: true });
       }
 
       if (!dead && hp > 0) {

@@ -224,7 +224,7 @@ function findUserById(id) {
 }
 
 function createUser(username, passwordHash, role) {
-  const r = role === 'admin' ? 'admin' : 'player';
+  const r = normalizeUserRole(role);
   const stmt = db.prepare(`
     INSERT INTO users (username, password_hash, role) VALUES (?, ?, ?)
   `);
@@ -232,8 +232,15 @@ function createUser(username, passwordHash, role) {
   return findUserById(info.lastInsertRowid);
 }
 
+function normalizeUserRole(role) {
+  const r = String(role || 'jugador').toLowerCase();
+  if (r === 'player') return 'jugador';
+  if (['owner', 'admin', 'moderador', 'tester', 'jugador'].includes(r)) return r;
+  return 'jugador';
+}
+
 function setUserRole(userId, role) {
-  const r = role === 'admin' ? 'admin' : 'player';
+  const r = normalizeUserRole(role);
   db.prepare(`UPDATE users SET role = ? WHERE id = ?`).run(r, userId);
   return findUserById(userId);
 }

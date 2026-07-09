@@ -1963,6 +1963,32 @@ body.admin-colocando #panel-hud-izq {
 #lista-admin .admin-seccion-titulo {
   padding: 12px 10px 5px;
   font-size: 10px;
+  font-weight: 900;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.55);
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: linear-gradient(180deg, rgba(91, 96, 104, 0.98) 70%, rgba(91, 96, 104, 0));
+  margin-top: 2px;
+}
+@media (min-width: 900px) {
+  #lista-admin {
+    width: clamp(200px, 18vw, 280px);
+    max-width: 280px;
+    padding: 12px 10px 16px;
+  }
+  #lista-admin .fila-opcion {
+    padding: 10px 12px;
+    font-size: 13px;
+  }
+  .admin-panel-derecho {
+    min-width: 0;
+  }
+  .admin-layout {
+    gap: 0;
+  }
 }
 .admin-sync-wrap {
   display: flex;

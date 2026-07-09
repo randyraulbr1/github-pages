@@ -8,6 +8,37 @@ const JWT_DEV_DEFAULT = 'mariel-dev-secret-cambiar-en-produccion';
 const JWT_SECRET = process.env.JWT_SECRET || JWT_DEV_DEFAULT;
 const JWT_EXPIRES = '7d';
 
+const ROLES_JWT = new Set(['jugador', 'player', 'tester', 'moderador', 'admin', 'owner']);
+const ROLE_RANK = { jugador: 1, player: 1, tester: 2, moderador: 3, admin: 4, owner: 5 };
+
+function normalizeRole(role) {
+  const r = String(role || 'jugador').toLowerCase();
+  if (r === 'player') return 'jugador';
+  if (ROLES_JWT.has(r)) return r;
+  return 'jugador';
+}
+
+function roleRank(role) {
+  return ROLE_RANK[normalizeRole(role)] || 1;
+}
+
+function hasMinRole(authOrRole, minRole) {
+  const r = typeof authOrRole === 'object' ? authOrRole?.role : authOrRole;
+  return roleRank(r) >= roleRank(minRole);
+}
+
+function isOwner(auth) {
+  return hasMinRole(auth, 'owner');
+}
+
+function isAdmin(auth) {
+  return hasMinRole(auth, 'admin');
+}
+
+function isModerator(auth) {
+  return hasMinRole(auth, 'moderador');
+}
+
 function isProductionEnv() {
   return process.env.NODE_ENV === 'production' || !!process.env.RENDER;
 }
@@ -37,7 +68,7 @@ function comparePassword(plain, hash) {
 }
 
 function signPlayerToken(user, player) {
-  const role = user.role === 'admin' ? 'admin' : 'player';
+  const role = normalizeRole(user.role);
   return jwt.sign(
     { sub: user.id, playerId: player.id, role, username: user.username },
     JWT_SECRET,
@@ -59,9 +90,10 @@ function authMiddleware(req, res, next) {
   if (!token) return res.status(401).json({ ok: false, error: 'Token requerido' });
 
   const payload = verifyToken(token);
-  if (!payload || (payload.role !== 'player' && payload.role !== 'admin')) {
+  if (!payload || !ROLES_JWT.has(normalizeRole(payload.role))) {
     return res.status(401).json({ ok: false, error: 'Token inválido' });
   }
+  payload.role = normalizeRole(payload.role);
 
   req.auth = payload;
   next();
@@ -87,19 +119,20 @@ function isGameAdminPlayer(playerId) {
   const player = findPlayerById(playerId);
   if (!player) return false;
   const user = findUserById(player.user_id);
+  if (user?.role && hasMinRole(user.role, 'admin')) return true;
   if (user?.role === 'admin') return true;
   return isGameAdminName(player.name);
 }
 
 function isGameAdminAuth(auth) {
   if (!auth) return false;
-  if (auth.role === 'admin') return true;
+  if (hasMinRole(auth, 'admin')) return true;
   if (auth.playerId) return isGameAdminPlayer(auth.playerId);
   return false;
 }
 
 function gameAdminMiddleware(req, res, next) {
-  if (!req.auth || (req.auth.role !== 'player' && req.auth.role !== 'admin')) {
+  if (!req.auth || !ROLES_JWT.has(req.auth.role)) {
     return res.status(401).json({ ok: false, error: 'Token de jugador requerido' });
   }
   if (!isGameAdminAuth(req.auth)) {
@@ -159,6 +192,12 @@ module.exports = {
   isGameAdminPlayer,
   isOwnPerfil,
   getGameAdminNames,
+  normalizeRole,
+  roleRank,
+  hasMinRole,
+  isOwner,
+  isAdmin,
+  isModerator,
   assertProductionSecrets,
   warnProductionConfig,
   isProductionEnv

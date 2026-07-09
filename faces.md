@@ -77,20 +77,11 @@ Pruebas:
 
 # FASE 2 - Estabilidad del servidor
 
-Estado: 🚧 En progreso
+Estado: 🚧 En progreso (v308 — roles JWT + economía sync-partida)
 
 Objetivo: hacer el servidor mas estable antes de agregar funciones nuevas.
 
-Incluye:
-
-- Roles reales en base de datos: owner, admin, moderador, tester, jugador.
-- JWT con role.
-- Permisos por rol, no por nombre.
-- Validar HP, hambre, XP y otros stats en servidor.
-- Log de auditoria cuando el admin edita partida ajena.
-- Evitar sincronizaciones repetidas si no hay cambios reales.
-
-Nota: Stats validados (`playerStats.js`), audit log parcial, `statsT` estable. Falta roles DB completos y permisos por rol.
+Nota v308: roles `owner/admin/moderador/tester/jugador` en JWT; helpers `hasMinRole`, `isAdmin`; login devuelve `user.role`. Falta API asignar roles y quitar fallback por nombre.
 
 Como hacerlo:
 
@@ -110,22 +101,11 @@ Pruebas:
 
 # FASE 3 - Fuente unica del mundo
 
-Estado: 🚧 En progreso
+Estado: 🚧 En progreso (v308 — sync-partida no pisa economía del cliente)
 
 Objetivo: evitar que algunos jugadores vean objetos y otros no.
 
-Problema a evitar:
-
-- Mundo en tablas de base de datos.
-- Mundo en snapshot JSON.
-- Dos fuentes pueden causar diferencias.
-
-Regla:
-
-Base de datos = mundo oficial.
-Snapshot = backup/recuperacion.
-
-Nota: Tabla `world_content`, migracion, deltas admin (v276–279), inventario autoritativo v282–283. Falta cerrar confianza en sync-partida para economia.
+Nota v308: `actualizarPartidaEnSnapshot` preserva mochila/dinero/historiales del servidor; admin edita con `permitirEconomiaCliente`. Falta venta tienda y misiones 100% servidor.
 
 Incluye:
 
@@ -174,15 +154,9 @@ Pruebas:
 
 # FASE 5 - Estandar de interfaz UI/UX
 
-Estado: 🚧 En progreso (v286)
+Estado: 🚧 En progreso (v307–308 — scrolls + patron ui-panel)
 
-Objetivo: que toda la interfaz se vea igual, sea facil de tocar y no tenga bugs visuales.
-
-Referencia visual:
-
-Usar el inventario actual como base porque esta bien logrado.
-
-Nota v286: `user-select: none` en HUD/botones/ventanas; toasts 2 s y contador +N; `Utilidades.mensajeAmigable` para errores de red.
+Nota v298–307: tienda, misiones, historial, amigos, chat, opciones con `ui-panel` / `ui-scroll-area`. Pendiente: textos largos truncados en móvil en algunas pantallas.
 
 Reglas:
 
@@ -319,11 +293,9 @@ Cada pantalla debe tener:
 
 # FASE 8 - Pruebas antes de publicar
 
-Estado: 🚧 En progreso (v299 — smoke automático OK; **validación real móvil pendiente**)
+Estado: 🚧 En progreso (v308 — objetivo **v308** en tcodm.com)
 
-Objetivo: no publicar si una prueba crítica falla.
-
-**Guía detallada:** `faces/fase-8-validacion-movil-v299.md`
+**Guía detallada:** `faces/fase-8-validacion-movil-v299.md` (actualizar versión al probar)
 
 ### Pendiente bloqueante (antes de nuevas funciones)
 
@@ -364,7 +336,7 @@ Checklist mínimo:
 
 ### Checklist rápido Android (~10 min)
 
-1. Borrar caché del sitio o modo incógnito → debe cargar **v299**.
+1. Borrar caché del sitio o modo incógnito → debe cargar **v308**.
 2. Crear cuenta o login → mapa visible con GPS.
 3. Abrir inventario, amigos, chat, opciones → paneles sin desborde, botón ✕ cierra.
 4. Admin (Randy): Organizar → mover PIN → confirmar → publicar.
@@ -488,44 +460,41 @@ Nota v295: cocinar en juego (🍳 + cuchillo), endpoint `player:cookItem`, equip
 
 # FASE 15 - Migracion Oracle Cloud (produccion)
 
-Estado: 🚧 En progreso (v301 — scripts + docs listos; VM pendiente Randy)
+Estado: ⏳ Pausada — producción en **Render Starter** (`mariel-online.onrender.com`). Scripts Oracle listos por si se retoma.
 
-Objetivo: servidor gratis estable, un dominio, Cuba sin VPN, sin depender de Render.
+Nota: Randy usa Render $7/mes. Oracle VM pendiente solo si se retoma migración.
 
-Documentacion maestra: `docs/ORACLE_MIGRACION.md`
+---
 
-| Subfase | Tarea | Estado |
-|---------|-------|--------|
-| 15.1 | Scripts Nginx, install/update/backup, red.js | ✅ v301 |
-| 15.2 | VM Oracle US East + api.tcodm.com | ☐ Randy |
-| 15.3 | Prueba interna (login, GPS, admin) | ☐ |
-| 15.4 | Prueba 2–3 jugadores | ☐ |
-| 15.5 | DNS tcodm.com → Oracle, hostingUnificado: true | ☐ |
-| 15.6 | 48 h estables → marcar Render obsoleto | ☐ |
+# FASE 15B - Optimizacion consumo red (Render)
 
-Render: **no eliminado** — rollback hasta 15.6. GitHub Pages: activo como rollback DNS.
+Estado: ✅ Completada en código (v304–308 — pendiente medición Randy 48h)
+
+Documentacion: `faces/fase-15-optimizacion-consumo-red.md`
+
+| Hecho | Pendiente |
+|-------|-----------|
+| v303–304 optimizaciones red | Medir MB/día Render |
+| v306 pantalla Actualizar primero | gzip Express (opcional) |
+| Panel MB/sesión admin | player:updateStats scoped |
 
 ---
 
 # FASE 16 - Panel ADM e inventario responsive
 
-Estado: 🚧 En progreso (v307 — scrolls unificados; equipo/casillas v305–306)
-
-Objetivo: UI profesional ADM + inventario sin bugs visuales ni pérdida de equipamiento.
+Estado: ✅ Completada en código (v305–308 — validar en móvil Randy Fase 8)
 
 Documentacion: `faces/fase-16-ui-admin-inventario-responsive.md`
 
-| Bloqueante | Estado |
-|------------|--------|
-| Botas/equipo se quitan al recargar | ✅ v305 |
-| Casillas sobrepuestas inventario | ✅ v305 |
-| Pantalla Actualizar primero al entrar | ✅ v306 |
+| Item | Estado |
+|------|--------|
+| Equipo persiste al recargar | ✅ v305 |
+| Casillas inventario | ✅ v305 |
+| Actualizar primero | ✅ v306 |
 | Scrolls unificados | ✅ v307 |
-| Reorganizar panel ADM por secciones | 🟡 parcial (admin-seccion-titulo en menú) |
+| ADM secciones + PC | ✅ v308 |
 
-Nota v307: clase `.ui-scroll-area` + selectores compartidos en `ui_components.css` (inventario, ADM, tienda, historial, depuración).
-
-Nota v305–306: equipo persiste; variables `--slot-size-*`; pantalla Actualizar bloquea arranque.
+Nota v308: menú ADM por `admin-seccion-titulo`; sidebar más ancho en PC; scroll unificado.
 
 ---
 

@@ -301,6 +301,20 @@ function quitarCuerpoMuerto(playerId, io) {
   if (io) io.emit('cuerpos:sync', { cuerpos: snapshot.cuerposMuertos || {} });
 }
 
+/** Campos que solo el servidor o admin deben escribir (Fase 3 — sync-partida). */
+const CAMPOS_ECONOMIA_AUTORITATIVA = [
+  'mochila', 'dinero', 'historialDinero', 'historialObjetos', 'tesorosRecogidos'
+];
+
+function preservarEconomiaServidor(fusionados, prevDatos, opts) {
+  if (opts?.permitirEconomiaCliente) return fusionados;
+  const out = fusionados;
+  for (const k of CAMPOS_ECONOMIA_AUTORITATIVA) {
+    if (prevDatos[k] !== undefined) out[k] = prevDatos[k];
+  }
+  return out;
+}
+
 /** Guarda partida de un jugador (vida/muerto) en el snapshot del mundo. */
 function actualizarPartidaEnSnapshot(perfilId, partidaSnap, io, opts) {
   if (!perfilId || !partidaSnap) return false;
@@ -313,7 +327,8 @@ function actualizarPartidaEnSnapshot(perfilId, partidaSnap, io, opts) {
   let snap = Object.assign({}, partidaSnap);
   const prevDatos = actual?.datos || {};
   if (snap.datos) {
-    const fusionados = Object.assign({}, prevDatos, validarPartidaMin(snap.datos));
+    let fusionados = Object.assign({}, prevDatos, validarPartidaMin(snap.datos));
+    fusionados = preservarEconomiaServidor(fusionados, prevDatos, opts);
     const tNew = fusionados.preferenciasT || snap.statsT || snap.t || 0;
     const tOld = prevDatos.preferenciasT || 0;
     if (prevDatos.preferencias && (!fusionados.preferencias || tNew < tOld)) {

@@ -269,7 +269,7 @@ router.post('/login-game', (req, res) => {
     return res.json({
       ok: true,
       token: signPlayerToken(user, player),
-      user: { id: user.id, username: user.username },
+      user: { id: user.id, username: user.username, role: user.role || 'jugador' },
       player: formatPlayer(player),
       perfil
     });
@@ -339,7 +339,7 @@ router.post('/login-game', (req, res) => {
     ok: true,
     token,
     migrated: true,
-    user: { id: user.id, username: user.username },
+    user: { id: user.id, username: user.username, role: user.role || 'jugador' },
     player: formatPlayer(player),
     perfil: {
       id: legacy.id,
@@ -419,7 +419,7 @@ router.post('/register', (req, res) => {
       ok: true,
       message: 'Usuario registrado',
       token,
-      user: { id: user.id, username: user.username },
+      user: { id: user.id, username: user.username, role: user.role || 'jugador' },
       player: formatPlayer(player),
       perfil: nuevo
     });
@@ -468,7 +468,7 @@ router.post('/login', (req, res) => {
   return res.json({
     ok: true,
     token,
-    user: { id: user.id, username: user.username, lastLogin: user.last_login },
+    user: { id: user.id, username: user.username, role: user.role || 'jugador', lastLogin: user.last_login },
     player: formatPlayer(player),
     perfil: legacy || {
       id: 'srv_' + player.id,
