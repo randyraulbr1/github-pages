@@ -130,6 +130,27 @@ const AdminDepuracion = {
     return { texto: lat + ', ' + lng, detalle: extra };
   },
 
+  _resumenConsumo() {
+    if (typeof MarielConsumoRed === 'undefined' || !MarielConsumoRed._inicioMs) {
+      return {
+        totalTexto: '—',
+        detalle: 'Conecta al servidor para medir',
+        proyectado30d: '—',
+        ahorroTexto: '—',
+        clase: ''
+      };
+    }
+    const r = MarielConsumoRed.resumen();
+    const min = Math.max(1, Math.round(r.segundos / 60));
+    return {
+      totalTexto: r.totalTexto,
+      detalle: 'HTTP ' + r.httpTexto + ' · Socket ' + r.socketTexto + ' · ' + min + ' min · ' + r.mbPorHora + ' MB/h · ' + r.topTipos,
+      proyectado30d: r.proyectado30d + ' (1 jugador)',
+      ahorroTexto: r.ahorroTexto,
+      clase: parseFloat(r.mbPorHora) > 50 ? 'warn' : 'ok'
+    };
+  },
+
   _tamanoDatos() {
     let ls = 0;
     try {
@@ -227,9 +248,13 @@ const AdminDepuracion = {
     const pingDetalle = ping.detalle || (this._ultimoPingMs != null ? this._ultimoPingMs + ' ms' : '—');
     const srvJug = status?.jugadores != null ? status.jugadores + ' en BD' : '';
     const srvObj = status?.objetos != null ? status.objetos + ' objetos BD' : '';
+    const consumo = this._resumenConsumo();
 
     grid.innerHTML =
       this._tarjeta('Versión del juego', this._versionJuego(), CONFIG?.servidorOnline ? 'Servidor: ' + this._baseServidor().replace(/^https?:\/\//, '') : '') +
+      this._tarjeta('Consumo Render (sesión)', consumo.totalTexto, consumo.detalle, consumo.clase) +
+      this._tarjeta('Proyección 30 días', consumo.proyectado30d, 'Al ritmo actual de esta sesión', consumo.clase) +
+      this._tarjeta('Ahorro estimado', consumo.ahorroTexto, 'Polls y cargas evitadas en esta sesión', 'ok') +
       this._tarjeta('Ping /health', pingDetalle, ping.ok ? 'Latencia al servidor' : (ping.diagnostico?.detalle || 'Revisa red o URL del servidor'), ping.ok ? 'ok' : 'warn') +
       this._tarjeta('Estado servidor', srvTexto, conn.texto, srvClase) +
       this._tarjeta('Jugadores online', String(jug.total), jug.detalle + (srvJug ? ' · ' + srvJug : '')) +

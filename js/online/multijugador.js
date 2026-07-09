@@ -59,20 +59,32 @@ const Multijugador = {
 
   async _cargarSocketIo() {
     if (typeof io !== 'undefined') return;
-    const url = this.urlServidor();
-    if (!url) return;
+    const local = 'lib/socket.io/socket.io.min.js?v=' + (CONFIG.version || '303');
+    const remoto = this.urlServidor();
     await new Promise((resolve, reject) => {
-      const s = document.createElement('script');
-      s.src = url + '/socket.io/socket.io.js';
-      s.onload = resolve;
-      s.onerror = () => {
-        const diag = typeof MarielDiagnosticoRed !== 'undefined'
-          ? MarielDiagnosticoRed.clasificarSocket(new Error('socket.io script load failed'), url)
-          : null;
-        this._registrarDiagnostico(diag);
-        reject(new Error(diag?.titulo || 'Sin socket.io'));
+      const cargar = (src, esLocal) => {
+        const s = document.createElement('script');
+        s.src = src;
+        s.onload = () => {
+          if (typeof MarielConsumoRed !== 'undefined' && esLocal) {
+            MarielConsumoRed.registrarAhorro(38000, 'socket_io_local');
+          }
+          resolve();
+        };
+        s.onerror = () => {
+          if (esLocal && remoto) {
+            cargar(remoto + '/socket.io/socket.io.js', false);
+            return;
+          }
+          const diag = typeof MarielDiagnosticoRed !== 'undefined'
+            ? MarielDiagnosticoRed.clasificarSocket(new Error('socket.io script load failed'), remoto)
+            : null;
+          this._registrarDiagnostico(diag);
+          reject(new Error(diag?.titulo || 'Sin socket.io'));
+        };
+        document.head.appendChild(s);
       };
-      document.head.appendChild(s);
+      cargar(local, true);
     });
   },
 
@@ -218,6 +230,9 @@ const Multijugador = {
       this.socket.disconnect();
       this.socket = null;
     }
+    if (typeof MarielConsumoRed !== 'undefined') {
+      MarielConsumoRed._socketEnganchado = false;
+    }
 
     this.activo = false;
     this.socket = io(base, {
@@ -229,6 +244,11 @@ const Multijugador = {
       reconnectionDelayMax: 8000,
       timeout: 25000
     });
+
+    if (typeof MarielConsumoRed !== 'undefined') {
+      MarielConsumoRed.iniciarSesion();
+      MarielConsumoRed.enlazarSocket(this.socket);
+    }
 
     this._enlazarEventos();
     this._enlazarCartelServidor();
@@ -292,8 +312,9 @@ const Multijugador = {
 
     this.socket.on('connect_error', (err) => {
       this.activo = false;
+      const srv = this.urlServidor();
       const diag = typeof MarielDiagnosticoRed !== 'undefined'
-        ? MarielDiagnosticoRed.clasificarSocket(err, base)
+        ? MarielDiagnosticoRed.clasificarSocket(err, srv)
         : null;
       this._registrarDiagnostico(diag);
       this._actualizarIndicadorConexion('offline');
@@ -317,7 +338,6 @@ const Multijugador = {
       this.enviarStats(true);
       this._iniciarPollingMundo();
       this._iniciarTickCuerpos();
-      this.loadWorld();
       if (typeof Amigos !== 'undefined') Amigos.refrescar();
       if (typeof Chat !== 'undefined') Chat.refrescarConversaciones();
       if (typeof Usuarios !== 'undefined' && Usuarios.perfilActivo &&
@@ -363,6 +383,10 @@ const Multijugador = {
 
     this.socket.on('game:init', (data) => {
       this._mundoSocketListo = true;
+      if (data.mundoSnapshot) {
+        const ts = data.mundoActualizadoEn || data.mundoSnapshot.actualizadoEn || 0;
+        this.mundoServidorTs = Math.max(this.mundoServidorTs || 0, ts);
+      }
       if (typeof Amigos !== 'undefined' && data.social) Amigos.aplicarSocial(data.social);
       this.online = (data.onlinePlayers || []).filter(p => this._visible(p.playerId));
       this._redibujar(false);
@@ -733,6 +757,10 @@ const Multijugador = {
     this._pollMundo = setInterval(() => this._pullMundoServidor(), 6000);
   },
 
+  _socketListoParaMundo() {
+    return !!(this.activo && this.socket?.connected && this._mundoSocketListo);
+  },
+
   _iniciarTickCuerpos() {
     if (this._tickCuerposId) clearInterval(this._tickCuerposId);
     this._tickCuerposId = setInterval(() => this._refrescarTimersCuerpos(), 1000);
@@ -1016,6 +1044,12 @@ const Multijugador = {
   },
 
   async loadWorld() {
+    if (this._socketListoParaMundo()) {
+      if (typeof MarielConsumoRed !== 'undefined') {
+        MarielConsumoRed.registrarAhorro(10700, 'mundo_doble_carga');
+      }
+      return true;
+    }
     return this.obtenerMundoServidor();
   },
 
@@ -1025,6 +1059,12 @@ const Multijugador = {
 
   /** Descarga el mundo del servidor (SQLite). */
   async obtenerMundoServidor() {
+    if (this._socketListoParaMundo()) {
+      if (typeof MarielConsumoRed !== 'undefined') {
+        MarielConsumoRed.registrarAhorro(10700, 'mundo_http_socket');
+      }
+      return true;
+    }
     if (typeof SyncServidor !== 'undefined' && SyncServidor.obtenerMundo) {
       const data = await SyncServidor.obtenerMundo();
       if (data?.mundo) {
@@ -1062,6 +1102,12 @@ const Multijugador = {
   },
 
   async _pullMundoVersion() {
+    if (this._socketListoParaMundo()) {
+      if (typeof MarielConsumoRed !== 'undefined') {
+        MarielConsumoRed.registrarAhorro(55, 'poll_mundo_socket');
+      }
+      return false;
+    }
     const base = this.urlServidor();
     if (!base) return false;
     try {
