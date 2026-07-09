@@ -12,13 +12,15 @@ const Guardado = {
   _syncFallos: 0,
   _syncIntervalo: null,
 
+  _syncPartidaMs: 90000,
+
   iniciarSyncPeriodico() {
     if (this._syncIntervalo) return;
     this._syncIntervalo = setInterval(() => {
       if (typeof Usuarios !== 'undefined' && Usuarios.perfilActivo) {
         this.sincronizarNube(true).catch(() => {});
       }
-    }, 45000);
+    }, this._syncPartidaMs);
   },
 
   _clave() {
