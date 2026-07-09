@@ -1069,6 +1069,13 @@ const Multijugador = {
     if (m.botinesEnemigo && typeof BotinEnemigo !== 'undefined') {
       BotinEnemigo.aplicarTodosDesdeMundo(m.botinesEnemigo);
     }
+    if (typeof ContenidoMundo !== 'undefined') {
+      if (ContenidoMundo.usarDeltas()) {
+        ContenidoMundo.reconciliarDesdeSnapshot(m);
+      } else if (CONFIG.servidorOnline) {
+        ContenidoMundo.inicializarDesdeSnapshot(m);
+      }
+    }
     if (tieneContenido) this._mundoSocketListo = true;
     this._sincronizarPinesPartida();
     return true;
@@ -1811,6 +1818,22 @@ const Multijugador = {
       if (!this.socket || !this.activo || !tiendaId || !itemId) return resolve({ ok: false });
       this.socket.emit('player:shopBuy', {
         tiendaId,
+        itemId,
+        lat: pos?.[0],
+        lng: pos?.[1],
+        pos
+      }, (res) => {
+        if (res?.ok) this._aplicarRespuestaEconomia(res);
+        resolve(res || { ok: false });
+      });
+    });
+  },
+
+  venderEnTienda(tiendaId, itemId, pos) {
+    return new Promise((resolve) => {
+      if (!this.socket || !this.activo || !itemId) return resolve({ ok: false });
+      this.socket.emit('player:shopSell', {
+        tiendaId: tiendaId || '',
         itemId,
         lat: pos?.[0],
         lng: pos?.[1],

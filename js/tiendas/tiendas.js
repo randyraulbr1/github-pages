@@ -242,7 +242,19 @@ const Tiendas = {
   async vender(idItem) {
     const item = Items.seguro(idItem);
     const precioVenta = this._precioVenta(idItem);
-    const esAdmin = this.tiendaAbierta && this._esTiendaAdmin(this.tiendaAbierta);
+    const t = this.tiendaAbierta;
+    if (typeof Multijugador !== 'undefined' && Multijugador.activo && CONFIG.servidorOnline) {
+      const pos = typeof GPS !== 'undefined' ? GPS.posicion : null;
+      const res = await Multijugador.venderEnTienda(t?.id || '', idItem, pos);
+      if (!res?.ok) {
+        Notificaciones.mostrar('❌ ' + Utilidades.mensajeAmigable(res?.error, 'No se pudo vender'), 'error', 4000);
+        return;
+      }
+      Notificaciones.mostrar('💵 Vendiste ' + item.nombre + ' por $' + (res.precio || precioVenta), 'exito');
+      this.pintar();
+      return;
+    }
+    const esAdmin = t && this._esTiendaAdmin(t);
     if (!Mochila.quitar(idItem, 1, 'Vendido')) return;
     await Dinero.ganar(precioVenta, 'Venta: ' + item.nombre + ' (' + this.tiendaAbierta.nombre + ')');
     if (esAdmin) {

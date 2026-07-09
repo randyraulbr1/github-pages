@@ -117,6 +117,21 @@ function tesoroDisponible(snapshot, tesoroId, respawnMin) {
   return Date.now() - st.recogidoAt > respawnMin * 60000;
 }
 
+function precioVentaItem(snapshot, tienda, itemId) {
+  const entry = tienda?.vende?.find((e) => e && e.id === itemId);
+  if (entry) {
+    return Math.max(1, Math.floor((parseInt(entry.precio, 10) || 0) * 0.3));
+  }
+  const item = itemFromSnapshot(itemId, snapshot);
+  const base = Math.max(0, parseInt(item?.precio, 10) || 0);
+  return Math.max(1, Math.floor(base / 2));
+}
+
+function esTiendaAdmin(tienda) {
+  return !!(tienda && Array.isArray(tienda.vende) && tienda.vende.length &&
+    typeof tienda.vende[0] === 'object');
+}
+
 function comprarEnTienda(playerId, tiendaId, itemId, lat, lng, io) {
   const snapshot = getWorldSnapshot() || { actualizadoEn: Date.now(), partidas: {}, tiendasAdmin: [] };
   const pl = findPlayerById(playerId);
@@ -154,6 +169,52 @@ function comprarEnTienda(playerId, tiendaId, itemId, lat, lng, io) {
     if (!snapshot.tiendasStock) snapshot.tiendasStock = {};
     const key = tiendaId + '|' + itemId;
     snapshot.tiendasStock[key] = Math.max(0, stockDisponible(snapshot, tiendaId, entry) - 1);
+    if (io) io.emit('world:shopStock', { tiendaId, itemId, stock: snapshot.tiendasStock[key] });
+  }
+
+  const snap = guardarPartida(snapshot, perfilId, datos, io);
+  return {
+    ok: true,
+    precio,
+    saldo: datos.dinero.saldo,
+    mochila: datos.mochila,
+    perfilId,
+    partida: snap
+  };
+}
+
+function venderEnTienda(playerId, tiendaId, itemId, lat, lng, io) {
+  const snapshot = getWorldSnapshot() || { actualizadoEn: Date.now(), partidas: {}, tiendasAdmin: [] };
+  const pl = findPlayerById(playerId);
+  if (!pl) return { ok: false, error: 'Jugador no encontrado' };
+  const perfilId = buscarPerfilId(pl.name, playerId);
+  if (!perfilId) return { ok: false, error: 'Sin perfil en el mundo' };
+
+  const tienda = tiendaId ? findTienda(snapshot, tiendaId) : null;
+  const pos = tienda ? posTienda(tienda, snapshot) : null;
+  if (pos && Number.isFinite(lat) && Number.isFinite(lng)) {
+    if (distanciaMetros(lat, lng, pos[0], pos[1]) > SHOP_DISTANCE_METERS) {
+      return { ok: false, error: 'Demasiado lejos de la tienda' };
+    }
+  }
+
+  const entry = tienda?.vende?.find((e) => e && e.id === itemId) || null;
+  if (tienda && esTiendaAdmin(tienda) && !entry) {
+    return { ok: false, error: 'Esta tienda no compra ese objeto' };
+  }
+
+  const precio = precioVentaItem(snapshot, tienda, itemId);
+  const { datos } = getDatosPartida(snapshot, perfilId);
+  const quitar = quitarDeMochila(datos.mochila, [{ id: itemId, cantidad: 1 }]);
+  if (!quitar.ok) return quitar;
+
+  datos.mochila = quitar.mochila;
+  datos.dinero = { saldo: getSaldo(datos) + precio, control: '' };
+
+  if (tienda && esTiendaAdmin(tienda) && entry && !entry.infinito) {
+    if (!snapshot.tiendasStock) snapshot.tiendasStock = {};
+    const key = tiendaId + '|' + itemId;
+    snapshot.tiendasStock[key] = stockDisponible(snapshot, tiendaId, entry) + 1;
     if (io) io.emit('world:shopStock', { tiendaId, itemId, stock: snapshot.tiendasStock[key] });
   }
 
@@ -317,6 +378,7 @@ function cocinarItem(playerId, itemId, cantidad, io) {
 
 module.exports = {
   comprarEnTienda,
+  venderEnTienda,
   registrarTesoroConRecompensa,
   usarConsumible,
   cocinarItem,

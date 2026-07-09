@@ -49,6 +49,39 @@ const ContenidoMundo = {
     this.activo = true;
   },
 
+  /** Fallback HTTP cuando el socket aún no envió game:init (Fase 3.6). */
+  inicializarDesdeSnapshot(snap) {
+    if (!snap || typeof snap !== 'object') return;
+    this.reset();
+    if (Array.isArray(snap.eliminados)) {
+      for (const id of snap.eliminados) if (id) this.eliminados.add(id);
+    }
+    if (snap.tesorosEstado) {
+      this.tesorosEstado = Object.assign({}, snap.tesorosEstado);
+    }
+    for (const t of (snap.tesoros || [])) {
+      if (!t?.id || this.eliminados.has(t.id)) continue;
+      this.tesoros.set(t.id, Object.assign({}, t));
+    }
+    for (const m of (snap.misiones || [])) {
+      if (!m?.id || this.eliminados.has(m.id)) continue;
+      this.misiones.set(m.id, Object.assign({}, m));
+    }
+    for (const c of (snap.cofres || [])) {
+      if (!c?.id || this.eliminados.has(c.id)) continue;
+      this.cofres.set(c.id, Object.assign({}, c));
+    }
+    for (const t of (snap.tiendasAdmin || [])) {
+      if (!t?.id || this.eliminados.has(t.id)) continue;
+      const merged = Object.assign({}, t);
+      const pos = t.pos || t.posicion;
+      if (pos) merged.pos = pos.slice();
+      this.tiendas.set(t.id, merged);
+    }
+    this.activo = !!(CONFIG.servidorOnline);
+    this._refrescarModulos();
+  },
+
   reconciliarDesdeSnapshot(snap) {
     if (!snap || typeof snap !== 'object') return;
     this.eliminados = new Set((snap.eliminados || []).filter(Boolean));

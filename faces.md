@@ -77,11 +77,11 @@ Pruebas:
 
 # FASE 2 - Estabilidad del servidor
 
-Estado: 🚧 En progreso (v308 — roles JWT + economía sync-partida)
+Estado: 🚧 En progreso (v309 — API set-role + owner randy)
 
 Objetivo: hacer el servidor mas estable antes de agregar funciones nuevas.
 
-Nota v308: roles `owner/admin/moderador/tester/jugador` en JWT; helpers `hasMinRole`, `isAdmin`; login devuelve `user.role`. Falta API asignar roles y quitar fallback por nombre.
+Nota v309: `POST /api/set-role` (solo owner); migración randy→owner; fallback por nombre solo si role=jugador. v308: roles JWT + helpers permisos.
 
 Como hacerlo:
 
@@ -101,11 +101,11 @@ Pruebas:
 
 # FASE 3 - Fuente unica del mundo
 
-Estado: 🚧 En progreso (v308 — sync-partida no pisa economía del cliente)
+Estado: 🚧 En progreso (v309 — venta tienda servidor + dinero validado)
 
 Objetivo: evitar que algunos jugadores vean objetos y otros no.
 
-Nota v308: `actualizarPartidaEnSnapshot` preserva mochila/dinero/historiales del servidor; admin edita con `permitirEconomiaCliente`. Falta venta tienda y misiones 100% servidor.
+Nota v309: `player:shopSell` + `validarPartidaMin` acota `dinero.saldo`; ContenidoMundo en fallback HTTP. v308: sync-partida no pisa economía del cliente.
 
 Incluye:
 
@@ -293,7 +293,7 @@ Cada pantalla debe tener:
 
 # FASE 8 - Pruebas antes de publicar
 
-Estado: 🚧 En progreso (v308 — objetivo **v308** en tcodm.com)
+Estado: 🚧 En progreso (v309 — objetivo **v309** en tcodm.com)
 
 **Guía detallada:** `faces/fase-8-validacion-movil-v299.md` (actualizar versión al probar)
 
@@ -305,7 +305,7 @@ Estado: 🚧 En progreso (v308 — objetivo **v308** en tcodm.com)
 | Prueba Android caminando con GPS | Randy | ☐ |
 | 2 jugadores reales en mapa | Randy | ☐ |
 | Inventario, admin, chat, amigos, tienda, misiones en móvil | Randy | ☐ |
-| No empezar funciones grandes nuevas | Equipo | ⏳ hasta validar v299 |
+| No empezar funciones grandes nuevas | Equipo | ⏳ hasta validar v309 |
 
 Cómo usar: marcar cada ítem con ☐ pendiente, ✅ ok o ❌ falló (fecha + nota breve).
 

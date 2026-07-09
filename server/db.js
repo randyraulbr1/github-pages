@@ -128,6 +128,7 @@ function initDb() {
 
   migrateUserRoleColumn();
   migrateAdminUserRoles();
+  migrateOwnerUserRoles();
 
   try {
     const { initWorldContentSchema } = require('./worldContent');
@@ -181,14 +182,35 @@ function migrateAdminUserRoles() {
     const users = db.prepare('SELECT id, username, role FROM users').all();
     let n = 0;
     for (const u of users) {
-      if (esNombreAdmin(u.username) && u.role !== 'admin') {
-        db.prepare("UPDATE users SET role = 'admin' WHERE id = ?").run(u.id);
+      if (!esNombreAdmin(u.username)) continue;
+      const name = String(u.username || '').trim().toLowerCase();
+      const target = name === 'randy' ? 'owner' : 'admin';
+      if (u.role !== target) {
+        db.prepare('UPDATE users SET role = ? WHERE id = ?').run(target, u.id);
         n++;
       }
     }
-    if (n > 0) console.log('   Migración users.role:', n, 'admin(s) asignados');
+    if (n > 0) console.log('   Migración users.role:', n, 'rol(es) admin/owner asignados');
   } catch (e) {
     console.warn('   migrateAdminUserRoles:', e.message);
+  }
+}
+
+/** Fase 2.2: cuenta randy → owner (compatibilidad cuentas existentes). */
+function migrateOwnerUserRoles() {
+  try {
+    const users = db.prepare('SELECT id, username, role FROM users').all();
+    let n = 0;
+    for (const u of users) {
+      const name = String(u.username || '').trim().toLowerCase();
+      if (name === 'randy' && u.role !== 'owner') {
+        db.prepare("UPDATE users SET role = 'owner' WHERE id = ?").run(u.id);
+        n++;
+      }
+    }
+    if (n > 0) console.log('   Migración users.role:', n, 'owner(s) asignados');
+  } catch (e) {
+    console.warn('   migrateOwnerUserRoles:', e.message);
   }
 }
 

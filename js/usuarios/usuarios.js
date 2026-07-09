@@ -202,6 +202,7 @@ const Usuarios = {
     if (!this.perfilActivo || !CONFIG.adminNombre) return false;
     const rolJwt = this._rolDesdeTokenOnline();
     if (rolJwt === 'admin' || rolJwt === 'owner') return true;
+    if (rolJwt && rolJwt !== 'jugador' && rolJwt !== 'player') return false;
     const p = this.perfilActivo;
     const adminId = CONFIG.adminId || 'pmr7x4zhznzw5o';
     if (p.id === adminId) return true;

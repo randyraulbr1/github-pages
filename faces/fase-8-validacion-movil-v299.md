@@ -1,8 +1,8 @@
-# FASE 8 — Validación móvil v299 (uso real)
+# FASE 8 — Validación móvil v309 (uso real)
 
 Estado: ⏳ **BLOQUEANTE** — no empezar funciones grandes nuevas hasta completar esto.
 
-Versión objetivo: **v299** en tcodm.com (`meta mariel-version` = 299).
+Versión objetivo: **v309** en tcodm.com (`meta mariel-version` = 309).
 
 ---
 
@@ -11,7 +11,7 @@ Versión objetivo: **v299** en tcodm.com (`meta mariel-version` = 299).
 1. ~~Cerrar PRs obsoletos~~ ✅ hecho.
 2. En el móvil: borrar caché del sitio **o** modo incógnito.
 
-3. Confirmar versión: al cargar tcodm.com debe verse v299 (pantalla actualizar o consola `mariel-version`).
+3. Confirmar versión: al cargar tcodm.com debe verse v309 (pantalla actualizar o consola `mariel-version`).
 
 ---
 
@@ -26,11 +26,11 @@ Versión objetivo: **v299** en tcodm.com (`meta mariel-version` = 299).
 | A3 | Inventario 🎒 | Abrir, cerrar con ✕, no desbordar pantalla | | |
 | A4 | Amigos 👥 | Abrir, menú ⋮ de un amigo, cerrar | | |
 | A5 | Chat 💬 | Abrir lista, entrar a conversación, cerrar | | |
-| A6 | Tienda 🏪 | Acercarse a tienda NPC, abrir, cerrar | | |
+| A6 | Tienda 🏪 | Comprar y vender en tienda admin (online) | | v309 shopSell | |
 | A7 | Misiones 📋 | Abrir panel, cerrar | | |
 | A8 | Opciones ⚙️ | Abrir, cerrar | | |
 | A9 | Admin 🛠️ | Solo Randy: abrir panel admin, cerrar | | |
-| A10 | Mover PIN admin | Organizar → mover un pin → confirmar → publicar | | fix v299 |
+| A10 | Mover PIN admin | Organizar → mover un pin → confirmar → publicar | | fix v299+ |
 | A11 | Mala conexión | Modo avión 5 s ON/OFF; app no crashea | | |
 
 **Regla GPS:** acciones largas (inventario, admin, chat largo) hacerlas **quieto**. Caminar = mapa + combate simple.

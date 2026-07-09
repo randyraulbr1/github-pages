@@ -322,7 +322,7 @@ function setupSockets(io) {
         }
       }
 
-      io.emit('player:updateStats', {
+      emitirACercanos(io, onlinePlayers, socket.playerId, 'player:updateStats', {
         playerId: socket.playerId,
         hp: data.hp,
         hpMax: online?.hpMax || 100,
@@ -782,6 +782,22 @@ function setupSockets(io) {
       if (!tiendaId || !itemId) return ack?.({ ok: false, error: 'tiendaId e itemId requeridos' });
       const { comprarEnTienda } = require('../playerEconomy');
       const result = comprarEnTienda(
+        socket.playerId,
+        tiendaId,
+        itemId,
+        Number(payload?.lat ?? payload?.pos?.[0]),
+        Number(payload?.lng ?? payload?.pos?.[1]),
+        io
+      );
+      ack?.(result);
+    });
+
+    socket.on('player:shopSell', (payload, ack) => {
+      const tiendaId = (payload?.tiendaId || '').trim();
+      const itemId = (payload?.itemId || '').trim();
+      if (!itemId) return ack?.({ ok: false, error: 'itemId requerido' });
+      const { venderEnTienda } = require('../playerEconomy');
+      const result = venderEnTienda(
         socket.playerId,
         tiendaId,
         itemId,

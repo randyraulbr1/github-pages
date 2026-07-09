@@ -120,14 +120,25 @@ function isGameAdminPlayer(playerId) {
   if (!player) return false;
   const user = findUserById(player.user_id);
   if (user?.role && hasMinRole(user.role, 'admin')) return true;
+  const legacy = normalizeRole(user?.role || 'jugador');
+  if (legacy !== 'jugador') return false;
   return isGameAdminName(player.name);
 }
 
 function isGameAdminAuth(auth) {
   if (!auth) return false;
   if (hasMinRole(auth, 'admin')) return true;
-  if (auth.playerId) return isGameAdminPlayer(auth.playerId);
+  const legacy = normalizeRole(auth.role || 'jugador');
+  if (legacy !== 'jugador' && auth.playerId) return isGameAdminPlayer(auth.playerId);
+  if (legacy === 'jugador' && auth.playerId) return isGameAdminPlayer(auth.playerId);
   return false;
+}
+
+function ownerMiddleware(req, res, next) {
+  if (!req.auth || !isOwner(req.auth)) {
+    return res.status(403).json({ ok: false, error: 'Solo el owner puede realizar esta acción' });
+  }
+  next();
 }
 
 function gameAdminMiddleware(req, res, next) {
@@ -197,6 +208,7 @@ module.exports = {
   isOwner,
   isAdmin,
   isModerator,
+  ownerMiddleware,
   assertProductionSecrets,
   warnProductionConfig,
   isProductionEnv

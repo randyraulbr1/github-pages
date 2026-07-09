@@ -52,6 +52,10 @@ function validarPartidaMin(datos) {
   if (out.xp != null) out.xp = clampEntero(out.xp, 0, XP_MAX);
   if (out.oro != null) out.oro = clampEntero(out.oro, 0, XP_MAX);
   if (out.muerto != null) out.muerto = !!out.muerto;
+  if (out.dinero != null && typeof out.dinero === 'object') {
+    const saldo = clampEntero(out.dinero.saldo ?? 0, 0, XP_MAX);
+    out.dinero = Object.assign({}, out.dinero, { saldo });
+  }
   return out;
 }
 

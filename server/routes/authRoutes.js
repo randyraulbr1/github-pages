@@ -13,13 +13,15 @@ const {
   createPlayer,
   findPlayerByUserId,
   findPlayerByName,
+  findUserById,
+  setUserRole,
   updateLastLogin,
   formatPlayer,
   getWorldSnapshot,
   getWorldSnapshotPublic,
   saveWorldSnapshot
 } = require('../db');
-const { hashPassword, comparePassword, signPlayerToken } = require('../auth');
+const { hashPassword, comparePassword, signPlayerToken, authMiddleware, ownerMiddleware, normalizeRole } = require('../auth');
 const { mergeJugadoresPartidas } = require('../syncMundo');
 const { forzarImportJugadores, leerMundoJson } = require('../importSnapshot');
 const { getJugadoresPublicos, respaldarCuentasEnGitHub, respaldarCuentasEnGitHubInmediato, buscarJugadorPublico } = require('../syncCuentas');
@@ -477,6 +479,37 @@ router.post('/login', (req, res) => {
       pinHash: sha256Pin(password),
       creado: Date.now()
     }
+  });
+});
+
+const ROLES_ASIGNABLES = new Set(['jugador', 'tester', 'moderador', 'admin', 'owner']);
+
+/** Owner asigna rol a una cuenta (Fase 2). */
+router.post('/set-role', authMiddleware, ownerMiddleware, (req, res) => {
+  const userId = parseInt(req.body?.userId, 10);
+  const role = normalizeRole(req.body?.role);
+  if (!userId || !ROLES_ASIGNABLES.has(role)) {
+    return res.status(400).json({ ok: false, error: 'userId y role válidos requeridos' });
+  }
+  const user = findUserById(userId);
+  if (!user) return res.status(404).json({ ok: false, error: 'Usuario no encontrado' });
+  if (Number(req.auth.sub) === userId && role !== 'owner') {
+    return res.status(400).json({ ok: false, error: 'No puedes quitarte el rol owner' });
+  }
+  const updated = setUserRole(userId, role);
+  const player = findPlayerByUserId(userId);
+  registrar(
+    'set_role',
+    `${req.auth.username || 'owner'} → user #${userId} (${updated.username}) role=${role}`
+  );
+  let token = null;
+  if (Number(req.auth.sub) === userId && player) {
+    token = signPlayerToken(updated, player);
+  }
+  return res.json({
+    ok: true,
+    user: { id: updated.id, username: updated.username, role: updated.role || role },
+    token
   });
 });
 
