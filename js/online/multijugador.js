@@ -127,14 +127,10 @@ const Multijugador = {
     if (!base || typeof Usuarios === 'undefined' || !Usuarios.perfilActivo) return false;
     if (typeof Mapa === 'undefined' || !Mapa.mapa) return false;
 
+    this._actualizarIndicadorConexion('reconectando');
+
     if (typeof SyncServidor !== 'undefined') {
       await SyncServidor.despertarServidor();
-      if (typeof MarielDiagnosticoRed !== 'undefined' && MarielDiagnosticoRed.ultimo) {
-        this._registrarDiagnostico(MarielDiagnosticoRed.ultimo);
-        if (!MarielDiagnosticoRed.ultimo.ok) {
-          this._actualizarIndicadorConexion('offline');
-        }
-      }
       if (localStorage.getItem(this.TOKEN_KEY)) {
         const valido = await SyncServidor.verificarToken();
         const coincide = valido && await SyncServidor.tokenCoincideConPerfil();
@@ -168,7 +164,18 @@ const Multijugador = {
       await SyncServidor.asegurarSesionServidor();
       token = localStorage.getItem(this.TOKEN_KEY);
     }
-    if (!token) return false;
+    if (!token) {
+      this._registrarDiagnostico({
+        codigo: typeof MarielDiagnosticoRed !== 'undefined' ? MarielDiagnosticoRed.CODIGOS.AUTH : 'auth',
+        titulo: 'Sin sesión en el servidor',
+        detalle: 'No hay token válido. Cierra sesión y entra de nuevo con tu contraseña.',
+        sugerencia: 'Si eres admin, usa la misma clave con la que entras al juego.',
+        host: base.replace(/^https?:\/\//, ''),
+        ok: false
+      });
+      this._actualizarIndicadorConexion('offline');
+      return false;
+    }
 
     await this.iniciar();
     return !!this.socket;
@@ -178,7 +185,7 @@ const Multijugador = {
    * Conecta y espera game:init / mundo del socket antes de quitar la pantalla de carga.
    */
   async conectarYEsperarMundo(timeoutMs) {
-    const limite = typeof timeoutMs === 'number' ? timeoutMs : 12000;
+    const limite = typeof timeoutMs === 'number' ? timeoutMs : 28000;
     const ok = await this.conectar();
     if (!this.socket) return false;
     if (this._mundoSocketListo) return true;
@@ -230,6 +237,7 @@ const Multijugador = {
       this.socket.disconnect();
       this.socket = null;
     }
+    this._reintentoAuthSocket = false;
     if (typeof MarielConsumoRed !== 'undefined') {
       MarielConsumoRed._socketEnganchado = false;
     }
@@ -310,11 +318,36 @@ const Multijugador = {
   _enlazarEventos() {
     if (!this.socket) return;
 
-    this.socket.on('connect_error', (err) => {
+    this.socket.on('connect_error', async (err) => {
       this.activo = false;
       const srv = this.urlServidor();
+      const msg = String((err && (err.message || err.description)) || '').toLowerCase();
+      const esAuth = /token|auth|jwt|unauthorized|inválid|invalid/i.test(msg);
+      if (esAuth && !this._reintentoAuthSocket) {
+        this._reintentoAuthSocket = true;
+        if (typeof SyncServidor !== 'undefined') {
+          SyncServidor.limpiarSesionOnline();
+          await SyncServidor.asegurarSesionServidor({}).catch(() => {});
+        }
+        const nuevo = localStorage.getItem(this.TOKEN_KEY);
+        if (nuevo && this.socket) {
+          this.socket.auth = { token: nuevo };
+          this.socket.connect();
+          return;
+        }
+      }
       const diag = typeof MarielDiagnosticoRed !== 'undefined'
-        ? MarielDiagnosticoRed.clasificarSocket(err, srv)
+        ? (esAuth
+          ? MarielDiagnosticoRed._guardar({
+            codigo: MarielDiagnosticoRed.CODIGOS.AUTH,
+            titulo: 'Sesión caducada',
+            detalle: 'El servidor rechazó la sesión (' + (err?.message || 'token') + ').',
+            sugerencia: 'Cierra sesión y vuelve a entrar con tu contraseña.',
+            url: srv,
+            host: MarielDiagnosticoRed._hostDe(srv),
+            ok: false
+          })
+          : MarielDiagnosticoRed.clasificarSocket(err, srv))
         : null;
       this._registrarDiagnostico(diag);
       this._actualizarIndicadorConexion('offline');

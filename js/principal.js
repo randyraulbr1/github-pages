@@ -82,12 +82,12 @@ async function conectarMultijugadorEnFondo(timeoutMs) {
   if (typeof Multijugador === 'undefined' || !Usuarios.perfilActivo || !CONFIG.servidorOnline) {
     return false;
   }
-  const limite = typeof timeoutMs === 'number' ? timeoutMs : 8000;
+  const limite = typeof timeoutMs === 'number' ? timeoutMs : 28000;
   MarielBoot.avanzar('Conectando con otros jugadores…');
   try {
     return await Promise.race([
       Multijugador.conectarYEsperarMundo(limite),
-      new Promise(resolve => setTimeout(() => resolve(false), limite + 400))
+      new Promise(resolve => setTimeout(() => resolve(false), limite + 800))
     ]);
   } catch (e) {
     return false;
@@ -102,7 +102,7 @@ async function esperarMundoEnMapa() {
     await new Promise(resolve => setTimeout(resolve, 350));
   }
   if (typeof Multijugador !== 'undefined' && Usuarios.perfilActivo && CONFIG.servidorOnline) {
-    await conectarMultijugadorEnFondo(8000);
+    await conectarMultijugadorEnFondo(28000);
     if (typeof Admin !== 'undefined' && Admin.pintarMapaCompleto) {
       Admin.pintarMapaCompleto();
     }
