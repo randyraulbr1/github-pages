@@ -48,6 +48,7 @@ for f in server/rateLimit.js server/adminHistorial.js; do
   node --check "$f"
 done
 grep -q 'rateLimit' server/sockets.js
+grep -q 'ROLES_SOCKET' server/sockets.js
 grep -q 'adminHistorial\|historial' server/routes/playerRoutes.js
 echo "OK rate limit + historial admin"
 

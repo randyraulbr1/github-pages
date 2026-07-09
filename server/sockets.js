@@ -620,7 +620,7 @@ function setupSockets(io) {
       const ty = targetOnline?.deathY ?? cuerpo?.deathY ?? targetDb.y;
       const actorPos = posicionJugadorOnline(socket.playerId, payload, onlinePlayers);
       if (!cercaDeCuerpo(actorPos, tx, ty)) {
-        return ack?.({ ok: false, error: 'Demasiado lejos (máx. 50 m)' });
+        return ack?.({ ok: false, error: 'Demasiado lejos (máx. 55 m)' });
       }
 
       const hpMax = Math.max(1, Math.round(payload?.hpMax || targetOnline?.hpMax || 100));
@@ -862,7 +862,7 @@ function setupSockets(io) {
 
       const actorPos = posicionJugadorOnline(socket.playerId, payload, onlinePlayers);
       if (!cercaDeCuerpo(actorPos, tx, ty)) {
-        return ack?.({ ok: false, error: 'Demasiado lejos (máx. 50 m)' });
+        return ack?.({ ok: false, error: 'Demasiado lejos (máx. 55 m)' });
       }
       const idx = inv.findIndex(x => x.id === itemId);
       if (idx < 0) return ack?.({ ok: false, error: 'Objeto no encontrado' });
