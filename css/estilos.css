@@ -1140,15 +1140,15 @@ button { font-family: inherit; }
 .inv-equip-row {
   display: flex;
   justify-content: center;
-  gap: 5px;
+  gap: var(--slot-gap, 5px);
   margin-bottom: 4px;
   flex: 0 0 auto;
 }
 .inv-equip-slot {
-  width: 40px;
-  height: 40px;
-  flex: 0 0 40px;
-  border-radius: 8px;
+  width: var(--slot-size-mobile, 48px);
+  height: var(--slot-size-mobile, 48px);
+  flex: 0 0 var(--slot-size-mobile, 48px);
+  border-radius: var(--slot-radius, 8px);
   border: 1px solid rgba(255,255,255,.18);
   background: rgba(0,0,0,.16);
   display: grid;
@@ -1199,16 +1199,21 @@ button { font-family: inherit; }
   flex: 1 1 auto;
   min-height: 0;
   display: grid;
-  grid-template-columns: repeat(5, 1fr);
-  grid-template-rows: repeat(5, 1fr);
-  gap: 5px;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  grid-template-rows: repeat(5, minmax(0, 1fr));
+  gap: var(--slot-gap, 5px);
   padding: 0;
-  overflow: hidden;
+  overflow-x: hidden;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: thin;
 }
 .inv-rejilla .slot, #rejilla-mochila .slot {
   aspect-ratio: 1 / 1;
   min-height: 0;
-  border-radius: 8px;
+  max-height: var(--slot-size-mobile, 56px);
+  width: 100%;
+  border-radius: var(--slot-radius, 8px);
   border: 1px solid rgba(255,255,255,.18);
   background: rgba(0,0,0,.16);
   display: grid;
@@ -1223,9 +1228,6 @@ button { font-family: inherit; }
 }
 .inv-rejilla .slot:active, #rejilla-mochila .slot:active {
   cursor: grabbing;
-}
-.inv-equip-slot {
-  touch-action: none;
 }
 .inv-rejilla .slot.over, #rejilla-mochila .slot.over,
 .inv-equip-slot.over,
@@ -1443,9 +1445,26 @@ button { font-family: inherit; }
     height: min(94dvh, 610px);
     max-height: 610px;
   }
-  .inv-equip-slot { width: 46px; height: 46px; flex-basis: 46px; }
+  .inv-equip-slot {
+    width: var(--slot-size-pc, 64px);
+    height: var(--slot-size-pc, 64px);
+    flex-basis: var(--slot-size-pc, 64px);
+  }
+  .inv-rejilla .slot, #rejilla-mochila .slot {
+    max-height: var(--slot-size-pc, 72px);
+  }
   .inv-rejilla, #rejilla-mochila { gap: 7px; }
   .inv-ayuda { font-size: 10px; }
+}
+@media (min-width: 480px) and (max-width: 699px) {
+  .inv-equip-slot {
+    width: var(--slot-size-tablet, 56px);
+    height: var(--slot-size-tablet, 56px);
+    flex-basis: var(--slot-size-tablet, 56px);
+  }
+  .inv-rejilla .slot, #rejilla-mochila .slot {
+    max-height: var(--slot-size-tablet, 64px);
+  }
 }
 @media (max-width: 360px) {
   .inv-equip-row, .inv-rejilla, #rejilla-mochila { gap: 4px; }

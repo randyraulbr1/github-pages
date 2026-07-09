@@ -24,6 +24,12 @@
   --ui-slot-bg: rgba(0, 0, 0, 0.22);
   --ui-slot-border: rgba(255, 255, 255, 0.12);
   --ui-z-confirm: 16000;
+  --slot-size-mobile: 48px;
+  --slot-size-tablet: 56px;
+  --slot-size-pc: 64px;
+  --slot-gap: 5px;
+  --slot-radius: 8px;
+  --panel-scrollbar-size: 8px;
 }
 
 /* Panel base (inventario como referencia) */

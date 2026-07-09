@@ -825,6 +825,7 @@ const Multijugador = {
     const invPendiente = Guardado.datos._invPendienteSync;
     let mochilaLocal;
     let armaLocal;
+    let equipoLocal;
     const prefsLocal = Guardado.datos.preferencias
       ? JSON.parse(JSON.stringify(Guardado.datos.preferencias))
       : null;
@@ -832,6 +833,9 @@ const Multijugador = {
     if (invPendiente && !pisarStats) {
       mochilaLocal = JSON.parse(JSON.stringify(Guardado.datos.mochila || []));
       armaLocal = Guardado.datos.armaEquipada;
+      equipoLocal = Guardado.datos.equipoEquipado
+        ? JSON.parse(JSON.stringify(Guardado.datos.equipoEquipado))
+        : null;
     }
     Guardado._aplicarSnapshot(d, { sinStats: !pisarStats });
     if (pisarStats) {
@@ -841,6 +845,7 @@ const Multijugador = {
     if (invPendiente && !pisarStats) {
       Guardado.datos.mochila = mochilaLocal;
       Guardado.datos.armaEquipada = armaLocal;
+      if (equipoLocal) Guardado.datos.equipoEquipado = equipoLocal;
     }
     const remotaT = d.preferenciasT || 0;
     if (prefsLocal && (!d.preferencias || remotaT < prefsTLocal)) {

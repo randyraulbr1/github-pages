@@ -147,6 +147,8 @@ const Mochila = {
 
   _refrescarTrasGuardado() {
     this.slots = Guardado.datos.mochila || this.slots;
+    this._asegurarEquipoEquipado();
+    this._sincronizarEquipoEquipado();
     this._notificarCambioEquipo();
   },
 
@@ -180,8 +182,10 @@ const Mochila = {
     for (const ranura of Items.RANURAS_EQUIPO) {
       const id = eq[ranura];
       if (!id) continue;
-      if (this._indiceEnMochila(id) >= 0) {
-        eq[ranura] = null;
+      const idxMochila = this._indiceEnMochila(id);
+      if (idxMochila >= 0) {
+        // Equipo equipado manda: quitar duplicado de mochila, no desequipar.
+        this.slots[idxMochila] = null;
         cambio = true;
         continue;
       }
@@ -191,6 +195,7 @@ const Mochila = {
         cambio = true;
       }
     }
+    if (cambio) Guardado.datos.mochila = this.slots;
     return cambio;
   },
 

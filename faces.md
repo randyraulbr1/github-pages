@@ -507,6 +507,25 @@ Render: **no eliminado** — rollback hasta 15.6. GitHub Pages: activo como roll
 
 ---
 
+# FASE 16 - Panel ADM e inventario responsive
+
+Estado: 🚧 En progreso (v305 — fix equipo + casillas inventario)
+
+Objetivo: UI profesional ADM + inventario sin bugs visuales ni pérdida de equipamiento.
+
+Documentacion: `faces/fase-16-ui-admin-inventario-responsive.md`
+
+| Bloqueante | Estado |
+|------------|--------|
+| Botas/equipo se quitan al recargar | 🚧 v305 |
+| Casillas sobrepuestas inventario | 🚧 v305 |
+| Reorganizar panel ADM por secciones | ⏳ |
+| Scrolls unificados | ⏳ |
+
+Nota v305: equipo equipado prioriza sobre duplicado en mochila; preserva `equipoEquipado` en sync pendiente; variables CSS `--slot-size-*`.
+
+---
+
 # Bugs conocidos / ideas pendientes
 
 ## Bug UI - Confirmacion de mover PIN queda detras
