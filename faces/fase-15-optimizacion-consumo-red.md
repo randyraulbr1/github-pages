@@ -168,6 +168,66 @@ Revisar:
 
 Si consume mucho, hacerlo manual o reducir frecuencia.
 
+### 9. Panel depuracion no debe parpadear
+
+Problema visto por Randy:
+
+- El panel de depuracion parpadea como si cargara todo de nuevo.
+
+Esto debe corregirse.
+
+Reglas:
+
+- No reconstruir todo el HTML del panel cada refresco.
+- Mantener las tarjetas existentes y actualizar solo los valores que cambiaron.
+- No perder scroll al refrescar.
+- No cerrar ni reabrir paneles internos.
+- No borrar y recrear listas si no hace falta.
+- Evitar flashes visuales.
+- Mostrar un estado discreto de actualizacion, por ejemplo: Actualizado hace X s.
+- El boton Actualizar ahora puede forzar refresco, pero sin parpadeo.
+
+Si el panel necesita recargar datos pesados, debe hacerlo en segundo plano.
+
+### 10. Descargar informe en TXT
+
+Agregar boton en el panel de depuracion:
+
+- Descargar informe TXT
+
+Debe descargar localmente un archivo de texto con los datos del panel.
+
+Nombre sugerido:
+
+- kingdom-gps-debug-vXXX-YYYY-MM-DD-HH-mm.txt
+
+Debe incluir:
+
+- version del juego
+- fecha y hora
+- servidor actual
+- ping
+- estado del servidor
+- jugadores online
+- objetos cargados
+- zona actual
+- ultimo sync
+- datos descargados
+- consumo Render de la sesion
+- proyeccion 30 dias
+- ahorro estimado
+- errores recientes
+- historial admin reciente
+- top eventos de red si existen
+- notas de diagnostico
+
+Reglas:
+
+- La descarga debe funcionar en PC y Android si el navegador lo permite.
+- No enviar el archivo al servidor.
+- No incluir tokens, JWT, contrasenas ni datos sensibles.
+- Debe ser legible por Randy y por otras IA.
+
 ## Instrumentacion recomendada
 
 Agregar medicion segura para desarrollo/admin:
@@ -192,6 +252,8 @@ No mostrar datos sensibles a jugadores normales.
 - Reducir peso de imagenes/iconos.
 - Minificar JS/CSS si no rompe el flujo actual.
 - Reducir refresh automatico del panel depuracion si consume mucho.
+- Evitar parpadeo del panel de depuracion actualizando solo valores.
+- Descargar informe TXT local para revisar datos sin copiar manualmente.
 
 ## Optimizaciones que requieren cuidado
 
@@ -236,6 +298,9 @@ Antes y despues de optimizar:
 - Crear/mover pin como admin.
 - Probar misiones.
 - Probar panel depuracion.
+- Confirmar que el panel depuracion no parpadea al actualizar.
+- Descargar informe TXT desde el panel depuracion.
+- Confirmar que el TXT no contiene datos sensibles.
 - Probar Android.
 
 ## Criterio de completado
@@ -249,6 +314,8 @@ Esta fase solo se considera completa si:
 - No se rompe Android.
 - No se rompe GPS.
 - No se pierde mundo ni inventario.
+- El panel depuracion no parpadea.
+- Randy puede descargar un TXT con el informe del panel.
 - Randy puede ver un resumen claro del consumo.
 
 ## Nota para Cursor
@@ -258,5 +325,7 @@ Randy quiere mantener Render Starter por ahora.
 No migrar servidor.
 
 Prioridad: medir, optimizar y bajar consumo sin romper nada.
+
+Tambien corregir el parpadeo del panel de depuracion y agregar boton para descargar todos los datos del diagnostico en TXT.
 
 No empezar sistemas grandes nuevos hasta saber cuanto consume realmente el juego.
