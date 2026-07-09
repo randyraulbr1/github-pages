@@ -46,11 +46,11 @@
       },
       "vida": 104,
       "hambre": 50,
-      "xp": 200,
+      "xp": 260,
       "nivel": 2,
       "posicionJugador": [
-        22.993561642099962,
-        -82.75380045175554
+        22.993645591615568,
+        -82.75382593274118
       ],
       "tesorosRecogidos": [],
       "misiones": {},
@@ -371,8 +371,23 @@
       ],
       "mensajesVistos": [],
       "muerto": false,
-      "armaEquipada": "arma_nv1"
+      "armaEquipada": "arma_nv1",
+      "equipoEquipado": {
+        "casco": null,
+        "chaleco": null,
+        "botas": null,
+        "ropa": null
+      },
+      "preferencias": {
+        "notifChat": true,
+        "notifAmigos": true,
+        "vibracionCombate": true,
+        "posBtnAtacar": "der"
+      },
+      "preferenciasT": 1783560347756,
+      "_equipoT": 1783614915955
     },
-    "t": 1783453784540
+    "t": 1783614916355,
+    "statsT": 1783614915955
   }
 }

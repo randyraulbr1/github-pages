@@ -1,6 +1,6 @@
 # FASE 3 — Consolidación sync Render ↔ GitHub
 
-Estado: 🚧 En progreso (v314)
+Estado: 🚧 En progreso (v315 — logs sync visibles)
 
 ## Valoración Randy / ChatGPT (jul 2026)
 
@@ -55,3 +55,20 @@ Jugador → Render (autoridad en vivo) → respaldo GitHub (persistencia tras re
 
 1. Crear cuenta test → entrar → redeploy Render → cuenta sigue en lista login.
 2. Comparar `/api/debug/world` jugadores vs `datos/mundo.json` en GitHub (deben converger tras saneo).
+
+## Cambios v315 — logs diagnóstico sync
+
+| Log | Dónde |
+|-----|-------|
+| ADMIN TOKEN EXISTE / NO | Cliente (`MarielSyncLog`) |
+| PUBLICANDO MUNDO | Cliente + Render |
+| RESPUESTA SYNC-MUNDO | Cliente + Render |
+| SOCKET CONECTADO | Cliente |
+| RECIBIDO mundo:sync | Cliente |
+| APLICANDO MUNDO REMOTO | Cliente |
+| MUNDO GUARDADO EN SQLITE | Logs Render |
+| io.emit enviado a todos | Logs Render |
+
+Panel admin abajo: `#mariel-sync-log`. Consola: `[SYNC]`.
+
+Fixes: `loadWorld()` al reconectar socket; `mundo:sync` temprano → cola hasta `Admin.iniciar`.

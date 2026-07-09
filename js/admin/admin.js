@@ -1761,6 +1761,9 @@ const Admin = {
     if (typeof AdminCatalogo !== 'undefined') AdminCatalogo.iniciar(this);
     if (typeof AdminDepuracion !== 'undefined') AdminDepuracion.iniciar(this);
     this._iniciarNavAdmin();
+    if (typeof Multijugador !== 'undefined' && Multijugador.aplicarMundoPendiente) {
+      Multijugador.aplicarMundoPendiente();
+    }
   },
 
   puedeMoverPinJugador() {
@@ -1923,6 +1926,10 @@ const Admin = {
   // Aplica el mundo publicado sin recargar toda la página
   _aplicarMundoRemoto(texto, opciones) {
     const opts = opciones || {};
+    if (typeof MarielSyncLog !== 'undefined') {
+      MarielSyncLog.log('APLICANDO MUNDO REMOTO',
+        'cargado=' + !!this._mundoCargado + ' modo=' + (this.modo || '—'));
+    }
     if (this.modo === 'organizar' || this._organizandoArrastreActivo) return;
     let remoto = null;
     try { remoto = JSON.parse(texto); } catch (e) { return; }
@@ -6148,6 +6155,7 @@ const Admin = {
   async publicarMundo(silencioso, opts) {
     this._pubCancelada = false;
     this._ultimoErrorPub = '';
+    if (typeof MarielSyncLog !== 'undefined') MarielSyncLog.tokenAdmin();
     if (!this._mundoCargado) {
       this._ultimoErrorPub = 'Mundo no cargado';
       return false;

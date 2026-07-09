@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
   <title>Kingdom Map</title>
-  <meta name="mariel-version" content="314">
+  <meta name="mariel-version" content="315">
   <style id="mariel-critical-actualizar">
     #pantalla-actualizar{position:fixed;inset:0;z-index:200000;background:linear-gradient(170deg,#1a2a4a 0%,#10141f 72%);display:flex;align-items:center;justify-content:center;padding:24px;box-sizing:border-box}
     #pantalla-actualizar.oculto{display:none!important}
@@ -22,7 +22,7 @@
   <link rel="icon" type="image/png" href="iconos/icono-192.png">
   <link rel="apple-touch-icon" href="iconos/icono-192.png">
   <link rel="stylesheet" href="lib/leaflet/leaflet.css">
-  <link rel="stylesheet" href="css/estilos.css?v=311">
+  <link rel="stylesheet" href="css/estilos.css?v=315">
   <link rel="stylesheet" href="css/ui_components.css?v=311">
   <link rel="stylesheet" href="css/chat.css?v=295">
   <link rel="stylesheet" href="css/amigos.css?v=295">
@@ -250,6 +250,9 @@
     <span class="cartel-servidor-detalle oculto"></span>
     <span class="cartel-servidor-sub">Toca para recargar y reintentar</span>
   </button>
+
+  <!-- Log sync (solo visible para admin cuando hay eventos) -->
+  <pre id="mariel-sync-log" class="mariel-sync-log oculto" aria-live="polite" title="Log de sincronización"></pre>
 
   <!-- HUD combate: banner invisibilidad (arriba) -->
   <div id="banner-huida" class="banner-huida oculto"></div>
@@ -1416,14 +1419,15 @@
   <script src="js/correo/correo.js?v=104"></script>
   <script src="js/enemigos/botin_enemigo.js?v=295"></script>
   <script src="js/enemigos/enemigos.js?v=295"></script>
-  <script src="js/online/sync_servidor.js?v=313"></script>
-  <script src="js/admin/admin.js?v=312"></script>
+  <script src="js/nucleo/sync_log.js?v=315"></script>
+  <script src="js/online/sync_servidor.js?v=315"></script>
+  <script src="js/admin/admin.js?v=315"></script>
   <script src="js/opciones/opciones.js?v=295"></script>
   <script src="js/online/mundo_online.js?v=295"></script>
   <script src="js/online/contenido_mundo.js?v=295"></script>
   <script src="js/online/amigos.js?v=295"></script>
   <script src="js/chat/chat.js?v=295"></script>
-  <script src="js/online/multijugador.js?v=313"></script>
+  <script src="js/online/multijugador.js?v=315"></script>
   <script src="js/principal.js?v=313"></script>
   <script>
     // Registrar la app instalable (PWA)

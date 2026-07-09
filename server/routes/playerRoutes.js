@@ -52,9 +52,17 @@ router.post('/sync-mundo', authMiddleware, gameAdminMiddleware, (req, res) => {
   if (!mundo || typeof mundo !== 'object') {
     return res.status(400).json({ ok: false, error: 'JSON del mundo requerido' });
   }
+  const nJug = (mundo.jugadores || []).length;
+  const nObj = (mundo.objetos || []).length;
+  console.log('[sync-mundo] PUBLICANDO MUNDO — admin:', req.auth.username || req.auth.playerId,
+    '| jugadores:', nJug, '| objetos:', nObj);
   const io = req.app.get('io');
   const result = syncMundoFromJson(mundo, io);
-  if (!result.ok) return res.status(400).json(result);
+  if (!result.ok) {
+    console.warn('[sync-mundo] RESPUESTA SYNC-MUNDO fallo:', result.error || result);
+    return res.status(400).json(result);
+  }
+  console.log('[sync-mundo] RESPUESTA SYNC-MUNDO OK — actualizadoEn:', result.actualizadoEn);
   try {
     const { registrarAdminHistorial } = require('../adminHistorial');
     registrarAdminHistorial({

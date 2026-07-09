@@ -410,6 +410,10 @@ const SyncServidor = {
   async publicar(jsonStr) {
     const base = this._base();
     const token = this._getToken();
+    if (typeof MarielSyncLog !== 'undefined') {
+      if (token) MarielSyncLog.log('PUBLICANDO MUNDO', 'sync-mundo → ' + base);
+      else MarielSyncLog.log('PUBLICANDO MUNDO', 'BLOQUEADO — sin token');
+    }
     if (!base || !token) {
       return { ok: false, error: 'Sin sesión — vuelve a entrar con tu contraseña' };
     }
@@ -423,6 +427,9 @@ const SyncServidor = {
           body: body
         }, 35000);
         const data = await r.json().catch(() => ({}));
+        if (typeof MarielSyncLog !== 'undefined') {
+          MarielSyncLog.log('RESPUESTA SYNC-MUNDO', 'HTTP ' + r.status + (data.ok ? ' OK' : ' ' + (data.error || 'fallo')));
+        }
         if (r.status === 401 || r.status === 403) {
           localStorage.removeItem(this.TOKEN_KEY);
           return { ok: false, error: r.status === 403

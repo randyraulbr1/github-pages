@@ -1553,6 +1553,8 @@ function syncMundoFromJson(mundo, io) {
   }
 
   saveWorldSnapshot(mundo);
+  console.log('[sync-mundo] MUNDO GUARDADO EN SQLITE — jugadores:', (mundo.jugadores || []).length,
+    '| objetos:', (mundo.objetos || []).length);
 
   try {
     const { registrar } = require('./eventLog');

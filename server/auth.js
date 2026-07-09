@@ -146,7 +146,13 @@ function gameAdminMiddleware(req, res, next) {
     return res.status(401).json({ ok: false, error: 'Token de jugador requerido' });
   }
   if (!isGameAdminAuth(req.auth)) {
-    return res.status(403).json({ ok: false, error: 'Solo el administrador del juego puede publicar el mundo' });
+    const who = req.auth.username || req.auth.sub || '?';
+    console.warn('[sync-mundo] 403 admin — usuario JWT:', who, 'role:', req.auth.role);
+    return res.status(403).json({
+      ok: false,
+      error: 'Solo el administrador del juego puede publicar el mundo',
+      usuario: who
+    });
   }
   next();
 }
