@@ -1,6 +1,6 @@
 # FASE 16 - Reorganizacion profesional del panel ADM e inventario responsive
 
-Estado: 🚧 En progreso (v305 — fix persistencia equipo + CSS casillas)
+Estado: 🚧 En progreso (v307 — scrolls unificados v307)
 
 ## Contexto
 

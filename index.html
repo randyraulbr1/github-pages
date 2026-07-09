@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
   <title>Kingdom Map</title>
-  <meta name="mariel-version" content="306">
+  <meta name="mariel-version" content="307">
   <style id="mariel-critical-actualizar">
     #pantalla-actualizar{position:fixed;inset:0;z-index:200000;background:linear-gradient(170deg,#1a2a4a 0%,#10141f 72%);display:flex;align-items:center;justify-content:center;padding:24px;box-sizing:border-box}
     #pantalla-actualizar.oculto{display:none!important}
@@ -22,13 +22,13 @@
   <link rel="icon" type="image/png" href="iconos/icono-192.png">
   <link rel="apple-touch-icon" href="iconos/icono-192.png">
   <link rel="stylesheet" href="lib/leaflet/leaflet.css">
-  <link rel="stylesheet" href="css/estilos.css?v=298">
-  <link rel="stylesheet" href="css/ui_components.css?v=298">
+  <link rel="stylesheet" href="css/estilos.css?v=307">
+  <link rel="stylesheet" href="css/ui_components.css?v=307">
   <link rel="stylesheet" href="css/chat.css?v=295">
   <link rel="stylesheet" href="css/amigos.css?v=295">
   <link rel="stylesheet" href="css/opciones.css?v=295">
   <link rel="stylesheet" href="css/notificaciones.css?v=117">
-  <script src="js/nucleo/red.js?v=306"></script>
+  <script src="js/nucleo/red.js?v=307"></script>
   <script>
     (function () {
       var metaV = document.querySelector('meta[name="mariel-version"]');
@@ -143,7 +143,7 @@
     </div>
   </div>
 
-  <script src="js/nucleo/version_app.js?v=306"></script>
+  <script src="js/nucleo/version_app.js?v=307"></script>
   <script>MarielVersion.iniciar(window.__MARIEL_EMBEDDED__);</script>
 
   <!-- PANTALLA DE CARGA (solo si no hay actualización pendiente) -->
@@ -873,7 +873,7 @@
       <div class="ventana-titulo">🛠️ Administrador <button class="btn-cerrar" data-cierra="ventana-admin">✕</button></div>
       <div id="admin-aviso-inline" class="admin-aviso-inline oculto" role="alert"></div>
       <div class="admin-layout">
-        <nav id="lista-admin">
+        <nav id="lista-admin" class="ui-scroll-area">
           <div class="admin-seccion-titulo">🗺️ Mapa</div>
           <button class="fila-opcion admin-nav" id="admin-crear-mision"><span class="icono-opcion">📜</span> Misión</button>
           <button class="fila-opcion admin-nav" id="admin-crear-tesoro"><span class="icono-opcion">🎁</span> Tesoro</button>
@@ -915,7 +915,7 @@
           </div>
 
           <div id="admin-vista-form" class="admin-vista oculto">
-            <div id="admin-form-campos"></div>
+            <div id="admin-form-campos" class="ui-scroll-area"></div>
             <div class="admin-form-pie">
               <button type="button" id="btn-admin-guardar">Continuar → colocar en el mapa</button>
             </div>
@@ -931,7 +931,7 @@
               <button type="button" id="admin-tab-vivos" class="admin-tab-jug activa">🟢 Vivos</button>
               <button type="button" id="admin-tab-muertos" class="admin-tab-jug">💀 Muertos</button>
             </div>
-            <div id="admin-lista-jugadores"></div>
+            <div id="admin-lista-jugadores" class="ui-scroll-area"></div>
           </div>
 
           <div id="admin-vista-crear-jugador" class="admin-vista oculto">
@@ -1325,21 +1325,21 @@
   <script src="lib/leaflet/leaflet.js?v=104"></script>
 
   <!-- MÓDULOS DEL JUEGO (orden importante) -->
-  <script src="js/config/config.js?v=306"></script>
-  <script src="js/nucleo/utilidades.js?v=306"></script>
-  <script src="js/nucleo/diagnostico_red.js?v=306"></script>
-  <script src="js/nucleo/consumo_red.js?v=306"></script>
+  <script src="js/config/config.js?v=307"></script>
+  <script src="js/nucleo/utilidades.js?v=307"></script>
+  <script src="js/nucleo/diagnostico_red.js?v=307"></script>
+  <script src="js/nucleo/consumo_red.js?v=307"></script>
   <script src="js/nucleo/ui_components.js?v=298"></script>
   <script src="js/nucleo/ui_manager.js?v=298"></script>
   <script src="js/mundo/mundo_publico.js?v=104"></script>
   <script src="js/notificaciones/notificaciones.js?v=295"></script>
   <script src="js/usuarios/usuarios.js?v=302"></script>
-  <script src="js/guardado/guardado.js?v=306"></script>
+  <script src="js/guardado/guardado.js?v=307"></script>
   <script src="js/historial/historial.js?v=104"></script>
   <script src="js/dinero/dinero.js?v=104"></script>
   <script src="js/vida/vida.js?v=295"></script>
   <script src="js/items/items.js?v=295"></script>
-  <script src="js/admin/admin_depuracion.js?v=306"></script>
+  <script src="js/admin/admin_depuracion.js?v=307"></script>
   <script src="js/admin/catalogo_objetos.js?v=295"></script>
   <script src="js/mochila/mochila.js?v=295"></script>
   <script src="js/bolsas/bolsas.js?v=295"></script>
@@ -1356,19 +1356,19 @@
   <script src="js/correo/correo.js?v=104"></script>
   <script src="js/enemigos/botin_enemigo.js?v=295"></script>
   <script src="js/enemigos/enemigos.js?v=295"></script>
-  <script src="js/online/sync_servidor.js?v=306"></script>
+  <script src="js/online/sync_servidor.js?v=307"></script>
   <script src="js/admin/admin.js?v=299"></script>
   <script src="js/opciones/opciones.js?v=295"></script>
   <script src="js/online/mundo_online.js?v=295"></script>
   <script src="js/online/contenido_mundo.js?v=295"></script>
   <script src="js/online/amigos.js?v=295"></script>
   <script src="js/chat/chat.js?v=295"></script>
-  <script src="js/online/multijugador.js?v=306"></script>
-  <script src="js/principal.js?v=306"></script>
+  <script src="js/online/multijugador.js?v=307"></script>
+  <script src="js/principal.js?v=307"></script>
   <script>
     // Registrar la app instalable (PWA)
     if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.register('sw.js?v=306', { updateViaCache: 'none' })
+      navigator.serviceWorker.register('sw.js?v=307', { updateViaCache: 'none' })
         .then(function (reg) {
           if (typeof MarielVersion !== 'undefined') MarielVersion.registrarServiceWorker(reg);
         })

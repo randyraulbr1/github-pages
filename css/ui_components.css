@@ -386,8 +386,98 @@
 .ui-panel-body #lista-correo {
   flex: 1;
   min-height: 0;
-  overflow-y: auto;
   padding: 4px 2px 8px;
+}
+
+/* FASE 16 — scroll unificado (patrón inventario / opciones) */
+:root {
+  --ui-scroll-track: rgba(0, 0, 0, 0.16);
+  --ui-scroll-thumb: #6f7783;
+  --ui-scroll-thumb-grad: linear-gradient(180deg, #858b96, #59616d);
+}
+
+.ui-scroll-area,
+#lista-admin,
+#admin-form-campos,
+#admin-lista-jugadores,
+.admin-catalogo-rejilla,
+.admin-catalogo-detalle,
+.admin-depuracion-historial,
+.admin-panel-derecho .admin-vista:not(.oculto),
+.inv-rejilla,
+#rejilla-mochila,
+.panel-lista-scroll,
+.ui-panel-body #tienda-lista,
+.ui-panel-body #lista-misiones,
+.ui-panel-body #historial-lista,
+.ui-panel-body #historial-jugador,
+.ui-panel-body #lista-correo,
+#ventana-opciones .opciones-content {
+  overflow-y: auto;
+  overflow-x: hidden;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+  scrollbar-color: var(--ui-scroll-thumb) var(--ui-scroll-track);
+  padding-bottom: max(10px, env(safe-area-inset-bottom, 0px));
+  min-height: 0;
+}
+
+.ui-scroll-area::-webkit-scrollbar,
+#lista-admin::-webkit-scrollbar,
+#admin-form-campos::-webkit-scrollbar,
+#admin-lista-jugadores::-webkit-scrollbar,
+.admin-catalogo-rejilla::-webkit-scrollbar,
+.admin-catalogo-detalle::-webkit-scrollbar,
+.admin-depuracion-historial::-webkit-scrollbar,
+.inv-rejilla::-webkit-scrollbar,
+#rejilla-mochila::-webkit-scrollbar,
+.panel-lista-scroll::-webkit-scrollbar,
+.ui-panel-body #tienda-lista::-webkit-scrollbar,
+.ui-panel-body #lista-misiones::-webkit-scrollbar,
+.ui-panel-body #historial-lista::-webkit-scrollbar,
+#ventana-opciones .opciones-content::-webkit-scrollbar {
+  width: var(--panel-scrollbar-size, 8px);
+  height: var(--panel-scrollbar-size, 8px);
+}
+
+.ui-scroll-area::-webkit-scrollbar-track,
+#lista-admin::-webkit-scrollbar-track,
+#admin-form-campos::-webkit-scrollbar-track,
+#admin-lista-jugadores::-webkit-scrollbar-track,
+.admin-catalogo-rejilla::-webkit-scrollbar-track,
+.admin-catalogo-detalle::-webkit-scrollbar-track,
+.admin-depuracion-historial::-webkit-scrollbar-track,
+.inv-rejilla::-webkit-scrollbar-track,
+#rejilla-mochila::-webkit-scrollbar-track,
+.panel-lista-scroll::-webkit-scrollbar-track,
+.ui-panel-body #tienda-lista::-webkit-scrollbar-track,
+.ui-panel-body #lista-misiones::-webkit-scrollbar-track,
+.ui-panel-body #historial-lista::-webkit-scrollbar-track,
+#ventana-opciones .opciones-content::-webkit-scrollbar-track {
+  background: var(--ui-scroll-track);
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.ui-scroll-area::-webkit-scrollbar-thumb,
+#lista-admin::-webkit-scrollbar-thumb,
+#admin-form-campos::-webkit-scrollbar-thumb,
+#admin-lista-jugadores::-webkit-scrollbar-thumb,
+.admin-catalogo-rejilla::-webkit-scrollbar-thumb,
+.admin-catalogo-detalle::-webkit-scrollbar-thumb,
+.admin-depuracion-historial::-webkit-scrollbar-thumb,
+.inv-rejilla::-webkit-scrollbar-thumb,
+#rejilla-mochila::-webkit-scrollbar-thumb,
+.panel-lista-scroll::-webkit-scrollbar-thumb,
+.ui-panel-body #tienda-lista::-webkit-scrollbar-thumb,
+.ui-panel-body #lista-misiones::-webkit-scrollbar-thumb,
+.ui-panel-body #historial-lista::-webkit-scrollbar-thumb,
+#ventana-opciones .opciones-content::-webkit-scrollbar-thumb {
+  background: var(--ui-scroll-thumb-grad);
+  border-radius: 999px;
+  border: 1px solid #444;
+  box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.25);
 }
 
 @media (max-width: 380px) {
