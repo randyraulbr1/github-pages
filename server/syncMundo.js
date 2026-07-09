@@ -306,6 +306,27 @@ const CAMPOS_ECONOMIA_AUTORITATIVA = [
   'mochila', 'dinero', 'historialDinero', 'historialObjetos', 'tesorosRecogidos'
 ];
 
+function equipoTienePiezas(eq) {
+  if (!eq || typeof eq !== 'object') return false;
+  return ['casco', 'chaleco', 'botas', 'ropa'].some((r) => !!eq[r]);
+}
+
+/** Fase 16 — no pisar equipo del cliente si su _equipoT es más reciente. */
+function fusionarEquipoPartida(fusionados, prevDatos, snapDatos, opts) {
+  if (opts?.permitirEconomiaCliente) return fusionados;
+  const prevT = prevDatos?._equipoT || prevDatos?.statsT || 0;
+  const newT = snapDatos?._equipoT || snapDatos?.statsT || 0;
+  if (newT >= prevT) return fusionados;
+  const out = fusionados;
+  if (prevDatos?.armaEquipada) out.armaEquipada = prevDatos.armaEquipada;
+  if (prevDatos?.equipoEquipado) out.equipoEquipado = prevDatos.equipoEquipado;
+  if (prevDatos?._equipoT) out._equipoT = prevDatos._equipoT;
+  if (equipoTienePiezas(prevDatos?.equipoEquipado) && !equipoTienePiezas(snapDatos?.equipoEquipado)) {
+    out.equipoEquipado = prevDatos.equipoEquipado;
+  }
+  return out;
+}
+
 function preservarEconomiaServidor(fusionados, prevDatos, opts) {
   if (opts?.permitirEconomiaCliente) return fusionados;
   const out = fusionados;
@@ -329,6 +350,7 @@ function actualizarPartidaEnSnapshot(perfilId, partidaSnap, io, opts) {
   if (snap.datos) {
     let fusionados = Object.assign({}, prevDatos, validarPartidaMin(snap.datos));
     fusionados = preservarEconomiaServidor(fusionados, prevDatos, opts);
+    fusionados = fusionarEquipoPartida(fusionados, prevDatos, snap.datos, opts);
     const tNew = fusionados.preferenciasT || snap.statsT || snap.t || 0;
     const tOld = prevDatos.preferenciasT || 0;
     if (prevDatos.preferencias && (!fusionados.preferencias || tNew < tOld)) {

@@ -482,7 +482,7 @@ Documentacion: `faces/fase-15-optimizacion-consumo-red.md`
 
 # FASE 16 - Panel ADM e inventario responsive
 
-Estado: 🚧 En progreso (v310 — ADM profesional + equipo `_equipoT`)
+Estado: 🚧 En progreso (v311 — pie ADM + scrolls + equipo servidor)
 
 Documentacion: `faces/fase-16-ui-admin-inventario-responsive.md`
 
@@ -492,6 +492,7 @@ Documentacion: `faces/fase-16-ui-admin-inventario-responsive.md`
 | Casillas inventario | ✅ v305–310 |
 | ADM reorganizado (Mundo/Combate/Sistema) | ✅ v310 |
 | Depuración sin parpadeo + TXT | ✅ v310 |
+| Pie ADM versión/sync + filtro historial | ✅ v311 |
 | Validación móvil Randy | ☐ Fase 8 |
 | ADM secciones + PC | ✅ v308 |
 

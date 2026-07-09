@@ -2493,6 +2493,14 @@ const Admin = {
         if (orig) orig.click();
       });
     });
+    document.getElementById('btn-admin-refrescar-seccion')?.addEventListener('click', () => {
+      const v = this._adminVistaActual;
+      if (v === 'admin-vista-depuracion' && typeof AdminDepuracion !== 'undefined') {
+        AdminDepuracion._pintar(true);
+      } else if (v === 'admin-vista-jugadores') {
+        this._listarCuentasAsync({ soloRefrescar: true, sinPartidas: true });
+      }
+    });
     this._mostrarAdminNavRaiz();
   },
 
@@ -2513,6 +2521,14 @@ const Admin = {
     if (tit) tit.textContent = titulo || '';
     const panelDer = document.getElementById('admin-panel-derecho');
     if (panelDer) panelDer.classList.remove('oculto');
+    const pie = document.getElementById('admin-panel-pie');
+    if (pie) pie.classList.remove('oculto');
+    this._actualizarAdminPanelPie();
+    const btnRef = document.getElementById('btn-admin-refrescar-seccion');
+    if (btnRef) {
+      const mostrar = vistaId === 'admin-vista-depuracion' || vistaId === 'admin-vista-jugadores';
+      btnRef.classList.toggle('oculto', !mostrar);
+    }
     const layout = document.querySelector('.admin-layout');
     if (layout) {
       const editorAbierto = vistaId === 'admin-vista-editor' || vistaId === 'admin-vista-crear-jugador';
@@ -2526,10 +2542,33 @@ const Admin = {
 
   _ocultarPanelDerecho() {
     document.getElementById('admin-panel-derecho')?.classList.add('oculto');
+    document.getElementById('admin-panel-pie')?.classList.add('oculto');
     document.querySelectorAll('.admin-vista').forEach(v => v.classList.add('oculto'));
     document.querySelector('.admin-layout')?.classList.remove('admin-panel-editor-abierto');
     this._adminVistaActual = null;
     this._adminVistaTitulo = '';
+  },
+
+  _actualizarAdminPanelPie() {
+    const ver = document.getElementById('admin-panel-version');
+    const sync = document.getElementById('admin-panel-sync-estado');
+    if (ver) {
+      const v = (typeof MarielVersion !== 'undefined' && MarielVersion.versionCargada)
+        ? MarielVersion.versionCargada()
+        : (CONFIG?.version || '?');
+      ver.textContent = 'v' + v;
+    }
+    if (sync) {
+      const ts = this.publicado?.actualizadoEn || this.datos?.actualizadoEn || 0;
+      if (ts) {
+        const d = new Date(ts);
+        sync.textContent = 'Mapa: ' + d.toLocaleString('es-ES', {
+          day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit'
+        });
+      } else {
+        sync.textContent = 'Sin guardado reciente';
+      }
+    }
   },
 
   _volverAlPanel() {

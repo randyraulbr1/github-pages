@@ -17,6 +17,7 @@ const AdminDepuracion = {
     document.getElementById('admin-depuracion')?.addEventListener('click', () => this.abrir());
     document.getElementById('btn-admin-depuracion-refrescar')?.addEventListener('click', () => this._pintar(true));
     document.getElementById('btn-admin-depuracion-txt')?.addEventListener('click', () => this._descargarInformeTxt());
+    document.getElementById('admin-dep-hist-buscar')?.addEventListener('input', () => this._pintarHistorial());
     document.getElementById('admin-depuracion-historial')?.addEventListener('click', (e) => {
       const btn = e.target.closest('[data-restaurar-historial]');
       if (!btn) return;
@@ -31,6 +32,7 @@ const AdminDepuracion = {
     document.getElementById('admin-depuracion-grid')?.classList.remove('oculto');
     document.getElementById('admin-depuracion-errores')?.classList.remove('oculto');
     document.getElementById('btn-admin-depuracion-refrescar')?.classList.remove('oculto');
+    document.getElementById('admin-dep-hist-buscar')?.classList.add('oculto');
     this._admin._mostrarPanelDerecho('admin-vista-depuracion', '🔧 Depuración');
     this._pintar(true);
     this._iniciarRefresh();
@@ -42,6 +44,7 @@ const AdminDepuracion = {
     document.getElementById('admin-depuracion-grid')?.classList.add('oculto');
     document.getElementById('admin-depuracion-errores')?.classList.add('oculto');
     document.getElementById('btn-admin-depuracion-refrescar')?.classList.add('oculto');
+    document.getElementById('admin-dep-hist-buscar')?.classList.remove('oculto');
     this._admin._mostrarPanelDerecho('admin-vista-depuracion', '📋 Historial admin');
     this._pintarHistorial();
     this._detenerRefresh();
@@ -387,9 +390,16 @@ const AdminDepuracion = {
       return;
     }
     const data = await SyncServidor.obtenerAdminHistorial();
-    const lista = data?.historial || [];
+    let lista = data?.historial || [];
+    const q = (document.getElementById('admin-dep-hist-buscar')?.value || '').trim().toLowerCase();
+    if (q) {
+      lista = lista.filter((h) => {
+        const txt = [h.accion, h.quien, h.refId, h.detalle, h.version].join(' ').toLowerCase();
+        return txt.includes(q);
+      });
+    }
     if (!lista.length) {
-      box.innerHTML = '<p class="admin-dep-sin-errores">Sin acciones admin registradas aún</p>';
+      box.innerHTML = '<p class="admin-dep-sin-errores">' + (q ? 'Sin coincidencias' : 'Sin acciones admin registradas aún') + '</p>';
       return;
     }
     const filas = lista.slice(0, 20).map((h) => {

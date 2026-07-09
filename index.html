@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
   <title>Kingdom Map</title>
-  <meta name="mariel-version" content="310">
+  <meta name="mariel-version" content="311">
   <style id="mariel-critical-actualizar">
     #pantalla-actualizar{position:fixed;inset:0;z-index:200000;background:linear-gradient(170deg,#1a2a4a 0%,#10141f 72%);display:flex;align-items:center;justify-content:center;padding:24px;box-sizing:border-box}
     #pantalla-actualizar.oculto{display:none!important}
@@ -22,13 +22,13 @@
   <link rel="icon" type="image/png" href="iconos/icono-192.png">
   <link rel="apple-touch-icon" href="iconos/icono-192.png">
   <link rel="stylesheet" href="lib/leaflet/leaflet.css">
-  <link rel="stylesheet" href="css/estilos.css?v=310">
-  <link rel="stylesheet" href="css/ui_components.css?v=310">
+  <link rel="stylesheet" href="css/estilos.css?v=311">
+  <link rel="stylesheet" href="css/ui_components.css?v=311">
   <link rel="stylesheet" href="css/chat.css?v=295">
   <link rel="stylesheet" href="css/amigos.css?v=295">
   <link rel="stylesheet" href="css/opciones.css?v=295">
   <link rel="stylesheet" href="css/notificaciones.css?v=117">
-  <script src="js/nucleo/red.js?v=310"></script>
+  <script src="js/nucleo/red.js?v=311"></script>
   <script>
     (function () {
       var metaV = document.querySelector('meta[name="mariel-version"]');
@@ -143,7 +143,7 @@
     </div>
   </div>
 
-  <script src="js/nucleo/version_app.js?v=310"></script>
+  <script src="js/nucleo/version_app.js?v=311"></script>
   <script>MarielVersion.iniciar(window.__MARIEL_EMBEDDED__);</script>
 
   <!-- PANTALLA DE CARGA (solo si no hay actualización pendiente) -->
@@ -438,7 +438,7 @@
             </div>
           </details>
 
-          <div class="amigos-lista-scroll">
+          <div class="amigos-lista-scroll ui-scroll-area panel-lista-scroll">
             <div id="amigos-estado" class="ui-estado-contenedor oculto"></div>
             <div id="amigos-pendientes" class="amigos-pendientes oculto"></div>
             <div id="amigos-lista" class="friends-list"></div>
@@ -912,6 +912,7 @@
           <div class="admin-panel-encabezado">
             <button type="button" class="btn-admin-volver" data-volver-admin aria-label="Volver al menú">←</button>
             <span id="admin-panel-titulo">—</span>
+            <button type="button" class="btn-admin-refrescar-seccion oculto" id="btn-admin-refrescar-seccion" title="Actualizar sección">🔄</button>
           </div>
 
           <div id="admin-vista-form" class="admin-vista oculto">
@@ -1074,7 +1075,7 @@
           </div>
 
           <div id="admin-vista-hub-mapa" class="admin-vista oculto">
-            <div class="admin-hub-cuerpo">
+            <div class="admin-hub-cuerpo ui-scroll-area">
               <p class="admin-clave-ayuda">Mapa, pines y publicación del mundo.</p>
               <button type="button" class="fila-opcion admin-nav admin-hub-btn" data-admin-accion="admin-organizar"><span class="icono-opcion">✋</span> Organizar pines</button>
               <button type="button" class="fila-opcion admin-nav admin-hub-btn" data-admin-accion="admin-mover-pin"><span class="icono-opcion">🎯</span> <span id="admin-hub-mover-pin-texto">Arrastrar pin (admin): ON</span></button>
@@ -1090,7 +1091,7 @@
           </div>
 
           <div id="admin-vista-hub-objetos" class="admin-vista oculto">
-            <div class="admin-hub-cuerpo">
+            <div class="admin-hub-cuerpo ui-scroll-area">
               <p class="admin-clave-ayuda">Objetos, tesoros y catálogo del juego.</p>
               <button type="button" class="fila-opcion admin-nav admin-hub-btn" data-admin-accion="admin-dejar-objeto"><span class="icono-opcion">📦</span> Colocar objeto</button>
               <button type="button" class="fila-opcion admin-nav admin-hub-btn" data-admin-accion="admin-crear-tesoro"><span class="icono-opcion">🎁</span> Tesoro</button>
@@ -1099,7 +1100,7 @@
           </div>
 
           <div id="admin-vista-hub-economia" class="admin-vista oculto">
-            <div class="admin-hub-cuerpo">
+            <div class="admin-hub-cuerpo ui-scroll-area">
               <p class="admin-clave-ayuda">Balance, precios y reglas económicas.</p>
               <button type="button" class="fila-opcion admin-nav admin-hub-btn" data-admin-accion="admin-bdd-global"><span class="icono-opcion">🗄️</span> Reglas y balance</button>
               <button type="button" class="fila-opcion admin-nav admin-hub-btn" data-admin-accion="admin-cat-precios"><span class="icono-opcion">💲</span> Precios de tienda</button>
@@ -1108,7 +1109,7 @@
           </div>
 
           <div id="admin-vista-hub-combate" class="admin-vista oculto">
-            <div class="admin-hub-cuerpo">
+            <div class="admin-hub-cuerpo ui-scroll-area">
               <p class="admin-clave-ayuda">NPC, tiendas del mapa y cofres.</p>
               <button type="button" class="fila-opcion admin-nav admin-hub-btn" data-admin-accion="admin-crear-enemigo"><span class="icono-opcion">👹</span> Crear enemigo</button>
               <button type="button" class="fila-opcion admin-nav admin-hub-btn" data-admin-accion="admin-combate-enemigos"><span class="icono-opcion">📊</span> Enemigos y XP</button>
@@ -1118,7 +1119,7 @@
           </div>
 
           <div id="admin-vista-hub-sistema" class="admin-vista oculto">
-            <div class="admin-hub-cuerpo">
+            <div class="admin-hub-cuerpo ui-scroll-area">
               <p class="admin-clave-ayuda">Mantenimiento, respaldos y ajustes del servidor.</p>
               <button type="button" class="fila-opcion admin-nav admin-hub-btn" data-admin-accion="admin-mantenimiento"><span class="icono-opcion">🚧</span> Mantenimiento: <span id="admin-hub-mant-texto">OFF</span></button>
               <button type="button" class="fila-opcion admin-nav admin-hub-btn" data-admin-accion="admin-sync-github"><span class="icono-opcion">☁️</span> Respaldo GitHub</button>
@@ -1135,13 +1136,14 @@
           </div>
 
           <div id="admin-vista-depuracion" class="admin-vista oculto">
-            <div class="admin-depuracion-cuerpo">
+            <div class="admin-depuracion-cuerpo ui-scroll-area">
               <p class="admin-clave-ayuda">Métricas en vivo para diagnosticar problemas sin adivinar. Solo visible para administradores.</p>
               <div id="admin-depuracion-grid" class="admin-depuracion-grid"></div>
               <button type="button" id="btn-admin-depuracion-refrescar" class="fila-opcion admin-btn-toolbar">🔄 Actualizar ahora</button>
               <button type="button" id="btn-admin-depuracion-txt" class="fila-opcion admin-btn-toolbar">📥 Descargar informe TXT</button>
               <div id="admin-depuracion-errores" class="admin-depuracion-errores"></div>
-              <div id="admin-depuracion-historial" class="admin-depuracion-historial"></div>
+              <input type="search" id="admin-dep-hist-buscar" class="admin-dep-hist-buscar oculto" placeholder="🔍 Filtrar historial…" autocomplete="off">
+              <div id="admin-depuracion-historial" class="admin-depuracion-historial ui-scroll-area"></div>
             </div>
           </div>
 
@@ -1174,7 +1176,7 @@
           </div>
 
           <div id="admin-vista-catalogo" class="admin-vista oculto">
-            <div class="admin-hub-cuerpo">
+            <div class="admin-hub-cuerpo ui-scroll-area">
               <p class="admin-clave-ayuda">Catálogo del juego: precios de tienda y objetos personalizados.</p>
               <button type="button" class="fila-opcion admin-nav admin-hub-btn" id="admin-cat-bdd"><span class="icono-opcion">📦</span> Catálogo de objetos</button>
               <button type="button" class="fila-opcion admin-nav admin-hub-btn" id="admin-cat-precios"><span class="icono-opcion">💲</span> Precios</button>
@@ -1223,7 +1225,7 @@
           </div>
 
           <div id="admin-vista-bdd-global" class="admin-vista oculto">
-            <div class="admin-hub-cuerpo">
+            <div class="admin-hub-cuerpo ui-scroll-area">
               <p class="admin-clave-ayuda">Reglas globales de combate, vida de jugadores, enemigos y XP.</p>
               <button type="button" class="fila-opcion admin-nav admin-hub-btn" id="admin-bdd-jugadores"><span class="icono-opcion">⚔️</span> Reglas de jugadores</button>
               <button type="button" class="fila-opcion admin-nav admin-hub-btn" id="admin-bdd-enemigos"><span class="icono-opcion">👹</span> Enemigos y XP</button>
@@ -1322,6 +1324,11 @@
               <div id="admin-enemigo-grafica"></div>
             </div>
           </div>
+
+          <div id="admin-panel-pie" class="admin-panel-pie oculto">
+            <span id="admin-panel-version">v—</span>
+            <span id="admin-panel-sync-estado">—</span>
+          </div>
         </aside>
       </div>
     </div>
@@ -1378,21 +1385,21 @@
   <script src="lib/leaflet/leaflet.js?v=104"></script>
 
   <!-- MÓDULOS DEL JUEGO (orden importante) -->
-  <script src="js/config/config.js?v=310"></script>
-  <script src="js/nucleo/utilidades.js?v=310"></script>
-  <script src="js/nucleo/diagnostico_red.js?v=310"></script>
-  <script src="js/nucleo/consumo_red.js?v=310"></script>
+  <script src="js/config/config.js?v=311"></script>
+  <script src="js/nucleo/utilidades.js?v=311"></script>
+  <script src="js/nucleo/diagnostico_red.js?v=311"></script>
+  <script src="js/nucleo/consumo_red.js?v=311"></script>
   <script src="js/nucleo/ui_components.js?v=298"></script>
   <script src="js/nucleo/ui_manager.js?v=298"></script>
   <script src="js/mundo/mundo_publico.js?v=104"></script>
   <script src="js/notificaciones/notificaciones.js?v=295"></script>
-  <script src="js/usuarios/usuarios.js?v=310"></script>
-  <script src="js/guardado/guardado.js?v=310"></script>
+  <script src="js/usuarios/usuarios.js?v=311"></script>
+  <script src="js/guardado/guardado.js?v=311"></script>
   <script src="js/historial/historial.js?v=104"></script>
   <script src="js/dinero/dinero.js?v=104"></script>
   <script src="js/vida/vida.js?v=295"></script>
   <script src="js/items/items.js?v=295"></script>
-  <script src="js/admin/admin_depuracion.js?v=310"></script>
+  <script src="js/admin/admin_depuracion.js?v=311"></script>
   <script src="js/admin/catalogo_objetos.js?v=295"></script>
   <script src="js/mochila/mochila.js?v=295"></script>
   <script src="js/bolsas/bolsas.js?v=295"></script>
@@ -1409,19 +1416,19 @@
   <script src="js/correo/correo.js?v=104"></script>
   <script src="js/enemigos/botin_enemigo.js?v=295"></script>
   <script src="js/enemigos/enemigos.js?v=295"></script>
-  <script src="js/online/sync_servidor.js?v=310"></script>
+  <script src="js/online/sync_servidor.js?v=311"></script>
   <script src="js/admin/admin.js?v=299"></script>
   <script src="js/opciones/opciones.js?v=295"></script>
   <script src="js/online/mundo_online.js?v=295"></script>
   <script src="js/online/contenido_mundo.js?v=295"></script>
   <script src="js/online/amigos.js?v=295"></script>
   <script src="js/chat/chat.js?v=295"></script>
-  <script src="js/online/multijugador.js?v=310"></script>
-  <script src="js/principal.js?v=310"></script>
+  <script src="js/online/multijugador.js?v=311"></script>
+  <script src="js/principal.js?v=311"></script>
   <script>
     // Registrar la app instalable (PWA)
     if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.register('sw.js?v=310', { updateViaCache: 'none' })
+      navigator.serviceWorker.register('sw.js?v=311', { updateViaCache: 'none' })
         .then(function (reg) {
           if (typeof MarielVersion !== 'undefined') MarielVersion.registrarServiceWorker(reg);
         })
