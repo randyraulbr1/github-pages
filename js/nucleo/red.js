@@ -1,8 +1,10 @@
-// URLs de red — un solo dominio tcodm.com (Oracle + Nginx). Cuba sin VPN.
+// URLs de red — juego en tcodm.com (GitHub Pages), API en Render.
 const MarielRed = {
+  RENDER_DEFAULT: 'https://mariel-online.onrender.com',
+
   esProduccion() {
     const h = (typeof location !== 'undefined' && location.hostname) || '';
-    return h === 'tcodm.com' || h === 'www.tcodm.com' || h === 'api.tcodm.com';
+    return h === 'tcodm.com' || h === 'www.tcodm.com';
   },
 
   esMismoDominio() {
@@ -12,17 +14,10 @@ const MarielRed = {
 
   urlServidor() {
     try {
-      if (typeof CONFIG !== 'undefined' && CONFIG.hostingUnificado && this.esMismoDominio()) {
-        return (location.origin || '').replace(/\/$/, '');
-      }
       const cfg = (typeof CONFIG !== 'undefined' && CONFIG.servidorOnline || '').replace(/\/$/, '');
       if (cfg) return cfg;
     } catch (e) { /* */ }
-    if (typeof location !== 'undefined' && location.origin) {
-      if (this.esMismoDominio()) return location.origin.replace(/\/$/, '');
-      if (location.hostname === 'api.tcodm.com') return location.origin.replace(/\/$/, '');
-    }
-    return 'https://api.tcodm.com';
+    return this.RENDER_DEFAULT;
   },
 
   servidorActivo() {
@@ -36,11 +31,7 @@ const MarielRed = {
     if (origen) urls.push(origen + '/version.json?_=' + t);
     urls.push('version.json?_=' + t);
     const srv = this.urlServidor();
-    if (srv && srv !== origen.replace(/\/$/, '')) {
-      urls.push(srv + '/api/public/version?_=' + t);
-    } else if (srv) {
-      urls.push(srv + '/api/public/version?_=' + t);
-    }
+    if (srv) urls.push(srv + '/api/public/version?_=' + t);
     if (!this.esProduccion() && typeof CONFIG !== 'undefined' &&
         CONFIG.repoPublicacion && CONFIG.ramaPublicacion) {
       urls.push('https://raw.githubusercontent.com/' + CONFIG.repoPublicacion + '/' +

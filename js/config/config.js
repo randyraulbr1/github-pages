@@ -74,8 +74,6 @@ const CONFIG = {
   // Solo desarrollo local (nunca subas un token real al repositorio)
   tokenRegistroJugadores: '',
 
-  // Servidor multijugador — Render Starter (sin suspensión). Oracle: api.tcodm.com cuando DNS esté listo.
+  // Servidor multijugador en Render (plan Starter, sin suspensión)
   servidorOnline: 'https://mariel-online.onrender.com',
-  servidorFuturo: 'https://api.tcodm.com',
-  hostingUnificado: false,
 };

@@ -104,16 +104,15 @@ const MarielDiagnosticoRed = {
     }
 
     if (/failed to fetch|networkerror|network error|load failed|err_name_not_resolved|enotfound|could not resolve|dns/i.test(msg)) {
-      const esDns = /not_resolved|resolve|dns|enotfound|could not resolve/i.test(msg) ||
-        (host && host.includes('api.tcodm.com'));
+      const esDns = /not_resolved|resolve|dns|enotfound|could not resolve/i.test(msg);
       return this._guardar({
         codigo: esDns ? this.CODIGOS.DNS : this.CODIGOS.RED_OFFLINE,
         titulo: esDns ? 'DNS: dominio no encontrado' : 'Error de red',
         detalle: esDns
-          ? ('No existe DNS para «' + host + '». El dominio no apunta a ningún servidor.')
+          ? ('No existe DNS para «' + host + '». Comprueba CONFIG.servidorOnline en config.js.')
           : ('No se pudo alcanzar ' + host + '.'),
         sugerencia: esDns
-          ? 'Usa mariel-online.onrender.com hasta que api.tcodm.com esté configurado en Oracle.'
+          ? 'La URL correcta ahora es mariel-online.onrender.com (Render Starter).'
           : 'Revisa Wi‑Fi/datos o firewall.',
         url: url || '',
         host
