@@ -137,24 +137,39 @@ async function restaurarMundoAlArranque() {
   const local = leerMundoJson();
   const carpeta = leerJugadoresDesdeCarpeta();
   let remoto = null;
+  let githubJugadores = { jugadores: [], partidas: {} };
   try {
     const { fetchMundoFromGitHub } = require('./githubMundo');
     remoto = await fetchMundoFromGitHub();
   } catch (e) {
-    console.warn('[mundo] No se pudo leer GitHub:', e.message);
+    console.warn('[mundo] No se pudo leer GitHub mundo.json:', e.message);
+  }
+  try {
+    const { fetchJugadoresDesdeGitHub } = require('./githubJugadores');
+    githubJugadores = await fetchJugadoresDesdeGitHub();
+  } catch (e) {
+    console.warn('[mundo] No se pudo leer GitHub jugadores/:', e.message);
   }
 
-  const fuentes = [remoto, local].filter(Boolean);
+  const fuentes = [remoto, local, carpeta, githubJugadores].filter(Boolean);
   if (!fuentes.length) return { ok: false, reason: 'sin mundo.json' };
 
   const prev = getWorldSnapshot();
   const sqliteVacio = countUsers() === 0;
   const sinSnapshot = !prev;
   const sinJugadores = !prev?.jugadores?.length;
-  const githubTieneMas = (remoto?.jugadores?.length || 0) > (prev?.jugadores?.length || 0);
+  const maxJugadores = (m) => (m?.jugadores || []).length;
+  const githubTieneMas = maxJugadores(remoto) > maxJugadores(prev);
+  const carpetaTieneMas = maxJugadores(carpeta) > maxJugadores(prev);
+  const githubJugTieneMas = maxJugadores(githubJugadores) > maxJugadores(prev);
   const githubDifiere = !!(remoto && prev && _jugadoresDifieren(remoto, prev));
+  const carpetaDifiere = !!(carpeta?.jugadores?.length && prev && _jugadoresDifieren(carpeta, prev));
+  const githubJugDifiere = !!(githubJugadores?.jugadores?.length && prev &&
+    _jugadoresDifieren(githubJugadores, prev));
 
-  if (!sqliteVacio && !sinSnapshot && !sinJugadores && !githubTieneMas && !githubDifiere) {
+  if (!sqliteVacio && !sinSnapshot && !sinJugadores && !githubTieneMas &&
+      !carpetaTieneMas && !githubJugTieneMas && !githubDifiere &&
+      !carpetaDifiere && !githubJugDifiere) {
     return { ok: true, skipped: true, jugadores: prev.jugadores.length };
   }
 
@@ -166,11 +181,13 @@ async function restaurarMundoAlArranque() {
 
   mergeJugadoresPartidas(mundo, fuentes.concat([prev]));
   const idsAut = new Set((mundo.jugadores || []).map(j => j?.id).filter(Boolean));
-  const partidasCarpeta = {};
-  for (const [id, p] of Object.entries(carpeta.partidas || {})) {
-    if (idsAut.has(id)) partidasCarpeta[id] = p;
+  const partidasExtra = {};
+  for (const fuente of fuentes.concat([prev])) {
+    for (const [id, p] of Object.entries(fuente?.partidas || {})) {
+      if (idsAut.has(id)) partidasExtra[id] = p;
+    }
   }
-  _fusionarPartidas(mundo, fuentes.concat([prev, { partidas: partidasCarpeta }]));
+  _fusionarPartidas(mundo, fuentes.concat([prev, { partidas: partidasExtra }]));
 
   if ((sinSnapshot || !(mundo.objetos || []).length) && base) {
     if ((base.objetos || []).length) mundo.objetos = base.objetos;
@@ -250,11 +267,14 @@ function importarSnapshotSiFalta() {
 
 function forzarImportJugadores() {
   const archivo = leerMundoJson();
-  if (!archivo) return { ok: false, error: 'mundo.json no encontrado' };
+  const carpeta = leerJugadoresDesdeCarpeta();
+  if (!archivo && !carpeta.jugadores?.length) {
+    return { ok: false, error: 'mundo.json y datos/jugadores vacíos' };
+  }
   const prev = getWorldSnapshot() || { jugadores: [], partidas: {} };
   const mundo = Object.assign({}, prev);
-  mergeJugadoresPartidas(mundo, [archivo, prev]);
-  _fusionarPartidas(mundo, [archivo, prev]);
+  mergeJugadoresPartidas(mundo, [archivo, carpeta, prev].filter(Boolean));
+  _fusionarPartidas(mundo, [archivo, carpeta, prev].filter(Boolean));
   asegurarAdminEnMundo(mundo);
   mundo.actualizadoEn = Date.now();
   saveWorldSnapshot(mundo);

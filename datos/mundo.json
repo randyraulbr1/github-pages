@@ -1,5 +1,5 @@
 {
-  "actualizadoEn": 1783402800000,
+  "actualizadoEn": 1783615380545,
   "misiones": [],
   "tesoros": [],
   "objetos": [],
@@ -22,22 +22,69 @@
       "telefono": "7709908375",
       "pinHash": "4bdc96ffc0926b62d55708e3c1755ca3f04b8c28bec6fd85777117da67497f11",
       "creado": 1783263656375
+    },
+    {
+      "id": "pmra42v1xlv3c5",
+      "nombre": "33",
+      "telefono": "",
+      "pinHash": "0a22b58a09f93652ac592f9424e5dedbeb450965c0e7ddc5b46f8ab21aa96bb1",
+      "creado": 1783396246965
+    },
+    {
+      "id": "pmrapfk1b6bc8o",
+      "nombre": "55",
+      "telefono": "944949",
+      "pinHash": "4bdc96ffc0926b62d55708e3c1755ca3f04b8c28bec6fd85777117da67497f11",
+      "creado": 1783432111151
     }
   ],
   "partidas": {
     "pmr7x4zhznzw5o": {
       "datos": {
         "mochila": [
-          { "id": "agua", "cantidad": 2 },
-          { "id": "pan", "cantidad": 1 },
-          null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null
+          {
+            "id": "agua",
+            "cantidad": 2
+          },
+          {
+            "id": "pan",
+            "cantidad": 1
+          },
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null
         ],
-        "dinero": { "saldo": 100, "control": "68e382a3687042dcd0420432d9bf210eada6d12606b6ecd367d18c724c2f4b38" },
+        "dinero": {
+          "saldo": 100,
+          "control": "68e382a3687042dcd0420432d9bf210eada6d12606b6ecd367d18c724c2f4b38"
+        },
         "vida": 100,
         "hambre": 50,
         "xp": 0,
         "nivel": 1,
-        "posicionJugador": [22.99338757014396, -82.75377228856088],
+        "posicionJugador": [
+          22.99338757014396,
+          -82.75377228856088
+        ],
         "tesorosRecogidos": [],
         "misiones": {},
         "misionesEstado": {},
@@ -51,6 +98,135 @@
         "armaEquipada": "arma_nv1"
       },
       "t": 1783394056730
+    },
+    "pmra42v1xlv3c5": {
+      "datos": {
+        "mochila": [
+          {
+            "id": "agua",
+            "cantidad": 2
+          },
+          {
+            "id": "pan",
+            "cantidad": 1
+          },
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null
+        ],
+        "dinero": {
+          "saldo": 100,
+          "control": "68e382a3687042dcd0420432d9bf210eada6d12606b6ecd367d18c724c2f4b38"
+        },
+        "vida": 40,
+        "hambre": 50,
+        "xp": 0,
+        "nivel": 1,
+        "posicionJugador": null,
+        "tesorosRecogidos": [],
+        "misiones": {},
+        "misionesEstado": {},
+        "correoEnviados": [],
+        "correoRecibidos": [],
+        "correoTiendaLocal": [],
+        "historialDinero": [],
+        "historialObjetos": [],
+        "mensajesVistos": [],
+        "muerto": false,
+        "muertePos": null,
+        "muerteInventario": null,
+        "armaEquipada": null
+      },
+      "t": 1785164000000
+    },
+    "pmrapfk1b6bc8o": {
+      "datos": {
+        "mochila": [
+          {
+            "id": "agua",
+            "cantidad": 2
+          },
+          {
+            "id": "pan",
+            "cantidad": 1
+          },
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null
+        ],
+        "dinero": {
+          "saldo": 100,
+          "control": "68e382a3687042dcd0420432d9bf210eada6d12606b6ecd367d18c724c2f4b38"
+        },
+        "vida": 100,
+        "hambre": 45,
+        "xp": 0,
+        "nivel": 1,
+        "posicionJugador": null,
+        "tesorosRecogidos": [],
+        "misiones": {},
+        "misionesEstado": {},
+        "correoEnviados": [],
+        "correoRecibidos": [],
+        "correoTiendaLocal": [],
+        "historialDinero": [
+          {
+            "t": 1783432112276,
+            "detalle": "Dinero inicial",
+            "monto": 100,
+            "saldo": 100,
+            "lugar": "sin posición",
+            "pos": null,
+            "hashAnterior": "GENESIS",
+            "hash": "2e83d1ad31e6fd7b86d9c8f430bfeb04316f62f790b664589cc055983040c51c"
+          }
+        ],
+        "historialObjetos": [],
+        "mensajesVistos": [],
+        "muerto": false,
+        "armaEquipada": null
+      },
+      "t": 1783433381757
     }
   },
   "cofres": [],

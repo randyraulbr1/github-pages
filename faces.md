@@ -101,11 +101,11 @@ Pruebas:
 
 # FASE 3 - Fuente unica del mundo
 
-Estado: 🚧 En progreso (v309 — venta tienda servidor + dinero validado)
+Estado: 🚧 En progreso (v314 — consolidación cuentas Render↔GitHub)
 
 Objetivo: evitar que algunos jugadores vean objetos y otros no.
 
-Nota v309: `player:shopSell` + `validarPartidaMin` acota `dinero.saldo`; ContenidoMundo en fallback HTTP. v308: sync-partida no pisa economía del cliente.
+Nota v314: boot fusiona mundo.json + datos/jugadores/ + GitHub; auto-saneo si snapshot > remoto. Ver `faces/fase-3-sync-consolidacion.md`. v309: shopSell servidor; v308: sync-partida economía.
 
 Incluye:
 
