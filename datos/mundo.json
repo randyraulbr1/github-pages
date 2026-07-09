@@ -1,24 +1,14 @@
 {
-  "actualizadoEn": 1783614928949,
+  "actualizadoEn": 1783615380545,
   "misiones": [],
   "tesoros": [],
   "objetos": [],
+  "enemigos": [],
+  "tiendasAdmin": [],
   "posiciones": {},
-  "eliminados": [
-    "correo_central",
-    "enm_mrcwwtxd"
-  ],
+  "eliminados": [],
   "precios": {},
-  "itemsNuevos": [
-    {
-      "id": "marcador_tesoro_mapa",
-      "nombre": "Icono mapa tesoro",
-      "icono": "🎁",
-      "precio": 5,
-      "tipo": "especial",
-      "desc": "Marcador de tesoros en el mapa"
-    }
-  ],
+  "itemsNuevos": [],
   "mantenimiento": {
     "activo": false,
     "mensaje": ""
@@ -31,17 +21,14 @@
       "nombre": "randy",
       "telefono": "7709908375",
       "pinHash": "4bdc96ffc0926b62d55708e3c1755ca3f04b8c28bec6fd85777117da67497f11",
-      "creado": 1783263656375,
-      "sesionToken": "mrdq9b40vbboscmudp",
-      "sesionT": 1783614897792,
-      "telefonoCambiadoEn": 0
+      "creado": 1783263656375
     },
     {
       "id": "pmra42v1xlv3c5",
       "nombre": "33",
       "telefono": "",
-      "creado": 1783396246965,
-      "pinHash": "0a22b58a09f93652ac592f9424e5dedbeb450965c0e7ddc5b46f8ab21aa96bb1"
+      "pinHash": "0a22b58a09f93652ac592f9424e5dedbeb450965c0e7ddc5b46f8ab21aa96bb1",
+      "creado": 1783396246965
     },
     {
       "id": "pmrapfk1b6bc8o",
@@ -51,23 +38,18 @@
       "creado": 1783432111151
     }
   ],
-  "cofres": [],
-  "cuerposMuertos": {},
-  "correoReclamados": [],
-  "correoTienda": [],
   "partidas": {
     "pmr7x4zhznzw5o": {
       "datos": {
         "mochila": [
           {
             "id": "agua",
-            "cantidad": 8
+            "cantidad": 2
           },
           {
             "id": "pan",
-            "cantidad": 3
+            "cantidad": 1
           },
-          null,
           null,
           null,
           null,
@@ -92,354 +74,30 @@
           null
         ],
         "dinero": {
-          "saldo": 164,
-          "control": "f8501f428d5e1ad3e5ffda34178d20b4a0e50311ead26990aaedb473bba79698"
+          "saldo": 100,
+          "control": "68e382a3687042dcd0420432d9bf210eada6d12606b6ecd367d18c724c2f4b38"
         },
-        "vida": 104,
+        "vida": 100,
         "hambre": 50,
-        "xp": 260,
-        "nivel": 2,
+        "xp": 0,
+        "nivel": 1,
         "posicionJugador": [
-          22.993645591615568,
-          -82.75382593274118
+          22.99338757014396,
+          -82.75377228856088
         ],
         "tesorosRecogidos": [],
         "misiones": {},
-        "misionesEstado": {
-          "admx_m_mraskaha": {
-            "estado": "recolectada",
-            "progreso": 0,
-            "orden": 1783437375034
-          },
-          "admx_m_mray2lpx": {
-            "estado": "recolectada",
-            "progreso": 0,
-            "orden": 1783446672400
-          }
-        },
+        "misionesEstado": {},
         "correoEnviados": [],
         "correoRecibidos": [],
         "correoTiendaLocal": [],
-        "historialDinero": [
-          {
-            "t": 1783390470215,
-            "detalle": "Dinero inicial",
-            "monto": 100,
-            "saldo": 100,
-            "lugar": "sin posición",
-            "pos": null,
-            "hashAnterior": "GENESIS",
-            "hash": "b9c4c8744b33b14211627dc537c8ce910918ea1ce47583f9bf50e288b9697e6c"
-          },
-          {
-            "t": 1783437416335,
-            "detalle": "Misión: hg",
-            "monto": 50,
-            "saldo": 150,
-            "lugar": "campo abierto",
-            "pos": [
-              22.99361,
-              -82.753438
-            ],
-            "hashAnterior": "b9c4c8744b33b14211627dc537c8ce910918ea1ce47583f9bf50e288b9697e6c",
-            "hash": "c9d8a9584f9c2d394255f154307caeb999b487c21f027142040eaaacdd988771"
-          },
-          {
-            "t": 1783437578784,
-            "detalle": "Compra: Botella de agua (tienda principal)",
-            "monto": -18,
-            "saldo": 132,
-            "lugar": "campo abierto",
-            "pos": [
-              22.99321,
-              -82.753331
-            ],
-            "hashAnterior": "c9d8a9584f9c2d394255f154307caeb999b487c21f027142040eaaacdd988771",
-            "hash": "1339a9833cafdb5a98f60281e3aba6c63e8eb9276ff97b21477914b9ea664fd6"
-          },
-          {
-            "t": 1783437586558,
-            "detalle": "Compra: Botella de agua (tienda principal)",
-            "monto": -18,
-            "saldo": 114,
-            "lugar": "campo abierto",
-            "pos": [
-              22.99321,
-              -82.753331
-            ],
-            "hashAnterior": "1339a9833cafdb5a98f60281e3aba6c63e8eb9276ff97b21477914b9ea664fd6",
-            "hash": "3abd89b5a9ecf4df4b39152fd428679b39590c0a032bf3034a00e1a9ad2757fa"
-          },
-          {
-            "t": 1783446675255,
-            "detalle": "Misión: hg",
-            "monto": 50,
-            "saldo": 164,
-            "lugar": "campo abierto",
-            "pos": [
-              22.993584,
-              -82.753759
-            ],
-            "hashAnterior": "3abd89b5a9ecf4df4b39152fd428679b39590c0a032bf3034a00e1a9ad2757fa",
-            "hash": "f7ef0ca64bf01da19ee3d6826b5799d951f0efcd1470d7da2634b5ad4b9533fa"
-          }
-        ],
-        "historialObjetos": [
-          {
-            "t": 1783391259923,
-            "detalle": "Obtenido: Cuchillo de combate",
-            "monto": 1,
-            "saldo": null,
-            "lugar": "campo abierto",
-            "pos": [
-              22.993584,
-              -82.753796
-            ],
-            "hashAnterior": "GENESIS",
-            "hash": "1f67cace6a0018e72cf5a3ef9382c1555a7c2c2046425b6ba683581c10be805e"
-          },
-          {
-            "t": 1783437054071,
-            "detalle": "Obtenido: Botella de agua",
-            "monto": 2,
-            "saldo": null,
-            "lugar": "campo abierto",
-            "pos": [
-              22.99346,
-              -82.753841
-            ],
-            "hashAnterior": "1f67cace6a0018e72cf5a3ef9382c1555a7c2c2046425b6ba683581c10be805e",
-            "hash": "9ff2e972162da4f334341e182211e8dea49a63deb319ab9e97caa7b18ef20cf4"
-          },
-          {
-            "t": 1783437055035,
-            "detalle": "Obtenido: Pan",
-            "monto": 1,
-            "saldo": null,
-            "lugar": "campo abierto",
-            "pos": [
-              22.99346,
-              -82.753841
-            ],
-            "hashAnterior": "9ff2e972162da4f334341e182211e8dea49a63deb319ab9e97caa7b18ef20cf4",
-            "hash": "3593751b2279f4c5118e912b949ec65f787d6db1a3afb571433185f2d75bf93a"
-          },
-          {
-            "t": 1783437064345,
-            "detalle": "Obtenido: Botiquín",
-            "monto": 1,
-            "saldo": null,
-            "lugar": "campo abierto",
-            "pos": [
-              22.99346,
-              -82.753841
-            ],
-            "hashAnterior": "3593751b2279f4c5118e912b949ec65f787d6db1a3afb571433185f2d75bf93a",
-            "hash": "b9f296cfb625ecf4cffaa4008abe7536432c0b5ece708304ad450581c5086237"
-          },
-          {
-            "t": 1783437066090,
-            "detalle": "Revivió a 33: Botiquín",
-            "monto": -1,
-            "saldo": null,
-            "lugar": "campo abierto",
-            "pos": [
-              22.99346,
-              -82.753841
-            ],
-            "hashAnterior": "b9f296cfb625ecf4cffaa4008abe7536432c0b5ece708304ad450581c5086237",
-            "hash": "8e7f553b3b30856606716bb7edbaef175fa0472b34b1e9947314cb83132c41af"
-          },
-          {
-            "t": 1783437578787,
-            "detalle": "Obtenido: Botella de agua",
-            "monto": 1,
-            "saldo": null,
-            "lugar": "campo abierto",
-            "pos": [
-              22.99321,
-              -82.753331
-            ],
-            "hashAnterior": "8e7f553b3b30856606716bb7edbaef175fa0472b34b1e9947314cb83132c41af",
-            "hash": "7c6df346a133f8ae86f68241757ee9dc79308475678abc56437931257870eb4c"
-          },
-          {
-            "t": 1783437586558,
-            "detalle": "Obtenido: Botella de agua",
-            "monto": 1,
-            "saldo": null,
-            "lugar": "campo abierto",
-            "pos": [
-              22.99321,
-              -82.753331
-            ],
-            "hashAnterior": "7c6df346a133f8ae86f68241757ee9dc79308475678abc56437931257870eb4c",
-            "hash": "67578bae0db3f86665d569af31f9dbb13936153564007b7ba14922a33e89ad27"
-          },
-          {
-            "t": 1783438199250,
-            "detalle": "Obtenido: Botiquín",
-            "monto": 1,
-            "saldo": null,
-            "lugar": "campo abierto",
-            "pos": [
-              22.993468,
-              -82.753918
-            ],
-            "hashAnterior": "67578bae0db3f86665d569af31f9dbb13936153564007b7ba14922a33e89ad27",
-            "hash": "3dab3e73d6c1826bdc17cc94f00a9bda89d071bede02c0e13a9e8979a1e2563e"
-          },
-          {
-            "t": 1783438201369,
-            "detalle": "Revivió a 33: Botiquín",
-            "monto": -1,
-            "saldo": null,
-            "lugar": "campo abierto",
-            "pos": [
-              22.993468,
-              -82.753918
-            ],
-            "hashAnterior": "3dab3e73d6c1826bdc17cc94f00a9bda89d071bede02c0e13a9e8979a1e2563e",
-            "hash": "9b7a1a2245be144b6cf0c4082fcf94be522276d6fbe320154659857d8ac11202"
-          },
-          {
-            "t": 1783440508899,
-            "detalle": "Obtenido: Botiquín",
-            "monto": 4,
-            "saldo": null,
-            "lugar": "campo abierto",
-            "pos": [
-              22.993468,
-              -82.753918
-            ],
-            "hashAnterior": "9b7a1a2245be144b6cf0c4082fcf94be522276d6fbe320154659857d8ac11202",
-            "hash": "f949b4b4692d0a358bcd9ba8a0a9d7708d4ab44613d8ecde817a0796c279ba86"
-          },
-          {
-            "t": 1783440511063,
-            "detalle": "Revivió a 33: Botiquín",
-            "monto": -1,
-            "saldo": null,
-            "lugar": "campo abierto",
-            "pos": [
-              22.993468,
-              -82.753918
-            ],
-            "hashAnterior": "f949b4b4692d0a358bcd9ba8a0a9d7708d4ab44613d8ecde817a0796c279ba86",
-            "hash": "cb26ebd47ed8da4d6fccc5f573741fad50edc71e4f02c299e30b97a308d9d882"
-          },
-          {
-            "t": 1783440740568,
-            "detalle": "Obtenido: Pan",
-            "monto": 1,
-            "saldo": null,
-            "lugar": "campo abierto",
-            "pos": [
-              22.993562,
-              -82.753775
-            ],
-            "hashAnterior": "cb26ebd47ed8da4d6fccc5f573741fad50edc71e4f02c299e30b97a308d9d882",
-            "hash": "b151e99e7a56c07b2ffdbfeb94b711a8b4c7c286843b0bd5419c6cd2a670eb11"
-          },
-          {
-            "t": 1783440741728,
-            "detalle": "Obtenido: Botella de agua",
-            "monto": 2,
-            "saldo": null,
-            "lugar": "campo abierto",
-            "pos": [
-              22.993562,
-              -82.753775
-            ],
-            "hashAnterior": "b151e99e7a56c07b2ffdbfeb94b711a8b4c7c286843b0bd5419c6cd2a670eb11",
-            "hash": "9e2471afedfcaf0189f0aa953bee50717ee2519f0a82b306d4a68dc026d823eb"
-          },
-          {
-            "t": 1783440743485,
-            "detalle": "Revivió a 33: Botiquín",
-            "monto": -1,
-            "saldo": null,
-            "lugar": "campo abierto",
-            "pos": [
-              22.993562,
-              -82.753775
-            ],
-            "hashAnterior": "9e2471afedfcaf0189f0aa953bee50717ee2519f0a82b306d4a68dc026d823eb",
-            "hash": "f31c55ae6e0e4fde2a802305287f6c1d6331fb6b6c1a07f29f57eae62768d2d1"
-          },
-          {
-            "t": 1783444552398,
-            "detalle": "Revivió a 33: Botiquín",
-            "monto": -1,
-            "saldo": null,
-            "lugar": "campo abierto",
-            "pos": [
-              22.99351,
-              -82.753846
-            ],
-            "hashAnterior": "f31c55ae6e0e4fde2a802305287f6c1d6331fb6b6c1a07f29f57eae62768d2d1",
-            "hash": "d3bb7207078bd45c669af01e60dea7c55a608fdaa30d0217c41cc0fdeff9724a"
-          },
-          {
-            "t": 1783445124422,
-            "detalle": "Revivió a 33: Botiquín",
-            "monto": -1,
-            "saldo": null,
-            "lugar": "campo abierto",
-            "pos": [
-              22.993593,
-              -82.75399
-            ],
-            "hashAnterior": "d3bb7207078bd45c669af01e60dea7c55a608fdaa30d0217c41cc0fdeff9724a",
-            "hash": "2fe07176b3f8563903882347ad332dec4c75e0f41e453f3b33b5e728cd1bae5e"
-          },
-          {
-            "t": 1783445274156,
-            "detalle": "Eliminado: Pan",
-            "monto": -3,
-            "saldo": null,
-            "lugar": "campo abierto",
-            "pos": [
-              22.993593,
-              -82.75399
-            ],
-            "hashAnterior": "2fe07176b3f8563903882347ad332dec4c75e0f41e453f3b33b5e728cd1bae5e",
-            "hash": "fc3044d2309ad03972d2cd9ba7b41e10727b1e3df10c7c9aeb4d884570fc6adf"
-          },
-          {
-            "t": 1783445281953,
-            "detalle": "Obtenido: Pan",
-            "monto": 3,
-            "saldo": null,
-            "lugar": "campo abierto",
-            "pos": [
-              22.993593,
-              -82.75399
-            ],
-            "hashAnterior": "fc3044d2309ad03972d2cd9ba7b41e10727b1e3df10c7c9aeb4d884570fc6adf",
-            "hash": "6b0146872ccbd6eeb8b55b52f34eea1e9a7074d7133758bc5090453d737e6c23"
-          }
-        ],
+        "historialDinero": [],
+        "historialObjetos": [],
         "mensajesVistos": [],
         "muerto": false,
-        "armaEquipada": "arma_nv1",
-        "equipoEquipado": {
-          "casco": null,
-          "chaleco": null,
-          "botas": null,
-          "ropa": null
-        },
-        "preferencias": {
-          "notifChat": true,
-          "notifAmigos": true,
-          "vibracionCombate": true,
-          "posBtnAtacar": "der"
-        },
-        "preferenciasT": 1783560347756,
-        "_equipoT": 1783614915955
+        "armaEquipada": "arma_nv1"
       },
-      "t": 1783614916355,
-      "statsT": 1783614915955
+      "t": 1783394056730
     },
     "pmra42v1xlv3c5": {
       "datos": {
@@ -571,35 +229,21 @@
       "t": 1783433381757
     }
   },
-  "enemigos": [],
+  "cofres": [],
+  "correoReclamados": [],
+  "correoTienda": [],
   "enemigosEstado": {},
+  "botinesEnemigo": {},
   "objetosEstado": {},
-  "tiendasAdmin": [],
-  "tiendasStock": {},
   "tesorosEstado": {},
-  "tesoroIconoMapa": "🎁",
+  "tiendasStock": {},
   "combate": {
     "danoMin": 5,
     "danoMax": 8,
     "nivelReferencia": 1,
-    "vidaBase": 100,
-    "vidaExtraPorNivel": 4,
     "radioZona": 40,
     "radioPersecucion": 20,
     "curacionMs": 120000
   },
-  "combateEnemigos": {
-    "danoMin": 5,
-    "danoMax": 8,
-    "nivelReferencia": 1,
-    "factorPorNivel": 0.06,
-    "vidaBase": 60,
-    "vidaFactorPorNivel": 0.06,
-    "xpBase": 30,
-    "xpFactorPorNivel": 0.06
-  },
-  "moverPinJugador": true,
-  "optimizarVisibilidad": true,
-  "adminPinClaves": {},
-  "botinesEnemigo": {}
+  "optimizarVisibilidad": true
 }

@@ -368,10 +368,23 @@ function repararSnapshotMundo(io, opts) {
   return { ok: true, changed: c1 || c2 || c3 };
 }
 
-/** Lista publicada por el admin (snapshot). No re-añade SQLite huérfanos tras un borrado. */
+/** Lista publicada por el admin (snapshot). Fusiona carpeta local si el snapshot está incompleto. */
 function getJugadoresPublicos(io) {
   repararSnapshotMundo(io);
-  const snap = getWorldSnapshot();
+  let snap = getWorldSnapshot();
+  const { leerJugadoresDesdeCarpeta } = require('./importSnapshot');
+  const carpeta = leerJugadoresDesdeCarpeta();
+  const snapN = (snap?.jugadores || []).length;
+  const carpetaN = (carpeta?.jugadores || []).length;
+  if (carpetaN > snapN) {
+    snap = snap ? Object.assign({}, snap) : { jugadores: [], partidas: {} };
+    const { mergeJugadoresPartidas } = require('./syncMundo');
+    mergeJugadoresPartidas(snap, [carpeta, snap]);
+    asegurarAdminEnMundo(snap);
+    snap.actualizadoEn = Date.now();
+    saveWorldSnapshot(snap);
+    console.warn('[mundo] getJugadoresPublicos: fusionadas', carpetaN - snapN, 'cuenta(s) desde datos/jugadores/');
+  }
   const porId = new Map();
   for (const j of (snap?.jugadores || [])) {
     if (j?.id) porId.set(j.id, j);
