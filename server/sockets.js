@@ -24,7 +24,10 @@ const {
   markChatRead,
   canChatBetween
 } = require('./db');
-const { verifyToken, isGameAdminPlayer, canEditPartida } = require('./auth');
+const { verifyToken, isGameAdminPlayer, canEditPartida, normalizeRole } = require('./auth');
+const { comprarEnTienda, venderEnTienda, usarConsumible, cocinarItem } = require('./playerEconomy');
+
+const ROLES_SOCKET = new Set(['jugador', 'player', 'tester', 'moderador', 'admin', 'owner']);
 const { validarStatsJugador } = require('./playerStats');
 const { auditarSiAdminEditaAjeno } = require('./auditLog');
 const { startEnemyAI } = require('./enemyAI');
@@ -161,13 +164,17 @@ function setupSockets(io) {
     const token = socket.handshake.auth?.token || socket.handshake.query?.token;
     if (!token) return next(new Error('Token requerido'));
     const payload = verifyToken(token);
-    if (!payload || (payload.role !== 'player' && payload.role !== 'admin')) {
+    if (!payload || !payload.playerId) {
+      return next(new Error('Token inválido'));
+    }
+    const role = normalizeRole(payload.role);
+    if (!ROLES_SOCKET.has(role)) {
       return next(new Error('Token inválido'));
     }
     socket.playerId = payload.playerId;
     socket.userId = payload.sub;
     socket.username = payload.username;
-    socket.role = payload.role || 'player';
+    socket.role = role;
     next();
   });
 
@@ -422,12 +429,13 @@ function setupSockets(io) {
       const perfilId = payload?.perfilId || buscarPerfilIdPorNombre(targetDb.name, targetId);
       if (perfilId) revivirPartidaEnSnapshot(perfilId, cura, io, invRestante);
 
+      const adminPl = findPlayerById(socket.playerId);
       io.emit('player:revived', {
         playerId: targetId,
         hp: cura,
         hpMax,
         reviverId: socket.playerId,
-        reviverName: adminPl.name,
+        reviverName: adminPl?.name || socket.username || 'Admin',
         fromAdmin: true,
         deadInventory: invRestante
       });
@@ -780,7 +788,6 @@ function setupSockets(io) {
       const tiendaId = (payload?.tiendaId || '').trim();
       const itemId = (payload?.itemId || '').trim();
       if (!tiendaId || !itemId) return ack?.({ ok: false, error: 'tiendaId e itemId requeridos' });
-      const { comprarEnTienda } = require('../playerEconomy');
       const result = comprarEnTienda(
         socket.playerId,
         tiendaId,
@@ -796,7 +803,6 @@ function setupSockets(io) {
       const tiendaId = (payload?.tiendaId || '').trim();
       const itemId = (payload?.itemId || '').trim();
       if (!itemId) return ack?.({ ok: false, error: 'itemId requerido' });
-      const { venderEnTienda } = require('../playerEconomy');
       const result = venderEnTienda(
         socket.playerId,
         tiendaId,
@@ -811,7 +817,6 @@ function setupSockets(io) {
     socket.on('player:useItem', (payload, ack) => {
       const itemId = (payload?.itemId || '').trim();
       if (!itemId) return ack?.({ ok: false, error: 'itemId requerido' });
-      const { usarConsumible } = require('../playerEconomy');
       const result = usarConsumible(
         socket.playerId,
         itemId,
@@ -824,7 +829,6 @@ function setupSockets(io) {
     socket.on('player:cookItem', (payload, ack) => {
       const itemId = (payload?.itemId || '').trim();
       if (!itemId) return ack?.({ ok: false, error: 'itemId requerido' });
-      const { cocinarItem } = require('../playerEconomy');
       const result = cocinarItem(
         socket.playerId,
         itemId,

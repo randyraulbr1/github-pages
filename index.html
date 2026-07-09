@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
   <title>Kingdom Map</title>
-  <meta name="mariel-version" content="315">
+  <meta name="mariel-version" content="316">
   <style id="mariel-critical-actualizar">
     #pantalla-actualizar{position:fixed;inset:0;z-index:200000;background:linear-gradient(170deg,#1a2a4a 0%,#10141f 72%);display:flex;align-items:center;justify-content:center;padding:24px;box-sizing:border-box}
     #pantalla-actualizar.oculto{display:none!important}
@@ -1388,7 +1388,7 @@
   <script src="lib/leaflet/leaflet.js?v=104"></script>
 
   <!-- MÓDULOS DEL JUEGO (orden importante) -->
-  <script src="js/config/config.js?v=314"></script>
+  <script src="js/config/config.js?v=316"></script>
   <script src="js/nucleo/utilidades.js?v=311"></script>
   <script src="js/nucleo/diagnostico_red.js?v=313"></script>
   <script src="js/nucleo/consumo_red.js?v=311"></script>
@@ -1427,12 +1427,12 @@
   <script src="js/online/contenido_mundo.js?v=295"></script>
   <script src="js/online/amigos.js?v=295"></script>
   <script src="js/chat/chat.js?v=295"></script>
-  <script src="js/online/multijugador.js?v=315"></script>
-  <script src="js/principal.js?v=313"></script>
+  <script src="js/online/multijugador.js?v=316"></script>
+  <script src="js/principal.js?v=316"></script>
   <script>
     // Registrar la app instalable (PWA)
     if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.register('sw.js?v=314', { updateViaCache: 'none' })
+      navigator.serviceWorker.register('sw.js?v=316', { updateViaCache: 'none' })
         .then(function (reg) {
           if (typeof MarielVersion !== 'undefined') MarielVersion.registrarServiceWorker(reg);
         })
