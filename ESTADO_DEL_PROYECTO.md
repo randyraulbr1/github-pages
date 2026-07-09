@@ -1077,9 +1077,9 @@ Ver sección 5 — Phase B body end: config → nucleo → mundo/auth → gamepl
 
 | ID | Descripción | Estado | Desde |
 |----|-------------|--------|-------|
-| BUG-001 | Socket rechaza role `jugador` en JWT | 🔴 Abierto | v308+ |
-| BUG-002 | adminPl undefined en admin:revivePlayer | 🔴 Abierto | detectado jul 2026 |
-| BUG-003 | require playerEconomy ruta incorrecta en sockets | 🔴 Abierto | detectado jul 2026 |
+| BUG-001 | Socket rechaza role `jugador` en JWT | ✅ v316 | v308+ |
+| BUG-002 | adminPl undefined en admin:revivePlayer | ✅ v316 | detectado jul 2026 |
+| BUG-003 | require playerEconomy ruta incorrecta en sockets | ✅ v316 | detectado jul 2026 |
 | BUG-004 | Confirmación mover PIN detrás de capas | ✅ v299 | v286 |
 | BUG-005 | Carteles toast repetidos | ✅ v286 | — |
 | BUG-006 | user-select en PC botones | ✅ v286 | — |
