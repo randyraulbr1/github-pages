@@ -3,6 +3,7 @@
  * 3.1 migración idempotente desde blob; 3.2 proyector BD → snapshot.
  */
 const { db, getWorldSnapshot } = require('./db');
+const { emitirMundoSync } = require('./mundoDelta');
 
 const TYPE_TO_CAMPO = {
   item: 'objetos',
@@ -454,7 +455,7 @@ function refreshMundoPublicadoDesdeBD(io, opts = {}) {
   }
 
   if (io && !opts.silentMundoSync) {
-    io.emit('mundo:sync', { actualizadoEn: mundo.actualizadoEn, mundo });
+    emitirMundoSync(io, prev, mundo);
   }
 
   try {

@@ -89,6 +89,24 @@ function emitirACercanos(io, onlinePlayers, origenPlayerId, event, payload, radi
   }
 }
 
+/** Emite a jugadores online dentro del radio de unas coordenadas (p. ej. enemigos). */
+function emitirACercanosPorCoordenadas(io, onlinePlayers, x, y, event, payload, radiusM) {
+  const r = radiusM || INTEREST_RADIUS_M;
+  const ox = Number(x);
+  const oy = Number(y);
+  if (!Number.isFinite(ox) || !Number.isFinite(oy)) {
+    io.emit(event, payload);
+    return;
+  }
+  const origen = { x: ox, y: oy, playerId: -1 };
+  for (const [, p] of onlinePlayers) {
+    if (!p.socketId) continue;
+    if (enRango(origen, p, r)) {
+      io.to(p.socketId).emit(event, payload);
+    }
+  }
+}
+
 module.exports = {
   INTEREST_RADIUS_M,
   MOVE_BROADCAST_COALESCE_MS,
@@ -99,5 +117,6 @@ module.exports = {
   marcarBroadcastMovimiento,
   limpiarJugador,
   snapshotCercanos,
-  emitirACercanos
+  emitirACercanos,
+  emitirACercanosPorCoordenadas
 };

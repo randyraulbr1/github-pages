@@ -149,6 +149,9 @@ function broadcastMove(io, playerId, online, opts) {
 }
 
 function setupSockets(io) {
+  const { setOnlinePlayersGetter } = require('./worldBroadcast');
+  setOnlinePlayersGetter(() => onlinePlayers);
+
   if (!enemyAIStarted) {
     startEnemyAI(io, onlinePlayers);
     enemyAIStarted = true;
