@@ -141,7 +141,15 @@ async function asegurarMapaVisible() {
 
 (async function arrancar() {
   if (typeof MarielVersion !== 'undefined') {
-    await MarielVersion.comprobarRemota({ bloquear: false });
+    if (MarielVersion.aplicarBloqueoInmediato?.()) {
+      MarielBoot.ocultar();
+      return;
+    }
+    await MarielVersion.comprobarRemota({ bloquear: true });
+    if (MarielVersion.estaBloqueado()) {
+      MarielBoot.ocultar();
+      return;
+    }
   }
 
   const ocultarCarga = () => MarielBoot.ocultar();

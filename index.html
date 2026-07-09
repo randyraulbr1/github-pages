@@ -4,7 +4,20 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
   <title>Kingdom Map</title>
-  <meta name="mariel-version" content="305">
+  <meta name="mariel-version" content="306">
+  <style id="mariel-critical-actualizar">
+    #pantalla-actualizar{position:fixed;inset:0;z-index:200000;background:linear-gradient(170deg,#1a2a4a 0%,#10141f 72%);display:flex;align-items:center;justify-content:center;padding:24px;box-sizing:border-box}
+    #pantalla-actualizar.oculto{display:none!important}
+    .actualizar-caja{text-align:center;display:flex;flex-direction:column;gap:14px;align-items:center;max-width:340px;color:#fff;font-family:system-ui,-apple-system,sans-serif}
+    .actualizar-icono{font-size:56px}
+    .actualizar-titulo{font-size:22px;font-weight:800;margin:0}
+    .actualizar-detalle{font-size:15px;color:#3d8bfd;font-weight:700;margin:0}
+    .actualizar-ayuda{font-size:13px;color:#9aa5bd;line-height:1.55;margin:0}
+    .btn-actualizar-app{margin-top:4px;padding:14px 28px;border-radius:14px;border:none;background:linear-gradient(135deg,#3d8bfd,#2f6fd6);color:#fff;font-size:16px;font-weight:800;cursor:pointer;width:100%;max-width:280px}
+    body.mariel-bloqueado-actualizar{overflow:hidden}
+    body.mariel-bloqueado-actualizar>*:not(#pantalla-actualizar){visibility:hidden!important;pointer-events:none!important}
+    body.mariel-bloqueado-actualizar #pantalla-actualizar{visibility:visible!important;pointer-events:auto!important}
+  </style>
   <link rel="manifest" href="manifest.json">
   <link rel="icon" type="image/png" href="iconos/icono-192.png">
   <link rel="apple-touch-icon" href="iconos/icono-192.png">
@@ -15,9 +28,7 @@
   <link rel="stylesheet" href="css/amigos.css?v=295">
   <link rel="stylesheet" href="css/opciones.css?v=295">
   <link rel="stylesheet" href="css/notificaciones.css?v=117">
-  <script src="js/nucleo/red.js?v=305"></script>
-  <script src="js/nucleo/diagnostico_red.js?v=305"></script>
-  <script src="js/nucleo/consumo_red.js?v=305"></script>
+  <script src="js/nucleo/red.js?v=306"></script>
   <script>
     (function () {
       var metaV = document.querySelector('meta[name="mariel-version"]');
@@ -28,41 +39,92 @@
         if (fv && t0 && Date.now() - t0 < 120000) E = fv;
       } catch (e) { /* */ }
       window.__MARIEL_EMBEDDED__ = E;
-      function revisar(j) {
-        if (!j || !j.version) return;
-        var rem = parseInt(j.version, 10);
-        var loc = parseInt(E, 10);
-        if (rem <= loc) {
-          try { window.__MARIEL_UPDATE_PENDING = null; } catch (e) { /* */ }
-          return;
+
+      window.__marielBloquearActualizacion = function (loc, rem) {
+        var l = String(loc || E || '?');
+        var r = String(rem || '');
+        if (!r) return;
+        window.__MARIEL_BLOCK_BOOT = true;
+        window.__MARIEL_UPDATE_PENDING = { local: l, remote: r };
+        function pintar() {
+          if (!document.body) return;
+          document.body.classList.add('mariel-bloqueado-actualizar');
+          var pant = document.getElementById('pantalla-actualizar');
+          if (pant) pant.classList.remove('oculto');
+          var carga = document.getElementById('pantalla-carga');
+          if (carga) carga.classList.add('oculto');
+          var det = document.getElementById('actualizar-detalle');
+          if (det) det.textContent = 'Tu versión: ' + l + ' · Nueva: ' + r;
         }
-        window.__MARIEL_UPDATE_PENDING = { local: String(loc), remote: j.version };
+        if (document.readyState === 'loading') {
+          document.addEventListener('DOMContentLoaded', pintar, { once: true });
+        } else {
+          pintar();
+        }
         try {
           window.dispatchEvent(new CustomEvent('mariel-update-pending', {
             detail: window.__MARIEL_UPDATE_PENDING
           }));
         } catch (e) { /* */ }
-        if (window.MarielVersion && typeof MarielVersion._aplicarPendienteInline === 'function') {
-          MarielVersion._aplicarPendienteInline({ bloquear: false });
+        if (window.MarielVersion && typeof MarielVersion.mostrarBloqueo === 'function') {
+          MarielVersion.mostrarBloqueo(l, r);
         }
+      };
+
+      function revisar(ver) {
+        if (!ver) return;
+        var rem = parseInt(String(ver), 10);
+        var loc = parseInt(E, 10);
+        if (!rem || rem <= loc) {
+          window.__MARIEL_UPDATE_PENDING = null;
+          window.__MARIEL_BLOCK_BOOT = false;
+          return;
+        }
+        window.__marielBloquearActualizacion(loc, String(rem));
       }
+
       function mejorVersion(a, b) {
         if (!a) return b;
         if (!b) return a;
-        return parseInt(a.version, 10) >= parseInt(b.version, 10) ? a : b;
+        return parseInt(a, 10) >= parseInt(b, 10) ? a : b;
       }
+
+      function parseVersionJson(j) {
+        return j && j.version ? parseInt(j.version, 10) : 0;
+      }
+
+      function parseVersionConfig(txt) {
+        if (!txt) return 0;
+        var m = txt.match(/version:\s*['"](\d+)['"]/);
+        return m ? parseInt(m[1], 10) : 0;
+      }
+
       var ts = Date.now();
+      var fetchOpts = { cache: 'no-store', headers: { 'Cache-Control': 'no-cache', Pragma: 'no-cache' } };
       var urls = typeof MarielRed !== 'undefined' ? MarielRed.urlsVersion(ts) : [
         location.origin + '/version.json?_=' + ts,
         'version.json?_=' + ts
       ];
-      Promise.all(urls.map(function (u) {
-        return fetch(u, { cache: 'no-store' })
-          .then(function (r) { return r.ok ? r.json() : null; }).catch(function () { return null; });
-      })).then(function (lista) {
-        var mejor = null;
-        for (var i = 0; i < lista.length; i++) mejor = mejorVersion(mejor, lista[i]);
-        revisar(mejor);
+
+      Promise.all([
+        Promise.all(urls.map(function (u) {
+          return fetch(u, fetchOpts)
+            .then(function (r) { return r.ok ? r.json() : null; })
+            .catch(function () { return null; });
+        })).then(function (lista) {
+          var mejor = 0;
+          for (var i = 0; i < lista.length; i++) {
+            mejor = mejorVersion(mejor, parseVersionJson(lista[i]));
+          }
+          return mejor;
+        }),
+        fetch('js/config/config.js?_=' + ts, fetchOpts)
+          .then(function (r) { return r.ok ? r.text() : ''; })
+          .catch(function () { return ''; })
+          .then(parseVersionConfig)
+      ]).then(function (nums) {
+        var remota = Math.max(nums[0] || 0, nums[1] || 0);
+        if (remota > 0) revisar(remota);
       });
     })();
   </script>
@@ -81,11 +143,11 @@
     </div>
   </div>
 
-  <script src="js/nucleo/version_app.js?v=305"></script>
+  <script src="js/nucleo/version_app.js?v=306"></script>
   <script>MarielVersion.iniciar(window.__MARIEL_EMBEDDED__);</script>
 
-  <!-- PANTALLA DE CARGA (visible desde el primer instante) -->
-  <div id="pantalla-carga">
+  <!-- PANTALLA DE CARGA (solo si no hay actualización pendiente) -->
+  <div id="pantalla-carga" class="oculto">
     <div class="carga-logo kingdom-carga-logo">🗺️</div>
     <div class="carga-titulo">Kingdom Map</div>
     <div class="carga-barra"><div class="carga-progreso"></div></div>
@@ -1263,19 +1325,21 @@
   <script src="lib/leaflet/leaflet.js?v=104"></script>
 
   <!-- MÓDULOS DEL JUEGO (orden importante) -->
-  <script src="js/config/config.js?v=305"></script>
-  <script src="js/nucleo/utilidades.js?v=305"></script>
+  <script src="js/config/config.js?v=306"></script>
+  <script src="js/nucleo/utilidades.js?v=306"></script>
+  <script src="js/nucleo/diagnostico_red.js?v=306"></script>
+  <script src="js/nucleo/consumo_red.js?v=306"></script>
   <script src="js/nucleo/ui_components.js?v=298"></script>
   <script src="js/nucleo/ui_manager.js?v=298"></script>
   <script src="js/mundo/mundo_publico.js?v=104"></script>
   <script src="js/notificaciones/notificaciones.js?v=295"></script>
   <script src="js/usuarios/usuarios.js?v=302"></script>
-  <script src="js/guardado/guardado.js?v=305"></script>
+  <script src="js/guardado/guardado.js?v=306"></script>
   <script src="js/historial/historial.js?v=104"></script>
   <script src="js/dinero/dinero.js?v=104"></script>
   <script src="js/vida/vida.js?v=295"></script>
   <script src="js/items/items.js?v=295"></script>
-  <script src="js/admin/admin_depuracion.js?v=305"></script>
+  <script src="js/admin/admin_depuracion.js?v=306"></script>
   <script src="js/admin/catalogo_objetos.js?v=295"></script>
   <script src="js/mochila/mochila.js?v=295"></script>
   <script src="js/bolsas/bolsas.js?v=295"></script>
@@ -1292,19 +1356,19 @@
   <script src="js/correo/correo.js?v=104"></script>
   <script src="js/enemigos/botin_enemigo.js?v=295"></script>
   <script src="js/enemigos/enemigos.js?v=295"></script>
-  <script src="js/online/sync_servidor.js?v=305"></script>
+  <script src="js/online/sync_servidor.js?v=306"></script>
   <script src="js/admin/admin.js?v=299"></script>
   <script src="js/opciones/opciones.js?v=295"></script>
   <script src="js/online/mundo_online.js?v=295"></script>
   <script src="js/online/contenido_mundo.js?v=295"></script>
   <script src="js/online/amigos.js?v=295"></script>
   <script src="js/chat/chat.js?v=295"></script>
-  <script src="js/online/multijugador.js?v=305"></script>
-  <script src="js/principal.js?v=295"></script>
+  <script src="js/online/multijugador.js?v=306"></script>
+  <script src="js/principal.js?v=306"></script>
   <script>
     // Registrar la app instalable (PWA)
     if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.register('sw.js?v=305', { updateViaCache: 'none' })
+      navigator.serviceWorker.register('sw.js?v=306', { updateViaCache: 'none' })
         .then(function (reg) {
           if (typeof MarielVersion !== 'undefined') MarielVersion.registrarServiceWorker(reg);
         })

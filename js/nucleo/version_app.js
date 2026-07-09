@@ -114,10 +114,22 @@ const MarielVersion = {
     } catch (e) { /* */ }
   },
 
+  aplicarBloqueoInmediato() {
+    if (window.__MARIEL_BLOCK_BOOT && window.__MARIEL_UPDATE_PENDING?.remote) {
+      const p = window.__MARIEL_UPDATE_PENDING;
+      this.mostrarBloqueo(p.local, p.remote);
+      return true;
+    }
+    if (this._aplicarPendienteInline({ bloquear: true })) return true;
+    return this._bloqueado;
+  },
+
   iniciar(versionEmbebida) {
     const emb = String(window.__MARIEL_EMBEDDED__ || versionEmbebida || '');
     this._embebida = String(this._num(emb) || emb);
     this._aplicarVersionTrasActualizacion();
+    this.aplicarBloqueoInmediato();
+
     const btn = document.getElementById('btn-actualizar-app');
     if (btn && !btn._marielVersionOk) {
       btn._marielVersionOk = true;
@@ -125,32 +137,37 @@ const MarielVersion = {
     }
 
     window.addEventListener('mariel-update-pending', () => {
-      this._aplicarPendienteInline({ bloquear: false });
-      this._comprobarRemota({ bloquear: false });
+      if (this.aplicarBloqueoInmediato()) return;
+      this._comprobarRemota({ bloquear: true });
     });
 
-    this._aplicarPendienteInline({ bloquear: false });
-    this.revisar({ bloquear: false });
-    this._comprobarRemota({ bloquear: false });
+    if (this._bloqueado) {
+      this._comprobarRemota({ bloquear: true });
+      return;
+    }
+
+    this._comprobarRemota({ bloquear: true });
+    if (this._bloqueado) return;
+
     this._programarComprobacionesArranque();
 
     document.addEventListener('visibilitychange', () => {
-      if (document.visibilityState === 'visible') this._comprobarRemota({ bloquear: false });
+      if (document.visibilityState === 'visible') this._comprobarRemota({ bloquear: true });
     });
-    window.addEventListener('focus', () => this._comprobarRemota({ bloquear: false }));
-    window.addEventListener('online', () => this._comprobarRemota({ bloquear: false }));
+    window.addEventListener('focus', () => this._comprobarRemota({ bloquear: true }));
+    window.addEventListener('online', () => this._comprobarRemota({ bloquear: true }));
 
     if (this._pollTimer) clearInterval(this._pollTimer);
-    this._pollTimer = setInterval(() => this._comprobarRemota({ bloquear: false }), this._pollMs);
+    this._pollTimer = setInterval(() => this._comprobarRemota({ bloquear: true }), this._pollMs);
 
     if ('serviceWorker' in navigator) {
       navigator.serviceWorker.addEventListener('controllerchange', () => {
-        this._comprobarRemota({ bloquear: false });
+        this._comprobarRemota({ bloquear: true });
       });
       navigator.serviceWorker.addEventListener('message', (ev) => {
         if (ev.data?.tipo === 'nueva-version') {
           if (ev.data.version) this._remota = String(ev.data.version);
-          this._comprobarRemota({ bloquear: false });
+          this._comprobarRemota({ bloquear: true });
         }
       });
     }
@@ -302,6 +319,7 @@ const MarielVersion = {
     if (v && v !== '?') localStorage.setItem('mariel_app_version', v);
     this._bloqueado = false;
     this._actualizando = false;
+    window.__MARIEL_BLOCK_BOOT = false;
     window.__MARIEL_UPDATE_PENDING = null;
     document.body.classList.remove('mariel-bloqueado-actualizar');
     const pant = document.getElementById('pantalla-actualizar');
@@ -346,6 +364,7 @@ const MarielVersion = {
     const rem = String(remoto || this._remota || '');
     this._bloqueado = true;
     this._remota = rem;
+    window.__MARIEL_BLOCK_BOOT = true;
     document.body.classList.add('mariel-bloqueado-actualizar');
 
     const det = document.getElementById('actualizar-detalle');
@@ -354,6 +373,9 @@ const MarielVersion = {
 
     const pant = document.getElementById('pantalla-actualizar');
     if (pant) pant.classList.remove('oculto');
+
+    const carga = document.getElementById('pantalla-carga');
+    if (carga) carga.classList.add('oculto');
 
     document.body.classList.remove('jugador-muerto');
     const ataud = document.getElementById('ventana-ataud');
