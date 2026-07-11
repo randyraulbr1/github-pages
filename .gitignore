@@ -27,6 +27,7 @@
 *.sqlite
 server/data/
 server/node_modules/
+server/.env
 node_modules/
 
 # Tokens locales (nunca subir al repositorio)

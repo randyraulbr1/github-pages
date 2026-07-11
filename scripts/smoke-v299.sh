@@ -38,8 +38,9 @@ grep -q 'ui-panel-header' index.html
 grep -q 'ui-panel-close' index.html
 grep -q 'red.js' index.html
 node --check js/nucleo/red.js
-grep -q 'hostingUnificado' js/config/config.js
-grep -q 'ORACLE_MIGRACION' docs/ORACLE_MIGRACION.md
+grep -q 'servidorOnline' js/config/config.js
+[ -f docs/ORACLE_MIGRACION.md ] || { echo "FALTA docs/ORACLE_MIGRACION.md"; exit 1; }
+grep -q 'Oracle Cloud' docs/ORACLE_MIGRACION.md
 echo "OK paneles UI Fase 12 (${#PANELES[@]} ventanas críticas)"
 
 echo "== Fases 9-11 (servidor) =="
@@ -52,16 +53,20 @@ grep -q 'adminHistorial\|historial' server/routes/playerRoutes.js
 echo "OK rate limit + historial admin"
 
 echo "== Deploy tcodm.com =="
-REMOTE_V=$(curl -sf -m 12 https://raw.githubusercontent.com/randyraulbr1/github-pages/main/version.json | grep -oP '"version": "\K[0-9]+' || true)
-[ "$REMOTE_V" = "$V" ] || { echo "FALTA sync GitHub version.json ($REMOTE_V vs $V)"; exit 1; }
-LIVE_V=""
-for i in 1 2 3 4 5; do
-  LIVE_V=$(curl -sf -m 15 -A 'mariel-smoke/299' https://tcodm.com/ 2>/dev/null | grep -oP 'mariel-version" content="\K[0-9]+' | head -1 || true)
-  [ "$LIVE_V" = "$V" ] && break
-  sleep 2
-done
-[ "$LIVE_V" = "$V" ] || { echo "FALTA tcodm.com v$V (vi: ${LIVE_V:-sin respuesta})"; exit 1; }
-echo "OK tcodm.com sirve v$V"
+if [ "${SMOKE_SKIP_LIVE:-}" = "1" ]; then
+  echo "SKIP tcodm.com (SMOKE_SKIP_LIVE=1)"
+else
+  REMOTE_V=$(curl -sf -m 12 https://raw.githubusercontent.com/randyraulbr1/github-pages/main/version.json | grep -oP '"version": "\K[0-9]+' || true)
+  [ "$REMOTE_V" = "$V" ] || { echo "FALTA sync GitHub version.json ($REMOTE_V vs $V)"; exit 1; }
+  LIVE_V=""
+  for i in 1 2 3 4 5; do
+    LIVE_V=$(curl -sf -m 15 -A 'mariel-smoke/299' https://tcodm.com/ 2>/dev/null | grep -oP 'mariel-version" content="\K[0-9]+' | head -1 || true)
+    [ "$LIVE_V" = "$V" ] && break
+    sleep 2
+  done
+  [ "$LIVE_V" = "$V" ] || { echo "FALTA tcodm.com v$V (vi: ${LIVE_V:-sin respuesta})"; exit 1; }
+  echo "OK tcodm.com sirve v$V"
+fi
 
 echo "== Health (si servidor en :3000) =="
 if curl -sf -m 3 http://127.0.0.1:3000/health >/dev/null 2>&1; then
