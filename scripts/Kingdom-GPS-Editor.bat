@@ -1,124 +1,117 @@
 @echo off
 setlocal EnableExtensions EnableDelayedExpansion
 chcp 65001 >nul
-title Kingdom GPS Editor — Instalar y abrir
-
-:: ============================================================
-::  INSTRUCCIONES:
-::  1. Crea una carpeta, ej: C:\Users\RANDY\Desktop\KingdomEditor
-::  2. Copia aqui el ZIP (kingdom-gps-editor-main.zip) y este .bat
-::  3. Doble clic en este .bat — hace todo solo
-:: ============================================================
+title Kingdom GPS Editor
 
 set "BASE=%~dp0"
 if "%BASE:~-1%"=="\" set "BASE=%BASE:~0,-1%"
 
 echo.
 echo ========================================
-echo  Kingdom GPS Editor — auto instalador
+echo   Kingdom GPS Editor
 echo ========================================
-echo  Carpeta: %BASE%
 echo.
 
 :: --- Node.js ---
 where node >nul 2>&1
 if errorlevel 1 (
-  echo [ERROR] Instala Node.js 20+ desde https://nodejs.org/
-  pause
-  exit /b 1
+  echo [ERROR] Node.js no instalado.
+  echo Descarga: https://nodejs.org/  ^(version 20 LTS^)
+  goto :fin
 )
-for /f "delims=" %%v in ('node -v') do echo  Node.js: %%v
+echo OK Node.js: 
+node -v
 echo.
 
-:: --- Buscar proyecto ya extraido ---
+:: --- Buscar carpeta del proyecto ---
 set "PROYECTO="
-call :BuscarEn "%BASE%"
 
-if defined PROYECTO goto :ProyectoListo
-
-:: --- Buscar ZIP en la misma carpeta ---
-set "ZIP="
-for %%F in ("%BASE%\kingdom-gps-editor*.zip") do (
-  set "ZIP=%%~fF"
-  goto :ZipEncontrado
+if exist "%BASE%\kingdom-gps-editor-main\package.json" (
+  set "PROYECTO=%BASE%\kingdom-gps-editor-main"
+)
+if exist "%BASE%\package.json" if not defined PROYECTO (
+  set "PROYECTO=%BASE%"
 )
 
-echo [ERROR] No hay ZIP en esta carpeta.
-echo.
-echo Coloca el archivo kingdom-gps-editor-main.zip junto a este .bat
-echo y vuelve a ejecutarlo.
-echo.
-pause
-exit /b 1
-
-:ZipEncontrado
-echo  ZIP encontrado: !ZIP!
-echo  Extrayendo...
-echo.
-
-powershell -NoProfile -Command "Expand-Archive -LiteralPath '%ZIP%' -DestinationPath '%BASE%' -Force"
-if errorlevel 1 (
-  echo [ERROR] No se pudo extraer el ZIP.
-  pause
-  exit /b 1
+:: --- Si no existe, extraer ZIP ---
+if not defined PROYECTO (
+  set "ZIP="
+  for %%F in ("%BASE%\kingdom-gps-editor*.zip") do set "ZIP=%%~fF"
+  if not defined ZIP (
+    echo [ERROR] No hay ZIP en esta carpeta.
+    echo Pon kingdom-gps-editor-main.zip junto al .bat
+    goto :fin
+  )
+  echo Extrayendo: !ZIP!
+  powershell -NoProfile -Command "Expand-Archive -LiteralPath '!ZIP!' -DestinationPath '%BASE%' -Force"
+  if errorlevel 1 (
+    echo [ERROR] Fallo al extraer el ZIP.
+    goto :fin
+  )
+  echo OK ZIP extraido.
+  echo.
 )
 
-:: Buscar de nuevo tras extraer
-set "PROYECTO="
-call :BuscarEn "%BASE%"
+:: --- Volver a buscar carpeta ---
+if exist "%BASE%\kingdom-gps-editor-main\package.json" (
+  set "PROYECTO=%BASE%\kingdom-gps-editor-main"
+)
+if exist "%BASE%\package.json" if not defined PROYECTO (
+  set "PROYECTO=%BASE%"
+)
 
 if not defined PROYECTO (
-  echo [ERROR] ZIP extraido pero no se encontro package.json.
-  pause
-  exit /b 1
+  echo [ERROR] package.json no encontrado despues de extraer.
+  echo Revisa que el ZIP contenga kingdom-gps-editor-main\
+  dir "%BASE%"
+  goto :fin
 )
 
-:ProyectoListo
-echo  Proyecto: %PROYECTO%
+echo Proyecto: !PROYECTO!
 echo.
 
-cd /d "%PROYECTO%"
+cd /d "!PROYECTO!"
+if errorlevel 1 (
+  echo [ERROR] No se pudo entrar a la carpeta del proyecto.
+  goto :fin
+)
 
 if defined ELECTRON_RUN_AS_NODE set "ELECTRON_RUN_AS_NODE="
 
+:: --- npm install ---
 if not exist "node_modules\" (
-  echo  Instalando dependencias ^(primera vez, ~1 min^)...
+  echo Instalando dependencias... ^(puede tardar 1-2 min^)
   echo.
   call npm install
   if errorlevel 1 (
+    echo.
     echo [ERROR] npm install fallo.
-    pause
-    exit /b 1
+    goto :fin
   )
+  echo.
+  echo OK dependencias instaladas.
+  echo.
+) else (
+  echo OK node_modules ya existe.
   echo.
 )
 
-echo  Abriendo Kingdom GPS Editor...
-echo  ^(Cierra esta ventana negra para cerrar el programa^)
+:: --- Abrir editor ---
+echo Abriendo Kingdom GPS Editor...
+echo NO cierres esta ventana hasta salir del programa.
 echo.
 
 call npm run dev
+set "ERR=!errorlevel!"
 
 echo.
-pause
-exit /b 0
-
-:: ------------------------------------------------------------
-:BuscarEn
-set "RAIZ=%~1"
-if exist "%RAIZ%\package.json" call :ComprobarPkg "%RAIZ%"
-if defined PROYECTO exit /b 0
-if exist "%RAIZ%\kingdom-gps-editor-main\package.json" call :ComprobarPkg "%RAIZ%\kingdom-gps-editor-main"
-if defined PROYECTO exit /b 0
-:: subcarpetas directas
-for /d %%D in ("%RAIZ%\*") do (
-  if exist "%%D\package.json" call :ComprobarPkg "%%D"
-  if defined PROYECTO exit /b 0
+if !ERR! neq 0 (
+  echo [ERROR] npm run dev termino con codigo !ERR!
+) else (
+  echo Programa cerrado correctamente.
 )
-exit /b 0
 
-:ComprobarPkg
-findstr /C:"kingdomgps-editor" "%~1\package.json" >nul 2>&1
-if errorlevel 1 exit /b 0
-set "PROYECTO=%~1"
-exit /b 0
+:fin
+echo.
+pause
+endlocal
