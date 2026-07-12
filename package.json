@@ -1,0 +1,18 @@
+{
+  "name": "mariel-explorer",
+  "version": "315.0.0",
+  "private": true,
+  "description": "Mariel Explorer — juego web GPS (cliente estático + servidor Node)",
+  "scripts": {
+    "postinstall": "npm install --prefix server",
+    "typecheck": "node scripts/typecheck.js",
+    "test": "bash scripts/smoke-v299.sh",
+    "test:local": "SMOKE_SKIP_LIVE=1 bash scripts/smoke-v299.sh",
+    "build": "node scripts/build.js",
+    "dev": "npm run dev --prefix server",
+    "start": "npm start --prefix server"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}
