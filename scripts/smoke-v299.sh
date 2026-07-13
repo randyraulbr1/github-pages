@@ -26,7 +26,7 @@ echo "OK servidor"
 echo "== Fase 12 UI (paneles unificados) =="
 grep -q 'ui_components.css' index.html
 grep -q 'ui_components.js' index.html
-PANELES=(ventana-amigos ventana-mochila ventana-tienda ventana-misiones ventana-opciones ventana-admin chatPanel)
+PANELES=(ventana-amigos ventana-mochila ventana-tienda ventana-misiones ventana-opciones chatPanel)
 for id in "${PANELES[@]}"; do
   grep -q "id=\"$id\"" index.html || { echo "FALTA id $id en index.html"; exit 1; }
 done

@@ -214,21 +214,45 @@ router.post('/limpiar-cuentas', authMiddleware, gameAdminMiddleware, async (req,
   res.json(r);
 });
 
-/** Admin (editor): lista de jugadores del mundo para el panel de administración. */
+/** Admin (editor): lista de jugadores REALES registrados, con sus datos de partida. */
 router.get('/admin-jugadores', authMiddleware, gameAdminMiddleware, (req, res) => {
   const snap = getWorldSnapshot() || {};
   const jugadores = Array.isArray(snap.jugadores) ? snap.jugadores : [];
+  const partidas = (snap.partidas && typeof snap.partidas === 'object') ? snap.partidas : {};
+  const posiciones = (snap.posiciones && typeof snap.posiciones === 'object') ? snap.posiciones : {};
   let esAdminNombre = () => false;
   try { esAdminNombre = require('../adminCuenta').esNombreAdmin; } catch (e) { /* */ }
+
+  const contarInventario = (p) => {
+    if (Array.isArray(p?.mochila)) {
+      return p.mochila.reduce((s, sl) => s + (sl && sl.cantidad ? sl.cantidad : 0), 0);
+    }
+    return 0;
+  };
+
   res.json({
     ok: true,
-    jugadores: jugadores.map((j) => ({
-      id: j.id,
-      nombre: j.nombre,
-      telefono: j.telefono || '',
-      esAdmin: !!esAdminNombre(j.nombre),
-      creado: j.creado || null
-    }))
+    jugadores: jugadores.map((j) => {
+      const p = partidas[j.id] || {};
+      const pos = posiciones[j.id];
+      return {
+        id: j.id,
+        nombre: j.nombre,
+        telefono: j.telefono || '',
+        esAdmin: !!esAdminNombre(j.nombre),
+        creado: j.creado || null,
+        // Datos de partida (lo que antes mostraba el admin dentro del juego):
+        dinero: Number(p.dinero) || 0,
+        nivel: Number(p.nivel) || 1,
+        experiencia: Number(p.experiencia) || 0,
+        vida: p.vida != null ? Number(p.vida) : null,
+        hambre: p.hambre != null ? Number(p.hambre) : null,
+        muerto: !!p.muerto,
+        objetos: contarInventario(p),
+        posicion: Array.isArray(pos) ? pos : (Array.isArray(p.posicionJugador) ? p.posicionJugador : null),
+        conectado: false
+      };
+    })
   });
 });
 
