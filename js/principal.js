@@ -249,15 +249,8 @@ async function asegurarMapaVisible() {
       ocultarCarga();
       Admin.mostrarPantallaBloqueoSiCorresponde();
       if (bloqueo.tipo === 'ban') return;
-      if (Admin.datos && Usuarios.esAdministrador() && Usuarios.perfilActivo.pinHash) {
-        const pantalla = document.getElementById('pantalla-bloqueo');
-        const boton = document.getElementById('btn-bloqueo-admin');
-        boton.classList.remove('oculto');
-        boton.addEventListener('click', () => {
-          pantalla.classList.add('oculto');
-          Admin.solicitarAcceso();
-        });
-      }
+      // La administración del mundo se hace desde el editor externo (panel adm);
+      // el juego ya no muestra el acceso de administrador durante el bloqueo.
       return;
     }
 
