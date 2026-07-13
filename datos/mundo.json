@@ -1,5 +1,5 @@
 {
-  "actualizadoEn": 1783980930458,
+  "actualizadoEn": 1783981298250,
   "misiones": [],
   "tesoros": [],
   "objetos": [],
@@ -55,6 +55,13 @@
       "telefono": "",
       "creado": 1783446327143,
       "pinHash": "0a22b58a09f93652ac592f9424e5dedbeb450965c0e7ddc5b46f8ab21aa96bb1"
+    },
+    {
+      "id": "srv_1",
+      "nombre": "33",
+      "telefono": "",
+      "pinHash": "0a22b58a09f93652ac592f9424e5dedbeb450965c0e7ddc5b46f8ab21aa96bb1",
+      "creado": 1783433393395
     }
   ],
   "cofres": [],
@@ -442,10 +449,10 @@
           "posBtnAtacar": "der"
         },
         "preferenciasT": 1783560347756,
-        "_equipoT": 1783980929219
+        "_equipoT": 1783981297867
       },
-      "t": 1783980929619,
-      "statsT": 1783980929219
+      "t": 1783981298269,
+      "statsT": 1783981297867
     },
     "pmra42v1xlv3c5": {
       "datos": {
@@ -576,6 +583,75 @@
       },
       "t": 1783433381757
     },
+    "srv_1": {
+      "datos": {
+        "mochila": [
+          {
+            "id": "agua",
+            "cantidad": 2
+          },
+          {
+            "id": "pan",
+            "cantidad": 1
+          },
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null
+        ],
+        "dinero": {
+          "saldo": 100,
+          "control": "68e382a3687042dcd0420432d9bf210eada6d12606b6ecd367d18c724c2f4b38"
+        },
+        "vida": 100,
+        "hambre": 46,
+        "xp": 0,
+        "nivel": 1,
+        "posicionJugador": null,
+        "tesorosRecogidos": [],
+        "misiones": {},
+        "misionesEstado": {},
+        "correoEnviados": [],
+        "correoRecibidos": [],
+        "correoTiendaLocal": [],
+        "historialDinero": [
+          {
+            "t": 1783433394471,
+            "detalle": "Dinero inicial",
+            "monto": 100,
+            "saldo": 100,
+            "lugar": "sin posición",
+            "pos": null,
+            "hashAnterior": "GENESIS",
+            "hash": "702838578c4a21eb80b1dbe4ac0c4335493eb008ab16e0652e10d30c0cafaa3e"
+          }
+        ],
+        "historialObjetos": [],
+        "mensajesVistos": [],
+        "muerto": false,
+        "armaEquipada": null
+      },
+      "t": 1783433951730
+    },
     "srv_2": {
       "datos": {
         "mochila": [
@@ -658,75 +734,6 @@
         "armaEquipada": null
       },
       "t": 1783447222589
-    },
-    "srv_1": {
-      "datos": {
-        "mochila": [
-          {
-            "id": "agua",
-            "cantidad": 2
-          },
-          {
-            "id": "pan",
-            "cantidad": 1
-          },
-          null,
-          null,
-          null,
-          null,
-          null,
-          null,
-          null,
-          null,
-          null,
-          null,
-          null,
-          null,
-          null,
-          null,
-          null,
-          null,
-          null,
-          null,
-          null,
-          null,
-          null,
-          null,
-          null
-        ],
-        "dinero": {
-          "saldo": 100,
-          "control": "68e382a3687042dcd0420432d9bf210eada6d12606b6ecd367d18c724c2f4b38"
-        },
-        "vida": 100,
-        "hambre": 46,
-        "xp": 0,
-        "nivel": 1,
-        "posicionJugador": null,
-        "tesorosRecogidos": [],
-        "misiones": {},
-        "misionesEstado": {},
-        "correoEnviados": [],
-        "correoRecibidos": [],
-        "correoTiendaLocal": [],
-        "historialDinero": [
-          {
-            "t": 1783433394471,
-            "detalle": "Dinero inicial",
-            "monto": 100,
-            "saldo": 100,
-            "lugar": "sin posición",
-            "pos": null,
-            "hashAnterior": "GENESIS",
-            "hash": "702838578c4a21eb80b1dbe4ac0c4335493eb008ab16e0652e10d30c0cafaa3e"
-          }
-        ],
-        "historialObjetos": [],
-        "mensajesVistos": [],
-        "muerto": false,
-        "armaEquipada": null
-      },
-      "t": 1783433951730
     }
   },
   "enemigos": [],
