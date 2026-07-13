@@ -57,17 +57,32 @@ const Tiendas = {
     return Math.max(1, Math.floor(base * 0.3));
   },
 
+  // Radio de interacción de la tienda: usa el propio si viene del editor,
+  // si no el global del juego.
+  _radioTienda(t) {
+    return (typeof t.radio === 'number' && t.radio > 0) ? t.radio : CONFIG.distanciaInteraccion;
+  },
+
+  // Una tienda desactivada desde el editor (activo === false) no se muestra.
+  _tiendaVisible(t) {
+    return !Admin.eliminado(t.id) && t.activo !== false;
+  },
+
   _cargarAdmin() {
     if (typeof Admin === 'undefined' || !Admin.tiendasAdminTodas) return;
     const nuevas = Admin.tiendasAdminTodas();
-    const idsNuevos = new Set(nuevas.map(t => t.id));
+    const activas = nuevas.filter(t => this._tiendaVisible(t));
+    const idsNuevos = new Set(activas.map(t => t.id));
+    // Quita marcadores de tiendas eliminadas o desactivadas.
     for (const id of Object.keys(this._marcadoresAdmin)) {
-      if (!idsNuevos.has(id) || Admin.eliminado(id)) {
+      if (!idsNuevos.has(id)) {
         if (this._marcadoresAdmin[id].remove) this._marcadoresAdmin[id].remove();
         delete this._marcadoresAdmin[id];
+        const idx = Mapa.puntosInteractivos.findIndex(x => x.id === id);
+        if (idx >= 0) Mapa.puntosInteractivos.splice(idx, 1);
       }
     }
-    this._listaAdmin = nuevas.filter(t => !Admin.eliminado(t.id));
+    this._listaAdmin = activas;
     for (const t of this._listaAdmin) {
       const pos = t.posicion || t.pos;
       if (!pos) continue;
@@ -78,6 +93,7 @@ const Tiendas = {
         if (p) {
           p.posicion[0] = pos[0];
           p.posicion[1] = pos[1];
+          p.radio = this._radioTienda(t);
         }
         continue;
       }
@@ -86,7 +102,7 @@ const Tiendas = {
       Mapa.registrarPunto({
         id: t.id,
         posicion: pos,
-        radio: CONFIG.distanciaInteraccion,
+        radio: this._radioTienda(t),
         marcador,
         alTocar: () => this.abrir(t)
       });
@@ -96,6 +112,8 @@ const Tiendas = {
   agregarAdmin(t) {
     const pos = t.posicion || t.pos;
     if (!pos) return;
+    // Si llega desactivada, tratarla como recarga (quita marcador si existía).
+    if (!this._tiendaVisible(t)) { this._cargarAdmin(); return; }
     Admin.pos(t.id, pos);
     if (!this._listaAdmin.find(x => x.id === t.id)) this._listaAdmin.push(t);
     if (this._marcadoresAdmin[t.id]) return;
@@ -104,7 +122,7 @@ const Tiendas = {
     Mapa.registrarPunto({
       id: t.id,
       posicion: pos,
-      radio: CONFIG.distanciaInteraccion,
+      radio: this._radioTienda(t),
       marcador,
       alTocar: () => this.abrir(t)
     });

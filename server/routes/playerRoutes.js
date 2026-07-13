@@ -214,6 +214,24 @@ router.post('/limpiar-cuentas', authMiddleware, gameAdminMiddleware, async (req,
   res.json(r);
 });
 
+/** Admin (editor): lista de jugadores del mundo para el panel de administración. */
+router.get('/admin-jugadores', authMiddleware, gameAdminMiddleware, (req, res) => {
+  const snap = getWorldSnapshot() || {};
+  const jugadores = Array.isArray(snap.jugadores) ? snap.jugadores : [];
+  let esAdminNombre = () => false;
+  try { esAdminNombre = require('../adminCuenta').esNombreAdmin; } catch (e) { /* */ }
+  res.json({
+    ok: true,
+    jugadores: jugadores.map((j) => ({
+      id: j.id,
+      nombre: j.nombre,
+      telefono: j.telefono || '',
+      esAdmin: !!esAdminNombre(j.nombre),
+      creado: j.creado || null
+    }))
+  });
+});
+
 /** Admin del juego: restaurar cuenta desde backup o papelera */
 router.post('/restaurar-cuenta', authMiddleware, gameAdminMiddleware, (req, res) => {
   const id = (req.body.id || req.body.usuario || '').trim();
