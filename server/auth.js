@@ -209,6 +209,7 @@ module.exports = {
   isOwnPerfil,
   getGameAdminNames,
   normalizeRole,
+  ROLES_JWT,
   roleRank,
   hasMinRole,
   isOwner,

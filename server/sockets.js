@@ -24,7 +24,7 @@ const {
   markChatRead,
   canChatBetween
 } = require('./db');
-const { verifyToken, isGameAdminPlayer, canEditPartida } = require('./auth');
+const { verifyToken, isGameAdminPlayer, canEditPartida, normalizeRole, ROLES_JWT } = require('./auth');
 const { validarStatsJugador } = require('./playerStats');
 const { auditarSiAdminEditaAjeno } = require('./auditLog');
 const { startEnemyAI } = require('./enemyAI');
@@ -161,13 +161,16 @@ function setupSockets(io) {
     const token = socket.handshake.auth?.token || socket.handshake.query?.token;
     if (!token) return next(new Error('Token requerido'));
     const payload = verifyToken(token);
-    if (!payload || (payload.role !== 'player' && payload.role !== 'admin')) {
+    // Aceptar cualquier rol válido del juego (jugador/tester/moderador/admin/owner),
+    // igual que el authMiddleware HTTP. Antes solo aceptaba 'player'/'admin', lo que
+    // rechazaba a los jugadores normales (rol normalizado 'jugador') con "Token inválido".
+    if (!payload || !ROLES_JWT.has(normalizeRole(payload.role))) {
       return next(new Error('Token inválido'));
     }
     socket.playerId = payload.playerId;
     socket.userId = payload.sub;
     socket.username = payload.username;
-    socket.role = payload.role || 'player';
+    socket.role = normalizeRole(payload.role);
     next();
   });
 
