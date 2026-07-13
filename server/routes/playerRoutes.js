@@ -248,12 +248,136 @@ router.get('/admin-jugadores', authMiddleware, gameAdminMiddleware, (req, res) =
         vida: p.vida != null ? Number(p.vida) : null,
         hambre: p.hambre != null ? Number(p.hambre) : null,
         muerto: !!p.muerto,
+        baneado: !!j.baneado,
         objetos: contarInventario(p),
         posicion: Array.isArray(pos) ? pos : (Array.isArray(p.posicionJugador) ? p.posicionJugador : null),
         conectado: false
       };
     })
   });
+});
+
+// ===== Edición de jugadores reales desde el editor (panel adm) =====
+
+function esAdminNombreSafe(nombre) {
+  try { return require('../adminCuenta').esNombreAdmin(nombre); } catch (e) { return false; }
+}
+
+/** Busca el jugador en el snapshot por id. */
+function jugadorEnSnap(snap, id) {
+  const lista = Array.isArray(snap?.jugadores) ? snap.jugadores : [];
+  return lista.find((j) => j.id === id) || null;
+}
+
+/** Admin: editar datos de partida de un jugador (dinero, nivel, xp, vida, hambre, posición). */
+router.post('/admin-jugador-editar', authMiddleware, gameAdminMiddleware, (req, res) => {
+  const { db, saveWorldSnapshot } = require('../db');
+  const { id, dinero, nivel, experiencia, vida, hambre, posicion } = req.body || {};
+  if (!id) return res.status(400).json({ ok: false, error: 'id requerido' });
+  const snap = getWorldSnapshot();
+  if (!snap) return res.status(500).json({ ok: false, error: 'No hay mundo cargado' });
+  const jugador = jugadorEnSnap(snap, id);
+  if (!jugador) return res.status(404).json({ ok: false, error: 'Jugador no encontrado' });
+
+  if (!snap.partidas) snap.partidas = {};
+  const p = snap.partidas[id] || {};
+  const setNum = (val, min, max) => {
+    const n = Number(val);
+    if (!Number.isFinite(n)) return undefined;
+    return Math.max(min, max != null ? Math.min(max, n) : n);
+  };
+  if (dinero !== undefined) { const v = setNum(dinero, 0); if (v !== undefined) p.dinero = Math.round(v); }
+  if (nivel !== undefined) { const v = setNum(nivel, 1, 999); if (v !== undefined) p.nivel = Math.round(v); }
+  if (experiencia !== undefined) { const v = setNum(experiencia, 0); if (v !== undefined) p.experiencia = Math.round(v); }
+  if (vida !== undefined) { const v = setNum(vida, 0); if (v !== undefined) { p.vida = Math.round(v); if (p.vida > 0) p.muerto = false; } }
+  if (hambre !== undefined) { const v = setNum(hambre, 0); if (v !== undefined) p.hambre = Math.round(v); }
+  p.t = Date.now();
+  snap.partidas[id] = p;
+
+  if (Array.isArray(posicion) && posicion.length === 2) {
+    const lat = Number(posicion[0]); const lng = Number(posicion[1]);
+    if (Number.isFinite(lat) && Number.isFinite(lng)) {
+      if (!snap.posiciones) snap.posiciones = {};
+      snap.posiciones[id] = [lat, lng];
+      p.posicionJugador = [lat, lng];
+    }
+  }
+
+  snap.actualizadoEn = Date.now();
+  saveWorldSnapshot(snap);
+  try { require('../respaldoThrottle').respaldoInmediato().catch(() => {}); } catch (e) { /* */ }
+  registrar('admin_editar_jugador', `Editado ${jugador.nombre}`);
+
+  // Avisar al jugador si está conectado para que refresque sus stats.
+  const io = req.app.get('io');
+  if (io) io.emit('player:adminUpdate', { playerId: id, partida: snap.partidas[id] });
+
+  res.json({ ok: true, id });
+});
+
+/** Admin: cambiar la contraseña de un jugador. */
+router.post('/admin-jugador-password', authMiddleware, gameAdminMiddleware, (req, res) => {
+  const { db } = require('../db');
+  const { id, password } = req.body || {};
+  if (!id || !password || String(password).length < 4) {
+    return res.status(400).json({ ok: false, error: 'Contraseña mínimo 4 caracteres' });
+  }
+  const snap = getWorldSnapshot();
+  const jugador = jugadorEnSnap(snap, id);
+  if (!jugador) return res.status(404).json({ ok: false, error: 'Jugador no encontrado' });
+
+  const user = findUserByUsername(jugador.nombre);
+  if (!user) return res.status(404).json({ ok: false, error: 'La cuenta no tiene login en el servidor' });
+  db.prepare('UPDATE users SET password_hash = ? WHERE id = ?').run(hashPassword(password), user.id);
+  registrar('admin_password', `Contraseña cambiada: ${jugador.nombre}`);
+  res.json({ ok: true, id });
+});
+
+/** Admin: banear / desbanear un jugador. */
+router.post('/admin-jugador-ban', authMiddleware, gameAdminMiddleware, (req, res) => {
+  const { saveWorldSnapshot } = require('../db');
+  const { id, ban } = req.body || {};
+  if (!id) return res.status(400).json({ ok: false, error: 'id requerido' });
+  const snap = getWorldSnapshot();
+  const jugador = jugadorEnSnap(snap, id);
+  if (!jugador) return res.status(404).json({ ok: false, error: 'Jugador no encontrado' });
+  if (esAdminNombreSafe(jugador.nombre)) return res.status(403).json({ ok: false, error: 'No se puede banear al administrador' });
+
+  jugador.baneado = !!ban;
+  snap.actualizadoEn = Date.now();
+  saveWorldSnapshot(snap);
+  try { require('../respaldoThrottle').respaldoInmediato().catch(() => {}); } catch (e) { /* */ }
+  registrar('admin_ban', `${ban ? 'Baneado' : 'Desbaneado'}: ${jugador.nombre}`);
+  res.json({ ok: true, id, baneado: !!ban });
+});
+
+/** Admin: eliminar un jugador (cuenta + partida). */
+router.post('/admin-jugador-eliminar', authMiddleware, gameAdminMiddleware, (req, res) => {
+  const { db, saveWorldSnapshot } = require('../db');
+  const { id } = req.body || {};
+  if (!id) return res.status(400).json({ ok: false, error: 'id requerido' });
+  const snap = getWorldSnapshot();
+  const jugador = jugadorEnSnap(snap, id);
+  if (!jugador) return res.status(404).json({ ok: false, error: 'Jugador no encontrado' });
+  if (esAdminNombreSafe(jugador.nombre)) return res.status(403).json({ ok: false, error: 'No se puede eliminar al administrador' });
+
+  // Guardar en papelera recuperable antes de borrar.
+  if (!Array.isArray(snap.eliminados_recuperables)) snap.eliminados_recuperables = [];
+  snap.eliminados_recuperables.push({ tipo: 'jugador', id, datos: jugador, partida: snap.partidas?.[id] || null, t: Date.now() });
+
+  snap.jugadores = (snap.jugadores || []).filter((j) => j.id !== id);
+  if (snap.partidas) delete snap.partidas[id];
+  if (snap.posiciones) delete snap.posiciones[id];
+  snap.actualizadoEn = Date.now();
+  saveWorldSnapshot(snap);
+
+  try {
+    const user = findUserByUsername(jugador.nombre);
+    if (user && !esAdminNombreSafe(user.username)) db.prepare('DELETE FROM users WHERE id = ?').run(user.id);
+  } catch (e) { /* */ }
+  try { require('../respaldoThrottle').respaldoInmediato().catch(() => {}); } catch (e) { /* */ }
+  registrar('admin_eliminar_jugador', `Eliminado ${jugador.nombre}`);
+  res.json({ ok: true, id });
 });
 
 /** Admin del juego: restaurar cuenta desde backup o papelera */

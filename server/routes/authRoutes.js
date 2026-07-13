@@ -457,6 +457,17 @@ router.post('/login', (req, res) => {
     return res.status(500).json({ ok: false, error: 'Jugador no encontrado' });
   }
 
+  // Rechazar cuentas baneadas desde el editor (panel adm).
+  try {
+    const snapBan = getWorldSnapshot();
+    const jugBan = Array.isArray(snapBan?.jugadores)
+      ? snapBan.jugadores.find((j) => (j.nombre || '').toLowerCase() === (user.username || '').toLowerCase())
+      : null;
+    if (jugBan?.baneado) {
+      return res.status(403).json({ ok: false, error: 'Tu cuenta está suspendida. Contacta al administrador.' });
+    }
+  } catch (e) { /* */ }
+
   updateLastLogin(user.id);
   const token = signPlayerToken(user, player);
   if (legacy) {
