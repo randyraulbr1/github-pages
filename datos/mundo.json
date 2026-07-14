@@ -1,8 +1,9 @@
 {
-  "actualizadoEn": 1783984855117,
+  "actualizadoEn": 1783987300610,
   "misiones": [],
   "tesoros": [],
   "objetos": [],
+  "enemigos": [],
   "posiciones": {},
   "eliminados": [
     "correo_central"
@@ -65,7 +66,6 @@
     }
   ],
   "cofres": [],
-  "cuerposMuertos": {},
   "correoReclamados": [],
   "correoTienda": [],
   "partidas": {
@@ -583,6 +583,75 @@
       },
       "t": 1783433381757
     },
+    "srv_1": {
+      "datos": {
+        "mochila": [
+          {
+            "id": "agua",
+            "cantidad": 2
+          },
+          {
+            "id": "pan",
+            "cantidad": 1
+          },
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null
+        ],
+        "dinero": {
+          "saldo": 100,
+          "control": "68e382a3687042dcd0420432d9bf210eada6d12606b6ecd367d18c724c2f4b38"
+        },
+        "vida": 100,
+        "hambre": 46,
+        "xp": 0,
+        "nivel": 1,
+        "posicionJugador": null,
+        "tesorosRecogidos": [],
+        "misiones": {},
+        "misionesEstado": {},
+        "correoEnviados": [],
+        "correoRecibidos": [],
+        "correoTiendaLocal": [],
+        "historialDinero": [
+          {
+            "t": 1783433394471,
+            "detalle": "Dinero inicial",
+            "monto": 100,
+            "saldo": 100,
+            "lugar": "sin posición",
+            "pos": null,
+            "hashAnterior": "GENESIS",
+            "hash": "702838578c4a21eb80b1dbe4ac0c4335493eb008ab16e0652e10d30c0cafaa3e"
+          }
+        ],
+        "historialObjetos": [],
+        "mensajesVistos": [],
+        "muerto": false,
+        "armaEquipada": null
+      },
+      "t": 1783433951730
+    },
     "srv_2": {
       "datos": {
         "mochila": [
@@ -665,84 +734,13 @@
         "armaEquipada": null
       },
       "t": 1783447222589
-    },
-    "srv_1": {
-      "datos": {
-        "mochila": [
-          {
-            "id": "agua",
-            "cantidad": 2
-          },
-          {
-            "id": "pan",
-            "cantidad": 1
-          },
-          null,
-          null,
-          null,
-          null,
-          null,
-          null,
-          null,
-          null,
-          null,
-          null,
-          null,
-          null,
-          null,
-          null,
-          null,
-          null,
-          null,
-          null,
-          null,
-          null,
-          null,
-          null,
-          null
-        ],
-        "dinero": {
-          "saldo": 100,
-          "control": "68e382a3687042dcd0420432d9bf210eada6d12606b6ecd367d18c724c2f4b38"
-        },
-        "vida": 100,
-        "hambre": 46,
-        "xp": 0,
-        "nivel": 1,
-        "posicionJugador": null,
-        "tesorosRecogidos": [],
-        "misiones": {},
-        "misionesEstado": {},
-        "correoEnviados": [],
-        "correoRecibidos": [],
-        "correoTiendaLocal": [],
-        "historialDinero": [
-          {
-            "t": 1783433394471,
-            "detalle": "Dinero inicial",
-            "monto": 100,
-            "saldo": 100,
-            "lugar": "sin posición",
-            "pos": null,
-            "hashAnterior": "GENESIS",
-            "hash": "702838578c4a21eb80b1dbe4ac0c4335493eb008ab16e0652e10d30c0cafaa3e"
-          }
-        ],
-        "historialObjetos": [],
-        "mensajesVistos": [],
-        "muerto": false,
-        "armaEquipada": null
-      },
-      "t": 1783433951730
     }
   },
-  "enemigos": [],
   "enemigosEstado": {},
   "objetosEstado": {},
+  "tesorosEstado": {},
   "tiendasAdmin": [],
   "tiendasStock": {},
-  "tesorosEstado": {},
-  "tesoroIconoMapa": "🎁",
   "combate": {
     "danoMin": 5,
     "danoMax": 8,
@@ -753,6 +751,8 @@
     "radioPersecucion": 20,
     "curacionMs": 120000
   },
+  "cuerposMuertos": {},
+  "tesoroIconoMapa": "🎁",
   "combateEnemigos": {
     "danoMin": 5,
     "danoMax": 8,
