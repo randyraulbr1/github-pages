@@ -3,6 +3,89 @@
   "nombre": "66",
   "telefono": "",
   "pinHash": "0a22b58a09f93652ac592f9424e5dedbeb450965c0e7ddc5b46f8ab21aa96bb1",
-  "creado": 1783991374288,
-  "actualizadoEn": 1783991376411
+  "creado": 1783991932570,
+  "actualizadoEn": 1783991934629,
+  "partida": {
+    "datos": {
+      "mochila": [
+        {
+          "id": "agua",
+          "cantidad": 2
+        },
+        {
+          "id": "pan",
+          "cantidad": 1
+        },
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null
+      ],
+      "dinero": {
+        "saldo": 100,
+        "control": "68e382a3687042dcd0420432d9bf210eada6d12606b6ecd367d18c724c2f4b38"
+      },
+      "vida": 100,
+      "hambre": 50,
+      "xp": 0,
+      "nivel": 1,
+      "posicionJugador": null,
+      "tesorosRecogidos": [],
+      "misiones": {},
+      "misionesEstado": {},
+      "correoEnviados": [],
+      "correoRecibidos": [],
+      "correoTiendaLocal": [],
+      "historialDinero": [
+        {
+          "t": 1783991375262,
+          "detalle": "Dinero inicial",
+          "monto": 100,
+          "saldo": 100,
+          "lugar": "sin posición",
+          "pos": null,
+          "hashAnterior": "GENESIS",
+          "hash": "47dbf0f9f4821e01ca0c490cb6194ecfc759b49d16ddb6bc08e514a6270c04a7"
+        }
+      ],
+      "historialObjetos": [],
+      "mensajesVistos": [],
+      "muerto": false,
+      "armaEquipada": null,
+      "equipoEquipado": {
+        "casco": null,
+        "chaleco": null,
+        "botas": null,
+        "ropa": null
+      },
+      "preferencias": {
+        "notifChat": true,
+        "notifAmigos": true,
+        "vibracionCombate": true,
+        "posBtnAtacar": "izq"
+      },
+      "_equipoT": 1783991375273
+    },
+    "t": 1783991375674,
+    "statsT": 1783991375273
+  }
 }
