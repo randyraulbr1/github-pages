@@ -1,5 +1,5 @@
 {
-  "actualizadoEn": 1783991303256,
+  "actualizadoEn": 1783991351470,
   "misiones": [],
   "tesoros": [],
   "objetos": [
@@ -101,6 +101,13 @@
       "telefono": "",
       "pinHash": "0a22b58a09f93652ac592f9424e5dedbeb450965c0e7ddc5b46f8ab21aa96bb1",
       "creado": 1783433393395
+    },
+    {
+      "id": "pmrjye0h37ub5c",
+      "nombre": "66",
+      "telefono": "",
+      "pinHash": "0a22b58a09f93652ac592f9424e5dedbeb450965c0e7ddc5b46f8ab21aa96bb1",
+      "creado": 1783991351470
     }
   ],
   "cofres": [],
