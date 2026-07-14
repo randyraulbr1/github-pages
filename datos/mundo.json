@@ -1,5 +1,5 @@
 {
-  "actualizadoEn": 1783991437131,
+  "actualizadoEn": 1783991466459,
   "misiones": [],
   "tesoros": [],
   "objetos": [
@@ -11,7 +11,11 @@
         22.993750528436657,
         -82.75381654500963
       ],
-      "activo": true
+      "activo": true,
+      "posOrigen": [
+        22.993750528436657,
+        -82.75381654500963
+      ]
     },
     {
       "object": {
@@ -28,6 +32,27 @@
         22.993728306528414,
         -82.75386750698091
       ],
+      "activo": true,
+      "posOrigen": [
+        22.993728306528414,
+        -82.75386750698091
+      ]
+    },
+    {
+      "object": {
+        "itemId": 4,
+        "itemName": "Arco de Viento Esmeralda",
+        "category": "weapon",
+        "rarity": "epic",
+        "value": 2300
+      },
+      "id": "0005WBAN9750DG2RJGJRQM00E0",
+      "schemaVersion": 1,
+      "nombre": "Arco de Viento Esmeralda",
+      "pos": [
+        22.99390114349617,
+        -82.75388091802598
+      ],
       "activo": true
     }
   ],
@@ -39,6 +64,10 @@
     "0005W89WE0NRCCDC7W440WY8N0": [
       22.993728306528414,
       -82.75386750698091
+    ],
+    "0005WBAN9750DG2RJGJRQM00E0": [
+      22.99390114349617,
+      -82.75388091802598
     ]
   },
   "eliminados": [
@@ -504,10 +533,10 @@
           "posBtnAtacar": "der"
         },
         "preferenciasT": 1783560347756,
-        "_equipoT": 1783991435457
+        "_equipoT": 1783991465133
       },
-      "t": 1783991435858,
-      "statsT": 1783991435457
+      "t": 1783991465534,
+      "statsT": 1783991465133
     },
     "pmra42v1xlv3c5": {
       "datos": {
