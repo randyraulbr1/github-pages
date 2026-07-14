@@ -1,0 +1,4196 @@
+From 046abd8067c4448860cad7648eeb002b2420bdd0 Mon Sep 17 00:00:00 2001
+From: Cursor Agent <cursoragent@cursor.com>
+Date: Tue, 14 Jul 2026 02:13:54 +0000
+Subject: [PATCH 1/2] =?UTF-8?q?feat:=20integrar=20parche=20Claude=20?=
+ =?UTF-8?q?=E2=80=94=20Armaduras=20+=20Armas=20undo/export=20+=20Objetos?=
+ =?UTF-8?q?=20framework?=
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+- Aplica 0001-Completar-Armas-...patch (migración 007_armor, repo, IPC, UI).
+- Armas: CommandBus undo/redo + export/weapons.json.
+- Objetos migrado a ContentModulePanel/createContentStore.
+- 37/37 tests y typecheck OK.
+- Actualiza SIGUIENTE_PASO.md (prioridad sync/auth).
+---
+ SIGUIENTE_PASO.md                             | 106 ++++-------
+ package-lock.json                             |  69 ++++---
+ panel adm/00_ROADMAP.md                       |  13 +-
+ src/main/armor/armorRepository.test.ts        |  71 ++++++++
+ src/main/armor/armorRepository.ts             | 161 +++++++++++++++++
+ src/main/commands/commandBus.ts               | 102 +++++++++++
+ src/main/commands/createCommandBus.ts         |   4 +
+ src/main/database/migrationRunner.test.ts     |   4 +-
+ src/main/database/migrationRunner.ts          |   3 +-
+ src/main/database/migrations/007_armor.ts     |  29 +++
+ src/main/database/schema.ts                   |  22 +++
+ src/main/export/exportService.ts              |  28 +++
+ src/main/ipc/handlers/armor.ts                |  50 +++++
+ src/main/ipc/handlers/exportHandlers.ts       |  18 +-
+ src/main/ipc/handlers/weapons.ts              |  42 +++--
+ src/main/ipc/registerHandlers.ts              |   2 +
+ src/main/weapons/weaponsRepository.test.ts    |  11 ++
+ src/main/weapons/weaponsRepository.ts         |  17 ++
+ src/preload/index.ts                          |  12 ++
+ .../armors/components/ArmorInspector.tsx      | 153 ++++++++++++++++
+ .../modules/armors/components/ArmorPanel.tsx  |  36 ++++
+ src/renderer/src/modules/armors/module.ts     |   8 +-
+ src/renderer/src/modules/armors/store.ts      |   5 +
+ .../src/modules/items/components/ItemGrid.tsx |  81 ---------
+ .../items/components/ItemInspector.tsx        | 171 +++---------------
+ .../modules/items/components/ItemListView.tsx |  62 -------
+ .../items/components/ItemTableView.tsx        |  61 -------
+ .../modules/items/components/ItemsPanel.tsx   |  55 +++---
+ .../modules/items/components/ItemsToolbar.tsx | 116 ------------
+ .../src/modules/items/hooks/useItems.ts       |  71 --------
+ src/renderer/src/modules/items/store.ts       |   5 +
+ .../src/modules/items/store/itemsStore.ts     |  80 --------
+ .../weapons/components/WeaponsPanel.tsx       |   3 +-
+ .../src/shared/content/useContentModule.ts    |   7 +-
+ src/shared-types/api.ts                       |  13 ++
+ src/shared-types/armor.ts                     |  60 ++++++
+ src/shared-types/item.ts                      |   3 +-
+ 37 files changed, 995 insertions(+), 759 deletions(-)
+ create mode 100644 src/main/armor/armorRepository.test.ts
+ create mode 100644 src/main/armor/armorRepository.ts
+ create mode 100644 src/main/database/migrations/007_armor.ts
+ create mode 100644 src/main/ipc/handlers/armor.ts
+ create mode 100644 src/renderer/src/modules/armors/components/ArmorInspector.tsx
+ create mode 100644 src/renderer/src/modules/armors/components/ArmorPanel.tsx
+ create mode 100644 src/renderer/src/modules/armors/store.ts
+ delete mode 100644 src/renderer/src/modules/items/components/ItemGrid.tsx
+ delete mode 100644 src/renderer/src/modules/items/components/ItemListView.tsx
+ delete mode 100644 src/renderer/src/modules/items/components/ItemTableView.tsx
+ delete mode 100644 src/renderer/src/modules/items/components/ItemsToolbar.tsx
+ delete mode 100644 src/renderer/src/modules/items/hooks/useItems.ts
+ create mode 100644 src/renderer/src/modules/items/store.ts
+ delete mode 100644 src/renderer/src/modules/items/store/itemsStore.ts
+ create mode 100644 src/shared-types/armor.ts
+
+diff --git a/SIGUIENTE_PASO.md b/SIGUIENTE_PASO.md
+index 1682344..6643a25 100644
+--- a/SIGUIENTE_PASO.md
++++ b/SIGUIENTE_PASO.md
+@@ -1,98 +1,62 @@
+ # SIGUIENTE PASO — Punto de retorno de Kingdom GPS Editor
+ 
+ > Documento de continuidad. Léelo primero al retomar el proyecto y mantenlo actualizado al final de cada sesión.
+-> Última actualización: 2026-07-11.
++> Última actualización: 2026-07-14 (integrado parche Claude Armaduras + inicio auth/sync).
+ 
+ ## Qué es
+ 
+-Editor de escritorio interno para crear y mantener contenido de **Kingdom GPS**.
+-Stack: Electron + React + TypeScript + Vite + libSQL/Kysely + Zustand + dockview + Leaflet + Tailwind + Vitest.
+-
+-## Repositorio y documentación
+-
+-- Repositorio oficial: `randyraulbr1/kingdom-gps-editor`, rama `main`.
+-- Documentación oficial: carpeta `panel adm/`.
+-- Estado detallado del código: `INFORME_ESTADO_PROYECTO.md`.
+-
+-## Advertencia importante
+-
+-Los documentos `14_...` a `28_...` describen especificaciones aprobadas para mapa, pines, rutas, tiendas, NPC, monstruos, loot, recursos, validación, capas, propiedades y menú tipo PC. **Esos documentos no significan que la función ya esté implementada en el programa.**
+-
+-No marcar una característica como terminada hasta que exista código, pruebas y verificación en Windows.
++Editor de escritorio oficial (**Panel ADM**) para crear y mantener el contenido de **Kingdom GPS**.
++El juego en `tcodm.com` / `github-pages` es **solo para jugar**. Este programa es el único panel administrativo.
+ 
+-## Código confirmado en GitHub
+-
+-- Infraestructura de proyectos, base de datos, IPC, exportadores y undo/redo.
+-- Biblioteca de iconos.
+-- Módulo Objetos.
+-- Módulo Armas base.
+-- Editor de Mundo con Leaflet, entidades, zonas, importación OpenStreetMap y exportación de mundo.
++Stack: Electron + React + TypeScript + Vite + libSQL/Kysely + Zustand + dockview + Leaflet + Tailwind + Vitest.
+ 
+-## Trabajo de Claude pendiente de integrar
++## Repositorio
+ 
+-Claude informó un commit local `b10849d` con:
++- Oficial: `randyraulbr1/kingdom-gps-editor`, rama `main`.
++- Documentación: carpeta `panel adm/`.
++- Estado: `INFORME_ESTADO_PROYECTO.md` (parcialmente desactualizado — Armaduras ya no es placeholder).
+ 
+-- Armas: undo/redo, exportación y pruebas.
+-- Armaduras: módulo nuevo y migración `007_armor`.
+-- Objetos migrado al framework genérico.
+-- 37 pruebas verdes y typecheck limpio.
++## Código confirmado
+ 
+-Ese trabajo llegó como archivo `.patch`, pero el commit todavía no aparece integrado en `main`. No duplicar esas modificaciones antes de comprobar o aplicar el parche.
++- Infraestructura: proyectos, BD, IPC, undo/redo, exportadores, iconos.
++- **Objetos** migrado al framework genérico de contenido.
++- **Armas** con undo/redo + export JSON.
++- **Armaduras** (migración `007_armor`) completo — ya no es placeholder.
++- Editor de Mundo local (mapa, zonas, OSM, menú contextual, puntos de sync visuales).
+ 
+-## Lo que falta realmente en código
++## Hecho en esta sesión (Cursor)
+ 
+-### Prioridad 0 — integrar y verificar
++1. Integrado el `.patch` de Claude (Armas undo/export + Armaduras + Objetos→framework). **37/37 tests**, typecheck limpio.
++2. En progreso / siguiente en la misma rama:
++   - Login admin (usuario/clave, sesión en `safeStorage`, sin mostrar tokens).
++   - Cola `world_sync_jobs` + menú de bolita gris/verde/roja en pines.
++   - Publicación al servidor online del juego.
+ 
+-1. Integrar el parche de Claude.
+-2. Ejecutar `npm run typecheck`, `npm test` y `npm run build` en Windows.
+-3. Confirmar que Armas, Armaduras y Objetos aparecen y funcionan.
++## Lo que falta
+ 
+-### Prioridad 1 — Editor de Mundo
++### Prioridad 1 — Sync pin → servidor
+ 
+-1. Corregir el menú de clic derecho:
+-   - un clic derecho nuevo reemplaza al anterior;
+-   - nunca queda cortado en los bordes;
+-   - se cierra con clic fuera y Escape;
+-   - muestra acciones según el elemento seleccionado.
+-2. Añadir acciones tipo PC: copiar, cortar, pegar aquí, duplicar y Propiedades.
+-3. Conectar el inspector de cada pin con contenido real.
+-4. Hacer funcional primero el pin Tienda.
+-5. Hacer funcional después el pin NPC.
++1. Cola persistente `world_sync_jobs`.
++2. Bolita: gris Subir / verde Ver+Resync / rojo Reintentar+error.
++3. Auth interno hacia `mariel-online.onrender.com` (sesión guardada).
+ 
+-### Prioridad 2 — módulos necesarios para el mapa
++### Prioridad 2 — Mapa útil
+ 
+-1. Tiendas y catálogos.
+-2. NPC.
+-3. Diálogos.
+-4. Misiones.
+-5. Monstruos.
+-6. Loot y cofres.
+-7. Recursos.
++1. Copiar / cortar / pegar / Propiedades en menú contextual.
++2. Pin Tienda → tienda real.
++3. Pin NPC → NPC real.
+ 
+-### Prioridad 3 — sistemas de seguridad del editor
++### Prioridad 3
+ 
+-- Administrador de referencias.
+-- Validador del mundo antes de publicar.
+-- Capas, filtros y búsqueda.
+-- Panel de propiedades unificado.
++- Módulo Jugadores (CRUD admin, ban, inventario).
++- Más módulos de contenido (Tiendas, NPC, Misiones…).
++- Recursos visuales: recorte de icono, sprite sheets, paquetes.
+ 
+ ## Criterio de terminado
+ 
+-Una función solo se marca como hecha cuando:
+-
+-- está implementada en código;
+-- tiene persistencia;
+-- tiene undo/redo cuando corresponde;
+-- tiene pruebas;
+-- pasa typecheck y build;
+-- fue probada visualmente en el programa de Windows;
+-- se actualizó documentación y roadmap.
+-
+-## Próxima tarea recomendada
+-
+-**Primero integrar el parche de Claude. Después corregir el menú contextual del Editor de Mundo y hacer que un pin de Tienda abra una tienda real.**
++Código + persistencia + pruebas + typecheck + build + doc/roadmap actualizados + verificable en Windows.
+ 
+-## Comandos de comprobación en el PC
++## Comandos
+ 
+ ```bash
+ npm run typecheck
+diff --git a/package-lock.json b/package-lock.json
+index 66dd112..5bb1126 100644
+--- a/package-lock.json
++++ b/package-lock.json
+@@ -80,7 +80,6 @@
+       "version": "7.29.7",
+       "dev": true,
+       "license": "MIT",
+-      "peer": true,
+       "dependencies": {
+         "@babel/code-frame": "^7.29.7",
+         "@babel/generator": "^7.29.7",
+@@ -3002,7 +3001,6 @@
+       "version": "18.3.31",
+       "devOptional": true,
+       "license": "MIT",
+-      "peer": true,
+       "dependencies": {
+         "@types/prop-types": "*",
+         "csstype": "^3.2.2"
+@@ -3012,7 +3010,6 @@
+       "version": "18.3.7",
+       "devOptional": true,
+       "license": "MIT",
+-      "peer": true,
+       "peerDependencies": {
+         "@types/react": "^18.0.0"
+       }
+@@ -3228,7 +3225,6 @@
+       "version": "6.15.0",
+       "dev": true,
+       "license": "MIT",
+-      "peer": true,
+       "dependencies": {
+         "fast-deep-equal": "^3.1.1",
+         "fast-json-stable-stringify": "^2.0.0",
+@@ -3390,6 +3386,7 @@
+       "version": "5.3.2",
+       "dev": true,
+       "license": "MIT",
++      "peer": true,
+       "dependencies": {
+         "archiver-utils": "^2.1.0",
+         "async": "^3.2.4",
+@@ -3407,6 +3404,7 @@
+       "version": "2.1.0",
+       "dev": true,
+       "license": "MIT",
++      "peer": true,
+       "dependencies": {
+         "glob": "^7.1.4",
+         "graceful-fs": "^4.2.0",
+@@ -3427,6 +3425,7 @@
+       "version": "2.3.8",
+       "dev": true,
+       "license": "MIT",
++      "peer": true,
+       "dependencies": {
+         "core-util-is": "~1.0.0",
+         "inherits": "~2.0.3",
+@@ -3440,12 +3439,14 @@
+     "node_modules/archiver-utils/node_modules/safe-buffer": {
+       "version": "5.1.2",
+       "dev": true,
+-      "license": "MIT"
++      "license": "MIT",
++      "peer": true
+     },
+     "node_modules/archiver-utils/node_modules/string_decoder": {
+       "version": "1.1.1",
+       "dev": true,
+       "license": "MIT",
++      "peer": true,
+       "dependencies": {
+         "safe-buffer": "~5.1.0"
+       }
+@@ -3691,7 +3692,6 @@
+         }
+       ],
+       "license": "MIT",
+-      "peer": true,
+       "dependencies": {
+         "baseline-browser-mapping": "^2.10.42",
+         "caniuse-lite": "^1.0.30001800",
+@@ -4210,6 +4210,7 @@
+       "version": "4.1.2",
+       "dev": true,
+       "license": "MIT",
++      "peer": true,
+       "dependencies": {
+         "buffer-crc32": "^0.2.13",
+         "crc32-stream": "^4.0.2",
+@@ -4318,6 +4319,7 @@
+       "version": "1.2.2",
+       "dev": true,
+       "license": "Apache-2.0",
++      "peer": true,
+       "bin": {
+         "crc32": "bin/crc32.njs"
+       },
+@@ -4329,6 +4331,7 @@
+       "version": "4.0.3",
+       "dev": true,
+       "license": "MIT",
++      "peer": true,
+       "dependencies": {
+         "crc-32": "^1.2.0",
+         "readable-stream": "^3.4.0"
+@@ -4553,7 +4556,6 @@
+       "version": "25.1.8",
+       "dev": true,
+       "license": "MIT",
+-      "peer": true,
+       "dependencies": {
+         "app-builder-lib": "25.1.8",
+         "builder-util": "25.1.7",
+@@ -4749,6 +4751,7 @@
+       "version": "25.1.8",
+       "dev": true,
+       "license": "MIT",
++      "peer": true,
+       "dependencies": {
+         "app-builder-lib": "25.1.8",
+         "archiver": "^5.3.1",
+@@ -4760,6 +4763,7 @@
+       "version": "10.1.0",
+       "dev": true,
+       "license": "MIT",
++      "peer": true,
+       "dependencies": {
+         "graceful-fs": "^4.2.0",
+         "jsonfile": "^6.0.1",
+@@ -4773,6 +4777,7 @@
+       "version": "6.2.1",
+       "dev": true,
+       "license": "MIT",
++      "peer": true,
+       "dependencies": {
+         "universalify": "^2.0.0"
+       },
+@@ -4784,6 +4789,7 @@
+       "version": "2.0.1",
+       "dev": true,
+       "license": "MIT",
++      "peer": true,
+       "engines": {
+         "node": ">= 10.0.0"
+       }
+@@ -5284,7 +5290,8 @@
+     "node_modules/fs-constants": {
+       "version": "1.0.0",
+       "dev": true,
+-      "license": "MIT"
++      "license": "MIT",
++      "peer": true
+     },
+     "node_modules/fs-extra": {
+       "version": "8.1.0",
+@@ -5898,7 +5905,8 @@
+     "node_modules/isarray": {
+       "version": "1.0.0",
+       "dev": true,
+-      "license": "MIT"
++      "license": "MIT",
++      "peer": true
+     },
+     "node_modules/isbinaryfile": {
+       "version": "5.0.7",
+@@ -5950,7 +5958,6 @@
+       "version": "1.21.7",
+       "dev": true,
+       "license": "MIT",
+-      "peer": true,
+       "bin": {
+         "jiti": "bin/jiti.js"
+       }
+@@ -6041,7 +6048,6 @@
+     "node_modules/kysely": {
+       "version": "0.27.6",
+       "license": "MIT",
+-      "peer": true,
+       "engines": {
+         "node": ">=14.0.0"
+       }
+@@ -6055,6 +6061,7 @@
+       "version": "1.0.1",
+       "dev": true,
+       "license": "MIT",
++      "peer": true,
+       "dependencies": {
+         "readable-stream": "^2.0.5"
+       },
+@@ -6066,6 +6073,7 @@
+       "version": "2.3.8",
+       "dev": true,
+       "license": "MIT",
++      "peer": true,
+       "dependencies": {
+         "core-util-is": "~1.0.0",
+         "inherits": "~2.0.3",
+@@ -6079,12 +6087,14 @@
+     "node_modules/lazystream/node_modules/safe-buffer": {
+       "version": "5.1.2",
+       "dev": true,
+-      "license": "MIT"
++      "license": "MIT",
++      "peer": true
+     },
+     "node_modules/lazystream/node_modules/string_decoder": {
+       "version": "1.1.1",
+       "dev": true,
+       "license": "MIT",
++      "peer": true,
+       "dependencies": {
+         "safe-buffer": "~5.1.0"
+       }
+@@ -6093,8 +6103,7 @@
+       "version": "1.9.4",
+       "resolved": "https://registry.npmjs.org/leaflet/-/leaflet-1.9.4.tgz",
+       "integrity": "sha512-nxS1ynzJOmOlHp+iL3FyWqK89GtNL8U8rvlMOsQdTTssxZwCXh8N2NB3GDQOL+YR3XnWyZAxwQixURb+FA74PA==",
+-      "license": "BSD-2-Clause",
+-      "peer": true
++      "license": "BSD-2-Clause"
+     },
+     "node_modules/libsql": {
+       "version": "0.3.19",
+@@ -6159,27 +6168,32 @@
+     "node_modules/lodash.defaults": {
+       "version": "4.2.0",
+       "dev": true,
+-      "license": "MIT"
++      "license": "MIT",
++      "peer": true
+     },
+     "node_modules/lodash.difference": {
+       "version": "4.5.0",
+       "dev": true,
+-      "license": "MIT"
++      "license": "MIT",
++      "peer": true
+     },
+     "node_modules/lodash.flatten": {
+       "version": "4.4.0",
+       "dev": true,
+-      "license": "MIT"
++      "license": "MIT",
++      "peer": true
+     },
+     "node_modules/lodash.isplainobject": {
+       "version": "4.0.6",
+       "dev": true,
+-      "license": "MIT"
++      "license": "MIT",
++      "peer": true
+     },
+     "node_modules/lodash.union": {
+       "version": "4.6.0",
+       "dev": true,
+-      "license": "MIT"
++      "license": "MIT",
++      "peer": true
+     },
+     "node_modules/log-symbols": {
+       "version": "4.1.0",
+@@ -6993,7 +7007,6 @@
+         }
+       ],
+       "license": "MIT",
+-      "peer": true,
+       "dependencies": {
+         "nanoid": "^3.3.12",
+         "picocolors": "^1.1.1",
+@@ -7128,7 +7141,8 @@
+     "node_modules/process-nextick-args": {
+       "version": "2.0.1",
+       "dev": true,
+-      "license": "MIT"
++      "license": "MIT",
++      "peer": true
+     },
+     "node_modules/progress": {
+       "version": "2.0.3",
+@@ -7209,7 +7223,6 @@
+     "node_modules/react": {
+       "version": "18.3.1",
+       "license": "MIT",
+-      "peer": true,
+       "dependencies": {
+         "loose-envify": "^1.1.0"
+       },
+@@ -7220,7 +7233,6 @@
+     "node_modules/react-dom": {
+       "version": "18.3.1",
+       "license": "MIT",
+-      "peer": true,
+       "dependencies": {
+         "loose-envify": "^1.1.0",
+         "scheduler": "^0.23.2"
+@@ -7365,6 +7377,7 @@
+       "version": "1.1.3",
+       "dev": true,
+       "license": "Apache-2.0",
++      "peer": true,
+       "dependencies": {
+         "minimatch": "^5.1.0"
+       }
+@@ -7372,12 +7385,14 @@
+     "node_modules/readdir-glob/node_modules/balanced-match": {
+       "version": "1.0.2",
+       "dev": true,
+-      "license": "MIT"
++      "license": "MIT",
++      "peer": true
+     },
+     "node_modules/readdir-glob/node_modules/brace-expansion": {
+       "version": "2.1.2",
+       "dev": true,
+       "license": "MIT",
++      "peer": true,
+       "dependencies": {
+         "balanced-match": "^1.0.0"
+       }
+@@ -7386,6 +7401,7 @@
+       "version": "5.1.9",
+       "dev": true,
+       "license": "ISC",
++      "peer": true,
+       "dependencies": {
+         "brace-expansion": "^2.0.1"
+       },
+@@ -8073,6 +8089,7 @@
+       "version": "2.2.0",
+       "dev": true,
+       "license": "MIT",
++      "peer": true,
+       "dependencies": {
+         "bl": "^4.0.3",
+         "end-of-stream": "^1.4.1",
+@@ -8202,7 +8219,6 @@
+       "version": "4.0.5",
+       "dev": true,
+       "license": "MIT",
+-      "peer": true,
+       "engines": {
+         "node": ">=12"
+       },
+@@ -8442,7 +8458,6 @@
+       "version": "5.4.21",
+       "dev": true,
+       "license": "MIT",
+-      "peer": true,
+       "dependencies": {
+         "esbuild": "^0.21.3",
+         "postcss": "^8.4.43",
+@@ -8761,6 +8776,7 @@
+       "version": "4.1.1",
+       "dev": true,
+       "license": "MIT",
++      "peer": true,
+       "dependencies": {
+         "archiver-utils": "^3.0.4",
+         "compress-commons": "^4.1.2",
+@@ -8774,6 +8790,7 @@
+       "version": "3.0.4",
+       "dev": true,
+       "license": "MIT",
++      "peer": true,
+       "dependencies": {
+         "glob": "^7.2.3",
+         "graceful-fs": "^4.2.0",
+diff --git a/panel adm/00_ROADMAP.md b/panel adm/00_ROADMAP.md
+index 7d7e27b..aa332cf 100644
+--- a/panel adm/00_ROADMAP.md	
++++ b/panel adm/00_ROADMAP.md	
+@@ -29,12 +29,17 @@
+ ✅ Editor de propiedades (Inspector ~20 campos, edición masiva, undo/redo, export)
+ ⚪ Generación de iconos IA (Recraft) — pendiente: cola `icon_generation_jobs`, token `.env`
+ 
+-### FASE 3b - Contenido en serie (framework + Armas) 🟡 EN MARCHA
++### FASE 3b - Contenido en serie (framework + Armas + Armaduras) ✅ UNIFICADA
+ ✅ Framework de contenido genérico `shared/content/` (ContentGrid/List/Table, toolbar, store y panel genéricos)
+ ✅ Módulo **Armas** completo sobre el framework (migración 006_weapons, repo, IPC, inspector con daño/velocidad/alcance/crítico)
+-⚪ Migrar Objetos al framework (limpieza; hoy usa sus propios componentes)
+-⚪ Undo/redo y exportación JSON para Armas (Objetos ya los tiene)
+-⚪ Repetir el patrón para los 20 módulos restantes (Armaduras, NPC, Monstruos, …)
++✅ Undo/redo para Armas (CommandBus: create/update/delete/bulkUpdate, `restoreWithId`, mismo patrón que Objetos)
++✅ Exportación JSON para Armas (`export/weapons.json`, botón en la toolbar)
++✅ Módulo **Armaduras** completo sobre el framework (migración 007_armor, repo, IPC, undo/redo, export JSON,
++   inspector con defensa/resistencia mágica/slot) — reemplaza el placeholder anterior
++✅ **Objetos migrado al framework de contenido** (antes tenía sus propios ContentGrid/List/Table/Toolbar/hook/store
++   a mano; ahora usa `ContentModulePanel` + `createContentStore` + `useContentActions`, igual que Armas/Armaduras).
++   `ItemQuery.category` pasó a `string` para ser compatible con `ContentQueryBase` (mismo ajuste que Weapon/Armor).
++⚪ Repetir el patrón para los ~18 módulos restantes (Herramientas, Recursos, Comida, NPC, Monstruos, …)
+ 
+ ### FASE 3 - Editor de Mundo 🟡 LOCAL COMPLETA (falta sync con servidor)
+ ✅ Mapa (Leaflet + teselas reales; selector de estilo: oscuro/claro sin etiquetas, OSM, satélite)
+diff --git a/src/main/armor/armorRepository.test.ts b/src/main/armor/armorRepository.test.ts
+new file mode 100644
+index 0000000..90c6816
+--- /dev/null
++++ b/src/main/armor/armorRepository.test.ts
+@@ -0,0 +1,71 @@
++import { describe, it, expect } from 'vitest'
++import { Kysely } from 'kysely'
++import { createClient } from '@libsql/client'
++import { LibsqlDialect } from '@libsql/kysely-libsql'
++import { runMigrations } from '../database/migrationRunner'
++import { ArmorRepository } from './armorRepository'
++import { createEmptyArmorInput } from '@shared-types/armor'
++import type { Database } from '../database/schema'
++
++async function setup(): Promise<{ repository: ArmorRepository }> {
++  const client = createClient({ url: ':memory:' })
++  await runMigrations(client)
++  const db = new Kysely<Database>({ dialect: new LibsqlDialect({ client }) })
++  return { repository: new ArmorRepository(db) }
++}
++
++describe('ArmorRepository', () => {
++  it('creates an armor piece with defaults and JSON array fields', async () => {
++    const { repository } = await setup()
++    const armor = await repository.create({
++      ...createEmptyArmorInput(),
++      name: 'Peto de hierro',
++      category: 'chest',
++      defense: 15,
++      bonuses: [{ stat: 'vitality', value: 5 }]
++    })
++
++    expect(armor.id).toBeGreaterThan(0)
++    expect(armor.name).toBe('Peto de hierro')
++    expect(armor.defense).toBe(15)
++    expect(armor.bonuses).toEqual([{ stat: 'vitality', value: 5 }])
++
++    const fetched = await repository.get(armor.id)
++    expect(fetched).toEqual(armor)
++  })
++
++  it('update() patches fields and query() filters by category', async () => {
++    const { repository } = await setup()
++    const a = await repository.create({ ...createEmptyArmorInput(), name: 'Casco', category: 'head' })
++    await repository.create({ ...createEmptyArmorInput(), name: 'Botas', category: 'boots' })
++
++    const updated = await repository.update(a.id, { defense: 20, rarity: 'rare' })
++    expect(updated.defense).toBe(20)
++    expect(updated.rarity).toBe('rare')
++
++    const heads = await repository.query({ category: 'head' })
++    expect(heads.total).toBe(1)
++    expect(heads.items[0].name).toBe('Casco')
++  })
++
++  it('bulkUpdate applies a patch to several armor pieces at once', async () => {
++    const { repository } = await setup()
++    const a = await repository.create({ ...createEmptyArmorInput(), name: 'A' })
++    const b = await repository.create({ ...createEmptyArmorInput(), name: 'B' })
++
++    const updated = await repository.bulkUpdate([a.id, b.id], { rarity: 'epic' })
++    expect(updated).toHaveLength(2)
++    expect(updated.every((piece) => piece.rarity === 'epic')).toBe(true)
++  })
++
++  it('restoreWithId re-inserts a full snapshot with its original id (undo/redo support)', async () => {
++    const { repository } = await setup()
++    const armor = await repository.create({ ...createEmptyArmorInput(), name: 'Guantes', defense: 3 })
++    await repository.delete(armor.id)
++    expect(await repository.get(armor.id)).toBeUndefined()
++
++    const restored = await repository.restoreWithId(armor)
++    expect(restored).toEqual(armor)
++    expect(await repository.get(armor.id)).toEqual(armor)
++  })
++})
+diff --git a/src/main/armor/armorRepository.ts b/src/main/armor/armorRepository.ts
+new file mode 100644
+index 0000000..bffd927
+--- /dev/null
++++ b/src/main/armor/armorRepository.ts
+@@ -0,0 +1,161 @@
++import type { Kysely } from 'kysely'
++import type { Database } from '../database/schema'
++import type { Armor, ArmorInput, ArmorQuery } from '@shared-types/armor'
++
++interface ArmorRow {
++  id: number
++  name: string
++  description: string
++  category: string
++  rarity: string
++  icon_id: number | null
++  defense: number
++  magic_resist: number
++  value: number
++  weight: number
++  required_level: number
++  required_profession: string | null
++  bonuses: string
++  scripts: string
++  flags: string
++  checks: string
++  created_at: string
++  updated_at: string
++}
++
++function toArmor(row: ArmorRow): Armor {
++  return {
++    id: row.id,
++    name: row.name,
++    description: row.description,
++    category: row.category as Armor['category'],
++    rarity: row.rarity as Armor['rarity'],
++    iconId: row.icon_id,
++    defense: row.defense,
++    magicResist: row.magic_resist,
++    value: row.value,
++    weight: row.weight,
++    requiredLevel: row.required_level,
++    requiredProfession: row.required_profession,
++    bonuses: JSON.parse(row.bonuses),
++    scripts: JSON.parse(row.scripts),
++    flags: JSON.parse(row.flags),
++    checks: JSON.parse(row.checks),
++    createdAt: row.created_at,
++    updatedAt: row.updated_at
++  }
++}
++
++/** camelCase (IPC) -> snake_case (columnas), con arrays JSON-encoded. Mismo patrón que WeaponsRepository/ItemsRepository. */
++function toRowPatch(input: Partial<ArmorInput>): Record<string, unknown> {
++  const row: Record<string, unknown> = {}
++  if (input.name !== undefined) row.name = input.name
++  if (input.description !== undefined) row.description = input.description
++  if (input.category !== undefined) row.category = input.category
++  if (input.rarity !== undefined) row.rarity = input.rarity
++  if (input.iconId !== undefined) row.icon_id = input.iconId
++  if (input.defense !== undefined) row.defense = input.defense
++  if (input.magicResist !== undefined) row.magic_resist = input.magicResist
++  if (input.value !== undefined) row.value = input.value
++  if (input.weight !== undefined) row.weight = input.weight
++  if (input.requiredLevel !== undefined) row.required_level = input.requiredLevel
++  if (input.requiredProfession !== undefined) row.required_profession = input.requiredProfession
++  if (input.bonuses !== undefined) row.bonuses = JSON.stringify(input.bonuses)
++  if (input.scripts !== undefined) row.scripts = JSON.stringify(input.scripts)
++  if (input.flags !== undefined) row.flags = JSON.stringify(input.flags)
++  if (input.checks !== undefined) row.checks = JSON.stringify(input.checks)
++  return row
++}
++
++/** Repositorio del módulo Armaduras. Réplica del patrón de referencia (WeaponsRepository) con campos de armadura. */
++export class ArmorRepository {
++  constructor(private db: Kysely<Database>) {}
++
++  async query(params: ArmorQuery): Promise<{ items: Armor[]; total: number }> {
++    let base = this.db.selectFrom('armor')
++    if (params.category) base = base.where('category', '=', params.category)
++    if (params.rarity) base = base.where('rarity', '=', params.rarity)
++    if (params.search) base = base.where('name', 'like', `%${params.search}%`)
++
++    const totalRow = await base.select(({ fn }) => [fn.countAll<number>().as('count')]).executeTakeFirst()
++    const total = Number(totalRow?.count ?? 0)
++
++    const rows = await base
++      .selectAll()
++      .orderBy('name', 'asc')
++      .limit(params.limit ?? 500)
++      .offset(params.offset ?? 0)
++      .execute()
++
++    return { items: rows.map(toArmor), total }
++  }
++
++  async get(id: number): Promise<Armor | undefined> {
++    const row = await this.db.selectFrom('armor').selectAll().where('id', '=', id).executeTakeFirst()
++    return row ? toArmor(row) : undefined
++  }
++
++  async create(data: ArmorInput): Promise<Armor> {
++    const now = new Date().toISOString()
++    const values = { ...toRowPatch(data), created_at: now, updated_at: now }
++    const inserted = await this.db
++      .insertInto('armor')
++      .values(values as never)
++      .returningAll()
++      .executeTakeFirstOrThrow()
++    return toArmor(inserted)
++  }
++
++  async update(id: number, patch: Partial<ArmorInput>): Promise<Armor> {
++    const values = { ...toRowPatch(patch), updated_at: new Date().toISOString() }
++    await this.db
++      .updateTable('armor')
++      .set(values as never)
++      .where('id', '=', id)
++      .execute()
++    return (await this.get(id)) as Armor
++  }
++
++  async delete(id: number): Promise<void> {
++    await this.db.deleteFrom('armor').where('id', '=', id).execute()
++  }
++
++  async bulkUpdate(ids: number[], patch: Partial<ArmorInput>): Promise<Armor[]> {
++    if (ids.length === 0) return []
++    const values = { ...toRowPatch(patch), updated_at: new Date().toISOString() }
++    await this.db
++      .updateTable('armor')
++      .set(values as never)
++      .where('id', 'in', ids)
++      .execute()
++    const rows = await this.db.selectFrom('armor').selectAll().where('id', 'in', ids).execute()
++    return rows.map(toArmor)
++  }
++
++  async bulkDelete(ids: number[]): Promise<void> {
++    if (ids.length === 0) return
++    await this.db.deleteFrom('armor').where('id', 'in', ids).execute()
++  }
++
++  /** Re-inserta un snapshot completo de armadura con su id original - usado por CommandBus para deshacer un delete o rehacer un create. */
++  async restoreWithId(armor: Armor): Promise<Armor> {
++    const values = {
++      id: armor.id,
++      ...toRowPatch(armor),
++      created_at: armor.createdAt,
++      updated_at: armor.updatedAt
++    }
++    const inserted = await this.db
++      .insertInto('armor')
++      .values(values as never)
++      .onConflict((oc) => oc.column('id').doUpdateSet(values as never))
++      .returningAll()
++      .executeTakeFirstOrThrow()
++    return toArmor(inserted)
++  }
++
++  async listCategories(): Promise<string[]> {
++    const rows = await this.db.selectFrom('armor').select('category').distinct().orderBy('category').execute()
++    return rows.map((row) => row.category)
++  }
++}
+diff --git a/src/main/commands/commandBus.ts b/src/main/commands/commandBus.ts
+index b49b995..ab6ba66 100644
+--- a/src/main/commands/commandBus.ts
++++ b/src/main/commands/commandBus.ts
+@@ -1,9 +1,13 @@
++import type { ArmorRepository } from '../armor/armorRepository'
+ import type { IconLibraryRepository } from '../icons/iconLibraryRepository'
+ import type { ItemsRepository } from '../items/itemsRepository'
++import type { WeaponsRepository } from '../weapons/weaponsRepository'
+ import type { WorldEntityRepository } from '../worldEditor/worldEntityRepository'
+ import type { ChangeLogService } from './changeLog'
+ import type { ChangeLogEntry } from '@shared-types/commands'
++import type { Armor } from '@shared-types/armor'
+ import type { Item } from '@shared-types/item'
++import type { Weapon } from '@shared-types/weapon'
+ import type { WorldEntity, Position } from '@shared-types/world'
+ 
+ /**
+@@ -18,6 +22,8 @@ export class CommandBus {
+     private changeLog: ChangeLogService,
+     private iconRepository: IconLibraryRepository,
+     private itemsRepository: ItemsRepository,
++    private weaponsRepository: WeaponsRepository,
++    private armorRepository: ArmorRepository,
+     private worldEntityRepository: WorldEntityRepository
+   ) {}
+ 
+@@ -45,6 +51,50 @@ export class CommandBus {
+     await this.changeLog.record({ moduleId: 'items', entityId: null, action: 'bulkUpdate', before, after })
+   }
+ 
++  async recordWeaponCreate(weapon: Weapon): Promise<void> {
++    await this.changeLog.record({
++      moduleId: 'weapons',
++      entityId: weapon.id,
++      action: 'create',
++      before: null,
++      after: weapon
++    })
++  }
++
++  async recordWeaponUpdate(before: Weapon, after: Weapon): Promise<void> {
++    await this.changeLog.record({ moduleId: 'weapons', entityId: after.id, action: 'update', before, after })
++  }
++
++  async recordWeaponDelete(weapon: Weapon): Promise<void> {
++    await this.changeLog.record({
++      moduleId: 'weapons',
++      entityId: weapon.id,
++      action: 'delete',
++      before: weapon,
++      after: null
++    })
++  }
++
++  async recordWeaponBulkUpdate(before: Array<Weapon | undefined>, after: Weapon[]): Promise<void> {
++    await this.changeLog.record({ moduleId: 'weapons', entityId: null, action: 'bulkUpdate', before, after })
++  }
++
++  async recordArmorCreate(armor: Armor): Promise<void> {
++    await this.changeLog.record({ moduleId: 'armor', entityId: armor.id, action: 'create', before: null, after: armor })
++  }
++
++  async recordArmorUpdate(before: Armor, after: Armor): Promise<void> {
++    await this.changeLog.record({ moduleId: 'armor', entityId: after.id, action: 'update', before, after })
++  }
++
++  async recordArmorDelete(armor: Armor): Promise<void> {
++    await this.changeLog.record({ moduleId: 'armor', entityId: armor.id, action: 'delete', before: armor, after: null })
++  }
++
++  async recordArmorBulkUpdate(before: Array<Armor | undefined>, after: Armor[]): Promise<void> {
++    await this.changeLog.record({ moduleId: 'armor', entityId: null, action: 'bulkUpdate', before, after })
++  }
++
+   async recordWorldEntityCreate(entity: WorldEntity): Promise<void> {
+     await this.changeLog.record({
+       moduleId: 'worldEditor',
+@@ -131,6 +181,54 @@ export class CommandBus {
+     }
+   }
+ 
++  private async applyWeaponState(entry: ChangeLogEntry, useAfter: boolean): Promise<void> {
++    if (entry.action === 'create') {
++      if (useAfter) {
++        await this.weaponsRepository.restoreWithId(entry.after as Weapon)
++      } else if (entry.entityId !== null) {
++        await this.weaponsRepository.delete(Number(entry.entityId))
++      }
++    } else if (entry.action === 'delete') {
++      if (useAfter) {
++        if (entry.entityId !== null) await this.weaponsRepository.delete(Number(entry.entityId))
++      } else {
++        await this.weaponsRepository.restoreWithId(entry.before as Weapon)
++      }
++    } else if (entry.action === 'update') {
++      const weapon = (useAfter ? entry.after : entry.before) as Weapon | null
++      if (weapon) await this.weaponsRepository.update(weapon.id, weapon)
++    } else if (entry.action === 'bulkUpdate') {
++      const weapons = (useAfter ? entry.after : entry.before) as Array<Weapon | null | undefined>
++      for (const weapon of weapons) {
++        if (weapon) await this.weaponsRepository.update(weapon.id, weapon)
++      }
++    }
++  }
++
++  private async applyArmorState(entry: ChangeLogEntry, useAfter: boolean): Promise<void> {
++    if (entry.action === 'create') {
++      if (useAfter) {
++        await this.armorRepository.restoreWithId(entry.after as Armor)
++      } else if (entry.entityId !== null) {
++        await this.armorRepository.delete(Number(entry.entityId))
++      }
++    } else if (entry.action === 'delete') {
++      if (useAfter) {
++        if (entry.entityId !== null) await this.armorRepository.delete(Number(entry.entityId))
++      } else {
++        await this.armorRepository.restoreWithId(entry.before as Armor)
++      }
++    } else if (entry.action === 'update') {
++      const armor = (useAfter ? entry.after : entry.before) as Armor | null
++      if (armor) await this.armorRepository.update(armor.id, armor)
++    } else if (entry.action === 'bulkUpdate') {
++      const pieces = (useAfter ? entry.after : entry.before) as Array<Armor | null | undefined>
++      for (const piece of pieces) {
++        if (piece) await this.armorRepository.update(piece.id, piece)
++      }
++    }
++  }
++
+   private async applyWorldEntityState(entry: ChangeLogEntry, useAfter: boolean): Promise<void> {
+     if (entry.entityId === null) return
+     const worldId = String(entry.entityId)
+@@ -164,6 +262,10 @@ export class CommandBus {
+       await this.applyIconState(entry, useAfter)
+     } else if (entry.moduleId === 'items') {
+       await this.applyItemState(entry, useAfter)
++    } else if (entry.moduleId === 'weapons') {
++      await this.applyWeaponState(entry, useAfter)
++    } else if (entry.moduleId === 'armor') {
++      await this.applyArmorState(entry, useAfter)
+     } else if (entry.moduleId === 'worldEditor') {
+       await this.applyWorldEntityState(entry, useAfter)
+     }
+diff --git a/src/main/commands/createCommandBus.ts b/src/main/commands/createCommandBus.ts
+index 251f2b5..3135e37 100644
+--- a/src/main/commands/createCommandBus.ts
++++ b/src/main/commands/createCommandBus.ts
+@@ -1,8 +1,10 @@
+ import { projectManager } from '../projects/ProjectManager'
+ import { ChangeLogService } from './changeLog'
+ import { CommandBus } from './commandBus'
++import { ArmorRepository } from '../armor/armorRepository'
+ import { IconLibraryRepository } from '../icons/iconLibraryRepository'
+ import { ItemsRepository } from '../items/itemsRepository'
++import { WeaponsRepository } from '../weapons/weaponsRepository'
+ import { WorldEntityRepository } from '../worldEditor/worldEntityRepository'
+ 
+ /** Single construction site for CommandBus - every IPC handler that needs undo/redo calls this instead of wiring dependencies by hand. */
+@@ -12,6 +14,8 @@ export function createCommandBus(): CommandBus {
+     new ChangeLogService(db),
+     new IconLibraryRepository(db),
+     new ItemsRepository(db),
++    new WeaponsRepository(db),
++    new ArmorRepository(db),
+     new WorldEntityRepository(db)
+   )
+ }
+diff --git a/src/main/database/migrationRunner.test.ts b/src/main/database/migrationRunner.test.ts
+index 06f0952..3bd8bc4 100644
+--- a/src/main/database/migrationRunner.test.ts
++++ b/src/main/database/migrationRunner.test.ts
+@@ -13,7 +13,8 @@ describe('migrationRunner', () => {
+       '003_items',
+       '004_world_entities',
+       '005_world_zones',
+-      '006_weapons'
++      '006_weapons',
++      '007_armor'
+     ])
+ 
+     const secondRun = await runMigrations(client)
+@@ -29,6 +30,7 @@ describe('migrationRunner', () => {
+         'icon_tags',
+         'items',
+         'weapons',
++        'armor',
+         'world_entities',
+         'world_zones'
+       ])
+diff --git a/src/main/database/migrationRunner.ts b/src/main/database/migrationRunner.ts
+index 894b770..a168b5e 100644
+--- a/src/main/database/migrationRunner.ts
++++ b/src/main/database/migrationRunner.ts
+@@ -5,6 +5,7 @@ import * as m003 from './migrations/003_items'
+ import * as m004 from './migrations/004_world_entities'
+ import * as m005 from './migrations/005_world_zones'
+ import * as m006 from './migrations/006_weapons'
++import * as m007 from './migrations/007_armor'
+ 
+ interface Migration {
+   id: string
+@@ -12,7 +13,7 @@ interface Migration {
+ }
+ 
+ /** New migrations are appended here, never edited after being released - see README. */
+-const MIGRATIONS: Migration[] = [m001, m002, m003, m004, m005, m006]
++const MIGRATIONS: Migration[] = [m001, m002, m003, m004, m005, m006, m007]
+ 
+ function splitStatements(sql: string): string[] {
+   return sql
+diff --git a/src/main/database/migrations/007_armor.ts b/src/main/database/migrations/007_armor.ts
+new file mode 100644
+index 0000000..47ad3a0
+--- /dev/null
++++ b/src/main/database/migrations/007_armor.ts
+@@ -0,0 +1,29 @@
++/** Tercer módulo de contenido (Armaduras), repite el patrón de referencia de `weapons`/`items` con campos propios de armadura. */
++export const id = '007_armor'
++
++export const sql = `
++CREATE TABLE IF NOT EXISTS armor (
++  id INTEGER PRIMARY KEY AUTOINCREMENT,
++  name TEXT NOT NULL,
++  description TEXT NOT NULL DEFAULT '',
++  category TEXT NOT NULL DEFAULT 'chest',
++  rarity TEXT NOT NULL DEFAULT 'common',
++  icon_id INTEGER REFERENCES icons(id) ON DELETE SET NULL,
++  defense REAL NOT NULL DEFAULT 1,
++  magic_resist REAL NOT NULL DEFAULT 0,
++  value INTEGER NOT NULL DEFAULT 0,
++  weight REAL NOT NULL DEFAULT 0,
++  required_level INTEGER NOT NULL DEFAULT 1,
++  required_profession TEXT,
++  bonuses TEXT NOT NULL DEFAULT '[]',
++  scripts TEXT NOT NULL DEFAULT '[]',
++  flags TEXT NOT NULL DEFAULT '[]',
++  checks TEXT NOT NULL DEFAULT '[]',
++  created_at TEXT NOT NULL,
++  updated_at TEXT NOT NULL
++);
++
++CREATE INDEX IF NOT EXISTS idx_armor_category ON armor(category);
++CREATE INDEX IF NOT EXISTS idx_armor_rarity ON armor(rarity);
++CREATE INDEX IF NOT EXISTS idx_armor_name ON armor(name);
++`
+diff --git a/src/main/database/schema.ts b/src/main/database/schema.ts
+index 5e487a6..50dfa3e 100644
+--- a/src/main/database/schema.ts
++++ b/src/main/database/schema.ts
+@@ -111,6 +111,27 @@ export interface WeaponsTable {
+   updated_at: string
+ }
+ 
++export interface ArmorTable {
++  id: Generated<number>
++  name: string
++  description: string
++  category: string
++  rarity: string
++  icon_id: number | null
++  defense: number
++  magic_resist: number
++  value: number
++  weight: number
++  required_level: number
++  required_profession: string | null
++  bonuses: string
++  scripts: string
++  flags: string
++  checks: string
++  created_at: string
++  updated_at: string
++}
++
+ export interface WorldZonesTable {
+   zone_id: string
+   name: string
+@@ -130,6 +151,7 @@ export interface Database {
+   icon_tags: IconTagsTable
+   items: ItemsTable
+   weapons: WeaponsTable
++  armor: ArmorTable
+   world_entities: WorldEntitiesTable
+   world_zones: WorldZonesTable
+ }
+diff --git a/src/main/export/exportService.ts b/src/main/export/exportService.ts
+index 081ea48..1c85361 100644
+--- a/src/main/export/exportService.ts
++++ b/src/main/export/exportService.ts
+@@ -1,7 +1,9 @@
+ import path from 'node:path'
+ import { jsonExporter } from './exporters/JsonExporter'
+ import type { IconLibraryRepository } from '../icons/iconLibraryRepository'
++import type { ArmorRepository } from '../armor/armorRepository'
+ import type { ItemsRepository } from '../items/itemsRepository'
++import type { WeaponsRepository } from '../weapons/weaponsRepository'
+ import type { WorldEntityRepository } from '../worldEditor/worldEntityRepository'
+ import type { WorldZoneRepository } from '../worldEditor/worldZoneRepository'
+ import type { ExportRunResult } from '@shared-types/exporter'
+@@ -36,6 +38,32 @@ export async function exportItems(repository: ItemsRepository, projectPath: stri
+   }
+ }
+ 
++export async function exportWeapons(repository: WeaponsRepository, projectPath: string): Promise<ExportRunResult> {
++  const start = Date.now()
++  const { items } = await repository.query({ limit: 1_000_000, offset: 0 })
++  const targetPath = path.join(projectPath, 'export', 'weapons.json')
++  await jsonExporter.run(items, targetPath)
++  return {
++    exporterId: jsonExporter.id,
++    outputPath: targetPath,
++    recordCount: items.length,
++    durationMs: Date.now() - start
++  }
++}
++
++export async function exportArmor(repository: ArmorRepository, projectPath: string): Promise<ExportRunResult> {
++  const start = Date.now()
++  const { items } = await repository.query({ limit: 1_000_000, offset: 0 })
++  const targetPath = path.join(projectPath, 'export', 'armor.json')
++  await jsonExporter.run(items, targetPath)
++  return {
++    exporterId: jsonExporter.id,
++    outputPath: targetPath,
++    recordCount: items.length,
++    durationMs: Date.now() - start
++  }
++}
++
+ /**
+  * Exporta el mundo (entidades del mapa + zonas) a `export/world.json`, listo
+  * para subirse al juego. Reutiliza el mismo `jsonExporter` que icons/items, en
+diff --git a/src/main/ipc/handlers/armor.ts b/src/main/ipc/handlers/armor.ts
+new file mode 100644
+index 0000000..f03a826
+--- /dev/null
++++ b/src/main/ipc/handlers/armor.ts
+@@ -0,0 +1,50 @@
++import { ipcMain } from 'electron'
++import { projectManager } from '../../projects/ProjectManager'
++import { ArmorRepository } from '../../armor/armorRepository'
++import { createCommandBus } from '../../commands/createCommandBus'
++import type { ArmorQuery, ArmorInput } from '@shared-types/armor'
++
++function getRepository(): ArmorRepository {
++  return new ArmorRepository(projectManager.getDb())
++}
++
++export function registerArmorHandlers(): void {
++  ipcMain.handle('armor:query', (_event, params: ArmorQuery) => getRepository().query(params))
++
++  ipcMain.handle('armor:get', (_event, id: number) => getRepository().get(id))
++
++  ipcMain.handle('armor:create', async (_event, data: ArmorInput) => {
++    const created = await getRepository().create(data)
++    await createCommandBus().recordArmorCreate(created)
++    return created
++  })
++
++  ipcMain.handle('armor:update', async (_event, id: number, patch: Partial<ArmorInput>) => {
++    const repository = getRepository()
++    const before = await repository.get(id)
++    if (!before) throw new Error(`Armadura ${id} no encontrada`)
++    const updated = await repository.update(id, patch)
++    await createCommandBus().recordArmorUpdate(before, updated)
++    return updated
++  })
++
++  ipcMain.handle('armor:delete', async (_event, id: number) => {
++    const repository = getRepository()
++    const before = await repository.get(id)
++    if (!before) throw new Error(`Armadura ${id} no encontrada`)
++    await repository.delete(id)
++    await createCommandBus().recordArmorDelete(before)
++  })
++
++  ipcMain.handle('armor:bulkUpdate', async (_event, ids: number[], patch: Partial<ArmorInput>) => {
++    const repository = getRepository()
++    const before = await Promise.all(ids.map((id) => repository.get(id)))
++    const updated = await repository.bulkUpdate(ids, patch)
++    await createCommandBus().recordArmorBulkUpdate(before, updated)
++    return updated
++  })
++
++  ipcMain.handle('armor:bulkDelete', (_event, ids: number[]) => getRepository().bulkDelete(ids))
++
++  ipcMain.handle('armor:listCategories', () => getRepository().listCategories())
++}
+diff --git a/src/main/ipc/handlers/exportHandlers.ts b/src/main/ipc/handlers/exportHandlers.ts
+index 2d2401e..61440e8 100644
+--- a/src/main/ipc/handlers/exportHandlers.ts
++++ b/src/main/ipc/handlers/exportHandlers.ts
+@@ -2,9 +2,11 @@ import { ipcMain } from 'electron'
+ import { projectManager } from '../../projects/ProjectManager'
+ import { IconLibraryRepository } from '../../icons/iconLibraryRepository'
+ import { ItemsRepository } from '../../items/itemsRepository'
++import { WeaponsRepository } from '../../weapons/weaponsRepository'
++import { ArmorRepository } from '../../armor/armorRepository'
+ import { WorldEntityRepository } from '../../worldEditor/worldEntityRepository'
+ import { WorldZoneRepository } from '../../worldEditor/worldZoneRepository'
+-import { exportIconManifest, exportItems, exportWorld } from '../../export/exportService'
++import { exportIconManifest, exportItems, exportWeapons, exportArmor, exportWorld } from '../../export/exportService'
+ 
+ export function registerExportHandlers(): void {
+   ipcMain.handle('export:icons', () => {
+@@ -21,6 +23,20 @@ export function registerExportHandlers(): void {
+     return exportItems(new ItemsRepository(db), info.path)
+   })
+ 
++  ipcMain.handle('export:weapons', () => {
++    const db = projectManager.getDb()
++    const info = projectManager.getCurrentInfo()
++    if (!info) throw new Error('No hay un proyecto abierto')
++    return exportWeapons(new WeaponsRepository(db), info.path)
++  })
++
++  ipcMain.handle('export:armor', () => {
++    const db = projectManager.getDb()
++    const info = projectManager.getCurrentInfo()
++    if (!info) throw new Error('No hay un proyecto abierto')
++    return exportArmor(new ArmorRepository(db), info.path)
++  })
++
+   ipcMain.handle('export:world', () => {
+     const db = projectManager.getDb()
+     const info = projectManager.getCurrentInfo()
+diff --git a/src/main/ipc/handlers/weapons.ts b/src/main/ipc/handlers/weapons.ts
+index e29d6f7..4571002 100644
+--- a/src/main/ipc/handlers/weapons.ts
++++ b/src/main/ipc/handlers/weapons.ts
+@@ -1,6 +1,7 @@
+ import { ipcMain } from 'electron'
+ import { projectManager } from '../../projects/ProjectManager'
+ import { WeaponsRepository } from '../../weapons/weaponsRepository'
++import { createCommandBus } from '../../commands/createCommandBus'
+ import type { WeaponQuery, WeaponInput } from '@shared-types/weapon'
+ 
+ function getRepository(): WeaponsRepository {
+@@ -12,17 +13,36 @@ export function registerWeaponHandlers(): void {
+ 
+   ipcMain.handle('weapons:get', (_event, id: number) => getRepository().get(id))
+ 
+-  ipcMain.handle('weapons:create', (_event, data: WeaponInput) => getRepository().create(data))
+-
+-  ipcMain.handle('weapons:update', (_event, id: number, patch: Partial<WeaponInput>) =>
+-    getRepository().update(id, patch)
+-  )
+-
+-  ipcMain.handle('weapons:delete', (_event, id: number) => getRepository().delete(id))
+-
+-  ipcMain.handle('weapons:bulkUpdate', (_event, ids: number[], patch: Partial<WeaponInput>) =>
+-    getRepository().bulkUpdate(ids, patch)
+-  )
++  ipcMain.handle('weapons:create', async (_event, data: WeaponInput) => {
++    const created = await getRepository().create(data)
++    await createCommandBus().recordWeaponCreate(created)
++    return created
++  })
++
++  ipcMain.handle('weapons:update', async (_event, id: number, patch: Partial<WeaponInput>) => {
++    const repository = getRepository()
++    const before = await repository.get(id)
++    if (!before) throw new Error(`Arma ${id} no encontrada`)
++    const updated = await repository.update(id, patch)
++    await createCommandBus().recordWeaponUpdate(before, updated)
++    return updated
++  })
++
++  ipcMain.handle('weapons:delete', async (_event, id: number) => {
++    const repository = getRepository()
++    const before = await repository.get(id)
++    if (!before) throw new Error(`Arma ${id} no encontrada`)
++    await repository.delete(id)
++    await createCommandBus().recordWeaponDelete(before)
++  })
++
++  ipcMain.handle('weapons:bulkUpdate', async (_event, ids: number[], patch: Partial<WeaponInput>) => {
++    const repository = getRepository()
++    const before = await Promise.all(ids.map((id) => repository.get(id)))
++    const updated = await repository.bulkUpdate(ids, patch)
++    await createCommandBus().recordWeaponBulkUpdate(before, updated)
++    return updated
++  })
+ 
+   ipcMain.handle('weapons:bulkDelete', (_event, ids: number[]) => getRepository().bulkDelete(ids))
+ 
+diff --git a/src/main/ipc/registerHandlers.ts b/src/main/ipc/registerHandlers.ts
+index f66143d..ba917dd 100644
+--- a/src/main/ipc/registerHandlers.ts
++++ b/src/main/ipc/registerHandlers.ts
+@@ -2,6 +2,7 @@ import { registerProjectHandlers } from './handlers/project'
+ import { registerIconHandlers } from './handlers/icons'
+ import { registerItemHandlers } from './handlers/items'
+ import { registerWeaponHandlers } from './handlers/weapons'
++import { registerArmorHandlers } from './handlers/armor'
+ import { registerExportHandlers } from './handlers/exportHandlers'
+ import { registerCommandHistoryHandlers } from './handlers/commandHistory'
+ import { registerDialogHandlers } from './handlers/dialogHandlers'
+@@ -16,6 +17,7 @@ export function registerAllHandlers(): void {
+   registerIconHandlers()
+   registerItemHandlers()
+   registerWeaponHandlers()
++  registerArmorHandlers()
+   registerExportHandlers()
+   registerCommandHistoryHandlers()
+   registerDialogHandlers()
+diff --git a/src/main/weapons/weaponsRepository.test.ts b/src/main/weapons/weaponsRepository.test.ts
+index d792720..66d38aa 100644
+--- a/src/main/weapons/weaponsRepository.test.ts
++++ b/src/main/weapons/weaponsRepository.test.ts
+@@ -57,4 +57,15 @@ describe('WeaponsRepository', () => {
+     expect(updated).toHaveLength(2)
+     expect(updated.every((w) => w.rarity === 'epic')).toBe(true)
+   })
++
++  it('restoreWithId re-inserts a full snapshot with its original id (undo/redo support)', async () => {
++    const { repository } = await setup()
++    const weapon = await repository.create({ ...createEmptyWeaponInput(), name: 'Daga', damage: 5 })
++    await repository.delete(weapon.id)
++    expect(await repository.get(weapon.id)).toBeUndefined()
++
++    const restored = await repository.restoreWithId(weapon)
++    expect(restored).toEqual(weapon)
++    expect(await repository.get(weapon.id)).toEqual(weapon)
++  })
+ })
+diff --git a/src/main/weapons/weaponsRepository.ts b/src/main/weapons/weaponsRepository.ts
+index 51bbf83..4fcc427 100644
+--- a/src/main/weapons/weaponsRepository.ts
++++ b/src/main/weapons/weaponsRepository.ts
+@@ -143,6 +143,23 @@ export class WeaponsRepository {
+     await this.db.deleteFrom('weapons').where('id', 'in', ids).execute()
+   }
+ 
++  /** Re-inserta un snapshot completo de arma con su id original - usado por CommandBus para deshacer un delete o rehacer un create. Mismo patrón que ItemsRepository.restoreWithId. */
++  async restoreWithId(weapon: Weapon): Promise<Weapon> {
++    const values = {
++      id: weapon.id,
++      ...toRowPatch(weapon),
++      created_at: weapon.createdAt,
++      updated_at: weapon.updatedAt
++    }
++    const inserted = await this.db
++      .insertInto('weapons')
++      .values(values as never)
++      .onConflict((oc) => oc.column('id').doUpdateSet(values as never))
++      .returningAll()
++      .executeTakeFirstOrThrow()
++    return toWeapon(inserted)
++  }
++
+   async listCategories(): Promise<string[]> {
+     const rows = await this.db.selectFrom('weapons').select('category').distinct().orderBy('category').execute()
+     return rows.map((row) => row.category)
+diff --git a/src/preload/index.ts b/src/preload/index.ts
+index eb6aeaa..0270a0f 100644
+--- a/src/preload/index.ts
++++ b/src/preload/index.ts
+@@ -46,9 +46,21 @@ const api: KingdomGpsApi = {
+     bulkDelete: (ids) => ipcRenderer.invoke('weapons:bulkDelete', ids),
+     listCategories: () => ipcRenderer.invoke('weapons:listCategories')
+   },
++  armor: {
++    query: (params) => ipcRenderer.invoke('armor:query', params),
++    get: (id) => ipcRenderer.invoke('armor:get', id),
++    create: (data) => ipcRenderer.invoke('armor:create', data),
++    update: (id, patch) => ipcRenderer.invoke('armor:update', id, patch),
++    delete: (id) => ipcRenderer.invoke('armor:delete', id),
++    bulkUpdate: (ids, patch) => ipcRenderer.invoke('armor:bulkUpdate', ids, patch),
++    bulkDelete: (ids) => ipcRenderer.invoke('armor:bulkDelete', ids),
++    listCategories: () => ipcRenderer.invoke('armor:listCategories')
++  },
+   export: {
+     icons: () => ipcRenderer.invoke('export:icons'),
+     items: () => ipcRenderer.invoke('export:items'),
++    weapons: () => ipcRenderer.invoke('export:weapons'),
++    armor: () => ipcRenderer.invoke('export:armor'),
+     world: () => ipcRenderer.invoke('export:world')
+   },
+   commandHistory: {
+diff --git a/src/renderer/src/modules/armors/components/ArmorInspector.tsx b/src/renderer/src/modules/armors/components/ArmorInspector.tsx
+new file mode 100644
+index 0000000..399f0cf
+--- /dev/null
++++ b/src/renderer/src/modules/armors/components/ArmorInspector.tsx
+@@ -0,0 +1,153 @@
++import { useArmorStore } from '../store'
++import { useContentActions } from '@renderer/shared/content/useContentModule'
++import { ITEM_RARITIES } from '@shared-types/item'
++import { ARMOR_SLOTS, createEmptyArmorInput, type Armor, type ArmorInput } from '@shared-types/armor'
++import { IconThumbnail } from '@renderer/shared/components/IconThumbnail'
++import {
++  TextField,
++  TextAreaField,
++  NumberField,
++  SelectField,
++  TagListField,
++  BonusListField,
++  BulkSelectField,
++  BulkNumberField
++} from '@renderer/shared/components/inspector/fields'
++
++export function ArmorInspector(): JSX.Element {
++  const items = useArmorStore((s) => s.items)
++  const selectedIds = useArmorStore((s) => s.selectedIds)
++  const { updateRecord, bulkUpdate } = useContentActions(useArmorStore, window.api.armor, createEmptyArmorInput)
++
++  if (selectedIds.length === 0) {
++    return (
++      <div className="flex h-full items-center justify-center px-4 text-center text-sm text-slate-500">
++        Selecciona una o varias armaduras para editar
++      </div>
++    )
++  }
++
++  if (selectedIds.length > 1) {
++    return (
++      <div className="flex h-full flex-col gap-4 overflow-y-auto p-4">
++        <div className="text-sm font-medium text-slate-200">{selectedIds.length} armaduras seleccionadas</div>
++        <p className="text-xs text-slate-500">
++          Los cambios aquí se aplican a las {selectedIds.length} armaduras a la vez.
++        </p>
++        <BulkSelectField
++          label="Slot"
++          options={ARMOR_SLOTS}
++          onApply={(value) => bulkUpdate(selectedIds, { category: value })}
++        />
++        <BulkSelectField
++          label="Rareza"
++          options={ITEM_RARITIES}
++          onApply={(value) => bulkUpdate(selectedIds, { rarity: value })}
++        />
++        <BulkNumberField label="Defensa" onApply={(value) => bulkUpdate(selectedIds, { defense: value })} />
++        <BulkNumberField
++          label="Nivel requerido"
++          onApply={(value) => bulkUpdate(selectedIds, { requiredLevel: value })}
++        />
++      </div>
++    )
++  }
++
++  const armor = items.find((candidate) => candidate.id === selectedIds[0])
++  if (!armor) {
++    return <div className="p-4 text-sm text-slate-500">Armadura no encontrada</div>
++  }
++
++  return <SingleArmorInspector key={armor.id} armor={armor} onCommit={(patch) => updateRecord(armor.id, patch)} />
++}
++
++function SingleArmorInspector({
++  armor,
++  onCommit
++}: {
++  armor: Armor
++  onCommit(patch: Partial<ArmorInput>): void
++}): JSX.Element {
++  return (
++    <div className="flex h-full flex-col gap-4 overflow-y-auto p-4">
++      <div
++        onDragOver={(event) => event.preventDefault()}
++        onDrop={(event) => {
++          const iconId = event.dataTransfer.getData('application/x-kgps-icon-id')
++          if (iconId) onCommit({ iconId: Number(iconId) })
++        }}
++        className="flex items-center gap-3 rounded-md border border-dashed border-surface-border bg-surface-2 p-3"
++      >
++        <IconThumbnail iconId={armor.iconId} size={48} />
++        <div className="text-xs text-slate-500">Arrastra un icono aquí desde la Biblioteca de Iconos</div>
++      </div>
++
++      <TextField label="Nombre" value={armor.name} onCommit={(name) => onCommit({ name })} />
++      <TextAreaField
++        label="Descripción"
++        value={armor.description}
++        onCommit={(description) => onCommit({ description })}
++      />
++
++      <div className="grid grid-cols-2 gap-3">
++        <SelectField
++          label="Slot"
++          value={armor.category}
++          options={ARMOR_SLOTS}
++          onCommit={(category) => onCommit({ category })}
++        />
++        <SelectField
++          label="Rareza"
++          value={armor.rarity}
++          options={ITEM_RARITIES}
++          onCommit={(rarity) => onCommit({ rarity })}
++        />
++      </div>
++
++      <div className="grid grid-cols-2 gap-3">
++        <NumberField label="Defensa" value={armor.defense} onCommit={(value) => onCommit({ defense: value ?? 0 })} />
++        <NumberField
++          label="Res. mágica"
++          value={armor.magicResist}
++          onCommit={(value) => onCommit({ magicResist: value ?? 0 })}
++        />
++      </div>
++
++      <div className="grid grid-cols-3 gap-3">
++        <NumberField label="Valor" value={armor.value} onCommit={(value) => onCommit({ value: value ?? 0 })} />
++        <NumberField label="Peso" value={armor.weight} onCommit={(value) => onCommit({ weight: value ?? 0 })} />
++        <NumberField
++          label="Nivel req."
++          value={armor.requiredLevel}
++          onCommit={(value) => onCommit({ requiredLevel: value ?? 1 })}
++        />
++      </div>
++
++      <TextField
++        label="Profesión requerida"
++        value={armor.requiredProfession ?? ''}
++        placeholder="(ninguna)"
++        onCommit={(value) => onCommit({ requiredProfession: value || null })}
++      />
++
++      <BonusListField value={armor.bonuses} onCommit={(bonuses) => onCommit({ bonuses })} />
++      <TagListField
++        label="Scripts"
++        value={armor.scripts}
++        placeholder="script1, script2"
++        onCommit={(scripts) => onCommit({ scripts })}
++      />
++      <TagListField label="Flags" value={armor.flags} placeholder="flag1, flag2" onCommit={(flags) => onCommit({ flags })} />
++      <TagListField
++        label="Checks"
++        value={armor.checks}
++        placeholder="check1, check2"
++        onCommit={(checks) => onCommit({ checks })}
++      />
++
++      <div className="text-[10px] text-slate-600">
++        #{armor.id} · actualizado {new Date(armor.updatedAt).toLocaleString('es')}
++      </div>
++    </div>
++  )
++}
+diff --git a/src/renderer/src/modules/armors/components/ArmorPanel.tsx b/src/renderer/src/modules/armors/components/ArmorPanel.tsx
+new file mode 100644
+index 0000000..4102764
+--- /dev/null
++++ b/src/renderer/src/modules/armors/components/ArmorPanel.tsx
+@@ -0,0 +1,36 @@
++import { ContentModulePanel, type ContentModuleConfig } from '@renderer/shared/content/ContentModulePanel'
++import type { ContentColumn } from '@renderer/shared/content/contentTypes'
++import { ITEM_RARITIES } from '@shared-types/item'
++import { ARMOR_SLOTS, createEmptyArmorInput, type Armor } from '@shared-types/armor'
++import { useArmorStore } from '../store'
++import { ArmorInspector } from './ArmorInspector'
++
++const TABLE_COLUMNS: ContentColumn<Armor>[] = [
++  { header: 'Defensa', render: (armor) => armor.defense },
++  { header: 'Res. mágica', render: (armor) => armor.magicResist },
++  { header: 'Nivel', render: (armor) => armor.requiredLevel }
++]
++
++const CONFIG: ContentModuleConfig<Armor> = {
++  labelPlural: 'armaduras',
++  createLabel: 'Nueva armadura',
++  searchPlaceholder: 'Buscar armaduras...',
++  emptyText: 'Sin armaduras. Usa "Nueva armadura" para crear la primera.',
++  categoryOptions: ARMOR_SLOTS,
++  rarityOptions: ITEM_RARITIES,
++  tableColumns: TABLE_COLUMNS,
++  onExport: () => void window.api.export.armor()
++}
++
++/** Panel del módulo Armaduras: todo el módulo se reduce a esta composición sobre el framework de contenido. */
++export function ArmorPanel(): JSX.Element {
++  return (
++    <ContentModulePanel
++      useStore={useArmorStore}
++      api={window.api.armor}
++      createEmpty={createEmptyArmorInput}
++      config={CONFIG}
++      inspector={<ArmorInspector />}
++    />
++  )
++}
+diff --git a/src/renderer/src/modules/armors/module.ts b/src/renderer/src/modules/armors/module.ts
+index 568607f..72af852 100644
+--- a/src/renderer/src/modules/armors/module.ts
++++ b/src/renderer/src/modules/armors/module.ts
+@@ -1,5 +1,5 @@
+ import { defineModule } from '../defineModule'
+-import { makePlaceholderPanel } from '@renderer/shared/components/ModulePlaceholder'
++import { ArmorPanel } from './components/ArmorPanel'
+ 
+ export const armorsModule = defineModule({
+   id: 'armors',
+@@ -7,8 +7,6 @@ export const armorsModule = defineModule({
+   icon: 'Shield',
+   group: 'content',
+   capabilities: ['create', 'edit', 'delete', 'export', 'bulkEdit'],
+-  panel: makePlaceholderPanel(
+-    'Armaduras',
+-    'Módulo en construcción. Se implementará en una fase posterior siguiendo el patrón de referencia construido en el módulo Objetos (rejilla, inspector, repositorio, exportador).'
+-  )
++  shortcuts: [{ combo: 'Ctrl+N', description: 'Nueva armadura' }],
++  panel: ArmorPanel
+ })
+diff --git a/src/renderer/src/modules/armors/store.ts b/src/renderer/src/modules/armors/store.ts
+new file mode 100644
+index 0000000..625a013
+--- /dev/null
++++ b/src/renderer/src/modules/armors/store.ts
+@@ -0,0 +1,5 @@
++import { createContentStore } from '@renderer/shared/content/createContentStore'
++import type { Armor } from '@shared-types/armor'
++
++/** Store del módulo Armaduras, creado con la fábrica genérica del framework de contenido. */
++export const useArmorStore = createContentStore<Armor>()
+diff --git a/src/renderer/src/modules/items/components/ItemGrid.tsx b/src/renderer/src/modules/items/components/ItemGrid.tsx
+deleted file mode 100644
+index 7520726..0000000
+--- a/src/renderer/src/modules/items/components/ItemGrid.tsx
++++ /dev/null
+@@ -1,81 +0,0 @@
+-import { useEffect, useRef, useState } from 'react'
+-import { FixedSizeGrid } from 'react-window'
+-import { useItemsStore } from '../store/itemsStore'
+-import { RarityBadge, rarityBorderClass } from '@renderer/shared/components/RarityBadge'
+-import { IconThumbnail } from '@renderer/shared/components/IconThumbnail'
+-
+-const CELL_SIZE = 112
+-
+-export function ItemGrid(): JSX.Element {
+-  const items = useItemsStore((s) => s.items)
+-  const selectedIds = useItemsStore((s) => s.selectedIds)
+-  const select = useItemsStore((s) => s.select)
+-  const loading = useItemsStore((s) => s.loading)
+-  const containerRef = useRef<HTMLDivElement>(null)
+-  const [size, setSize] = useState({ width: 0, height: 0 })
+-
+-  useEffect(() => {
+-    const el = containerRef.current
+-    if (!el) return
+-    const observer = new ResizeObserver((entries) => {
+-      const entry = entries[0]
+-      if (entry) setSize({ width: entry.contentRect.width, height: entry.contentRect.height })
+-    })
+-    observer.observe(el)
+-    return () => observer.disconnect()
+-  }, [])
+-
+-  if (items.length === 0 && !loading) {
+-    return (
+-      <div ref={containerRef} className="flex h-full w-full items-center justify-center text-sm text-slate-500">
+-        Sin objetos. Usa "Nuevo objeto" para crear el primero.
+-      </div>
+-    )
+-  }
+-
+-  const columnCount = Math.max(1, Math.floor(size.width / CELL_SIZE))
+-  const rowCount = Math.ceil(items.length / columnCount)
+-
+-  return (
+-    <div ref={containerRef} className="h-full w-full">
+-      {size.width > 0 && (
+-        <FixedSizeGrid
+-          columnCount={columnCount}
+-          columnWidth={CELL_SIZE}
+-          rowCount={rowCount}
+-          rowHeight={CELL_SIZE}
+-          width={size.width}
+-          height={size.height}
+-        >
+-          {({ columnIndex, rowIndex, style }) => {
+-            const index = rowIndex * columnCount + columnIndex
+-            const item = items[index]
+-            if (!item) return <div style={style} />
+-            const isSelected = selectedIds.includes(item.id)
+-            return (
+-              <div style={style} className="p-1">
+-                <button
+-                  type="button"
+-                  onClick={(event) =>
+-                    select(item.id, { additive: event.ctrlKey || event.metaKey, range: event.shiftKey })
+-                  }
+-                  title={`${item.name} (#${item.id})`}
+-                  className={`flex h-full w-full flex-col items-center justify-center gap-1 rounded-md border-2 bg-surface-2 p-1.5 transition-colors ${
+-                    isSelected
+-                      ? 'border-accent bg-accent-muted'
+-                      : `${rarityBorderClass(item.rarity)}/30 hover:bg-surface-3`
+-                  }`}
+-                >
+-                  <IconThumbnail iconId={item.iconId} size={40} />
+-                  <span className="w-full truncate px-1 text-center text-[10px] text-slate-300">{item.name}</span>
+-                  <span className="text-[9px] text-slate-600">#{item.id}</span>
+-                  <RarityBadge rarity={item.rarity} />
+-                </button>
+-              </div>
+-            )
+-          }}
+-        </FixedSizeGrid>
+-      )}
+-    </div>
+-  )
+-}
+diff --git a/src/renderer/src/modules/items/components/ItemInspector.tsx b/src/renderer/src/modules/items/components/ItemInspector.tsx
+index b85d0ca..cd1834d 100644
+--- a/src/renderer/src/modules/items/components/ItemInspector.tsx
++++ b/src/renderer/src/modules/items/components/ItemInspector.tsx
+@@ -1,7 +1,6 @@
+-import { useState } from 'react'
+-import { useItemsStore } from '../store/itemsStore'
+-import { useItems } from '../hooks/useItems'
+-import { ITEM_CATEGORIES, ITEM_RARITIES, type Item, type ItemInput } from '@shared-types/item'
++import { useItemsStore } from '../store'
++import { useContentActions } from '@renderer/shared/content/useContentModule'
++import { ITEM_CATEGORIES, ITEM_RARITIES, createEmptyItemInput, type Item, type ItemInput } from '@shared-types/item'
+ import { IconThumbnail } from '@renderer/shared/components/IconThumbnail'
+ import {
+   TextField,
+@@ -9,13 +8,16 @@ import {
+   NumberField,
+   SelectField,
+   TagListField,
+-  BonusListField
++  BonusListField,
++  BulkSelectField,
++  BulkNumberField
+ } from '@renderer/shared/components/inspector/fields'
+ 
++/** Migrado al framework de contenido: mismo patrón que WeaponInspector/ArmorInspector, con los campos propios de Objetos. */
+ export function ItemInspector(): JSX.Element {
+   const items = useItemsStore((s) => s.items)
+   const selectedIds = useItemsStore((s) => s.selectedIds)
+-  const { updateItem, bulkUpdate } = useItems()
++  const { updateRecord, bulkUpdate } = useContentActions(useItemsStore, window.api.items, createEmptyItemInput)
+ 
+   if (selectedIds.length === 0) {
+     return (
+@@ -26,7 +28,24 @@ export function ItemInspector(): JSX.Element {
+   }
+ 
+   if (selectedIds.length > 1) {
+-    return <BulkEditPanel ids={selectedIds} onApply={(patch) => bulkUpdate(selectedIds, patch)} />
++    return (
++      <div className="flex h-full flex-col gap-4 overflow-y-auto p-4">
++        <div className="text-sm font-medium text-slate-200">{selectedIds.length} objetos seleccionados</div>
++        <p className="text-xs text-slate-500">Los cambios aquí se aplican a los {selectedIds.length} objetos a la vez.</p>
++        <BulkSelectField
++          label="Categoría"
++          options={ITEM_CATEGORIES}
++          onApply={(value) => bulkUpdate(selectedIds, { category: value })}
++        />
++        <BulkSelectField
++          label="Rareza"
++          options={ITEM_RARITIES}
++          onApply={(value) => bulkUpdate(selectedIds, { rarity: value })}
++        />
++        <BulkNumberField label="Nivel requerido" onApply={(value) => bulkUpdate(selectedIds, { requiredLevel: value })} />
++        <BulkNumberField label="Valor" onApply={(value) => bulkUpdate(selectedIds, { value })} />
++      </div>
++    )
+   }
+ 
+   const item = items.find((candidate) => candidate.id === selectedIds[0])
+@@ -34,7 +53,7 @@ export function ItemInspector(): JSX.Element {
+     return <div className="p-4 text-sm text-slate-500">Objeto no encontrado</div>
+   }
+ 
+-  return <SingleItemInspector key={item.id} item={item} onCommit={(patch) => updateItem(item.id, patch)} />
++  return <SingleItemInspector key={item.id} item={item} onCommit={(patch) => updateRecord(item.id, patch)} />
+ }
+ 
+ function SingleItemInspector({
+@@ -101,24 +120,9 @@ function SingleItemInspector({
+       </div>
+ 
+       <div className="grid grid-cols-3 gap-3">
+-        <NumberField
+-          label="Vida"
+-          value={item.healthRestore}
+-          allowNull
+-          onCommit={(healthRestore) => onCommit({ healthRestore })}
+-        />
+-        <NumberField
+-          label="Comida"
+-          value={item.foodRestore}
+-          allowNull
+-          onCommit={(foodRestore) => onCommit({ foodRestore })}
+-        />
+-        <NumberField
+-          label="Mana"
+-          value={item.manaRestore}
+-          allowNull
+-          onCommit={(manaRestore) => onCommit({ manaRestore })}
+-        />
++        <NumberField label="Vida" value={item.healthRestore} allowNull onCommit={(healthRestore) => onCommit({ healthRestore })} />
++        <NumberField label="Comida" value={item.foodRestore} allowNull onCommit={(foodRestore) => onCommit({ foodRestore })} />
++        <NumberField label="Mana" value={item.manaRestore} allowNull onCommit={(manaRestore) => onCommit({ manaRestore })} />
+       </div>
+ 
+       <TextField
+@@ -154,118 +158,3 @@ function SingleItemInspector({
+     </div>
+   )
+ }
+-
+-function BulkEditPanel({
+-  ids,
+-  onApply
+-}: {
+-  ids: number[]
+-  onApply(patch: Partial<ItemInput>): Promise<void>
+-}): JSX.Element {
+-  return (
+-    <div className="flex h-full flex-col gap-4 overflow-y-auto p-4">
+-      <div className="text-sm font-medium text-slate-200">{ids.length} objetos seleccionados</div>
+-      <p className="text-xs text-slate-500">Los cambios aquí se aplican a los {ids.length} objetos a la vez.</p>
+-
+-      <BulkSelectField
+-        label="Categoría"
+-        options={ITEM_CATEGORIES}
+-        onApply={(value) => onApply({ category: value })}
+-      />
+-      <BulkSelectField label="Rareza" options={ITEM_RARITIES} onApply={(value) => onApply({ rarity: value })} />
+-      <BulkNumberField label="Nivel requerido" onApply={(value) => onApply({ requiredLevel: value })} />
+-      <BulkNumberField label="Valor" onApply={(value) => onApply({ value })} />
+-    </div>
+-  )
+-}
+-
+-function BulkSelectField<T extends string>({
+-  label,
+-  options,
+-  onApply
+-}: {
+-  label: string
+-  options: readonly T[]
+-  onApply(value: T): Promise<void>
+-}): JSX.Element {
+-  const [value, setValue] = useState<T>(options[0])
+-  const [applying, setApplying] = useState(false)
+-
+-  const apply = async (): Promise<void> => {
+-    setApplying(true)
+-    try {
+-      await onApply(value)
+-    } finally {
+-      setApplying(false)
+-    }
+-  }
+-
+-  return (
+-    <div className="flex items-end gap-2">
+-      <div className="flex-1">
+-        <label className="mb-1 block text-xs font-medium uppercase tracking-wide text-slate-500">{label}</label>
+-        <select
+-          value={value}
+-          onChange={(event) => setValue(event.target.value as T)}
+-          className="w-full rounded-md border border-surface-border bg-surface-2 px-2 py-1.5 text-sm text-slate-200 outline-none focus:border-accent"
+-        >
+-          {options.map((option) => (
+-            <option key={option} value={option}>
+-              {option}
+-            </option>
+-          ))}
+-        </select>
+-      </div>
+-      <button
+-        type="button"
+-        disabled={applying}
+-        onClick={apply}
+-        className="rounded-md bg-accent px-3 py-1.5 text-xs font-medium text-white hover:bg-accent-hover disabled:opacity-60"
+-      >
+-        Aplicar
+-      </button>
+-    </div>
+-  )
+-}
+-
+-function BulkNumberField({
+-  label,
+-  onApply
+-}: {
+-  label: string
+-  onApply(value: number): Promise<void>
+-}): JSX.Element {
+-  const [value, setValue] = useState('0')
+-  const [applying, setApplying] = useState(false)
+-
+-  const apply = async (): Promise<void> => {
+-    setApplying(true)
+-    try {
+-      await onApply(Number(value) || 0)
+-    } finally {
+-      setApplying(false)
+-    }
+-  }
+-
+-  return (
+-    <div className="flex items-end gap-2">
+-      <div className="flex-1">
+-        <label className="mb-1 block text-xs font-medium uppercase tracking-wide text-slate-500">{label}</label>
+-        <input
+-          type="number"
+-          value={value}
+-          onChange={(event) => setValue(event.target.value)}
+-          className="w-full rounded-md border border-surface-border bg-surface-2 px-2 py-1.5 text-sm text-slate-200 outline-none focus:border-accent"
+-        />
+-      </div>
+-      <button
+-        type="button"
+-        disabled={applying}
+-        onClick={apply}
+-        className="rounded-md bg-accent px-3 py-1.5 text-xs font-medium text-white hover:bg-accent-hover disabled:opacity-60"
+-      >
+-        Aplicar
+-      </button>
+-    </div>
+-  )
+-}
+diff --git a/src/renderer/src/modules/items/components/ItemListView.tsx b/src/renderer/src/modules/items/components/ItemListView.tsx
+deleted file mode 100644
+index 0ffa7e9..0000000
+--- a/src/renderer/src/modules/items/components/ItemListView.tsx
++++ /dev/null
+@@ -1,62 +0,0 @@
+-import { useEffect, useRef, useState } from 'react'
+-import { FixedSizeList } from 'react-window'
+-import { useItemsStore } from '../store/itemsStore'
+-import { RarityBadge } from '@renderer/shared/components/RarityBadge'
+-import { IconThumbnail } from '@renderer/shared/components/IconThumbnail'
+-
+-export function ItemListView(): JSX.Element {
+-  const items = useItemsStore((s) => s.items)
+-  const selectedIds = useItemsStore((s) => s.selectedIds)
+-  const select = useItemsStore((s) => s.select)
+-  const containerRef = useRef<HTMLDivElement>(null)
+-  const [size, setSize] = useState({ width: 0, height: 0 })
+-
+-  useEffect(() => {
+-    const el = containerRef.current
+-    if (!el) return
+-    const observer = new ResizeObserver((entries) => {
+-      const entry = entries[0]
+-      if (entry) setSize({ width: entry.contentRect.width, height: entry.contentRect.height })
+-    })
+-    observer.observe(el)
+-    return () => observer.disconnect()
+-  }, [])
+-
+-  if (items.length === 0) {
+-    return (
+-      <div ref={containerRef} className="flex h-full w-full items-center justify-center text-sm text-slate-500">
+-        Sin objetos.
+-      </div>
+-    )
+-  }
+-
+-  return (
+-    <div ref={containerRef} className="h-full w-full">
+-      {size.height > 0 && (
+-        <FixedSizeList itemCount={items.length} itemSize={40} width={size.width} height={size.height}>
+-          {({ index, style }) => {
+-            const item = items[index]
+-            const isSelected = selectedIds.includes(item.id)
+-            return (
+-              <div
+-                style={style}
+-                onClick={(event) =>
+-                  select(item.id, { additive: event.ctrlKey || event.metaKey, range: event.shiftKey })
+-                }
+-                className={`flex cursor-pointer items-center gap-3 border-b border-surface-border/50 px-3 text-sm ${
+-                  isSelected ? 'bg-accent-muted text-accent' : 'text-slate-300 hover:bg-surface-2'
+-                }`}
+-              >
+-                <IconThumbnail iconId={item.iconId} size={24} />
+-                <span className="w-14 shrink-0 text-xs text-slate-500">#{item.id}</span>
+-                <span className="flex-1 truncate">{item.name}</span>
+-                <span className="w-28 shrink-0 truncate text-xs text-slate-500">{item.category}</span>
+-                <RarityBadge rarity={item.rarity} />
+-              </div>
+-            )
+-          }}
+-        </FixedSizeList>
+-      )}
+-    </div>
+-  )
+-}
+diff --git a/src/renderer/src/modules/items/components/ItemTableView.tsx b/src/renderer/src/modules/items/components/ItemTableView.tsx
+deleted file mode 100644
+index 6f78b9a..0000000
+--- a/src/renderer/src/modules/items/components/ItemTableView.tsx
++++ /dev/null
+@@ -1,61 +0,0 @@
+-import { useItemsStore } from '../store/itemsStore'
+-import { RarityBadge } from '@renderer/shared/components/RarityBadge'
+-import { IconThumbnail } from '@renderer/shared/components/IconThumbnail'
+-
+-export function ItemTableView(): JSX.Element {
+-  const items = useItemsStore((s) => s.items)
+-  const selectedIds = useItemsStore((s) => s.selectedIds)
+-  const select = useItemsStore((s) => s.select)
+-
+-  if (items.length === 0) {
+-    return <div className="flex h-full w-full items-center justify-center text-sm text-slate-500">Sin objetos.</div>
+-  }
+-
+-  return (
+-    <div className="h-full w-full overflow-auto">
+-      <table className="w-full border-collapse text-left text-sm">
+-        <thead className="sticky top-0 bg-surface-1 text-xs uppercase tracking-wide text-slate-500">
+-          <tr>
+-            <th className="px-3 py-2 font-medium">Icono</th>
+-            <th className="px-3 py-2 font-medium">ID</th>
+-            <th className="px-3 py-2 font-medium">Nombre</th>
+-            <th className="px-3 py-2 font-medium">Categoría</th>
+-            <th className="px-3 py-2 font-medium">Rareza</th>
+-            <th className="px-3 py-2 font-medium">Valor</th>
+-            <th className="px-3 py-2 font-medium">Peso</th>
+-            <th className="px-3 py-2 font-medium">Nivel</th>
+-          </tr>
+-        </thead>
+-        <tbody>
+-          {items.map((item) => {
+-            const isSelected = selectedIds.includes(item.id)
+-            return (
+-              <tr
+-                key={item.id}
+-                onClick={(event) =>
+-                  select(item.id, { additive: event.ctrlKey || event.metaKey, range: event.shiftKey })
+-                }
+-                className={`cursor-pointer border-b border-surface-border/50 ${
+-                  isSelected ? 'bg-accent-muted text-accent' : 'text-slate-300 hover:bg-surface-2'
+-                }`}
+-              >
+-                <td className="px-3 py-1.5">
+-                  <IconThumbnail iconId={item.iconId} size={20} />
+-                </td>
+-                <td className="px-3 py-1.5 text-xs text-slate-500">#{item.id}</td>
+-                <td className="px-3 py-1.5">{item.name}</td>
+-                <td className="px-3 py-1.5 text-xs">{item.category}</td>
+-                <td className="px-3 py-1.5">
+-                  <RarityBadge rarity={item.rarity} />
+-                </td>
+-                <td className="px-3 py-1.5 text-xs">{item.value}</td>
+-                <td className="px-3 py-1.5 text-xs">{item.weight}</td>
+-                <td className="px-3 py-1.5 text-xs">{item.requiredLevel}</td>
+-              </tr>
+-            )
+-          })}
+-        </tbody>
+-      </table>
+-    </div>
+-  )
+-}
+diff --git a/src/renderer/src/modules/items/components/ItemsPanel.tsx b/src/renderer/src/modules/items/components/ItemsPanel.tsx
+index 73ae77e..0cf47f6 100644
+--- a/src/renderer/src/modules/items/components/ItemsPanel.tsx
++++ b/src/renderer/src/modules/items/components/ItemsPanel.tsx
+@@ -1,28 +1,39 @@
+-import { useItems } from '../hooks/useItems'
+-import { useItemsStore } from '../store/itemsStore'
+-import { ItemsToolbar } from './ItemsToolbar'
+-import { ItemGrid } from './ItemGrid'
+-import { ItemListView } from './ItemListView'
+-import { ItemTableView } from './ItemTableView'
++import { ContentModulePanel, type ContentModuleConfig } from '@renderer/shared/content/ContentModulePanel'
++import type { ContentColumn } from '@renderer/shared/content/contentTypes'
++import { ITEM_CATEGORIES, ITEM_RARITIES, createEmptyItemInput, type Item } from '@shared-types/item'
++import { useItemsStore } from '../store'
+ import { ItemInspector } from './ItemInspector'
+ 
+-export function ItemsPanel(): JSX.Element {
+-  useItems()
+-  const viewMode = useItemsStore((s) => s.viewMode)
++const TABLE_COLUMNS: ContentColumn<Item>[] = [
++  { header: 'Valor', render: (item) => item.value },
++  { header: 'Peso', render: (item) => item.weight },
++  { header: 'Nivel', render: (item) => item.requiredLevel }
++]
++
++const CONFIG: ContentModuleConfig<Item> = {
++  labelPlural: 'objetos',
++  createLabel: 'Nuevo objeto',
++  searchPlaceholder: 'Buscar objetos...',
++  emptyText: 'Sin objetos. Usa "Nuevo objeto" para crear el primero.',
++  categoryOptions: ITEM_CATEGORIES,
++  rarityOptions: ITEM_RARITIES,
++  tableColumns: TABLE_COLUMNS,
++  onExport: () => void window.api.export.items()
++}
+ 
++/**
++ * Panel del módulo Objetos, migrado al framework de contenido genérico (antes
++ * era la implementación "a mano" que sirvió de referencia para Armas y
++ * Armaduras). Misma composición que WeaponsPanel/ArmorPanel.
++ */
++export function ItemsPanel(): JSX.Element {
+   return (
+-    <div className="flex h-full flex-col bg-surface-1">
+-      <ItemsToolbar />
+-      <div className="flex min-h-0 flex-1">
+-        <div className="min-w-0 flex-1">
+-          {viewMode === 'grid' && <ItemGrid />}
+-          {viewMode === 'list' && <ItemListView />}
+-          {viewMode === 'table' && <ItemTableView />}
+-        </div>
+-        <div className="w-72 shrink-0 border-l border-surface-border">
+-          <ItemInspector />
+-        </div>
+-      </div>
+-    </div>
++    <ContentModulePanel
++      useStore={useItemsStore}
++      api={window.api.items}
++      createEmpty={createEmptyItemInput}
++      config={CONFIG}
++      inspector={<ItemInspector />}
++    />
+   )
+ }
+diff --git a/src/renderer/src/modules/items/components/ItemsToolbar.tsx b/src/renderer/src/modules/items/components/ItemsToolbar.tsx
+deleted file mode 100644
+index 1057814..0000000
+--- a/src/renderer/src/modules/items/components/ItemsToolbar.tsx
++++ /dev/null
+@@ -1,116 +0,0 @@
+-import { Search, Plus, Trash2, LayoutGrid, List, Table2, Download } from 'lucide-react'
+-import { useItemsStore } from '../store/itemsStore'
+-import { useItems } from '../hooks/useItems'
+-import { ITEM_CATEGORIES, ITEM_RARITIES, type ItemCategory, type ItemRarity } from '@shared-types/item'
+-
+-export function ItemsToolbar(): JSX.Element {
+-  const query = useItemsStore((s) => s.query)
+-  const setQuery = useItemsStore((s) => s.setQuery)
+-  const total = useItemsStore((s) => s.total)
+-  const viewMode = useItemsStore((s) => s.viewMode)
+-  const setViewMode = useItemsStore((s) => s.setViewMode)
+-  const selectedIds = useItemsStore((s) => s.selectedIds)
+-  const clearSelection = useItemsStore((s) => s.clearSelection)
+-  const { createItem, deleteItems } = useItems()
+-
+-  const handleDeleteSelected = async (): Promise<void> => {
+-    if (selectedIds.length === 0) return
+-    await deleteItems(selectedIds)
+-    clearSelection()
+-  }
+-
+-  return (
+-    <div className="flex flex-wrap items-center gap-2 border-b border-surface-border bg-surface-1 px-3 py-2">
+-      <div className="relative max-w-xs flex-1">
+-        <Search size={14} className="pointer-events-none absolute left-2 top-1/2 -translate-y-1/2 text-slate-500" />
+-        <input
+-          value={query.search ?? ''}
+-          onChange={(event) => setQuery({ search: event.target.value || undefined })}
+-          placeholder="Buscar objetos..."
+-          className="w-full rounded-md border border-surface-border bg-surface-2 py-1.5 pl-7 pr-2 text-sm text-slate-200 outline-none focus:border-accent"
+-        />
+-      </div>
+-
+-      <select
+-        value={query.category ?? ''}
+-        onChange={(event) => setQuery({ category: (event.target.value || undefined) as ItemCategory | undefined })}
+-        className="rounded-md border border-surface-border bg-surface-2 px-2 py-1.5 text-xs text-slate-200 outline-none focus:border-accent"
+-      >
+-        <option value="">Todas las categorías</option>
+-        {ITEM_CATEGORIES.map((category) => (
+-          <option key={category} value={category}>
+-            {category}
+-          </option>
+-        ))}
+-      </select>
+-
+-      <select
+-        value={query.rarity ?? ''}
+-        onChange={(event) => setQuery({ rarity: (event.target.value || undefined) as ItemRarity | undefined })}
+-        className="rounded-md border border-surface-border bg-surface-2 px-2 py-1.5 text-xs text-slate-200 outline-none focus:border-accent"
+-      >
+-        <option value="">Toda rareza</option>
+-        {ITEM_RARITIES.map((rarity) => (
+-          <option key={rarity} value={rarity}>
+-            {rarity}
+-          </option>
+-        ))}
+-      </select>
+-
+-      <div className="flex items-center rounded-md border border-surface-border">
+-        <button
+-          type="button"
+-          onClick={() => setViewMode('grid')}
+-          title="Vista de casillas"
+-          className={`p-1.5 ${viewMode === 'grid' ? 'bg-accent-muted text-accent' : 'text-slate-400 hover:bg-surface-2'}`}
+-        >
+-          <LayoutGrid size={14} />
+-        </button>
+-        <button
+-          type="button"
+-          onClick={() => setViewMode('list')}
+-          title="Vista de lista"
+-          className={`border-l border-surface-border p-1.5 ${viewMode === 'list' ? 'bg-accent-muted text-accent' : 'text-slate-400 hover:bg-surface-2'}`}
+-        >
+-          <List size={14} />
+-        </button>
+-        <button
+-          type="button"
+-          onClick={() => setViewMode('table')}
+-          title="Vista de tabla"
+-          className={`border-l border-surface-border p-1.5 ${viewMode === 'table' ? 'bg-accent-muted text-accent' : 'text-slate-400 hover:bg-surface-2'}`}
+-        >
+-          <Table2 size={14} />
+-        </button>
+-      </div>
+-
+-      {selectedIds.length > 0 && (
+-        <button
+-          type="button"
+-          onClick={handleDeleteSelected}
+-          className="flex items-center gap-1 rounded-md border border-red-500/40 px-2 py-1.5 text-xs text-red-400 hover:bg-red-500/10"
+-        >
+-          <Trash2 size={12} /> Eliminar ({selectedIds.length})
+-        </button>
+-      )}
+-
+-      <div className="ml-auto flex items-center gap-2">
+-        <span className="text-xs text-slate-500">{total} objetos</span>
+-        <button
+-          type="button"
+-          onClick={() => window.api.export.items()}
+-          className="flex items-center gap-1 rounded-md border border-surface-border px-2 py-1.5 text-xs text-slate-300 hover:bg-surface-2"
+-        >
+-          <Download size={12} /> Exportar
+-        </button>
+-        <button
+-          type="button"
+-          onClick={() => createItem()}
+-          className="flex items-center gap-1 rounded-md bg-accent px-3 py-1.5 text-xs font-medium text-white hover:bg-accent-hover"
+-        >
+-          <Plus size={14} /> Nuevo objeto
+-        </button>
+-      </div>
+-    </div>
+-  )
+-}
+diff --git a/src/renderer/src/modules/items/hooks/useItems.ts b/src/renderer/src/modules/items/hooks/useItems.ts
+deleted file mode 100644
+index 4582516..0000000
+--- a/src/renderer/src/modules/items/hooks/useItems.ts
++++ /dev/null
+@@ -1,71 +0,0 @@
+-import { useCallback, useEffect } from 'react'
+-import { useItemsStore } from '../store/itemsStore'
+-import { createEmptyItemInput, type ItemInput } from '@shared-types/item'
+-
+-export function useItems() {
+-  const query = useItemsStore((s) => s.query)
+-  const setResults = useItemsStore((s) => s.setResults)
+-  const setLoading = useItemsStore((s) => s.setLoading)
+-  const setCategories = useItemsStore((s) => s.setCategories)
+-  const patchItem = useItemsStore((s) => s.patchItem)
+-  const removeItems = useItemsStore((s) => s.removeItems)
+-  const addItem = useItemsStore((s) => s.addItem)
+-
+-  const reload = useCallback(async () => {
+-    setLoading(true)
+-    try {
+-      const { items, total } = await window.api.items.query(query)
+-      setResults(items, total)
+-    } finally {
+-      setLoading(false)
+-    }
+-  }, [query, setResults, setLoading])
+-
+-  useEffect(() => {
+-    const handle = setTimeout(reload, 150)
+-    return () => clearTimeout(handle)
+-  }, [reload])
+-
+-  useEffect(() => {
+-    window.api.items.listCategories().then(setCategories)
+-  }, [setCategories])
+-
+-  useEffect(() => {
+-    window.addEventListener('kgps:refresh', reload)
+-    return () => window.removeEventListener('kgps:refresh', reload)
+-  }, [reload])
+-
+-  const createItem = useCallback(async (): Promise<void> => {
+-    const created = await window.api.items.create(createEmptyItemInput())
+-    addItem(created)
+-    window.api.items.listCategories().then(setCategories)
+-  }, [addItem, setCategories])
+-
+-  const updateItem = useCallback(
+-    async (id: number, patch: Partial<ItemInput>): Promise<void> => {
+-      const updated = await window.api.items.update(id, patch)
+-      patchItem(updated)
+-    },
+-    [patchItem]
+-  )
+-
+-  const deleteItems = useCallback(
+-    async (ids: number[]): Promise<void> => {
+-      for (const id of ids) {
+-        await window.api.items.delete(id)
+-      }
+-      removeItems(ids)
+-    },
+-    [removeItems]
+-  )
+-
+-  const bulkUpdate = useCallback(
+-    async (ids: number[], patch: Partial<ItemInput>): Promise<void> => {
+-      const updated = await window.api.items.bulkUpdate(ids, patch)
+-      updated.forEach(patchItem)
+-    },
+-    [patchItem]
+-  )
+-
+-  return { reload, createItem, updateItem, deleteItems, bulkUpdate }
+-}
+diff --git a/src/renderer/src/modules/items/store.ts b/src/renderer/src/modules/items/store.ts
+new file mode 100644
+index 0000000..142c81f
+--- /dev/null
++++ b/src/renderer/src/modules/items/store.ts
+@@ -0,0 +1,5 @@
++import { createContentStore } from '@renderer/shared/content/createContentStore'
++import type { Item } from '@shared-types/item'
++
++/** Store del módulo Objetos, migrado a la fábrica genérica del framework de contenido (antes: store/itemsStore.ts a mano). */
++export const useItemsStore = createContentStore<Item>()
+diff --git a/src/renderer/src/modules/items/store/itemsStore.ts b/src/renderer/src/modules/items/store/itemsStore.ts
+deleted file mode 100644
+index 670bff7..0000000
+--- a/src/renderer/src/modules/items/store/itemsStore.ts
++++ /dev/null
+@@ -1,80 +0,0 @@
+-import { create } from 'zustand'
+-import type { Item, ItemQuery } from '@shared-types/item'
+-
+-export type ItemViewMode = 'grid' | 'list' | 'table'
+-
+-interface SelectOptions {
+-  additive?: boolean
+-  range?: boolean
+-}
+-
+-interface ItemsState {
+-  query: ItemQuery
+-  items: Item[]
+-  total: number
+-  categories: string[]
+-  selectedIds: number[]
+-  viewMode: ItemViewMode
+-  loading: boolean
+-  setQuery(patch: Partial<ItemQuery>): void
+-  setResults(items: Item[], total: number): void
+-  setCategories(categories: string[]): void
+-  setViewMode(mode: ItemViewMode): void
+-  setLoading(loading: boolean): void
+-  select(id: number, options?: SelectOptions): void
+-  clearSelection(): void
+-  patchItem(item: Item): void
+-  removeItems(ids: number[]): void
+-  addItem(item: Item): void
+-}
+-
+-export const useItemsStore = create<ItemsState>((set, get) => ({
+-  query: { limit: 500, offset: 0 },
+-  items: [],
+-  total: 0,
+-  categories: [],
+-  selectedIds: [],
+-  viewMode: 'grid',
+-  loading: false,
+-  setQuery: (patch) => set((state) => ({ query: { ...state.query, ...patch, offset: 0 } })),
+-  setResults: (items, total) => set({ items, total }),
+-  setCategories: (categories) => set({ categories }),
+-  setViewMode: (viewMode) => set({ viewMode }),
+-  setLoading: (loading) => set({ loading }),
+-  select: (id, options) => {
+-    const { selectedIds, items } = get()
+-
+-    if (options?.range && selectedIds.length > 0) {
+-      const anchorId = selectedIds[selectedIds.length - 1]
+-      const anchorIndex = items.findIndex((item) => item.id === anchorId)
+-      const targetIndex = items.findIndex((item) => item.id === id)
+-      if (anchorIndex !== -1 && targetIndex !== -1) {
+-        const [start, end] = anchorIndex < targetIndex ? [anchorIndex, targetIndex] : [targetIndex, anchorIndex]
+-        const rangeIds = items.slice(start, end + 1).map((item) => item.id)
+-        set({ selectedIds: Array.from(new Set([...selectedIds, ...rangeIds])) })
+-        return
+-      }
+-    }
+-
+-    if (options?.additive) {
+-      const exists = selectedIds.includes(id)
+-      set({ selectedIds: exists ? selectedIds.filter((sid) => sid !== id) : [...selectedIds, id] })
+-      return
+-    }
+-
+-    set({ selectedIds: [id] })
+-  },
+-  clearSelection: () => set({ selectedIds: [] }),
+-  patchItem: (item) => set((state) => ({ items: state.items.map((i) => (i.id === item.id ? item : i)) })),
+-  removeItems: (ids) =>
+-    set((state) => ({
+-      items: state.items.filter((item) => !ids.includes(item.id)),
+-      selectedIds: state.selectedIds.filter((id) => !ids.includes(id)),
+-      total: Math.max(0, state.total - ids.length)
+-    })),
+-  addItem: (item) =>
+-    set((state) => ({
+-      items: [...state.items, item].sort((a, b) => a.name.localeCompare(b.name)),
+-      total: state.total + 1
+-    }))
+-}))
+diff --git a/src/renderer/src/modules/weapons/components/WeaponsPanel.tsx b/src/renderer/src/modules/weapons/components/WeaponsPanel.tsx
+index 2d274a7..40b7c24 100644
+--- a/src/renderer/src/modules/weapons/components/WeaponsPanel.tsx
++++ b/src/renderer/src/modules/weapons/components/WeaponsPanel.tsx
+@@ -19,7 +19,8 @@ const CONFIG: ContentModuleConfig<Weapon> = {
+   emptyText: 'Sin armas. Usa "Nueva arma" para crear la primera.',
+   categoryOptions: WEAPON_CLASSES,
+   rarityOptions: ITEM_RARITIES,
+-  tableColumns: TABLE_COLUMNS
++  tableColumns: TABLE_COLUMNS,
++  onExport: () => void window.api.export.weapons()
+ }
+ 
+ /** Panel del módulo Armas: todo el módulo se reduce a esta composición sobre el framework de contenido. */
+diff --git a/src/renderer/src/shared/content/useContentModule.ts b/src/renderer/src/shared/content/useContentModule.ts
+index 371e54f..8485a2e 100644
+--- a/src/renderer/src/shared/content/useContentModule.ts
++++ b/src/renderer/src/shared/content/useContentModule.ts
+@@ -4,8 +4,8 @@ import type { ContentStoreHook } from './createContentStore'
+ 
+ /**
+  * Acciones CRUD de un módulo de contenido, sin efectos. Lo usan tanto el panel
+- * (para crear/borrar) como el inspector (para actualizar). Generalización de
+- * `useItems` sin la parte de carga automática.
++ * (para crear/borrar) como el inspector (para actualizar). Generalización del
++ * hook a mano que tenía Objetos antes de migrarse a este framework.
+  */
+ export function useContentActions<T extends ContentRecord, TInput>(
+   useStore: ContentStoreHook<T>,
+@@ -68,7 +68,8 @@ export function useContentActions<T extends ContentRecord, TInput>(
+ /**
+  * Carga automática: recarga (debounced) cuando cambia la query, trae las
+  * categorías, y escucha el evento global `kgps:refresh`. Se llama UNA vez, en el
+- * panel del módulo. Generalización de la parte de efectos de `useItems`.
++ * panel del módulo. Generalización de la parte de efectos del hook a mano que
++ * tenía Objetos antes de migrarse a este framework.
+  */
+ export function useContentAutoLoad<T extends ContentRecord, TInput>(
+   useStore: ContentStoreHook<T>,
+diff --git a/src/shared-types/api.ts b/src/shared-types/api.ts
+index fd78e1e..56d5ca7 100644
+--- a/src/shared-types/api.ts
++++ b/src/shared-types/api.ts
+@@ -4,6 +4,7 @@ import type { ExportRunResult } from './exporter'
+ import type { ChangeLogEntry } from './commands'
+ import type { Item, ItemInput, ItemQuery } from './item'
+ import type { Weapon, WeaponInput, WeaponQuery } from './weapon'
++import type { Armor, ArmorInput, ArmorQuery } from './armor'
+ import type {
+   WorldEntity,
+   CreateWorldEntityRequest,
+@@ -67,9 +68,21 @@ export interface KingdomGpsApi {
+     bulkDelete(ids: number[]): Promise<void>
+     listCategories(): Promise<string[]>
+   }
++  armor: {
++    query(params: ArmorQuery): Promise<{ items: Armor[]; total: number }>
++    get(id: number): Promise<Armor | undefined>
++    create(data: ArmorInput): Promise<Armor>
++    update(id: number, patch: Partial<ArmorInput>): Promise<Armor>
++    delete(id: number): Promise<void>
++    bulkUpdate(ids: number[], patch: Partial<ArmorInput>): Promise<Armor[]>
++    bulkDelete(ids: number[]): Promise<void>
++    listCategories(): Promise<string[]>
++  }
+   export: {
+     icons(): Promise<ExportRunResult>
+     items(): Promise<ExportRunResult>
++    weapons(): Promise<ExportRunResult>
++    armor(): Promise<ExportRunResult>
+     world(): Promise<ExportRunResult>
+   }
+   commandHistory: {
+diff --git a/src/shared-types/armor.ts b/src/shared-types/armor.ts
+new file mode 100644
+index 0000000..948e3de
+--- /dev/null
++++ b/src/shared-types/armor.ts
+@@ -0,0 +1,60 @@
++import type { ItemRarity, ItemBonus } from './item'
++
++/** Slot de equipamiento; hace de "categoría" para el framework de contenido. */
++export type ArmorSlot = 'head' | 'chest' | 'legs' | 'boots' | 'gloves' | 'shield' | 'cape' | 'misc'
++
++export interface Armor {
++  id: number
++  name: string
++  description: string
++  category: ArmorSlot
++  rarity: ItemRarity
++  iconId: number | null
++  /** Defensa física base. */
++  defense: number
++  /** Resistencia mágica base. */
++  magicResist: number
++  value: number
++  weight: number
++  requiredLevel: number
++  requiredProfession: string | null
++  bonuses: ItemBonus[]
++  scripts: string[]
++  flags: string[]
++  checks: string[]
++  createdAt: string
++  updatedAt: string
++}
++
++export type ArmorInput = Omit<Armor, 'id' | 'createdAt' | 'updatedAt'>
++
++export interface ArmorQuery {
++  search?: string
++  /** string (no ArmorSlot) para ser compatible con la query genérica del framework. */
++  category?: string
++  rarity?: ItemRarity
++  limit?: number
++  offset?: number
++}
++
++export const ARMOR_SLOTS: ArmorSlot[] = ['head', 'chest', 'legs', 'boots', 'gloves', 'shield', 'cape', 'misc']
++
++export function createEmptyArmorInput(): ArmorInput {
++  return {
++    name: 'Nueva armadura',
++    description: '',
++    category: 'chest',
++    rarity: 'common',
++    iconId: null,
++    defense: 1,
++    magicResist: 0,
++    value: 0,
++    weight: 1,
++    requiredLevel: 1,
++    requiredProfession: null,
++    bonuses: [],
++    scripts: [],
++    flags: [],
++    checks: []
++  }
++}
+diff --git a/src/shared-types/item.ts b/src/shared-types/item.ts
+index 0a232df..c71ab03 100644
+--- a/src/shared-types/item.ts
++++ b/src/shared-types/item.ts
+@@ -46,7 +46,8 @@ export type ItemInput = Omit<Item, 'id' | 'createdAt' | 'updatedAt'>
+ 
+ export interface ItemQuery {
+   search?: string
+-  category?: ItemCategory
++  /** string (no ItemCategory) para ser compatible con la query genérica del framework de contenido. */
++  category?: string
+   rarity?: ItemRarity
+   limit?: number
+   offset?: number
+-- 
+2.43.0
+
+
+From 7db706f75a0b6eb915ad4b0d2ba7ee9010782230 Mon Sep 17 00:00:00 2001
+From: Cursor Agent <cursoragent@cursor.com>
+Date: Tue, 14 Jul 2026 02:18:42 +0000
+Subject: [PATCH 2/2] =?UTF-8?q?feat:=20auth=20admin=20+=20cola=20world=5Fs?=
+ =?UTF-8?q?ync=5Fjobs=20y=20men=C3=BA=20bolita=20sync?=
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+Login usuario/clave con sesión cifrada (safeStorage), cola persistente
+008_world_sync_jobs, publish real a upsert/delete, SyncPinMenu gris/verde/rojo.
+---
+ SIGUIENTE_PASO.md                             |  42 +++--
+ panel adm/00_ROADMAP.md                       |  10 +-
+ src/main/auth/authService.ts                  | 106 +++++++++++
+ src/main/auth/sessionStore.ts                 |  85 +++++++++
+ src/main/database/migrationRunner.test.ts     |   6 +-
+ src/main/database/migrationRunner.ts          |   3 +-
+ .../migrations/008_world_sync_jobs.ts         |  20 ++
+ src/main/database/schema.ts                   |  14 ++
+ src/main/ipc/handlers/auth.ts                 |  12 ++
+ src/main/ipc/handlers/worldEditor.ts          |  72 ++++----
+ src/main/ipc/registerHandlers.ts              |   2 +
+ src/main/worldEditor/worldEntityRepository.ts |  22 ++-
+ .../worldSyncJobRepository.test.ts            |  67 +++++++
+ .../worldEditor/worldSyncJobRepository.ts     | 165 +++++++++++++++++
+ src/main/worldEditor/worldSyncService.ts      | 174 ++++++++++++++++++
+ src/preload/index.ts                          |   9 +-
+ .../src/app/layout/AdminSessionButton.tsx     | 122 ++++++++++++
+ src/renderer/src/app/layout/TitleBar.tsx      |   4 +-
+ .../worldEditor/components/SyncPinMenu.tsx    | 129 +++++++++++++
+ .../worldEditor/components/WorldMapPanel.tsx  |  47 ++++-
+ src/shared-types/api.ts                       |  13 +-
+ src/shared-types/auth.ts                      |  21 +++
+ 22 files changed, 1077 insertions(+), 68 deletions(-)
+ create mode 100644 src/main/auth/authService.ts
+ create mode 100644 src/main/auth/sessionStore.ts
+ create mode 100644 src/main/database/migrations/008_world_sync_jobs.ts
+ create mode 100644 src/main/ipc/handlers/auth.ts
+ create mode 100644 src/main/worldEditor/worldSyncJobRepository.test.ts
+ create mode 100644 src/main/worldEditor/worldSyncJobRepository.ts
+ create mode 100644 src/main/worldEditor/worldSyncService.ts
+ create mode 100644 src/renderer/src/app/layout/AdminSessionButton.tsx
+ create mode 100644 src/renderer/src/modules/worldEditor/components/SyncPinMenu.tsx
+ create mode 100644 src/shared-types/auth.ts
+
+diff --git a/SIGUIENTE_PASO.md b/SIGUIENTE_PASO.md
+index 6643a25..7bd7831 100644
+--- a/SIGUIENTE_PASO.md
++++ b/SIGUIENTE_PASO.md
+@@ -1,7 +1,7 @@
+ # SIGUIENTE PASO — Punto de retorno de Kingdom GPS Editor
+ 
+ > Documento de continuidad. Léelo primero al retomar el proyecto y mantenlo actualizado al final de cada sesión.
+-> Última actualización: 2026-07-14 (integrado parche Claude Armaduras + inicio auth/sync).
++> Última actualización: 2026-07-14 (auth admin + cola sync pin → servidor).
+ 
+ ## Qué es
+ 
+@@ -22,35 +22,39 @@ Stack: Electron + React + TypeScript + Vite + libSQL/Kysely + Zustand + dockview
+ - **Objetos** migrado al framework genérico de contenido.
+ - **Armas** con undo/redo + export JSON.
+ - **Armaduras** (migración `007_armor`) completo — ya no es placeholder.
+-- Editor de Mundo local (mapa, zonas, OSM, menú contextual, puntos de sync visuales).
++- Editor de Mundo local (mapa, zonas, OSM, menú contextual, bolitas de sync).
++- **Auth admin**: login usuario/contraseña → `mariel-online.onrender.com`, sesión cifrada con `safeStorage` (sin mostrar tokens).
++- **Cola `world_sync_jobs`** (migración `008`) + publish real a `/api/player/world/upsert|delete`.
++- Menú de bolita gris/verde/roja (`SyncPinMenu`) al clic del pin.
+ 
+ ## Hecho en esta sesión (Cursor)
+ 
+-1. Integrado el `.patch` de Claude (Armas undo/export + Armaduras + Objetos→framework). **37/37 tests**, typecheck limpio.
+-2. En progreso / siguiente en la misma rama:
+-   - Login admin (usuario/clave, sesión en `safeStorage`, sin mostrar tokens).
+-   - Cola `world_sync_jobs` + menú de bolita gris/verde/roja en pines.
+-   - Publicación al servidor online del juego.
++1. Integrado el `.patch` de Claude (Armas undo/export + Armaduras + Objetos→framework).
++2. Login admin en la barra de título (`AdminSessionButton`) + IPC `auth.*`.
++3. Cola persistente de sync + enqueue al crear/editar/mover/borrar pines.
++4. Publicación con sesión admin; errores claros si falta sesión o falla el servidor.
++5. UI de bolita: Subir / Ver estado + Resync / Reintentar + Ver error.
+ 
+ ## Lo que falta
+ 
+-### Prioridad 1 — Sync pin → servidor
++### Prioridad 1 — Mapa útil
+ 
+-1. Cola persistente `world_sync_jobs`.
+-2. Bolita: gris Subir / verde Ver+Resync / rojo Reintentar+error.
+-3. Auth interno hacia `mariel-online.onrender.com` (sesión guardada).
++1. Copiar / cortar / pegar / Propiedades en menú contextual.
++2. Pin Tienda → tienda real (catálogo desde el mapa).
++3. Pin NPC → NPC real (diálogos/misiones).
+ 
+-### Prioridad 2 — Mapa útil
++### Prioridad 2 — Jugadores
+ 
+-1. Copiar / cortar / pegar / Propiedades en menú contextual.
+-2. Pin Tienda → tienda real.
+-3. Pin NPC → NPC real.
++- Módulo Jugadores: crear/editar, contraseña, nivel, XP, dinero, inventario, posición, permisos, ban, desactivar.
++
++### Prioridad 3 — Recursos visuales
++
++- Recorte de icono (estilo RPG Maker), sprite sheets, animaciones, paquetes + manifiesto.
+ 
+-### Prioridad 3
++### Prioridad 4 — Automática
+ 
+-- Módulo Jugadores (CRUD admin, ban, inventario).
+-- Más módulos de contenido (Tiendas, NPC, Misiones…).
+-- Recursos visuales: recorte de icono, sprite sheets, paquetes.
++- Renovación automática de sesión / drain de cola al reconectar.
++- Validación del mundo antes de publicar masivo.
+ 
+ ## Criterio de terminado
+ 
+diff --git a/panel adm/00_ROADMAP.md b/panel adm/00_ROADMAP.md
+index aa332cf..7704808 100644
+--- a/panel adm/00_ROADMAP.md	
++++ b/panel adm/00_ROADMAP.md	
+@@ -41,7 +41,7 @@
+    `ItemQuery.category` pasó a `string` para ser compatible con `ContentQueryBase` (mismo ajuste que Weapon/Armor).
+ ⚪ Repetir el patrón para los ~18 módulos restantes (Herramientas, Recursos, Comida, NPC, Monstruos, …)
+ 
+-### FASE 3 - Editor de Mundo 🟡 LOCAL COMPLETA (falta sync con servidor)
++### FASE 3 - Editor de Mundo 🟡 LOCAL + SYNC REMOTA BÁSICA
+ ✅ Mapa (Leaflet + teselas reales; selector de estilo: oscuro/claro sin etiquetas, OSM, satélite)
+ ✅ Vista recordada entre sesiones (estilo + centro + zoom)
+ ✅ Capas (mostrar/ocultar por tipo)
+@@ -52,8 +52,12 @@
+ ✅ Importar lugares reales de OpenStreetMap dentro de una zona (farmacias/hospitales/gasolineras/supermercados)
+ ✅ Exportar mundo (entidades + zonas) a `export/world.json` (botón + registro de exportadores)
+ ✅ Sincronización local (persistido en SQLite: `004_world_entities`, `005_world_zones`, ULID)
+-⚪ Cola `world_sync_jobs` + estados de sync avanzados (solo se maneja `local` de 10)
+-⚪ Sincronización remota (publish/retry/resolveConflict son stubs — requiere servidor)
++✅ Cola `world_sync_jobs` (migración `008`) — pending/failed/offline/synced; último gana por pin
++✅ Auth admin en el editor (login usuario/clave, sesión en `safeStorage`, sin tokens en UI)
++✅ Publish real a `/api/player/world/upsert` y `/world/delete` con Bearer de la sesión
++✅ Menú bolita gris/verde/roja: Subir / Ver+Resync / Reintentar+error
++🟡 Falta: renovación automática de sesión, drain al reconectar, copiar/cortar/pegar/Propiedades,
++   pin Tienda/NPC reales, resolución de conflictos
+ 
+ ### FASE 4 - Gestor de Sistemas ⚪ PENDIENTE (doc 04)
+ ⚪ Versionado (versiones candidatas, nunca sobrescribir la activa)
+diff --git a/src/main/auth/authService.ts b/src/main/auth/authService.ts
+new file mode 100644
+index 0000000..da73118
+--- /dev/null
++++ b/src/main/auth/authService.ts
+@@ -0,0 +1,106 @@
++import type { AdminLoginRequest, AdminLoginResult, AdminSessionPublic } from '@shared-types/auth'
++import { adminSessionStore, DEFAULT_SERVER, toPublic, type PrivateSession } from './sessionStore'
++
++function decodeJwtExp(token: string): string | null {
++  try {
++    const part = token.split('.')[1]
++    if (!part) return null
++    const json = JSON.parse(Buffer.from(part, 'base64url').toString('utf8')) as { exp?: number }
++    if (!json.exp) return null
++    return new Date(json.exp * 1000).toISOString()
++  } catch {
++    return null
++  }
++}
++
++/**
++ * Login contra el servidor online del juego (mismo /api/login-game que el PWA).
++ * El JWT se guarda cifrado; el renderer solo ve { username, role, serverUrl }.
++ */
++export class AuthService {
++  async login(request: AdminLoginRequest): Promise<AdminLoginResult> {
++    const username = (request.username || '').trim()
++    const password = request.password || ''
++    const serverUrl = (request.serverUrl || DEFAULT_SERVER).replace(/\/$/, '')
++    if (!username || !password) {
++      return { ok: false, error: 'Usuario y contraseña obligatorios' }
++    }
++
++    try {
++      const r = await fetch(serverUrl + '/api/login-game', {
++        method: 'POST',
++        headers: { 'Content-Type': 'application/json' },
++        body: JSON.stringify({
++          usuario: username,
++          username,
++          clave: password,
++          password
++        })
++      })
++      const data = (await r.json().catch(() => ({}))) as {
++        ok?: boolean
++        token?: string
++        error?: string
++        player?: { name?: string; nombre?: string }
++        user?: { username?: string; role?: string }
++        role?: string
++      }
++
++      if (!r.ok || !data.ok || !data.token) {
++        return {
++          ok: false,
++          error:
++            data.error ||
++            (r.status === 401 || r.status === 403
++              ? 'Usuario o contraseña incorrectos'
++              : 'No se pudo iniciar sesión (HTTP ' + r.status + ')')
++        }
++      }
++
++      const role = String(data.user?.role || data.role || 'jugador')
++      const session: PrivateSession = {
++        token: data.token,
++        username: data.user?.username || data.player?.name || data.player?.nombre || username,
++        role,
++        serverUrl,
++        expiresAt: decodeJwtExp(data.token),
++        loggedInAt: new Date().toISOString()
++      }
++      adminSessionStore.save(session)
++      return { ok: true, session: toPublic(session) }
++    } catch (error) {
++      const message = error instanceof Error ? error.message : 'Sin conexión con el servidor'
++      return { ok: false, error: 'Sin conexión: ' + message }
++    }
++  }
++
++  logout(): void {
++    adminSessionStore.clear()
++  }
++
++  getSession(): AdminSessionPublic | null {
++    const s = adminSessionStore.load()
++    if (!s) return null
++    if (s.expiresAt && Date.parse(s.expiresAt) < Date.now() - 60_000) {
++      adminSessionStore.clear()
++      return null
++    }
++    return toPublic(s)
++  }
++
++  /** Cabeceras Authorization listas para publish — null si no hay sesión. */
++  authHeaders(): Record<string, string> | null {
++    const token = adminSessionStore.getToken()
++    if (!token) return null
++    return {
++      Authorization: 'Bearer ' + token,
++      'Content-Type': 'application/json'
++    }
++  }
++
++  serverUrl(): string {
++    return adminSessionStore.getServerUrl()
++  }
++}
++
++export const authService = new AuthService()
+diff --git a/src/main/auth/sessionStore.ts b/src/main/auth/sessionStore.ts
+new file mode 100644
+index 0000000..3f7d2c0
+--- /dev/null
++++ b/src/main/auth/sessionStore.ts
+@@ -0,0 +1,85 @@
++import { app, safeStorage } from 'electron'
++import fs from 'node:fs'
++import path from 'node:path'
++import type { AdminSessionPublic } from '@shared-types/auth'
++
++const DEFAULT_SERVER = 'https://mariel-online.onrender.com'
++const FILE_NAME = 'admin-session.bin'
++
++interface PrivateSession {
++  token: string
++  username: string
++  role: string
++  serverUrl: string
++  expiresAt: string | null
++  loggedInAt: string
++}
++
++function sessionPath(): string {
++  return path.join(app.getPath('userData'), FILE_NAME)
++}
++
++function encode(session: PrivateSession): Buffer {
++  const json = Buffer.from(JSON.stringify(session), 'utf8')
++  if (safeStorage.isEncryptionAvailable()) {
++    return safeStorage.encryptString(json.toString('utf8'))
++  }
++  return json
++}
++
++function decode(buf: Buffer): PrivateSession | null {
++  try {
++    const raw = safeStorage.isEncryptionAvailable()
++      ? safeStorage.decryptString(buf)
++      : buf.toString('utf8')
++    return JSON.parse(raw) as PrivateSession
++  } catch {
++    return null
++  }
++}
++
++function toPublic(session: PrivateSession): AdminSessionPublic {
++  return {
++    username: session.username,
++    role: session.role,
++    serverUrl: session.serverUrl,
++    expiresAt: session.expiresAt,
++    loggedInAt: session.loggedInAt
++  }
++}
++
++/** Persistencia cifrada de la sesión admin (token sólo en main). */
++export class AdminSessionStore {
++  load(): PrivateSession | null {
++    const file = sessionPath()
++    if (!fs.existsSync(file)) return null
++    const buf = fs.readFileSync(file)
++    return decode(buf)
++  }
++
++  save(session: PrivateSession): void {
++    fs.writeFileSync(sessionPath(), encode(session))
++  }
++
++  clear(): void {
++    const file = sessionPath()
++    if (fs.existsSync(file)) fs.unlinkSync(file)
++  }
++
++  getPublic(): AdminSessionPublic | null {
++    const s = this.load()
++    return s ? toPublic(s) : null
++  }
++
++  getToken(): string | null {
++    return this.load()?.token ?? null
++  }
++
++  getServerUrl(): string {
++    return this.load()?.serverUrl || DEFAULT_SERVER
++  }
++}
++
++export const adminSessionStore = new AdminSessionStore()
++export { DEFAULT_SERVER, toPublic }
++export type { PrivateSession }
+diff --git a/src/main/database/migrationRunner.test.ts b/src/main/database/migrationRunner.test.ts
+index 3bd8bc4..1a099f9 100644
+--- a/src/main/database/migrationRunner.test.ts
++++ b/src/main/database/migrationRunner.test.ts
+@@ -14,7 +14,8 @@ describe('migrationRunner', () => {
+       '004_world_entities',
+       '005_world_zones',
+       '006_weapons',
+-      '007_armor'
++      '007_armor',
++      '008_world_sync_jobs'
+     ])
+ 
+     const secondRun = await runMigrations(client)
+@@ -32,7 +33,8 @@ describe('migrationRunner', () => {
+         'weapons',
+         'armor',
+         'world_entities',
+-        'world_zones'
++        'world_zones',
++        'world_sync_jobs'
+       ])
+     )
+   })
+diff --git a/src/main/database/migrationRunner.ts b/src/main/database/migrationRunner.ts
+index a168b5e..c75ea87 100644
+--- a/src/main/database/migrationRunner.ts
++++ b/src/main/database/migrationRunner.ts
+@@ -6,6 +6,7 @@ import * as m004 from './migrations/004_world_entities'
+ import * as m005 from './migrations/005_world_zones'
+ import * as m006 from './migrations/006_weapons'
+ import * as m007 from './migrations/007_armor'
++import * as m008 from './migrations/008_world_sync_jobs'
+ 
+ interface Migration {
+   id: string
+@@ -13,7 +14,7 @@ interface Migration {
+ }
+ 
+ /** New migrations are appended here, never edited after being released - see README. */
+-const MIGRATIONS: Migration[] = [m001, m002, m003, m004, m005, m006, m007]
++const MIGRATIONS: Migration[] = [m001, m002, m003, m004, m005, m006, m007, m008]
+ 
+ function splitStatements(sql: string): string[] {
+   return sql
+diff --git a/src/main/database/migrations/008_world_sync_jobs.ts b/src/main/database/migrations/008_world_sync_jobs.ts
+new file mode 100644
+index 0000000..30a6de8
+--- /dev/null
++++ b/src/main/database/migrations/008_world_sync_jobs.ts
+@@ -0,0 +1,20 @@
++/** Cola persistente de publicaciones pin → servidor online. */
++export const id = '008_world_sync_jobs'
++
++export const sql = `
++CREATE TABLE IF NOT EXISTS world_sync_jobs (
++  id INTEGER PRIMARY KEY AUTOINCREMENT,
++  world_entity_id TEXT NOT NULL,
++  operation TEXT NOT NULL,
++  payload_json TEXT NOT NULL DEFAULT '{}',
++  status TEXT NOT NULL DEFAULT 'pending',
++  attempts INTEGER NOT NULL DEFAULT 0,
++  next_retry_at TEXT,
++  last_error TEXT,
++  created_at TEXT NOT NULL,
++  updated_at TEXT NOT NULL
++);
++
++CREATE INDEX IF NOT EXISTS idx_world_sync_jobs_status ON world_sync_jobs(status, next_retry_at);
++CREATE INDEX IF NOT EXISTS idx_world_sync_jobs_entity ON world_sync_jobs(world_entity_id);
++`
+diff --git a/src/main/database/schema.ts b/src/main/database/schema.ts
+index 50dfa3e..391d80d 100644
+--- a/src/main/database/schema.ts
++++ b/src/main/database/schema.ts
+@@ -144,6 +144,19 @@ export interface WorldZonesTable {
+   deleted_at: string | null
+ }
+ 
++export interface WorldSyncJobsTable {
++  id: Generated<number>
++  world_entity_id: string
++  operation: string
++  payload_json: string
++  status: string
++  attempts: number
++  next_retry_at: string | null
++  last_error: string | null
++  created_at: string
++  updated_at: string
++}
++
+ export interface Database {
+   schema_migrations: SchemaMigrationsTable
+   change_log: ChangeLogTable
+@@ -154,4 +167,5 @@ export interface Database {
+   armor: ArmorTable
+   world_entities: WorldEntitiesTable
+   world_zones: WorldZonesTable
++  world_sync_jobs: WorldSyncJobsTable
+ }
+diff --git a/src/main/ipc/handlers/auth.ts b/src/main/ipc/handlers/auth.ts
+new file mode 100644
+index 0000000..d6fb140
+--- /dev/null
++++ b/src/main/ipc/handlers/auth.ts
+@@ -0,0 +1,12 @@
++import { ipcMain } from 'electron'
++import { authService } from '../../auth/authService'
++import type { AdminLoginRequest } from '@shared-types/auth'
++
++export function registerAuthHandlers(): void {
++  ipcMain.handle('auth:login', (_event, request: AdminLoginRequest) => authService.login(request))
++  ipcMain.handle('auth:logout', () => {
++    authService.logout()
++    return { ok: true }
++  })
++  ipcMain.handle('auth:getSession', () => authService.getSession())
++}
+diff --git a/src/main/ipc/handlers/worldEditor.ts b/src/main/ipc/handlers/worldEditor.ts
+index 7d3d0fc..ac280c4 100644
+--- a/src/main/ipc/handlers/worldEditor.ts
++++ b/src/main/ipc/handlers/worldEditor.ts
+@@ -1,36 +1,38 @@
+ /**
+  * IPC handlers para el módulo Editor de Mundo.
+- * Persistido en SQLite vía WorldEntityRepository (condición 8 - nada de
+- * datos de contenido solo-en-memoria). La sincronización con servidor
+- * (Fase C/D) sigue pendiente; publishChanges/retryFailed/resolveConflict son
+- * stubs documentados.
++ * Persistido en SQLite. Publicación remota vía WorldSyncService + sesión admin.
+  */
+ 
+ import { ipcMain } from 'electron'
+ import { projectManager } from '../../projects/ProjectManager'
+ import { WorldEntityRepository } from '../../worldEditor/worldEntityRepository'
++import { WorldSyncService } from '../../worldEditor/worldSyncService'
+ import { createCommandBus } from '../../commands/createCommandBus'
+-import type {
+-  CreateWorldEntityRequest,
+-  UpdateWorldEntityRequest,
+-  MoveWorldEntityRequest,
+-  DeleteWorldEntityRequest,
+-  WorldEntityQuery,
+-  PublishWorldRequest,
+-  ConflictResolution
++import {
++  WorldSyncOperation,
++  type CreateWorldEntityRequest,
++  type UpdateWorldEntityRequest,
++  type MoveWorldEntityRequest,
++  type DeleteWorldEntityRequest,
++  type WorldEntityQuery,
++  type PublishWorldRequest,
++  type ConflictResolution
+ } from '@shared-types/world'
+ 
+ function getRepository(): WorldEntityRepository {
+   return new WorldEntityRepository(projectManager.getDb())
+ }
+ 
+-export function registerWorldEditorHandlers(): void {
+-  // ========== CRUD ==========
++function getSync(): WorldSyncService {
++  return new WorldSyncService(projectManager.getDb())
++}
+ 
++export function registerWorldEditorHandlers(): void {
+   ipcMain.handle('worldEditor:createEntity', async (_event, request: CreateWorldEntityRequest) => {
+     const entity = await getRepository().create(request)
+     await createCommandBus().recordWorldEntityCreate(entity)
+-    return entity
++    await getSync().enqueueEntity(entity, WorldSyncOperation.Create)
++    return (await getRepository().get(entity.worldId)) || entity
+   })
+ 
+   ipcMain.handle('worldEditor:updateEntity', async (_event, request: UpdateWorldEntityRequest) => {
+@@ -39,7 +41,8 @@ export function registerWorldEditorHandlers(): void {
+     if (!before) throw new Error(`Entidad del mundo no encontrada: ${request.worldId}`)
+     const after = await repository.update(request)
+     await createCommandBus().recordWorldEntityUpdate(before, after)
+-    return after
++    await getSync().enqueueEntity(after, WorldSyncOperation.Update)
++    return (await repository.get(after.worldId)) || after
+   })
+ 
+   ipcMain.handle('worldEditor:moveEntity', async (_event, request: MoveWorldEntityRequest) => {
+@@ -48,7 +51,8 @@ export function registerWorldEditorHandlers(): void {
+     if (!before) throw new Error(`Entidad del mundo no encontrada: ${request.worldId}`)
+     const after = await repository.move(request.worldId, request.position)
+     await createCommandBus().recordWorldEntityMove(before, after)
+-    return after
++    await getSync().enqueueEntity(after, WorldSyncOperation.Move)
++    return (await repository.get(after.worldId)) || after
+   })
+ 
+   ipcMain.handle('worldEditor:deleteEntity', async (_event, request: DeleteWorldEntityRequest) => {
+@@ -57,6 +61,7 @@ export function registerWorldEditorHandlers(): void {
+     if (!before) throw new Error(`Entidad del mundo no encontrada: ${request.worldId}`)
+     await repository.softDelete(request.worldId)
+     await createCommandBus().recordWorldEntityDelete(before)
++    await getSync().enqueueEntity(before, WorldSyncOperation.Delete)
+   })
+ 
+   ipcMain.handle('worldEditor:toggleEntity', async (_event, worldId: string) => {
+@@ -65,7 +70,11 @@ export function registerWorldEditorHandlers(): void {
+     if (!before) throw new Error(`Entidad del mundo no encontrada: ${worldId}`)
+     const after = await repository.toggle(worldId)
+     await createCommandBus().recordWorldEntityToggle(before, after)
+-    return after
++    await getSync().enqueueEntity(
++      after,
++      after.enabled ? WorldSyncOperation.Enable : WorldSyncOperation.Disable
++    )
++    return (await repository.get(worldId)) || after
+   })
+ 
+   ipcMain.handle('worldEditor:duplicateEntity', async (_event, worldId: string) => {
+@@ -74,35 +83,36 @@ export function registerWorldEditorHandlers(): void {
+     if (!original) throw new Error(`Entidad del mundo no encontrada: ${worldId}`)
+     const copy = await repository.duplicate(worldId)
+     await createCommandBus().recordWorldEntityCreate(copy)
+-    return copy
++    await getSync().enqueueEntity(copy, WorldSyncOperation.Create)
++    return (await repository.get(copy.worldId)) || copy
+   })
+ 
+-  // ========== QUERIES ==========
+-
+   ipcMain.handle('worldEditor:getEntity', (_event, worldId: string) => getRepository().get(worldId))
+ 
+   ipcMain.handle('worldEditor:queryEntities', (_event, query: WorldEntityQuery) => getRepository().query(query))
+ 
+   ipcMain.handle('worldEditor:listByType', (_event, entityType: string) => getRepository().listByType(entityType))
+ 
+-  // ========== ESTADO Y SINCRONIZACIÓN ==========
+-
+   ipcMain.handle('worldEditor:getPublishSummary', () => getRepository().getPublishSummary())
+ 
+   ipcMain.handle('worldEditor:getSyncStatus', () => getRepository().getSyncStatus())
+ 
+-  // ========== STUBS PARA FASE C/D (sincronización remota) ==========
+-
+-  ipcMain.handle('worldEditor:publishChanges', async (_event, _request: PublishWorldRequest) => {
+-    return { published: 0, failed: 0 }
++  ipcMain.handle('worldEditor:publishChanges', async (_event, request: PublishWorldRequest) => {
++    return getSync().publish(request)
+   })
+ 
+-  ipcMain.handle('worldEditor:retryFailed', async () => {
+-    return { retried: 0 }
++  ipcMain.handle('worldEditor:retryFailed', async () => getSync().retryFailed())
++
++  ipcMain.handle('worldEditor:listJobsForEntity', (_event, worldId: string) => getSync().jobsForEntity(worldId))
++
++  ipcMain.handle('worldEditor:enqueueEntity', async (_event, worldId: string) => {
++    const entity = await getRepository().get(worldId)
++    if (!entity) throw new Error(`Entidad del mundo no encontrada: ${worldId}`)
++    return getSync().enqueueEntity(entity, WorldSyncOperation.Update)
+   })
+ 
+   ipcMain.handle('worldEditor:resolveConflict', async (_event, _resolution: ConflictResolution) => {
+-    throw new Error('Resolución de conflictos no implementada aún (Fase C/D - requiere servidor)')
++    throw new Error('Resolución de conflictos no implementada aún')
+   })
+ 
+   ipcMain.handle('worldEditor:exportWorld', async () => {
+@@ -131,6 +141,6 @@ export function registerWorldEditorHandlers(): void {
+   })
+ 
+   ipcMain.handle('worldEditor:clearUnsyncedChanges', async (_event, _worldIds: string[]) => {
+-    // Fase C: limpiar cambios pendientes tras una sincronización exitosa con el servidor.
++    // Reservado: limpiar cola tras sync OK masivo.
+   })
+ }
+diff --git a/src/main/ipc/registerHandlers.ts b/src/main/ipc/registerHandlers.ts
+index ba917dd..d4f405e 100644
+--- a/src/main/ipc/registerHandlers.ts
++++ b/src/main/ipc/registerHandlers.ts
+@@ -10,6 +10,7 @@ import { registerWindowControlHandlers } from './handlers/windowHandlers'
+ import { registerWorldEditorHandlers } from './handlers/worldEditor'
+ import { registerWorldZoneHandlers } from './handlers/worldZones'
+ import { registerOsmHandlers } from './handlers/osm'
++import { registerAuthHandlers } from './handlers/auth'
+ 
+ /** Single call site from main/index.ts. Each handler module owns one slice of the IPC surface declared in shared-types/api.ts. */
+ export function registerAllHandlers(): void {
+@@ -25,4 +26,5 @@ export function registerAllHandlers(): void {
+   registerWorldEditorHandlers()
+   registerWorldZoneHandlers()
+   registerOsmHandlers()
++  registerAuthHandlers()
+ }
+diff --git a/src/main/worldEditor/worldEntityRepository.ts b/src/main/worldEditor/worldEntityRepository.ts
+index de69443..2630328 100644
+--- a/src/main/worldEditor/worldEntityRepository.ts
++++ b/src/main/worldEditor/worldEntityRepository.ts
+@@ -124,12 +124,32 @@ export class WorldEntityRepository {
+     const current = await this.get(request.worldId)
+     if (!current) throw new Error(`Entidad del mundo no encontrada: ${request.worldId}`)
+ 
++    const patchedStatus = request.patch.syncStatus
+     const updated: WorldEntity = {
+       ...current,
+       ...request.patch,
+       updatedAt: new Date().toISOString(),
+       localVersion: current.localVersion + 1,
+-      syncStatus: current.syncStatus === WorldSyncStatus.Synced ? WorldSyncStatus.Pending : current.syncStatus
++      syncStatus:
++        patchedStatus ??
++        (current.syncStatus === WorldSyncStatus.Synced ? WorldSyncStatus.Pending : current.syncStatus)
++    }
++    await this.restoreWithId(updated)
++    return updated
++  }
++
++  /** Actualiza solo campos de sync sin tratarlo como edición de contenido. */
++  async setSyncState(
++    worldId: string,
++    fields: Pick<WorldEntity, 'syncStatus'> &
++      Partial<Pick<WorldEntity, 'lastSyncError' | 'syncAttempts' | 'serverVersion'>>
++  ): Promise<WorldEntity> {
++    const current = await this.get(worldId)
++    if (!current) throw new Error(`Entidad del mundo no encontrada: ${worldId}`)
++    const updated: WorldEntity = {
++      ...current,
++      ...fields,
++      updatedAt: new Date().toISOString()
+     }
+     await this.restoreWithId(updated)
+     return updated
+diff --git a/src/main/worldEditor/worldSyncJobRepository.test.ts b/src/main/worldEditor/worldSyncJobRepository.test.ts
+new file mode 100644
+index 0000000..24d8bd5
+--- /dev/null
++++ b/src/main/worldEditor/worldSyncJobRepository.test.ts
+@@ -0,0 +1,67 @@
++import { describe, it, expect } from 'vitest'
++import { Kysely } from 'kysely'
++import { createClient } from '@libsql/client'
++import { LibsqlDialect } from '@libsql/kysely-libsql'
++import { runMigrations } from '../database/migrationRunner'
++import { WorldEntityRepository } from './worldEntityRepository'
++import { WorldSyncJobRepository } from './worldSyncJobRepository'
++import { WorldEntityType, WorldSyncOperation, WorldSyncStatus } from '@shared-types/world'
++import type { Database } from '../database/schema'
++
++async function setup(): Promise<{
++  entities: WorldEntityRepository
++  jobs: WorldSyncJobRepository
++}> {
++  const client = createClient({ url: ':memory:' })
++  await runMigrations(client)
++  const db = new Kysely<Database>({ dialect: new LibsqlDialect({ client }) })
++  return {
++    entities: new WorldEntityRepository(db),
++    jobs: new WorldSyncJobRepository(db)
++  }
++}
++
++describe('WorldSyncJobRepository', () => {
++  it('enqueue creates a pending job and replaces older pending for the same pin', async () => {
++    const { entities, jobs } = await setup()
++    const entity = await entities.create({
++      entityType: WorldEntityType.Shop,
++      entityId: null,
++      name: 'Tienda',
++      position: { lat: 10, lng: 20 },
++      properties: {}
++    })
++
++    const first = await jobs.enqueue(entity, WorldSyncOperation.Create)
++    expect(first.status).toBe(WorldSyncStatus.Pending)
++
++    const second = await jobs.enqueue(
++      { ...entity, name: 'Tienda 2' },
++      WorldSyncOperation.Update
++    )
++    expect(second.id).not.toBe(first.id)
++
++    const pending = await jobs.listPending(10)
++    expect(pending).toHaveLength(1)
++    expect(pending[0].id).toBe(second.id)
++    expect(JSON.parse(pending[0].payloadJson).name).toBe('Tienda 2')
++  })
++
++  it('markFailed schedules retry and listPending includes it after next_retry_at', async () => {
++    const { entities, jobs } = await setup()
++    const entity = await entities.create({
++      entityType: WorldEntityType.Npc,
++      entityId: null,
++      name: 'Guarda',
++      position: { lat: 1, lng: 2 },
++      properties: {}
++    })
++    const job = await jobs.enqueue(entity, WorldSyncOperation.Create)
++    await jobs.markFailed(job.id, 'boom', 1)
++
++    const listed = await jobs.listForEntity(entity.worldId)
++    expect(listed[0].status).toBe(WorldSyncStatus.Failed)
++    expect(listed[0].lastError).toBe('boom')
++    expect(listed[0].nextRetryAt).toBeTruthy()
++  })
++})
+diff --git a/src/main/worldEditor/worldSyncJobRepository.ts b/src/main/worldEditor/worldSyncJobRepository.ts
+new file mode 100644
+index 0000000..4cb23c4
+--- /dev/null
++++ b/src/main/worldEditor/worldSyncJobRepository.ts
+@@ -0,0 +1,165 @@
++import type { Kysely } from 'kysely'
++import type { Database } from '../database/schema'
++import {
++  WorldSyncOperation,
++  WorldSyncStatus,
++  type WorldSyncJob,
++  type WorldEntity
++} from '@shared-types/world'
++
++interface JobRow {
++  id: number
++  world_entity_id: string
++  operation: string
++  payload_json: string
++  status: string
++  attempts: number
++  next_retry_at: string | null
++  last_error: string | null
++  created_at: string
++  updated_at: string
++}
++
++function toJob(row: JobRow): WorldSyncJob {
++  return {
++    id: row.id,
++    worldEntityId: row.world_entity_id,
++    operation: row.operation as WorldSyncOperation,
++    payloadJson: row.payload_json,
++    status: row.status as WorldSyncStatus,
++    attempts: row.attempts,
++    nextRetryAt: row.next_retry_at,
++    lastError: row.last_error,
++    createdAt: row.created_at,
++    updatedAt: row.updated_at
++  }
++}
++
++export class WorldSyncJobRepository {
++  constructor(private db: Kysely<Database>) {}
++
++  async enqueue(entity: WorldEntity, operation: WorldSyncOperation): Promise<WorldSyncJob> {
++    const now = new Date().toISOString()
++    // Descarta trabajos pendientes previos del mismo pin (el último gana).
++    await this.db
++      .deleteFrom('world_sync_jobs')
++      .where('world_entity_id', '=', entity.worldId)
++      .where('status', 'in', [
++        WorldSyncStatus.Pending,
++        WorldSyncStatus.Failed,
++        WorldSyncStatus.Offline,
++        WorldSyncStatus.Local
++      ])
++      .execute()
++
++    const payload = JSON.stringify({
++      worldId: entity.worldId,
++      entityType: entity.entityType,
++      entityId: entity.entityId,
++      name: entity.name,
++      position: entity.position,
++      rotation: entity.rotation,
++      enabled: entity.enabled,
++      properties: entity.properties,
++      operation
++    })
++
++    const inserted = await this.db
++      .insertInto('world_sync_jobs')
++      .values({
++        world_entity_id: entity.worldId,
++        operation,
++        payload_json: payload,
++        status: WorldSyncStatus.Pending,
++        attempts: 0,
++        next_retry_at: null,
++        last_error: null,
++        created_at: now,
++        updated_at: now
++      })
++      .returningAll()
++      .executeTakeFirstOrThrow()
++
++    return toJob(inserted as JobRow)
++  }
++
++  async listPending(limit = 50): Promise<WorldSyncJob[]> {
++    const now = new Date().toISOString()
++    const rows = await this.db
++      .selectFrom('world_sync_jobs')
++      .selectAll()
++      .where((eb) =>
++        eb.or([
++          eb('status', '=', WorldSyncStatus.Pending),
++          eb.and([
++            eb('status', '=', WorldSyncStatus.Failed),
++            eb.or([eb('next_retry_at', 'is', null), eb('next_retry_at', '<=', now)])
++          ]),
++          eb('status', '=', WorldSyncStatus.Offline)
++        ])
++      )
++      .orderBy('id', 'asc')
++      .limit(limit)
++      .execute()
++    return rows.map((row) => toJob(row as JobRow))
++  }
++
++  async listForEntity(worldEntityId: string): Promise<WorldSyncJob[]> {
++    const rows = await this.db
++      .selectFrom('world_sync_jobs')
++      .selectAll()
++      .where('world_entity_id', '=', worldEntityId)
++      .orderBy('id', 'desc')
++      .limit(20)
++      .execute()
++    return rows.map((row) => toJob(row as JobRow))
++  }
++
++  async markSyncing(id: number): Promise<void> {
++    await this.db
++      .updateTable('world_sync_jobs')
++      .set({ status: WorldSyncStatus.Syncing, updated_at: new Date().toISOString() })
++      .where('id', '=', id)
++      .execute()
++  }
++
++  async markSynced(id: number): Promise<void> {
++    await this.db
++      .updateTable('world_sync_jobs')
++      .set({
++        status: WorldSyncStatus.Synced,
++        last_error: null,
++        updated_at: new Date().toISOString()
++      })
++      .where('id', '=', id)
++      .execute()
++  }
++
++  async markFailed(id: number, error: string, attempts: number): Promise<void> {
++    const delayMs = Math.min(60_000, 2_000 * Math.pow(2, Math.min(attempts, 5)))
++    const next = new Date(Date.now() + delayMs).toISOString()
++    await this.db
++      .updateTable('world_sync_jobs')
++      .set({
++        status: WorldSyncStatus.Failed,
++        last_error: error.slice(0, 500),
++        attempts,
++        next_retry_at: next,
++        updated_at: new Date().toISOString()
++      })
++      .where('id', '=', id)
++      .execute()
++  }
++
++  async markOffline(id: number, error: string): Promise<void> {
++    await this.db
++      .updateTable('world_sync_jobs')
++      .set({
++        status: WorldSyncStatus.Offline,
++        last_error: error.slice(0, 500),
++        updated_at: new Date().toISOString()
++      })
++      .where('id', '=', id)
++      .execute()
++  }
++}
+diff --git a/src/main/worldEditor/worldSyncService.ts b/src/main/worldEditor/worldSyncService.ts
+new file mode 100644
+index 0000000..8e35a70
+--- /dev/null
++++ b/src/main/worldEditor/worldSyncService.ts
+@@ -0,0 +1,174 @@
++import type { Kysely } from 'kysely'
++import type { Database } from '../database/schema'
++import { authService } from '../auth/authService'
++import { WorldEntityRepository } from './worldEntityRepository'
++import { WorldSyncJobRepository } from './worldSyncJobRepository'
++import {
++  WorldEntityType,
++  WorldSyncOperation,
++  WorldSyncStatus,
++  type PublishWorldRequest,
++  type WorldEntity,
++  type WorldSyncJob
++} from '@shared-types/world'
++
++const TYPE_MAP: Record<string, string> = {
++  [WorldEntityType.Object]: 'item',
++  [WorldEntityType.Enemy]: 'enemy',
++  [WorldEntityType.Npc]: 'npc',
++  [WorldEntityType.Chest]: 'chest',
++  [WorldEntityType.Shop]: 'shop',
++  [WorldEntityType.Quest]: 'mission',
++  [WorldEntityType.Resource]: 'item',
++  [WorldEntityType.Plant]: 'item',
++  [WorldEntityType.Marker]: 'item',
++  [WorldEntityType.Building]: 'item',
++  [WorldEntityType.SpawnPoint]: 'enemy',
++  [WorldEntityType.Teleporter]: 'item',
++  [WorldEntityType.Event]: 'item',
++  [WorldEntityType.Zone]: 'item'
++}
++
++/**
++ * Cola offline-first: encola cambios locales y los empuja al servidor del juego
++ * (POST /api/player/world/upsert | /world/delete) usando la sesión admin.
++ */
++export class WorldSyncService {
++  private jobs: WorldSyncJobRepository
++  private entities: WorldEntityRepository
++
++  constructor(db: Kysely<Database>) {
++    this.jobs = new WorldSyncJobRepository(db)
++    this.entities = new WorldEntityRepository(db)
++  }
++
++  async enqueueEntity(entity: WorldEntity, operation: WorldSyncOperation): Promise<WorldSyncJob> {
++    await this.entities.setSyncState(entity.worldId, {
++      syncStatus: WorldSyncStatus.Pending,
++      lastSyncError: null
++    })
++    const fresh = (await this.entities.get(entity.worldId)) || entity
++    return this.jobs.enqueue(fresh, operation)
++  }
++
++  async publish(request: PublishWorldRequest): Promise<{ published: number; failed: number }> {
++    const headers = authService.authHeaders()
++    if (!headers) {
++      throw new Error('Inicia sesión de administrador para subir al mundo')
++    }
++
++    let pending = await this.jobs.listPending(100)
++    if (request.selectedWorldIds?.length) {
++      const set = new Set(request.selectedWorldIds)
++      pending = pending.filter((job) => set.has(job.worldEntityId))
++    } else if (!request.publishAll && !request.selectedWorldIds) {
++      // publishAll false + sin selección → no-op
++      pending = []
++    }
++
++    let published = 0
++    let failed = 0
++    const base = authService.serverUrl()
++
++    for (const job of pending) {
++      await this.jobs.markSyncing(job.id)
++      await this.entities.setSyncState(job.worldEntityId, { syncStatus: WorldSyncStatus.Syncing })
++
++      try {
++        const payload = JSON.parse(job.payloadJson) as {
++          worldId: string
++          entityType: string
++          name: string
++          position: { lat: number; lng: number }
++          properties: Record<string, unknown>
++          enabled: boolean
++          operation: string
++        }
++
++        if (job.operation === WorldSyncOperation.Delete || payload.operation === 'delete') {
++          await this.postJson(base + '/api/player/world/delete', headers, { id: payload.worldId })
++        } else {
++          const type = TYPE_MAP[payload.entityType] || 'item'
++          await this.postJson(base + '/api/player/world/upsert', headers, {
++            id: payload.worldId,
++            type,
++            x: payload.position.lat,
++            y: payload.position.lng,
++            data: {
++              nombre: payload.name,
++              name: payload.name,
++              enabled: payload.enabled,
++              ...(payload.properties || {})
++            }
++          })
++        }
++
++        await this.jobs.markSynced(job.id)
++        await this.entities.setSyncState(job.worldEntityId, {
++          syncStatus: WorldSyncStatus.Synced,
++          lastSyncError: null,
++          syncAttempts: 0,
++          serverVersion: Date.now()
++        })
++        published += 1
++      } catch (error) {
++        const message = error instanceof Error ? error.message : 'Error desconocido'
++        const attempts = job.attempts + 1
++        const offline = /fetch|network|ECONN|ENOTFOUND|timeout|Failed to fetch|aborted/i.test(message)
++        if (offline) {
++          await this.jobs.markOffline(job.id, message)
++          await this.entities.setSyncState(job.worldEntityId, {
++            syncStatus: WorldSyncStatus.Offline,
++            lastSyncError: message,
++            syncAttempts: attempts
++          })
++        } else {
++          await this.jobs.markFailed(job.id, message, attempts)
++          await this.entities.setSyncState(job.worldEntityId, {
++            syncStatus: WorldSyncStatus.Failed,
++            lastSyncError: message,
++            syncAttempts: attempts
++          })
++        }
++        failed += 1
++      }
++    }
++
++    return { published, failed }
++  }
++
++  async retryFailed(): Promise<{ retried: number }> {
++    const result = await this.publish({ publishAll: true })
++    return { retried: result.published + result.failed }
++  }
++
++  async jobsForEntity(worldId: string): Promise<WorldSyncJob[]> {
++    return this.jobs.listForEntity(worldId)
++  }
++
++  private async postJson(
++    url: string,
++    headers: Record<string, string>,
++    body: unknown
++  ): Promise<void> {
++    const controller = new AbortController()
++    const timer = setTimeout(() => controller.abort(), 25000)
++    try {
++      const r = await fetch(url, {
++        method: 'POST',
++        headers,
++        body: JSON.stringify(body),
++        signal: controller.signal
++      })
++      const data = (await r.json().catch(() => ({}))) as { ok?: boolean; error?: string }
++      if (r.status === 401 || r.status === 403) {
++        throw new Error('Sesión expirada o sin permiso de administrador — vuelve a iniciar sesión')
++      }
++      if (!r.ok || data.ok === false) {
++        throw new Error(data.error || 'Error HTTP ' + r.status)
++      }
++    } finally {
++      clearTimeout(timer)
++    }
++  }
++}
+diff --git a/src/preload/index.ts b/src/preload/index.ts
+index 0270a0f..47ae36a 100644
+--- a/src/preload/index.ts
++++ b/src/preload/index.ts
+@@ -84,7 +84,14 @@ const api: KingdomGpsApi = {
+     retryFailed: () => ipcRenderer.invoke('worldEditor:retryFailed'),
+     resolveConflict: (resolution) => ipcRenderer.invoke('worldEditor:resolveConflict', resolution),
+     exportWorld: () => ipcRenderer.invoke('worldEditor:exportWorld'),
+-    clearUnsyncedChanges: (worldIds) => ipcRenderer.invoke('worldEditor:clearUnsyncedChanges', worldIds)
++    clearUnsyncedChanges: (worldIds) => ipcRenderer.invoke('worldEditor:clearUnsyncedChanges', worldIds),
++    listJobsForEntity: (worldId) => ipcRenderer.invoke('worldEditor:listJobsForEntity', worldId),
++    enqueueEntity: (worldId) => ipcRenderer.invoke('worldEditor:enqueueEntity', worldId)
++  },
++  auth: {
++    login: (request) => ipcRenderer.invoke('auth:login', request),
++    logout: () => ipcRenderer.invoke('auth:logout'),
++    getSession: () => ipcRenderer.invoke('auth:getSession')
+   },
+   worldZones: {
+     create: (request) => ipcRenderer.invoke('worldZones:create', request),
+diff --git a/src/renderer/src/app/layout/AdminSessionButton.tsx b/src/renderer/src/app/layout/AdminSessionButton.tsx
+new file mode 100644
+index 0000000..3f772d1
+--- /dev/null
++++ b/src/renderer/src/app/layout/AdminSessionButton.tsx
+@@ -0,0 +1,122 @@
++import { useEffect, useState } from 'react'
++import { LogIn, LogOut, UserRound } from 'lucide-react'
++import type { AdminSessionPublic } from '@shared-types/auth'
++
++/**
++ * Login / sesión del administrador en la barra de título.
++ * No muestra tokens: solo usuario + servidor.
++ */
++export function AdminSessionButton(): JSX.Element {
++  const [session, setSession] = useState<AdminSessionPublic | null>(null)
++  const [open, setOpen] = useState(false)
++  const [username, setUsername] = useState('')
++  const [password, setPassword] = useState('')
++  const [error, setError] = useState<string | null>(null)
++  const [busy, setBusy] = useState(false)
++
++  const refresh = async (): Promise<void> => {
++    const s = await window.api.auth.getSession()
++    setSession(s)
++  }
++
++  useEffect(() => {
++    void refresh()
++  }, [])
++
++  const login = async (): Promise<void> => {
++    setBusy(true)
++    setError(null)
++    try {
++      const result = await window.api.auth.login({ username, password })
++      if (!result.ok || !result.session) {
++        setError(result.error || 'No se pudo iniciar sesión')
++        return
++      }
++      setSession(result.session)
++      setPassword('')
++      setOpen(false)
++    } finally {
++      setBusy(false)
++    }
++  }
++
++  const logout = async (): Promise<void> => {
++    await window.api.auth.logout()
++    setSession(null)
++  }
++
++  return (
++    <div className="relative mr-2 flex items-center">
++      <button
++        type="button"
++        onClick={() => setOpen((v) => !v)}
++        className="flex items-center gap-1.5 rounded px-2 py-1 text-xs text-slate-300 hover:bg-surface-2"
++        title={session ? `Sesión: ${session.username}` : 'Iniciar sesión de administrador'}
++      >
++        {session ? <UserRound size={12} className="text-emerald-400" /> : <LogIn size={12} />}
++        <span className="max-w-[120px] truncate">
++          {session ? session.username : 'Iniciar sesión'}
++        </span>
++      </button>
++
++      {open && (
++        <div className="absolute right-0 top-full z-[2000] mt-1 w-72 rounded-md border border-surface-border bg-surface-1 p-3 shadow-xl">
++          {session ? (
++            <div className="space-y-2 text-xs">
++              <div className="font-medium text-slate-200">{session.username}</div>
++              <div className="text-slate-500">Rol: {session.role}</div>
++              <div className="truncate text-slate-500" title={session.serverUrl}>
++                Servidor: {session.serverUrl.replace(/^https?:\/\//, '')}
++              </div>
++              {session.expiresAt && Date.parse(session.expiresAt) < Date.now() && (
++                <div className="rounded bg-red-950/40 px-2 py-1 text-[11px] text-red-300">
++                  La sesión ha expirado. Vuelve a iniciar sesión para publicar.
++                </div>
++              )}
++              <button
++                type="button"
++                onClick={() => void logout()}
++                className="mt-2 flex w-full items-center justify-center gap-1 rounded bg-surface-2 px-2 py-1.5 hover:bg-surface-0"
++              >
++                <LogOut size={12} /> Cerrar sesión
++              </button>
++            </div>
++          ) : (
++            <form
++              className="space-y-2"
++              onSubmit={(event) => {
++                event.preventDefault()
++                void login()
++              }}
++            >
++              <div className="text-xs font-medium text-slate-200">Administrador del juego</div>
++              <input
++                value={username}
++                onChange={(e) => setUsername(e.target.value)}
++                placeholder="Usuario"
++                className="w-full rounded border border-surface-border bg-surface-2 px-2 py-1.5 text-xs outline-none focus:border-accent"
++                autoComplete="username"
++              />
++              <input
++                type="password"
++                value={password}
++                onChange={(e) => setPassword(e.target.value)}
++                placeholder="Contraseña"
++                className="w-full rounded border border-surface-border bg-surface-2 px-2 py-1.5 text-xs outline-none focus:border-accent"
++                autoComplete="current-password"
++              />
++              {error && <div className="text-[11px] text-red-400">{error}</div>}
++              <button
++                type="submit"
++                disabled={busy}
++                className="w-full rounded bg-accent px-2 py-1.5 text-xs font-medium text-white hover:bg-accent-hover disabled:opacity-60"
++              >
++                {busy ? 'Conectando…' : 'Entrar'}
++              </button>
++            </form>
++          )}
++        </div>
++      )}
++    </div>
++  )
++}
+diff --git a/src/renderer/src/app/layout/TitleBar.tsx b/src/renderer/src/app/layout/TitleBar.tsx
+index 62f0e11..95865ec 100644
+--- a/src/renderer/src/app/layout/TitleBar.tsx
++++ b/src/renderer/src/app/layout/TitleBar.tsx
+@@ -1,6 +1,7 @@
+ import type { CSSProperties } from 'react'
+ import { Minus, Square, X, Crown } from 'lucide-react'
+ import { useProjectStore } from '@renderer/shared/store/projectStore'
++import { AdminSessionButton } from './AdminSessionButton'
+ 
+ const dragStyle = { WebkitAppRegion: 'drag' } as CSSProperties
+ const noDragStyle = { WebkitAppRegion: 'no-drag' } as CSSProperties
+@@ -18,7 +19,8 @@ export function TitleBar(): JSX.Element {
+         <span className="font-semibold">Kingdom GPS — Editor</span>
+         {project && <span className="text-slate-500">— {project.name}</span>}
+       </div>
+-      <div style={noDragStyle} className="flex h-full">
++      <div style={noDragStyle} className="flex h-full items-center">
++        <AdminSessionButton />
+         <button
+           type="button"
+           onClick={() => window.api.windowControls.minimize()}
+diff --git a/src/renderer/src/modules/worldEditor/components/SyncPinMenu.tsx b/src/renderer/src/modules/worldEditor/components/SyncPinMenu.tsx
+new file mode 100644
+index 0000000..8fa65df
+--- /dev/null
++++ b/src/renderer/src/modules/worldEditor/components/SyncPinMenu.tsx
+@@ -0,0 +1,129 @@
++import { useState } from 'react'
++import type { WorldEntity } from '@shared-types/world'
++import { WorldSyncStatus } from '@shared-types/world'
++
++interface SyncPinMenuProps {
++  entity: WorldEntity
++  screen: { x: number; y: number }
++  onClose(): void
++  onChanged(): void
++}
++
++/**
++ * Menú al hacer clic en la bolita de estado del pin:
++ * gris → Subir | verde → Ver / Resync | rojo → Reintentar / Ver error
++ */
++export function SyncPinMenu({ entity, screen, onClose, onChanged }: SyncPinMenuProps): JSX.Element {
++  const [busy, setBusy] = useState(false)
++  const [message, setMessage] = useState<string | null>(null)
++  const status = entity.syncStatus
++
++  const isGrey =
++    status === WorldSyncStatus.Local ||
++    status === WorldSyncStatus.Pending ||
++    status === WorldSyncStatus.Offline ||
++    status === WorldSyncStatus.DeletedPending
++  const isGreen = status === WorldSyncStatus.Synced || status === WorldSyncStatus.Deleted
++  const isRed = status === WorldSyncStatus.Failed || status === WorldSyncStatus.Conflict
++  const isBusyStatus = status === WorldSyncStatus.Syncing || status === WorldSyncStatus.Deleting
++
++  const upload = async (): Promise<void> => {
++    setBusy(true)
++    setMessage(null)
++    try {
++      await window.api.worldEditor.enqueueEntity(entity.worldId)
++      const result = await window.api.worldEditor.publishChanges({
++        publishAll: false,
++        selectedWorldIds: [entity.worldId]
++      })
++      if (result.failed > 0) {
++        const fresh = await window.api.worldEditor.getEntity(entity.worldId)
++        setMessage(fresh?.lastSyncError || 'Falló la subida')
++      } else if (result.published === 0) {
++        setMessage('Nada que subir — inicia sesión si aún no lo has hecho')
++      } else {
++        setMessage('Subido al mundo online')
++      }
++      onChanged()
++    } catch (error) {
++      setMessage(error instanceof Error ? error.message : 'Error al subir')
++    } finally {
++      setBusy(false)
++    }
++  }
++
++  return (
++    <div
++      className="absolute z-[1200] min-w-[200px] rounded-md border border-surface-border bg-surface-1 py-1 text-xs shadow-xl"
++      style={{ left: screen.x, top: screen.y }}
++      onClick={(event) => event.stopPropagation()}
++    >
++      <div className="border-b border-surface-border px-3 py-1.5 text-[10px] uppercase tracking-wide text-slate-500">
++        Sync · {entity.name}
++      </div>
++      <div className="px-3 py-1 text-slate-400">
++        Estado: <span className="text-slate-200">{status}</span>
++      </div>
++      {entity.lastSyncError && (
++        <div className="max-w-[260px] whitespace-pre-wrap break-words px-3 py-1 text-red-400">
++          {entity.lastSyncError}
++        </div>
++      )}
++      {message && <div className="px-3 py-1 text-amber-300">{message}</div>}
++
++      <div className="mt-1 flex flex-col">
++        {(isGrey || isBusyStatus) && (
++          <button
++            type="button"
++            disabled={busy}
++            onClick={() => void upload()}
++            className="px-3 py-1.5 text-left hover:bg-surface-2 disabled:opacity-50"
++          >
++            Subir al mundo
++          </button>
++        )}
++        {isGreen && (
++          <>
++            <button
++              type="button"
++              onClick={() => setMessage(entity.lastSyncError || 'Sincronizado con el juego online')}
++              className="px-3 py-1.5 text-left hover:bg-surface-2"
++            >
++              Ver estado
++            </button>
++            <button
++              type="button"
++              disabled={busy}
++              onClick={() => void upload()}
++              className="px-3 py-1.5 text-left hover:bg-surface-2 disabled:opacity-50"
++            >
++              Volver a sincronizar
++            </button>
++          </>
++        )}
++        {isRed && (
++          <>
++            <button
++              type="button"
++              onClick={() => setMessage(entity.lastSyncError || 'Error desconocido')}
++              className="px-3 py-1.5 text-left hover:bg-surface-2"
++            >
++              Ver error
++            </button>
++            <button
++              type="button"
++              disabled={busy}
++              onClick={() => void upload()}
++              className="px-3 py-1.5 text-left hover:bg-surface-2 disabled:opacity-50"
++            >
++              Reintentar
++            </button>
++          </>
++        )}
++        <button type="button" onClick={onClose} className="px-3 py-1.5 text-left text-slate-500 hover:bg-surface-2">
++          Cerrar
++        </button>
++      </div>
++    </div>
++  )
++}
+diff --git a/src/renderer/src/modules/worldEditor/components/WorldMapPanel.tsx b/src/renderer/src/modules/worldEditor/components/WorldMapPanel.tsx
+index c9c41f1..e1f5025 100644
+--- a/src/renderer/src/modules/worldEditor/components/WorldMapPanel.tsx
++++ b/src/renderer/src/modules/worldEditor/components/WorldMapPanel.tsx
+@@ -24,6 +24,7 @@ import { ZonesPanel } from './ZonesPanel'
+ import { EntityInspector } from './EntityInspector'
+ import { MapContextMenu, type MapMenuContext } from './MapContextMenu'
+ import { OsmImportModal } from './OsmImportModal'
++import { SyncPinMenu } from './SyncPinMenu'
+ import { Layers, Map as MapIcon, Hexagon, Download, List } from 'lucide-react'
+ 
+ /** Color del punto de estado de sincronización que se muestra sobre cada marcador. */
+@@ -273,20 +274,24 @@ export function WorldMapPanel(): JSX.Element {
+     placingRef.current = placing
+   }, [placing])
+ 
+-  // Menú contextual y modal OSM
++  // Menú contextual, menú de bolita sync y modal OSM
+   const [contextMenu, setContextMenu] = useState<MapMenuContext | null>(null)
++  const [syncMenu, setSyncMenu] = useState<{ worldId: string; x: number; y: number } | null>(null)
+   const [osmZone, setOsmZone] = useState<WorldZone | null>(null)
+   const mapRef = useRef<LeafletMap | null>(null)
+ 
+-  // Cerrar el menú contextual con Escape (comportamiento de editor de escritorio).
++  // Cerrar menús con Escape (comportamiento de editor de escritorio).
+   useEffect(() => {
+-    if (!contextMenu) return
++    if (!contextMenu && !syncMenu) return
+     const onKey = (event: KeyboardEvent): void => {
+-      if (event.key === 'Escape') setContextMenu(null)
++      if (event.key === 'Escape') {
++        setContextMenu(null)
++        setSyncMenu(null)
++      }
+     }
+     window.addEventListener('keydown', onKey)
+     return () => window.removeEventListener('keydown', onKey)
+-  }, [contextMenu])
++  }, [contextMenu, syncMenu])
+ 
+   const reloadEntities = (): Promise<void> =>
+     WorldEditorService.queryEntities({ limit: 2000 }).then((result) => loadEntities(result.items))
+@@ -575,10 +580,19 @@ export function WorldMapPanel(): JSX.Element {
+                 draggable
+                 icon={makeDivIcon(entity.entityType, entity.worldId === selectedEntityId, entity.syncStatus)}
+                 eventHandlers={{
+-                  click: () => selectEntity(entity.worldId),
++                  click: (event: LeafletMouseEvent) => {
++                    selectEntity(entity.worldId)
++                    setContextMenu(null)
++                    setSyncMenu({
++                      worldId: entity.worldId,
++                      x: event.containerPoint.x,
++                      y: event.containerPoint.y
++                    })
++                  },
+                   contextmenu: (event: LeafletMouseEvent) => {
+                     event.originalEvent.preventDefault()
+                     L.DomEvent.stopPropagation(event)
++                    setSyncMenu(null)
+                     setContextMenu({
+                       kind: 'entity',
+                       position: { lat: entity.position.lat, lng: entity.position.lng },
+@@ -656,10 +670,13 @@ export function WorldMapPanel(): JSX.Element {
+             </div>
+           )}
+ 
+-          {contextMenu && (
++          {(contextMenu || syncMenu) && (
+             <div
+               className="absolute inset-0 z-[1150]"
+-              onClick={() => setContextMenu(null)}
++              onClick={() => {
++                setContextMenu(null)
++                setSyncMenu(null)
++              }}
+               onContextMenu={handleOverlayContextMenu}
+             />
+           )}
+@@ -679,6 +696,20 @@ export function WorldMapPanel(): JSX.Element {
+             />
+           )}
+ 
++          {syncMenu &&
++            (() => {
++              const syncEntity = entities.find((item) => item.worldId === syncMenu.worldId)
++              if (!syncEntity) return null
++              return (
++                <SyncPinMenu
++                  entity={syncEntity}
++                  screen={{ x: syncMenu.x, y: syncMenu.y }}
++                  onClose={() => setSyncMenu(null)}
++                  onChanged={() => void reloadEntities()}
++                />
++              )
++            })()}
++
+           {osmZone && (
+             <OsmImportModal
+               zone={osmZone}
+diff --git a/src/shared-types/api.ts b/src/shared-types/api.ts
+index 56d5ca7..114d1ee 100644
+--- a/src/shared-types/api.ts
++++ b/src/shared-types/api.ts
+@@ -5,6 +5,7 @@ import type { ChangeLogEntry } from './commands'
+ import type { Item, ItemInput, ItemQuery } from './item'
+ import type { Weapon, WeaponInput, WeaponQuery } from './weapon'
+ import type { Armor, ArmorInput, ArmorQuery } from './armor'
++import type { AdminLoginRequest, AdminLoginResult, AdminSessionPublic } from './auth'
+ import type {
+   WorldEntity,
+   CreateWorldEntityRequest,
+@@ -22,7 +23,8 @@ import type {
+   CreateWorldZoneRequest,
+   UpdateWorldZoneRequest,
+   OsmQueryRequest,
+-  OsmQueryResult
++  OsmQueryResult,
++  WorldSyncJob
+ } from './world'
+ 
+ /**
+@@ -123,6 +125,15 @@ export interface KingdomGpsApi {
+     exportWorld(): Promise<WorldExportData>
+     /** Limpiar cambios locales sin sincronizar */
+     clearUnsyncedChanges(worldIds: string[]): Promise<void>
++    /** Cola de sync de un pin concreto */
++    listJobsForEntity(worldId: string): Promise<WorldSyncJob[]>
++    /** Encola (o reencola) un pin para subir */
++    enqueueEntity(worldId: string): Promise<WorldSyncJob>
++  }
++  auth: {
++    login(request: AdminLoginRequest): Promise<AdminLoginResult>
++    logout(): Promise<{ ok: boolean }>
++    getSession(): Promise<AdminSessionPublic | null>
+   }
+   worldZones: {
+     /** Crear una zona (polígono) */
+diff --git a/src/shared-types/auth.ts b/src/shared-types/auth.ts
+new file mode 100644
+index 0000000..e5b61de
+--- /dev/null
++++ b/src/shared-types/auth.ts
+@@ -0,0 +1,21 @@
++/** Sesión del administrador del editor — el token nunca se expone al renderer. */
++export interface AdminSessionPublic {
++  username: string
++  role: string
++  serverUrl: string
++  expiresAt: string | null
++  loggedInAt: string
++}
++
++export interface AdminLoginRequest {
++  username: string
++  password: string
++  /** Override opcional; por defecto Render production. */
++  serverUrl?: string
++}
++
++export interface AdminLoginResult {
++  ok: boolean
++  session?: AdminSessionPublic
++  error?: string
++}
+-- 
+2.43.0
+
