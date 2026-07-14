@@ -1,5 +1,5 @@
 {
-  "actualizadoEn": 1783991935040,
+  "actualizadoEn": 1783992240499,
   "misiones": [],
   "tesoros": [],
   "objetos": [
@@ -749,10 +749,10 @@
           "vibracionCombate": true,
           "posBtnAtacar": "izq"
         },
-        "_equipoT": 1783991933288
+        "_equipoT": 1783992239138
       },
-      "t": 1783991933691,
-      "statsT": 1783991933288
+      "t": 1783992239539,
+      "statsT": 1783992239138
     },
     "srv_1": {
       "datos": {
