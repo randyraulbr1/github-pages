@@ -4,7 +4,7 @@
   "telefono": "",
   "pinHash": "0a22b58a09f93652ac592f9424e5dedbeb450965c0e7ddc5b46f8ab21aa96bb1",
   "creado": 1783991932570,
-  "actualizadoEn": 1783992947779,
+  "actualizadoEn": 1783993415474,
   "partida": {
     "datos": {
       "mochila": [
@@ -83,9 +83,9 @@
         "vibracionCombate": true,
         "posBtnAtacar": "izq"
       },
-      "_equipoT": 1783992621469
+      "_equipoT": 1783993412193
     },
-    "t": 1783992621871,
-    "statsT": 1783992618673
+    "t": 1783993412594,
+    "statsT": 1783993412193
   }
 }
