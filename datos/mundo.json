@@ -1,5 +1,5 @@
 {
-  "actualizadoEn": 1783991920963,
+  "actualizadoEn": 1783991932818,
   "misiones": [],
   "tesoros": [],
   "objetos": [
@@ -147,9 +147,9 @@
       "nombre": "66",
       "telefono": "",
       "pinHash": "0a22b58a09f93652ac592f9424e5dedbeb450965c0e7ddc5b46f8ab21aa96bb1",
-      "creado": 1783991374288,
-      "sesionToken": "mrjyei894vow0gwouz",
-      "sesionT": 1783991374281
+      "creado": 1783991932570,
+      "sesionToken": "mrjyqgzvbrbk84kkuw",
+      "sesionT": 1783991932555
     }
   ],
   "cofres": [],
@@ -937,6 +937,5 @@
   "moverPinJugador": true,
   "optimizarVisibilidad": true,
   "adminPinClaves": {},
-  "botinesEnemigo": {},
-  "bolsasDrop": []
+  "botinesEnemigo": {}
 }
