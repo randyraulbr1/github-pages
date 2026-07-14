@@ -1,5 +1,5 @@
 {
-  "actualizadoEn": 1783993413607,
+  "actualizadoEn": 1783993542707,
   "misiones": [],
   "tesoros": [],
   "objetos": [
@@ -863,7 +863,7 @@
           "control": "68e382a3687042dcd0420432d9bf210eada6d12606b6ecd367d18c724c2f4b38"
         },
         "vida": 100,
-        "hambre": 50,
+        "hambre": 49,
         "xp": 0,
         "nivel": 1,
         "posicionJugador": null,
@@ -901,10 +901,10 @@
           "vibracionCombate": true,
           "posBtnAtacar": "izq"
         },
-        "_equipoT": 1783993412193
+        "_equipoT": 1783993542136
       },
-      "t": 1783993412594,
-      "statsT": 1783993412193
+      "t": 1783993542536,
+      "statsT": 1783993532239
     }
   },
   "enemigosEstado": {},
