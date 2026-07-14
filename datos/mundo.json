@@ -1,5 +1,5 @@
 {
-  "actualizadoEn": 1783990317973,
+  "actualizadoEn": 1783990673801,
   "misiones": [],
   "tesoros": [],
   "objetos": [
@@ -12,12 +12,33 @@
         -82.75381654500963
       ],
       "activo": true
+    },
+    {
+      "object": {
+        "itemId": 5,
+        "itemName": "Coraza de Obsidiana",
+        "category": "armor",
+        "rarity": "epic",
+        "value": 2700
+      },
+      "id": "0005W89WE0NRCCDC7W440WY8N0",
+      "schemaVersion": 1,
+      "nombre": "Coraza de Obsidiana",
+      "pos": [
+        22.993706084616512,
+        -82.75396943092348
+      ],
+      "activo": true
     }
   ],
   "posiciones": {
     "0005W4HFW53MD804A4309RAW14": [
       22.993750528436657,
       -82.75381654500963
+    ],
+    "0005W89WE0NRCCDC7W440WY8N0": [
+      22.993706084616512,
+      -82.75396943092348
     ]
   },
   "eliminados": [
