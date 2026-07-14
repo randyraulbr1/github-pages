@@ -1,5 +1,5 @@
 {
-  "actualizadoEn": 1783989019069,
+  "actualizadoEn": 1783989034906,
   "misiones": [],
   "tesoros": [],
   "objetos": [],
@@ -40,7 +40,9 @@
       "nombre": "33",
       "telefono": "",
       "pinHash": "0a22b58a09f93652ac592f9424e5dedbeb450965c0e7ddc5b46f8ab21aa96bb1",
-      "creado": 1783396246965
+      "creado": 1783396246965,
+      "sesionToken": "mrjx00yoaghen33e12",
+      "sesionT": 1783989019104
     },
     {
       "id": "pmrapfk1b6bc8o",
