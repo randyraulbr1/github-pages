@@ -9,6 +9,15 @@ function setOnlinePlayersGetter(fn) {
   _onlinePlayers = typeof fn === 'function' ? fn : () => new Map();
 }
 
+/** Devuelve el Map de jugadores conectados (para el panel de administración). */
+function getOnlinePlayers() {
+  try {
+    return _onlinePlayers() || new Map();
+  } catch (e) {
+    return new Map();
+  }
+}
+
 function emitirWorldUpdateObject(io, obj) {
   if (!io || !obj) return;
   const onlinePlayers = _onlinePlayers();
@@ -28,5 +37,6 @@ function emitirWorldUpdateObject(io, obj) {
 
 module.exports = {
   setOnlinePlayersGetter,
+  getOnlinePlayers,
   emitirWorldUpdateObject
 };

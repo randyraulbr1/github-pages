@@ -222,6 +222,8 @@ router.get('/admin-jugadores', authMiddleware, gameAdminMiddleware, (req, res) =
   const posiciones = (snap.posiciones && typeof snap.posiciones === 'object') ? snap.posiciones : {};
   let esAdminNombre = () => false;
   try { esAdminNombre = require('../adminCuenta').esNombreAdmin; } catch (e) { /* */ }
+  let online = new Map();
+  try { online = require('../worldBroadcast').getOnlinePlayers(); } catch (e) { /* */ }
 
   const contarInventario = (p) => {
     if (Array.isArray(p?.mochila)) {
@@ -251,7 +253,7 @@ router.get('/admin-jugadores', authMiddleware, gameAdminMiddleware, (req, res) =
         baneado: !!j.baneado,
         objetos: contarInventario(p),
         posicion: Array.isArray(pos) ? pos : (Array.isArray(p.posicionJugador) ? p.posicionJugador : null),
-        conectado: false
+        conectado: online.has(j.id)
       };
     })
   });
@@ -312,6 +314,72 @@ router.post('/admin-jugador-editar', authMiddleware, gameAdminMiddleware, (req, 
   const io = req.app.get('io');
   if (io) io.emit('player:adminUpdate', { playerId: id, partida: snap.partidas[id] });
 
+  res.json({ ok: true, id });
+});
+
+/** Admin: revivir a un jugador y dejarlo con vida/hambre al máximo. */
+router.post('/admin-jugador-revivir', authMiddleware, gameAdminMiddleware, (req, res) => {
+  const { saveWorldSnapshot } = require('../db');
+  const { id } = req.body || {};
+  if (!id) return res.status(400).json({ ok: false, error: 'id requerido' });
+  const snap = getWorldSnapshot();
+  const jugador = jugadorEnSnap(snap, id);
+  if (!jugador) return res.status(404).json({ ok: false, error: 'Jugador no encontrado' });
+  if (!snap.partidas) snap.partidas = {};
+  const p = snap.partidas[id] || {};
+  const nivel = Math.max(1, Number(p.nivel) || 1);
+  const vidaMax = 100 + (nivel - 1) * 4; // CONFIG.vidaMaxima + (n-1)*vidaExtraPorNivel
+  p.vida = vidaMax;
+  p.hambre = 100;
+  p.muerto = false;
+  p.t = Date.now();
+  snap.partidas[id] = p;
+  snap.actualizadoEn = Date.now();
+  saveWorldSnapshot(snap);
+  try { require('../respaldoThrottle').respaldoInmediato().catch(() => {}); } catch (e) { /* */ }
+  const io = req.app.get('io');
+  if (io) io.emit('player:adminUpdate', { playerId: id, partida: snap.partidas[id] });
+  registrar('admin_revivir', `Revivido ${jugador.nombre}`);
+  res.json({ ok: true, id, vida: vidaMax });
+});
+
+/** Admin: dar o quitar un objeto del inventario de un jugador. */
+router.post('/admin-jugador-item', authMiddleware, gameAdminMiddleware, (req, res) => {
+  const { saveWorldSnapshot } = require('../db');
+  const { id, itemId, cantidad } = req.body || {};
+  const qty = Math.round(Number(cantidad) || 0);
+  if (!id || !itemId || !qty) return res.status(400).json({ ok: false, error: 'id, itemId y cantidad requeridos' });
+  const snap = getWorldSnapshot();
+  const jugador = jugadorEnSnap(snap, id);
+  if (!jugador) return res.status(404).json({ ok: false, error: 'Jugador no encontrado' });
+  if (!snap.partidas) snap.partidas = {};
+  const p = snap.partidas[id] || {};
+  const mochila = Array.isArray(p.mochila) ? p.mochila.slice() : [];
+  // Sumar/restar cantidad en el primer slot con ese id (o crear uno nuevo al dar).
+  let restante = qty;
+  for (let i = 0; i < mochila.length && restante !== 0; i++) {
+    const sl = mochila[i];
+    if (sl && sl.id === itemId) {
+      const nueva = (Number(sl.cantidad) || 0) + restante;
+      if (nueva <= 0) { mochila[i] = null; } else { mochila[i] = { id: itemId, cantidad: nueva }; }
+      restante = 0;
+    }
+  }
+  if (restante > 0) {
+    // Dar: buscar un hueco libre.
+    const libre = mochila.findIndex((s) => !s);
+    if (libre >= 0) mochila[libre] = { id: itemId, cantidad: restante };
+    else mochila.push({ id: itemId, cantidad: restante });
+  }
+  p.mochila = mochila;
+  p.t = Date.now();
+  snap.partidas[id] = p;
+  snap.actualizadoEn = Date.now();
+  saveWorldSnapshot(snap);
+  try { require('../respaldoThrottle').respaldoInmediato().catch(() => {}); } catch (e) { /* */ }
+  const io = req.app.get('io');
+  if (io) io.emit('player:adminUpdate', { playerId: id, partida: snap.partidas[id] });
+  registrar('admin_item', `${qty > 0 ? 'Dado' : 'Quitado'} ${Math.abs(qty)}x ${itemId} a ${jugador.nombre}`);
   res.json({ ok: true, id });
 });
 
