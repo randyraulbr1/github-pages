@@ -1,5 +1,5 @@
 {
-  "actualizadoEn": 1783991368016,
+  "actualizadoEn": 1783991374424,
   "misiones": [],
   "tesoros": [],
   "objetos": [
@@ -108,6 +108,15 @@
       "telefono": "",
       "pinHash": "0a22b58a09f93652ac592f9424e5dedbeb450965c0e7ddc5b46f8ab21aa96bb1",
       "creado": 1783991351470
+    },
+    {
+      "id": "srv_3",
+      "nombre": "66",
+      "telefono": "",
+      "pinHash": "0a22b58a09f93652ac592f9424e5dedbeb450965c0e7ddc5b46f8ab21aa96bb1",
+      "creado": 1783991374288,
+      "sesionToken": "mrjyei894vow0gwouz",
+      "sesionT": 1783991374281
     }
   ],
   "cofres": [],
