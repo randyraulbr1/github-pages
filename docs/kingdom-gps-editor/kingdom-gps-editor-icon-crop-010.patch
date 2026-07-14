@@ -1,0 +1,920 @@
+From 08def1ed4b5a12ff1d04eb3134bd60f2139a48d3 Mon Sep 17 00:00:00 2001
+From: Cursor Agent <cursoragent@cursor.com>
+Date: Tue, 14 Jul 2026 02:26:56 +0000
+Subject: [PATCH] =?UTF-8?q?feat(items):=20recorte=20de=20regi=C3=B3n=20com?=
+ =?UTF-8?q?o=20icono=20del=20objeto=20(Fase=203)?=
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+Al asignar un icono a un Objeto se puede seleccionar una parte (crop)
+de la imagen, no solo la imagen entera.
+
+- Migración 010_items_icon_crop: columna icon_crop (JSON)
+- Tipos IconCrop + iconCrop + normalizeIconCrop
+- ItemsRepository persiste/lee el recorte
+- IconCropPicker + IconThumbnail recortado en grid/lista/inspector
+- Versión 0.11.0 para auto-update
+---
+ RECURSOS_ARQUITECTURA.md                      |   7 +-
+ SIGUIENTE_PASO.md                             |  41 +++-
+ package.json                                  |   2 +-
+ panel adm/00_ROADMAP.md                       |   2 +
+ src/main/database/migrationRunner.test.ts     |   7 +-
+ src/main/database/migrationRunner.ts          |   3 +-
+ .../migrations/010_items_icon_crop.ts         |  10 +
+ src/main/database/schema.ts                   |   2 +
+ src/main/items/itemsRepository.test.ts        |  20 ++
+ src/main/items/itemsRepository.ts             |  18 +-
+ .../items/components/IconCropPicker.tsx       | 197 ++++++++++++++++++
+ .../items/components/ItemInspector.tsx        |  56 ++++-
+ .../src/modules/items/itemsTxt.test.ts        |  11 +-
+ src/renderer/src/modules/items/itemsTxt.ts    |   2 +
+ .../src/shared/components/IconField.tsx       |   7 +-
+ .../src/shared/components/IconThumbnail.tsx   |  51 ++++-
+ .../src/shared/content/ContentGrid.tsx        |   2 +-
+ .../src/shared/content/ContentListView.tsx    |   2 +-
+ .../src/shared/content/ContentTableView.tsx   |   2 +-
+ .../src/shared/content/contentTypes.ts        |   4 +-
+ src/renderer/src/shared/hooks/useIconPath.ts  |  26 ++-
+ src/shared-types/item.ts                      |  33 +++
+ 22 files changed, 467 insertions(+), 38 deletions(-)
+ create mode 100644 src/main/database/migrations/010_items_icon_crop.ts
+ create mode 100644 src/renderer/src/modules/items/components/IconCropPicker.tsx
+
+diff --git a/RECURSOS_ARQUITECTURA.md b/RECURSOS_ARQUITECTURA.md
+index 5dd6975..b05d225 100644
+--- a/RECURSOS_ARQUITECTURA.md
++++ b/RECURSOS_ARQUITECTURA.md
+@@ -102,8 +102,11 @@ Los **subtipos van dentro de cada módulo/carpeta**, no todos sueltos en la barr
+ 
+ - **Fase 1 (hecha):** este documento + reorganización del menú lateral a la
+   estructura Contenido/Recursos con subtipos anidados.
+-- **Fase 2:** modelo de referencia de icono en objetos (`{iconId}` o
+-  `{sheetId,x,y,width,height}`), selector desde la Biblioteca de Iconos, y "usado por".
++- **Fase 2 (parcial hecha):** selector de icono desde Biblioteca en Objetos/Armas/
++  Armaduras/Monstruos. **Recorte de región en Objetos** (`iconCrop` / migración
++  `010_items_icon_crop` + `IconCropPicker`) — el objeto guarda `{iconId, iconCrop}`
++  y no la imagen. Pendiente: "usado por" y referencia a celdas de sprite sheet
++  (`sheetId,x,y,width,height`) como fuente alternativa.
+ - **Fase 3:** Biblioteca de sprite sheets con cuadrícula + celdas nombradas.
+ - **Fase 4:** generador de paquetes + manifiesto + SHA-256 + verificación.
+ - **Fase 5:** cliente del juego: descarga de paquetes, caché local, verificación,
+diff --git a/SIGUIENTE_PASO.md b/SIGUIENTE_PASO.md
+index e9bd534..414cedf 100644
+--- a/SIGUIENTE_PASO.md
++++ b/SIGUIENTE_PASO.md
+@@ -1,18 +1,51 @@
+ # SIGUIENTE PASO — Punto de retorno de Kingdom GPS Editor
+ 
+ > Documento de continuidad. Léelo primero al retomar el proyecto y mantenlo actualizado al final de cada sesión.
+-> Última actualización: 2026-07-13 (sesión: captura de pantalla + estado de sincronización de pines + "Subir al mundo" + config de servidor).
++> Última actualización: 2026-07-14 (recorte de región como icono del objeto — Fase 3 recursos).
+ 
+ ## Qué es
+ 
+-Editor de escritorio interno para crear y mantener contenido de **Kingdom GPS**.
++Editor de escritorio oficial (**Panel ADM**) para crear y mantener el contenido de **Kingdom GPS**.
++El juego en `tcodm.com` / `github-pages` es **solo para jugar**. Este programa es el único panel administrativo.
++
+ Stack: Electron + React + TypeScript + Vite + libSQL/Kysely + Zustand + dockview + Leaflet + Tailwind + Vitest.
+ 
+ ## Repositorio y documentación
+ 
+-- Repositorio oficial: `randyraulbr1/kingdom-gps-editor`, rama `main`.
++- Repositorio oficial: `randyraulbr1/kingdom-gps-editor`
++- Rama de trabajo de Claude: `claude/kingdom-gps-editor-setup-7i6utj`
+ - Documentación oficial: carpeta `panel adm/`.
+-- Estado detallado del código: `INFORME_ESTADO_PROYECTO.md`.
++- Arquitectura de recursos: `RECURSOS_ARQUITECTURA.md`.
++
++## Hecho en esta sesión (Cursor)
++
++### Recorte de icono en Objetos ✅
++
++- Migración `010_items_icon_crop` → columna `icon_crop` (JSON `{x,y,width,height}` o null).
++- Tipos `IconCrop` + `iconCrop` en `Item`/`ItemInput` + `normalizeIconCrop`.
++- `ItemsRepository` persiste/lee el recorte (snake_case ↔ camelCase).
++- `IconCropPicker`: arrastre sobre la imagen (Shift = cuadrado), vista previa, usar imagen completa.
++- `IconThumbnail` renderiza solo la región; rejilla/lista/tabla e inspector lo muestran.
++- Al cambiar de icono se limpia el recorte. Import/export `.txt` conserva `iconCrop`.
++- Versión **0.11.0** (para que "Buscar actualizaciones" detecte la Release cuando se publique el tag `v0.11.0`).
++
++## Lo siguiente natural
++
++1. Extender el recorte a Armas / Armaduras / Monstruos (mismo patrón).
++2. Sprite sheets con cuadrícula + celdas nombradas (Fase 3 de `RECURSOS_ARQUITECTURA.md`).
++3. "Usado por" en Biblioteca de Iconos.
++4. Paquetes + manifiesto + hashes.
++
++## Comandos
++
++```bash
++npm run typecheck
++npm test
++npx electron-vite build
++```
++
++Para auto-update en Windows: tag `v0.11.0` + push → workflow publica Release + `latest.yml`.
++
+ 
+ ## Advertencia importante
+ 
+diff --git a/package.json b/package.json
+index 4efcc05..0e1bcee 100644
+--- a/package.json
++++ b/package.json
+@@ -1,6 +1,6 @@
+ {
+   "name": "kingdomgps-editor",
+-  "version": "0.10.0",
++  "version": "0.11.0",
+   "description": "Kingdom GPS - Editor de base de datos del juego (herramienta interna, no es el juego)",
+   "main": "out/main/index.js",
+   "author": "Kingdom GPS Team",
+diff --git a/panel adm/00_ROADMAP.md b/panel adm/00_ROADMAP.md
+index f65cf83..8c196c7 100644
+--- a/panel adm/00_ROADMAP.md	
++++ b/panel adm/00_ROADMAP.md	
+@@ -27,6 +27,8 @@
+ ✅ Base de datos de objetos (migración 003_items, ItemsRepository)
+ ✅ Inventario visual (rejilla/lista/tabla virtualizada, es el patrón de referencia)
+ ✅ Editor de propiedades (Inspector ~20 campos, edición masiva, undo/redo, export)
++✅ **Recorte de icono (Fase 3 recursos)** — migración `010_items_icon_crop`, columna `icon_crop`,
++   `IconCropPicker` + render recortado en rejilla/lista/inspector (región sobre la imagen, no la imagen entera)
+ ⚪ Generación de iconos IA (Recraft) — pendiente: cola `icon_generation_jobs`, token `.env`
+ 
+ ### FASE 3b - Contenido en serie (framework + Armas + Armaduras) ✅ UNIFICADA
+diff --git a/src/main/database/migrationRunner.test.ts b/src/main/database/migrationRunner.test.ts
+index f37cb50..df057a2 100644
+--- a/src/main/database/migrationRunner.test.ts
++++ b/src/main/database/migrationRunner.test.ts
+@@ -16,7 +16,8 @@ describe('migrationRunner', () => {
+       '006_weapons',
+       '007_armor',
+       '008_enemy_routes',
+-      '009_monsters'
++      '009_monsters',
++      '010_items_icon_crop'
+     ])
+ 
+     const secondRun = await runMigrations(client)
+@@ -39,5 +40,9 @@ describe('migrationRunner', () => {
+         'monsters'
+       ])
+     )
++
++    const columns = await client.execute('PRAGMA table_info(items)')
++    const colNames = columns.rows.map((row) => row.name)
++    expect(colNames).toContain('icon_crop')
+   })
+ })
+diff --git a/src/main/database/migrationRunner.ts b/src/main/database/migrationRunner.ts
+index 7028fb5..767b420 100644
+--- a/src/main/database/migrationRunner.ts
++++ b/src/main/database/migrationRunner.ts
+@@ -8,6 +8,7 @@ import * as m006 from './migrations/006_weapons'
+ import * as m007 from './migrations/007_armor'
+ import * as m008 from './migrations/008_enemy_routes'
+ import * as m009 from './migrations/009_monsters'
++import * as m010 from './migrations/010_items_icon_crop'
+ 
+ interface Migration {
+   id: string
+@@ -15,7 +16,7 @@ interface Migration {
+ }
+ 
+ /** New migrations are appended here, never edited after being released - see README. */
+-const MIGRATIONS: Migration[] = [m001, m002, m003, m004, m005, m006, m007, m008, m009]
++const MIGRATIONS: Migration[] = [m001, m002, m003, m004, m005, m006, m007, m008, m009, m010]
+ 
+ function splitStatements(sql: string): string[] {
+   return sql
+diff --git a/src/main/database/migrations/010_items_icon_crop.ts b/src/main/database/migrations/010_items_icon_crop.ts
+new file mode 100644
+index 0000000..8b5050c
+--- /dev/null
++++ b/src/main/database/migrations/010_items_icon_crop.ts
+@@ -0,0 +1,10 @@
++/**
++ * Fase 3 — región de recorte del icono de un objeto.
++ * Guarda un rectángulo en píxeles sobre la imagen de la biblioteca de iconos
++ * (no la imagen entera). NULL = usar imagen completa.
++ */
++export const id = '010_items_icon_crop'
++
++export const sql = `
++ALTER TABLE items ADD COLUMN icon_crop TEXT;
++`
+diff --git a/src/main/database/schema.ts b/src/main/database/schema.ts
+index 466d08b..566db33 100644
+--- a/src/main/database/schema.ts
++++ b/src/main/database/schema.ts
+@@ -49,6 +49,8 @@ export interface ItemsTable {
+   category: string
+   rarity: string
+   icon_id: number | null
++  /** JSON IconCrop o null — región de la imagen usada como icono. */
++  icon_crop: string | null
+   value: number
+   weight: number
+   stack_size: number
+diff --git a/src/main/items/itemsRepository.test.ts b/src/main/items/itemsRepository.test.ts
+index c05b938..79f2ed8 100644
+--- a/src/main/items/itemsRepository.test.ts
++++ b/src/main/items/itemsRepository.test.ts
+@@ -68,6 +68,26 @@ describe('ItemsRepository', () => {
+     expect(updated.map((item) => item.requiredLevel)).toEqual([12, 12])
+   })
+ 
++  it('persists iconCrop region as JSON and round-trips null', async () => {
++    const { repository } = await setup()
++    const crop = { x: 10, y: 20, width: 64, height: 64 }
++    const created = await repository.create({
++      ...createEmptyItemInput(),
++      name: 'Con recorte',
++      iconId: null,
++      iconCrop: crop
++    })
++    expect(created.iconCrop).toEqual(crop)
++
++    const cleared = await repository.update(created.id, { iconCrop: null })
++    expect(cleared.iconCrop).toBeNull()
++
++    const invalid = await repository.update(created.id, {
++      iconCrop: { x: -1, y: 0, width: 0, height: 10 } as never
++    })
++    expect(invalid.iconCrop).toBeNull()
++  })
++
+   it('restoreWithId re-inserts a full snapshot at the same id (undo-a-delete / redo-a-create)', async () => {
+     const { repository } = await setup()
+     const created = await repository.create({ ...createEmptyItemInput(), name: 'Escudo' })
+diff --git a/src/main/items/itemsRepository.ts b/src/main/items/itemsRepository.ts
+index a71a905..a241b24 100644
+--- a/src/main/items/itemsRepository.ts
++++ b/src/main/items/itemsRepository.ts
+@@ -1,6 +1,7 @@
+ import type { Kysely } from 'kysely'
+ import type { Database } from '../database/schema'
+-import type { Item, ItemInput, ItemQuery } from '@shared-types/item'
++import type { IconCrop, Item, ItemInput, ItemQuery } from '@shared-types/item'
++import { normalizeIconCrop } from '@shared-types/item'
+ 
+ interface ItemRow {
+   id: number
+@@ -9,6 +10,7 @@ interface ItemRow {
+   category: string
+   rarity: string
+   icon_id: number | null
++  icon_crop: string | null
+   value: number
+   weight: number
+   stack_size: number
+@@ -28,6 +30,15 @@ interface ItemRow {
+   updated_at: string
+ }
+ 
++function parseIconCrop(raw: string | null): IconCrop | null {
++  if (!raw) return null
++  try {
++    return normalizeIconCrop(JSON.parse(raw))
++  } catch {
++    return null
++  }
++}
++
+ function toItem(row: ItemRow): Item {
+   return {
+     id: row.id,
+@@ -36,6 +47,7 @@ function toItem(row: ItemRow): Item {
+     category: row.category as Item['category'],
+     rarity: row.rarity as Item['rarity'],
+     iconId: row.icon_id,
++    iconCrop: parseIconCrop(row.icon_crop),
+     value: row.value,
+     weight: row.weight,
+     stackSize: row.stack_size,
+@@ -64,6 +76,10 @@ function toRowPatch(input: Partial<ItemInput>): Record<string, unknown> {
+   if (input.category !== undefined) row.category = input.category
+   if (input.rarity !== undefined) row.rarity = input.rarity
+   if (input.iconId !== undefined) row.icon_id = input.iconId
++  if (input.iconCrop !== undefined) {
++    const crop = normalizeIconCrop(input.iconCrop)
++    row.icon_crop = crop ? JSON.stringify(crop) : null
++  }
+   if (input.value !== undefined) row.value = input.value
+   if (input.weight !== undefined) row.weight = input.weight
+   if (input.stackSize !== undefined) row.stack_size = input.stackSize
+diff --git a/src/renderer/src/modules/items/components/IconCropPicker.tsx b/src/renderer/src/modules/items/components/IconCropPicker.tsx
+new file mode 100644
+index 0000000..e12b17d
+--- /dev/null
++++ b/src/renderer/src/modules/items/components/IconCropPicker.tsx
+@@ -0,0 +1,197 @@
++import { useCallback, useEffect, useRef, useState } from 'react'
++import type { IconCrop } from '@shared-types/item'
++import { normalizeIconCrop } from '@shared-types/item'
++import { useIcon } from '@renderer/shared/hooks/useIconPath'
++import { IconThumbnail } from '@renderer/shared/components/IconThumbnail'
++
++interface IconCropPickerProps {
++  iconId: number
++  initialCrop: IconCrop | null
++  onApply(crop: IconCrop | null): void
++  onClose(): void
++}
++
++type DragPoint = { x: number; y: number }
++
++/**
++ * Selector de región sobre la imagen completa del icono.
++ * Arrastra para marcar el recorte; Shift mantiene cuadrado.
++ */
++export function IconCropPicker({ iconId, initialCrop, onApply, onClose }: IconCropPickerProps): JSX.Element {
++  const icon = useIcon(iconId)
++  const imgRef = useRef<HTMLImageElement>(null)
++  const [natural, setNatural] = useState({ w: icon?.width ?? 0, h: icon?.height ?? 0 })
++  const [draft, setDraft] = useState<IconCrop | null>(initialCrop)
++  const [dragStart, setDragStart] = useState<DragPoint | null>(null)
++  const [dragCurrent, setDragCurrent] = useState<DragPoint | null>(null)
++
++  useEffect(() => {
++    setDraft(initialCrop)
++  }, [initialCrop, iconId])
++
++  const toImageCoords = useCallback(
++    (clientX: number, clientY: number): DragPoint | null => {
++      const el = imgRef.current
++      if (!el || natural.w <= 0 || natural.h <= 0) return null
++      const rect = el.getBoundingClientRect()
++      const x = ((clientX - rect.left) / rect.width) * natural.w
++      const y = ((clientY - rect.top) / rect.height) * natural.h
++      return {
++        x: Math.max(0, Math.min(natural.w, x)),
++        y: Math.max(0, Math.min(natural.h, y))
++      }
++    },
++    [natural]
++  )
++
++  const selectionFromDrag = (a: DragPoint, b: DragPoint, square: boolean): IconCrop | null => {
++    let x1 = Math.min(a.x, b.x)
++    let y1 = Math.min(a.y, b.y)
++    let w = Math.abs(a.x - b.x)
++    let h = Math.abs(a.y - b.y)
++    if (square) {
++      const side = Math.max(w, h)
++      if (b.x < a.x) x1 = a.x - side
++      if (b.y < a.y) y1 = a.y - side
++      w = side
++      h = side
++    }
++    x1 = Math.max(0, x1)
++    y1 = Math.max(0, y1)
++    w = Math.min(w, natural.w - x1)
++    h = Math.min(h, natural.h - y1)
++    return normalizeIconCrop({ x: x1, y: y1, width: w, height: h })
++  }
++
++  const liveCrop =
++    dragStart && dragCurrent ? selectionFromDrag(dragStart, dragCurrent, false) : draft
++
++  if (!icon?.relativePath) {
++    return (
++      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4">
++        <div className="rounded-lg bg-surface-2 p-6 text-sm text-slate-300">Cargando imagen…</div>
++      </div>
++    )
++  }
++
++  const src = `kgps-icon://${icon.relativePath}`
++  const displayCrop = liveCrop
++
++  return (
++    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4" onClick={onClose}>
++      <div
++        className="flex max-h-[90vh] w-full max-w-3xl flex-col gap-4 overflow-hidden rounded-lg border border-surface-border bg-surface-1 p-4 shadow-xl"
++        onClick={(event) => event.stopPropagation()}
++      >
++        <div className="flex items-start justify-between gap-3">
++          <div>
++            <h2 className="text-sm font-semibold text-slate-100">Recortar icono del objeto</h2>
++            <p className="mt-1 text-xs text-slate-500">
++              Arrastra sobre la imagen para elegir la zona. Mantén Shift para forzar cuadrado.
++            </p>
++          </div>
++          <button
++            type="button"
++            onClick={onClose}
++            className="rounded px-2 py-1 text-xs text-slate-400 hover:bg-surface-2 hover:text-slate-200"
++          >
++            ✕
++          </button>
++        </div>
++
++        <div className="flex flex-wrap items-start gap-4">
++          <div className="max-h-[60vh] flex-1 overflow-auto rounded border border-surface-border bg-surface-2 p-2">
++            <div className="relative inline-block max-w-full">
++              <img
++                ref={imgRef}
++                src={src}
++                alt={icon.fileName}
++                className="block max-h-[55vh] max-w-full select-none"
++                draggable={false}
++                onLoad={(event) => {
++                  const img = event.currentTarget
++                  setNatural({ w: img.naturalWidth || icon.width, h: img.naturalHeight || icon.height })
++                }}
++                onMouseDown={(event) => {
++                  const p = toImageCoords(event.clientX, event.clientY)
++                  if (!p) return
++                  event.preventDefault()
++                  setDragStart(p)
++                  setDragCurrent(p)
++                }}
++                onMouseMove={(event) => {
++                  if (!dragStart) return
++                  const p = toImageCoords(event.clientX, event.clientY)
++                  if (p) setDragCurrent(p)
++                }}
++                onMouseUp={(event) => {
++                  if (!dragStart) return
++                  const p = toImageCoords(event.clientX, event.clientY) || dragCurrent
++                  if (p) setDraft(selectionFromDrag(dragStart, p, event.shiftKey))
++                  setDragStart(null)
++                  setDragCurrent(null)
++                }}
++                onMouseLeave={() => {
++                  if (dragStart && dragCurrent) {
++                    setDraft(selectionFromDrag(dragStart, dragCurrent, false))
++                  }
++                  setDragStart(null)
++                  setDragCurrent(null)
++                }}
++              />
++              {displayCrop && natural.w > 0 && natural.h > 0 && (
++                <div
++                  className="pointer-events-none absolute border-2 border-accent bg-accent/20"
++                  style={{
++                    left: `${(displayCrop.x / natural.w) * 100}%`,
++                    top: `${(displayCrop.y / natural.h) * 100}%`,
++                    width: `${(displayCrop.width / natural.w) * 100}%`,
++                    height: `${(displayCrop.height / natural.h) * 100}%`
++                  }}
++                />
++              )}
++            </div>
++          </div>
++
++          <div className="flex w-40 flex-col items-center gap-3">
++            <div className="text-[10px] uppercase tracking-wide text-slate-500">Vista previa</div>
++            <IconThumbnail iconId={iconId} crop={displayCrop} size={96} />
++            {displayCrop ? (
++              <div className="text-center text-[10px] text-slate-500">
++                {displayCrop.width}×{displayCrop.height}px
++                <br />
++                @ ({displayCrop.x}, {displayCrop.y})
++              </div>
++            ) : (
++              <div className="text-center text-[10px] text-slate-500">Imagen completa</div>
++            )}
++          </div>
++        </div>
++
++        <div className="flex flex-wrap justify-end gap-2 border-t border-surface-border pt-3">
++          <button
++            type="button"
++            onClick={() => onApply(null)}
++            className="rounded-md border border-surface-border px-3 py-1.5 text-xs text-slate-300 hover:bg-surface-2"
++          >
++            Usar imagen completa
++          </button>
++          <button
++            type="button"
++            onClick={onClose}
++            className="rounded-md border border-surface-border px-3 py-1.5 text-xs text-slate-300 hover:bg-surface-2"
++          >
++            Cancelar
++          </button>
++          <button
++            type="button"
++            onClick={() => onApply(draft)}
++            className="rounded-md bg-accent px-3 py-1.5 text-xs font-medium text-white hover:bg-accent-hover"
++          >
++            Aplicar recorte
++          </button>
++        </div>
++      </div>
++    </div>
++  )
++}
+diff --git a/src/renderer/src/modules/items/components/ItemInspector.tsx b/src/renderer/src/modules/items/components/ItemInspector.tsx
+index 13a0094..de247d5 100644
+--- a/src/renderer/src/modules/items/components/ItemInspector.tsx
++++ b/src/renderer/src/modules/items/components/ItemInspector.tsx
+@@ -1,7 +1,15 @@
++import { useState } from 'react'
+ import { useItemsStore } from '../store'
+ import { useContentActions } from '@renderer/shared/content/useContentModule'
+-import { ITEM_CATEGORIES, ITEM_RARITIES, createEmptyItemInput, type Item, type ItemInput } from '@shared-types/item'
++import {
++  ITEM_CATEGORIES,
++  ITEM_RARITIES,
++  createEmptyItemInput,
++  type Item,
++  type ItemInput
++} from '@shared-types/item'
+ import { IconField } from '@renderer/shared/components/IconField'
++import { IconCropPicker } from './IconCropPicker'
+ import {
+   TextField,
+   TextAreaField,
+@@ -63,9 +71,53 @@ function SingleItemInspector({
+   item: Item
+   onCommit(patch: Partial<ItemInput>): void
+ }): JSX.Element {
++  const [cropOpen, setCropOpen] = useState(false)
++
+   return (
+     <div className="flex h-full flex-col gap-4 overflow-y-auto p-4">
+-      <IconField iconId={item.iconId} onChange={(iconId) => onCommit({ iconId })} />
++      <IconField
++        iconId={item.iconId}
++        crop={item.iconCrop}
++        onChange={(iconId) => onCommit({ iconId, iconCrop: null })}
++      />
++
++      {item.iconId != null && (
++        <div className="flex flex-wrap items-center gap-2">
++          <button
++            type="button"
++            onClick={() => setCropOpen(true)}
++            className="rounded border border-surface-border px-2 py-1 text-[11px] text-slate-300 hover:bg-surface-2"
++          >
++            Recortar región…
++          </button>
++          {item.iconCrop && (
++            <button
++              type="button"
++              onClick={() => onCommit({ iconCrop: null })}
++              className="rounded border border-surface-border px-2 py-1 text-[11px] text-slate-400 hover:bg-surface-2"
++            >
++              Quitar recorte
++            </button>
++          )}
++          {item.iconCrop && (
++            <span className="text-[10px] text-slate-600">
++              Recorte {item.iconCrop.width}×{item.iconCrop.height} @ ({item.iconCrop.x}, {item.iconCrop.y})
++            </span>
++          )}
++        </div>
++      )}
++
++      {cropOpen && item.iconId != null && (
++        <IconCropPicker
++          iconId={item.iconId}
++          initialCrop={item.iconCrop}
++          onClose={() => setCropOpen(false)}
++          onApply={(iconCrop) => {
++            onCommit({ iconCrop })
++            setCropOpen(false)
++          }}
++        />
++      )}
+ 
+       <TextField label="Nombre" value={item.name} onCommit={(name) => onCommit({ name })} />
+       <TextAreaField label="Descripción" value={item.description} onCommit={(description) => onCommit({ description })} />
+diff --git a/src/renderer/src/modules/items/itemsTxt.test.ts b/src/renderer/src/modules/items/itemsTxt.test.ts
+index c3342ce..db5a4ce 100644
+--- a/src/renderer/src/modules/items/itemsTxt.test.ts
++++ b/src/renderer/src/modules/items/itemsTxt.test.ts
+@@ -29,6 +29,15 @@ describe('itemsTxt · normalizeItemInput', () => {
+     expect(item.weight).toBe(2.5)
+     expect(item.requiredLevel).toBe(7)
+   })
++  it('conserva iconCrop al normalizar e importa sin recorte si falta', () => {
++    const withCrop = normalizeItemInput({
++      name: 'Sheet Cell',
++      iconId: 3,
++      iconCrop: { x: 32, y: 64, width: 32, height: 32 }
++    })
++    expect(withCrop.iconCrop).toEqual({ x: 32, y: 64, width: 32, height: 32 })
++    expect(normalizeItemInput({ name: 'Sin' }).iconCrop).toBeNull()
++  })
+ })
+ 
+ describe('itemsTxt · parseItemsTxt', () => {
+@@ -62,7 +71,7 @@ describe('itemsTxt · parseItemsTxt', () => {
+ describe('itemsTxt · serializeItemsTxt (ida y vuelta)', () => {
+   it('lo exportado se puede volver a importar', () => {
+     const original = [
+-      { id: 1, name: 'Espada', description: 'd', category: 'weapon', rarity: 'rare', iconId: null, value: 100, weight: 3, stackSize: 1, durability: 50, healthRestore: null, foodRestore: null, manaRestore: null, requiredLevel: 5, requiredProfession: 'guerrero', weaponType: 'sword', armorType: null, bonuses: [{ stat: 'attack', value: 12 }], scripts: [], flags: ['equipable'], checks: [], createdAt: '', updatedAt: '' }
++      { id: 1, name: 'Espada', description: 'd', category: 'weapon', rarity: 'rare', iconId: null, iconCrop: null, value: 100, weight: 3, stackSize: 1, durability: 50, healthRestore: null, foodRestore: null, manaRestore: null, requiredLevel: 5, requiredProfession: 'guerrero', weaponType: 'sword', armorType: null, bonuses: [{ stat: 'attack', value: 12 }], scripts: [], flags: ['equipable'], checks: [], createdAt: '', updatedAt: '' }
+     ]
+     // @ts-expect-error test fixture con la forma de Item
+     const txt = serializeItemsTxt(original)
+diff --git a/src/renderer/src/modules/items/itemsTxt.ts b/src/renderer/src/modules/items/itemsTxt.ts
+index 43400df..7552d8d 100644
+--- a/src/renderer/src/modules/items/itemsTxt.ts
++++ b/src/renderer/src/modules/items/itemsTxt.ts
+@@ -11,6 +11,7 @@ import {
+   ITEM_CATEGORIES,
+   ITEM_RARITIES,
+   createEmptyItemInput,
++  normalizeIconCrop,
+   type Item,
+   type ItemInput,
+   type ItemBonus
+@@ -63,6 +64,7 @@ export function normalizeItemInput(raw: unknown): ItemInput {
+     category: category as ItemInput['category'],
+     rarity: rarity as ItemInput['rarity'],
+     iconId: numOrNull(obj.iconId),
++    iconCrop: normalizeIconCrop(obj.iconCrop),
+     value: Math.max(0, num(obj.value, 0)),
+     weight: Math.max(0, num(obj.weight, 0)),
+     stackSize: Math.max(1, Math.round(num(obj.stackSize, 1))),
+diff --git a/src/renderer/src/shared/components/IconField.tsx b/src/renderer/src/shared/components/IconField.tsx
+index 6698bf0..7af1194 100644
+--- a/src/renderer/src/shared/components/IconField.tsx
++++ b/src/renderer/src/shared/components/IconField.tsx
+@@ -1,9 +1,12 @@
+ import { useState } from 'react'
++import type { IconCrop } from '@shared-types/item'
+ import { IconThumbnail } from './IconThumbnail'
+ import { IconPickerModal } from './IconPickerModal'
+ 
+ interface Props {
+   iconId: number | null
++  /** Recorte opcional (Objetos); si no se pasa, se muestra la imagen completa. */
++  crop?: IconCrop | null
+   onChange(iconId: number | null): void
+ }
+ 
+@@ -12,7 +15,7 @@ interface Props {
+  * monstruos…): miniatura + arrastrar-soltar desde la Biblioteca + botón para
+  * elegir con un clic. Guarda solo la referencia (iconId), nunca la imagen.
+  */
+-export function IconField({ iconId, onChange }: Props): JSX.Element {
++export function IconField({ iconId, crop = null, onChange }: Props): JSX.Element {
+   const [picking, setPicking] = useState(false)
+   return (
+     <>
+@@ -24,7 +27,7 @@ export function IconField({ iconId, onChange }: Props): JSX.Element {
+         }}
+         className="flex items-center gap-3 rounded-md border border-dashed border-surface-border bg-surface-2 p-3"
+       >
+-        <IconThumbnail iconId={iconId} size={48} />
++        <IconThumbnail iconId={iconId} crop={crop} size={48} />
+         <div className="min-w-0 flex-1">
+           <button
+             type="button"
+diff --git a/src/renderer/src/shared/components/IconThumbnail.tsx b/src/renderer/src/shared/components/IconThumbnail.tsx
+index c64c0da..4176b99 100644
+--- a/src/renderer/src/shared/components/IconThumbnail.tsx
++++ b/src/renderer/src/shared/components/IconThumbnail.tsx
+@@ -1,14 +1,17 @@
+-import { useIconPath } from '@renderer/shared/hooks/useIconPath'
++import type { IconCrop } from '@shared-types/item'
++import { useIcon } from '@renderer/shared/hooks/useIconPath'
+ 
+ interface IconThumbnailProps {
+   iconId: number | null
++  /** Si se pasa, muestra solo esa región de la imagen. */
++  crop?: IconCrop | null
+   size?: number
+ }
+ 
+-export function IconThumbnail({ iconId, size = 32 }: IconThumbnailProps): JSX.Element {
+-  const path = useIconPath(iconId)
++export function IconThumbnail({ iconId, crop = null, size = 32 }: IconThumbnailProps): JSX.Element {
++  const icon = useIcon(iconId)
+ 
+-  if (!path) {
++  if (!icon?.relativePath) {
+     return (
+       <div
+         style={{ width: size, height: size }}
+@@ -19,13 +22,41 @@ export function IconThumbnail({ iconId, size = 32 }: IconThumbnailProps): JSX.El
+     )
+   }
+ 
++  const src = `kgps-icon://${icon.relativePath}`
++
++  if (!crop) {
++    return (
++      <img
++        src={src}
++        alt=""
++        style={{ width: size, height: size }}
++        className="shrink-0 rounded object-contain"
++        draggable={false}
++      />
++    )
++  }
++
++  const scaleX = size / crop.width
++  const scaleY = size / crop.height
++
+   return (
+-    <img
+-      src={`kgps-icon://${path}`}
+-      alt=""
++    <div
+       style={{ width: size, height: size }}
+-      className="shrink-0 rounded object-contain"
+-      draggable={false}
+-    />
++      className="relative shrink-0 overflow-hidden rounded bg-surface-1"
++      title={`Recorte ${crop.width}×${crop.height}`}
++    >
++      <img
++        src={src}
++        alt=""
++        draggable={false}
++        className="absolute max-w-none"
++        style={{
++          width: icon.width * scaleX,
++          height: icon.height * scaleY,
++          left: -crop.x * scaleX,
++          top: -crop.y * scaleY
++        }}
++      />
++    </div>
+   )
+ }
+diff --git a/src/renderer/src/shared/content/ContentGrid.tsx b/src/renderer/src/shared/content/ContentGrid.tsx
+index 14ce317..92159a1 100644
+--- a/src/renderer/src/shared/content/ContentGrid.tsx
++++ b/src/renderer/src/shared/content/ContentGrid.tsx
+@@ -77,7 +77,7 @@ export function ContentGrid<T extends ContentRecord>({
+                       : `${rarityBorderClass(record.rarity)}/30 hover:bg-surface-3`
+                   }`}
+                 >
+-                  <IconThumbnail iconId={record.iconId} size={40} />
++                  <IconThumbnail iconId={record.iconId} crop={record.iconCrop} size={40} />
+                   <span className="w-full truncate px-1 text-center text-[10px] text-slate-300">{record.name}</span>
+                   <span className="text-[9px] text-slate-600">#{record.id}</span>
+                   <RarityBadge rarity={record.rarity} />
+diff --git a/src/renderer/src/shared/content/ContentListView.tsx b/src/renderer/src/shared/content/ContentListView.tsx
+index 1c4a75c..c1ec6e8 100644
+--- a/src/renderer/src/shared/content/ContentListView.tsx
++++ b/src/renderer/src/shared/content/ContentListView.tsx
+@@ -57,7 +57,7 @@ export function ContentListView<T extends ContentRecord>({
+                   isSelected ? 'bg-accent-muted text-accent' : 'text-slate-300 hover:bg-surface-2'
+                 }`}
+               >
+-                <IconThumbnail iconId={record.iconId} size={24} />
++                <IconThumbnail iconId={record.iconId} crop={record.iconCrop} size={24} />
+                 <span className="w-14 shrink-0 text-xs text-slate-500">#{record.id}</span>
+                 <span className="flex-1 truncate">{record.name}</span>
+                 <span className="w-28 shrink-0 truncate text-xs text-slate-500">{record.category}</span>
+diff --git a/src/renderer/src/shared/content/ContentTableView.tsx b/src/renderer/src/shared/content/ContentTableView.tsx
+index 9baca50..115a074 100644
+--- a/src/renderer/src/shared/content/ContentTableView.tsx
++++ b/src/renderer/src/shared/content/ContentTableView.tsx
+@@ -54,7 +54,7 @@ export function ContentTableView<T extends ContentRecord>({
+                 }`}
+               >
+                 <td className="px-3 py-1.5">
+-                  <IconThumbnail iconId={record.iconId} size={20} />
++                  <IconThumbnail iconId={record.iconId} crop={record.iconCrop} size={20} />
+                 </td>
+                 <td className="px-3 py-1.5 text-xs text-slate-500">#{record.id}</td>
+                 <td className="px-3 py-1.5">{record.name}</td>
+diff --git a/src/renderer/src/shared/content/contentTypes.ts b/src/renderer/src/shared/content/contentTypes.ts
+index 1368cee..11aade3 100644
+--- a/src/renderer/src/shared/content/contentTypes.ts
++++ b/src/renderer/src/shared/content/contentTypes.ts
+@@ -1,4 +1,4 @@
+-import type { ItemRarity } from '@shared-types/item'
++import type { IconCrop, ItemRarity } from '@shared-types/item'
+ 
+ /**
+  * Forma mínima que todo registro de contenido (objetos, armas, armaduras, …)
+@@ -9,6 +9,8 @@ export interface ContentRecord {
+   id: number
+   name: string
+   iconId: number | null
++  /** Recorte opcional (Objetos Fase 3); ausente en armas/armaduras/monstruos. */
++  iconCrop?: IconCrop | null
+   rarity: ItemRarity
+   category: string
+   updatedAt: string
+diff --git a/src/renderer/src/shared/hooks/useIconPath.ts b/src/renderer/src/shared/hooks/useIconPath.ts
+index dad74bb..154d097 100644
+--- a/src/renderer/src/shared/hooks/useIconPath.ts
++++ b/src/renderer/src/shared/hooks/useIconPath.ts
+@@ -1,30 +1,38 @@
+ import { useEffect, useState } from 'react'
++import type { IconRecord } from '@shared-types/icon'
+ 
+ /** Module-scoped so every grid cell / inspector that references the same iconId shares one IPC round-trip. */
+-const cache = new Map<number, string | null>()
++const cache = new Map<number, IconRecord | null>()
+ 
+-export function useIconPath(iconId: number | null): string | null {
+-  const [path, setPath] = useState<string | null>(iconId !== null ? (cache.get(iconId) ?? null) : null)
++export function useIcon(iconId: number | null): IconRecord | null {
++  const [icon, setIcon] = useState<IconRecord | null>(
++    iconId !== null ? (cache.get(iconId) ?? null) : null
++  )
+ 
+   useEffect(() => {
+     if (iconId === null) {
+-      setPath(null)
++      setIcon(null)
+       return
+     }
+     if (cache.has(iconId)) {
+-      setPath(cache.get(iconId) ?? null)
++      setIcon(cache.get(iconId) ?? null)
+       return
+     }
+     let cancelled = false
+-    window.api.icons.get(iconId).then((icon) => {
+-      const value = icon?.relativePath ?? null
++    window.api.icons.get(iconId).then((record) => {
++      const value = record ?? null
+       cache.set(iconId, value)
+-      if (!cancelled) setPath(value)
++      if (!cancelled) setIcon(value)
+     })
+     return () => {
+       cancelled = true
+     }
+   }, [iconId])
+ 
+-  return path
++  return icon
++}
++
++/** Path relativo del icono; preferir `useIcon` cuando haga falta width/height para el recorte. */
++export function useIconPath(iconId: number | null): string | null {
++  return useIcon(iconId)?.relativePath ?? null
+ }
+diff --git a/src/shared-types/item.ts b/src/shared-types/item.ts
+index c71ab03..ecf1f41 100644
+--- a/src/shared-types/item.ts
++++ b/src/shared-types/item.ts
+@@ -15,6 +15,17 @@ export interface ItemBonus {
+   value: number
+ }
+ 
++/**
++ * Recorte en píxeles sobre la imagen de la biblioteca (origen esquina superior izquierda).
++ * `null` = usar la imagen completa.
++ */
++export interface IconCrop {
++  x: number
++  y: number
++  width: number
++  height: number
++}
++
+ export interface Item {
+   id: number
+   name: string
+@@ -22,6 +33,8 @@ export interface Item {
+   category: ItemCategory
+   rarity: ItemRarity
+   iconId: number | null
++  /** Región de la imagen usada como icono del objeto; null = imagen completa. */
++  iconCrop: IconCrop | null
+   value: number
+   weight: number
+   stackSize: number
+@@ -73,6 +86,7 @@ export function createEmptyItemInput(): ItemInput {
+     category: 'misc',
+     rarity: 'common',
+     iconId: null,
++    iconCrop: null,
+     value: 0,
+     weight: 0,
+     stackSize: 1,
+@@ -90,3 +104,22 @@ export function createEmptyItemInput(): ItemInput {
+     checks: []
+   }
+ }
++
++/** Normaliza y valida un recorte; si es inválido o degenerado, devuelve null. */
++export function normalizeIconCrop(raw: unknown): IconCrop | null {
++  if (!raw || typeof raw !== 'object') return null
++  const o = raw as Record<string, unknown>
++  const x = Number(o.x)
++  const y = Number(o.y)
++  const width = Number(o.width)
++  const height = Number(o.height)
++  if (![x, y, width, height].every((n) => Number.isFinite(n))) return null
++  if (width < 1 || height < 1) return null
++  if (x < 0 || y < 0) return null
++  return {
++    x: Math.round(x),
++    y: Math.round(y),
++    width: Math.round(width),
++    height: Math.round(height)
++  }
++}
+-- 
+2.43.0
+
