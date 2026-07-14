@@ -1,5 +1,5 @@
 {
-  "actualizadoEn": 1783991467512,
+  "actualizadoEn": 1783991833374,
   "misiones": [],
   "tesoros": [],
   "objetos": [
@@ -537,10 +537,10 @@
           "posBtnAtacar": "der"
         },
         "preferenciasT": 1783560347756,
-        "_equipoT": 1783991465133
+        "_equipoT": 1783991831944
       },
-      "t": 1783991465534,
-      "statsT": 1783991465133
+      "t": 1783991832345,
+      "statsT": 1783991831944
     },
     "pmra42v1xlv3c5": {
       "datos": {
@@ -937,5 +937,6 @@
   "moverPinJugador": true,
   "optimizarVisibilidad": true,
   "adminPinClaves": {},
-  "botinesEnemigo": {}
+  "botinesEnemigo": {},
+  "bolsasDrop": []
 }
