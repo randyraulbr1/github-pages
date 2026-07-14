@@ -1,9 +1,25 @@
 {
-  "actualizadoEn": 1783989541325,
+  "actualizadoEn": 1783989699597,
   "misiones": [],
   "tesoros": [],
-  "objetos": [],
-  "posiciones": {},
+  "objetos": [
+    {
+      "id": "0005W4HFW53MD804A4309RAW14",
+      "schemaVersion": 1,
+      "nombre": "Objeto nuevo",
+      "pos": [
+        22.993750528436657,
+        -82.75381654500963
+      ],
+      "activo": true
+    }
+  ],
+  "posiciones": {
+    "0005W4HFW53MD804A4309RAW14": [
+      22.993750528436657,
+      -82.75381654500963
+    ]
+  },
   "eliminados": [
     "correo_central"
   ],
