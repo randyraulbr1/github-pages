@@ -1,5 +1,5 @@
 {
-  "actualizadoEn": 1783998065621,
+  "actualizadoEn": 1783998078697,
   "misiones": [],
   "tesoros": [],
   "objetos": [
@@ -149,8 +149,8 @@
       "telefono": "",
       "pinHash": "0a22b58a09f93652ac592f9424e5dedbeb450965c0e7ddc5b46f8ab21aa96bb1",
       "creado": 1783991932570,
-      "sesionToken": "mrjyqgzvbrbk84kkuw",
-      "sesionT": 1783991932555
+      "sesionToken": "mrk2e776m22tnvcio5",
+      "sesionT": 1783998078450
     }
   ],
   "cofres": [],
@@ -901,10 +901,10 @@
           "vibracionCombate": true,
           "posBtnAtacar": "izq"
         },
-        "_equipoT": 1783998064163
+        "_equipoT": 1783998072069
       },
-      "t": 1783998064565,
-      "statsT": 1783998064163
+      "t": 1783998072470,
+      "statsT": 1783998072069
     }
   },
   "enemigosEstado": {},
