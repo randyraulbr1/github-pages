@@ -3883,7 +3883,9 @@ const Admin = {
   _crearMarcadorObjeto(o) {
     const items = this._itemsDeObjeto(o);
     if (!items.length) return;
-    const principal = Items.obtener(items[0].id);
+    // Items.seguro nunca es null: si el id no está en el catálogo local (objeto
+    // creado desde el editor externo), devuelve un placeholder y se dibuja igual.
+    const principal = Items.seguro(items[0].id);
     if (!principal) return;
     if (!Mapa.puntosInteractivos.find(x => x.id === o.id)) {
       Mapa.registrarPunto({
@@ -3900,12 +3902,14 @@ const Admin = {
   _revisarObjeto(o) {
     const items = this._itemsDeObjeto(o);
     if (!items.length) return;
-    const principal = Items.obtener(items[0].id);
+    const principal = Items.seguro(items[0].id);
     if (!principal) return;
     const disponible = this._objetoDisponible(o);
     if (disponible && !o._marcador) {
       this._liberarMarcadorObjeto(o.id);
-      o._marcador = Mapa.crearMarcadorEmoji(o.pos, principal.icono, 26);
+      // Icono del editor (o.icono) si existe; si no, el del catálogo o 📦.
+      const icono = (o && o.icono) || (principal && principal.icono) || '📦';
+      o._marcador = Mapa.crearMarcadorEmoji(o.pos, icono, 26);
       this._vincularMarcadorObjeto(o, o._marcador);
       if (items.length > 1) {
         const el = o._marcador.getElement?.();
