@@ -1,5 +1,5 @@
 {
-  "actualizadoEn": 1784995459734,
+  "actualizadoEn": 1784995462128,
   "misiones": [],
   "tesoros": [],
   "objetos": [
@@ -60,7 +60,6 @@
       ]
     }
   ],
-  "enemigos": [],
   "posiciones": {
     "0005W4HFW53MD804A4309RAW14": [
       22.993750528436657,
@@ -154,6 +153,7 @@
     }
   ],
   "cofres": [],
+  "cuerposMuertos": {},
   "correoReclamados": [],
   "correoTienda": [],
   "partidas": {
@@ -525,9 +525,9 @@
         "muerto": false,
         "armaEquipada": "arma_nv1",
         "equipoEquipado": {
-          "casco": null,
+          "casco": "casco_nv1",
           "chaleco": null,
-          "botas": null,
+          "botas": "botas_nv1",
           "ropa": null
         },
         "preferencias": {
@@ -537,10 +537,10 @@
           "posBtnAtacar": "der"
         },
         "preferenciasT": 1783560347756,
-        "_equipoT": 1783991919582
+        "_equipoT": 1784995460008
       },
-      "t": 1783991919982,
-      "statsT": 1783991919582
+      "t": 1784995460409,
+      "statsT": 1784995460008
     },
     "pmra42v1xlv3c5": {
       "datos": {
@@ -907,11 +907,13 @@
       "statsT": 1783998532777
     }
   },
+  "enemigos": [],
   "enemigosEstado": {},
   "objetosEstado": {},
-  "tesorosEstado": {},
   "tiendasAdmin": [],
   "tiendasStock": {},
+  "tesorosEstado": {},
+  "tesoroIconoMapa": "🎁",
   "combate": {
     "danoMin": 5,
     "danoMax": 8,
@@ -922,8 +924,6 @@
     "radioPersecucion": 20,
     "curacionMs": 120000
   },
-  "cuerposMuertos": {},
-  "tesoroIconoMapa": "🎁",
   "combateEnemigos": {
     "danoMin": 5,
     "danoMax": 8,
